@@ -1,0 +1,71 @@
+name: changelog-drift
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    name: Detect Lemon Squeezy changelog drift
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run drift check
+        id: drift
+        run: node scripts/check-changelog.mjs
+
+      - name: Open drift issue
+        if: failure() && steps.drift.outputs.drifted == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PREVIOUS_HASH: ${{ steps.drift.outputs.previous_hash }}
+          CURRENT_HASH: ${{ steps.drift.outputs.current_hash }}
+          PREVIOUS_SEEN: ${{ steps.drift.outputs.previous_seen }}
+          CURRENT_SEEN: ${{ steps.drift.outputs.current_seen }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          existing=$(gh issue list --repo "$REPO" --state open --label changelog-drift --json number --jq '.[0].number' || true)
+          body=$(cat <<EOF_BODY
+          The Lemon Squeezy API changelog has changed since the last committed snapshot.
+
+          - URL: https://docs.lemonsqueezy.com/api/getting-started/changelog
+          - Previous hash: \`$PREVIOUS_HASH\` (seen $PREVIOUS_SEEN)
+          - Current hash:  \`$CURRENT_HASH\` (seen $CURRENT_SEEN)
+          - Workflow run:  $RUN_URL
+
+          ## What to do
+
+          1. Open the changelog URL above and review the new entries.
+          2. Update \`src/support/manifest.ts\`:
+             - Add new webhook events to \`RECOMMENDED_WEBHOOK_EVENTS\` or \`OPTIONAL_WEBHOOK_EVENTS\`.
+             - Add a row to \`ACKNOWLEDGED_CHANGELOG_ENTRIES\` with the date + how it's handled.
+          3. Refresh the snapshot:
+             \`\`\`
+             npm run check:changelog -- --update
+             \`\`\`
+          4. Commit both the manifest change and \`src/support/changelog-snapshot.json\`.
+          EOF_BODY
+          )
+
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$REPO" --body "$body"
+          else
+            gh issue create --repo "$REPO" \
+              --title "Lemon Squeezy changelog drift detected ($CURRENT_SEEN)" \
+              --label changelog-drift \
+              --body "$body"
+          fi

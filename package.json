@@ -1,0 +1,68 @@
+{
+  "name": "fresh-squeezy",
+  "version": "0.1.0",
+  "description": "Validator-first Lemon Squeezy setup toolkit. Verify your integration before it hits production.",
+  "keywords": [
+    "lemon-squeezy",
+    "lemonsqueezy",
+    "billing",
+    "validator",
+    "doctor",
+    "cli"
+  ],
+  "license": "MIT",
+  "author": "fresh-squeezy contributors",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/YosefHayim/fresh-squeezy.git"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "bin": {
+    "fresh-squeezy": "./bin/fresh-squeezy.js"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:live": "LEMON_SQUEEZY_LIVE_SMOKE=1 vitest run tests/live",
+    "typecheck": "tsc --noEmit",
+    "check:changelog": "node scripts/check-changelog.mjs",
+    "prepublishOnly": "npm run typecheck && npm run test && npm run build"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "commander": "^12.1.0",
+    "dotenv": "^16.4.5",
+    "inquirer": "^10.2.0",
+    "ora": "^8.1.0"
+  },
+  "devDependencies": {
+    "@types/inquirer": "^9.0.7",
+    "@types/node": "^20.14.0",
+    "@vitest/coverage-v8": "^2.1.0",
+    "tsup": "^8.3.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.1.0"
+  }
+}
