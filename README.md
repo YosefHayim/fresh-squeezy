@@ -25,7 +25,7 @@ The official [`@lemonsqueezy/lemonsqueezy.js`](https://github.com/lmsqueezy/lemo
 
 Most teams already use the official SDK or plain `fetch` for API calls. They don't need another wrapper — they need **fewer silent misconfigurations**. `fresh-squeezy` is intentionally thin:
 
-- 4 validators (`connection`, `store`, `product`, `webhook`) that return the same `ValidationResult` shape every time
+- 7 validators (`connection`, `store`, `product`, `webhook`, `discount`, `licenseKey`, `subscriptionPlan`) that return the same `ValidationResult` shape every time
 - `doctor()` composes them into one report
 - A raw `request()` escape hatch so you never hit a wall when the platform adds something we haven't wrapped yet
 - Static, reviewed support manifest — no live scraping in runtime code
@@ -47,6 +47,9 @@ This project is MIT-licensed and deliberately scoped to stay small. The goal is 
 | `store`      | Wrong store ID, store owned by a different account                                                                                |
 | `product`    | Unpublished product, product on the wrong store, missing or all-draft variants, missing buy URL                                   |
 | `webhook`    | Webhook URL not registered, missing recommended events (order lifecycle, subscription lifecycle, refunds), missing optional newer events |
+| `discount`   | Draft discounts, expired or not-yet-active windows, invalid amounts (≤0 or >100%), store ownership mismatch                       |
+| `licenseKey` | Disabled keys, expired keys, keys at activation limit, store ownership mismatch                                                    |
+| `subscriptionPlan` | Non-subscription variants, invalid billing intervals, zero-price plans, inconsistent trial settings, draft variants, store ownership mismatch |
 
 Every validator returns the same `ValidationResult` — stable public contract, switchable by `issue.code`.
 
@@ -178,7 +181,10 @@ client.validateConnection()
 client.validateStore(id)
 client.validateProduct({ productId, expectedStoreId? })
 client.validateWebhook({ storeId, url })
-client.doctor({ storeId?, productId?, webhookUrl? })
+client.validateDiscount({ storeId, discountId })
+client.validateLicenseKey({ storeId, licenseKeyId })
+client.validateSubscriptionPlan({ storeId, variantId })
+client.doctor({ storeId?, productId?, webhookUrl?, discountId?, licenseKeyId?, variantId? })
 ```
 
 ### `ValidationResult<T>`
