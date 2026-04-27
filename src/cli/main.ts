@@ -35,6 +35,9 @@ program
   .option("--all-stores", "Run against every reachable store, no prompt")
   .option("--product-id <id>", "Product to validate")
   .option("--webhook-url <url>", "Webhook URL to validate")
+  .option("--discount-id <id>", "Discount to validate")
+  .option("--license-key-id <id>", "License key to validate")
+  .option("--variant-id <id>", "Subscription plan variant to validate")
   .option("--json", "Emit machine-readable JSON")
   .action(async (opts: DoctorCliOpts) => {
     const code = await runDoctorCommand({
@@ -43,6 +46,9 @@ program
       allStores: Boolean(opts.allStores),
       productId: opts.productId,
       webhookUrl: opts.webhookUrl,
+      discountId: opts.discountId,
+      licenseKeyId: opts.licenseKeyId,
+      variantId: opts.variantId,
       json: Boolean(opts.json),
       isInteractive,
     });
@@ -146,6 +152,9 @@ interface DoctorCliOpts {
   allStores?: boolean;
   productId?: string;
   webhookUrl?: string;
+  discountId?: string;
+  licenseKeyId?: string;
+  variantId?: string;
   json?: boolean;
 }
 

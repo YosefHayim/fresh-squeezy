@@ -10,6 +10,9 @@ export interface DoctorCommandOptions {
   allStores?: boolean;
   productId?: string;
   webhookUrl?: string;
+  discountId?: string;
+  licenseKeyId?: string;
+  variantId?: string;
   json?: boolean;
   isInteractive?: boolean;
 }
@@ -50,6 +53,9 @@ export async function runDoctorCommand(options: DoctorCommandOptions): Promise<n
           storeId,
           productId: options.productId,
           webhookUrl: options.webhookUrl,
+          discountId: options.discountId,
+          licenseKeyId: options.licenseKeyId,
+          variantId: options.variantId,
         })
       )
     );
