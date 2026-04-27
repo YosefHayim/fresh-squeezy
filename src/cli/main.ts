@@ -86,6 +86,33 @@ validate
   .option("--json", "Emit machine-readable JSON")
   .action(async (opts: ValidateCliOpts) => runValidate("webhook", opts));
 
+validate
+  .command("discount")
+  .description("Check a discount code is valid and redeemable")
+  .requiredOption("--discount-id <id>", "Discount ID to validate")
+  .option("--store-ids <ids>", "Store ID for ownership check (first ID used)", parseCsv)
+  .option("-m, --mode <mode>", "test or live", parseMode)
+  .option("--json", "Emit machine-readable JSON")
+  .action(async (opts: ValidateCliOpts) => runValidate("discount", opts));
+
+validate
+  .command("license-key")
+  .description("Check a license key is active and not at its activation limit")
+  .requiredOption("--license-key-id <id>", "License key ID to validate")
+  .option("--store-ids <ids>", "Store ID for ownership check (first ID used)", parseCsv)
+  .option("-m, --mode <mode>", "test or live", parseMode)
+  .option("--json", "Emit machine-readable JSON")
+  .action(async (opts: ValidateCliOpts) => runValidate("license-key", opts));
+
+validate
+  .command("subscription-plan")
+  .description("Check a subscription plan variant has valid billing interval and trial config")
+  .requiredOption("--variant-id <id>", "Variant ID of the subscription plan")
+  .option("--store-ids <ids>", "Store ID for ownership check (first ID used)", parseCsv)
+  .option("-m, --mode <mode>", "test or live", parseMode)
+  .option("--json", "Emit machine-readable JSON")
+  .action(async (opts: ValidateCliOpts) => runValidate("subscription-plan", opts));
+
 program
   .command("init")
   .description("Interactive setup: ask for credentials, pick a store, run doctor")
@@ -128,6 +155,9 @@ interface ValidateCliOpts {
   allStores?: boolean;
   productId?: string;
   webhookUrl?: string;
+  discountId?: string;
+  licenseKeyId?: string;
+  variantId?: string;
   json?: boolean;
 }
 
@@ -138,6 +168,9 @@ async function runValidate(target: ValidateTarget, opts: ValidateCliOpts): Promi
     allStores: Boolean(opts.allStores),
     productId: opts.productId,
     webhookUrl: opts.webhookUrl,
+    discountId: opts.discountId,
+    licenseKeyId: opts.licenseKeyId,
+    variantId: opts.variantId,
     json: Boolean(opts.json),
     isInteractive,
   });

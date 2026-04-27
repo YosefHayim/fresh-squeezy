@@ -11,6 +11,9 @@ import {
   userDoc,
   variantsCollectionPublished,
   webhooksCollectionComplete,
+  publishedDiscountDoc,
+  activeLicenseKeyDoc,
+  subscriptionVariantDoc,
 } from "../fixtures/sandbox/data.js";
 
 function makeClient(routes: Parameters<typeof createMockFetch>[0]) {
@@ -74,5 +77,62 @@ describe("doctor", () => {
 
     expect(report.results).toHaveLength(1);
     expect(report.results[0]?.name).toBe("connection");
+  });
+
+  it("runs discount validator when discountId is provided", async () => {
+    const http = makeClient([
+      { match: pathIs("/v1/users/me"), status: 200, body: userDoc },
+      { match: pathIs("/v1/stores"), status: 200, body: storesCollection },
+      { match: pathIs("/v1/stores/42"), status: 200, body: storeDoc },
+      { match: pathIs("/v1/discounts/600"), status: 200, body: publishedDiscountDoc },
+    ]);
+
+    const report = await doctor(http, "test", { storeId: 42, discountId: 600 });
+
+    expect(report.ok).toBe(true);
+    expect(report.results.some((r) => r.name === "discount")).toBe(true);
+  });
+
+  it("runs license key validator when licenseKeyId is provided", async () => {
+    const http = makeClient([
+      { match: pathIs("/v1/users/me"), status: 200, body: userDoc },
+      { match: pathIs("/v1/stores"), status: 200, body: storesCollection },
+      { match: pathIs("/v1/stores/42"), status: 200, body: storeDoc },
+      { match: pathIs("/v1/license-keys/700"), status: 200, body: activeLicenseKeyDoc },
+    ]);
+
+    const report = await doctor(http, "test", { storeId: 42, licenseKeyId: 700 });
+
+    expect(report.ok).toBe(true);
+    expect(report.results.some((r) => r.name === "licenseKey")).toBe(true);
+  });
+
+  it("runs subscription plan validator when variantId is provided", async () => {
+    const http = makeClient([
+      { match: pathIs("/v1/users/me"), status: 200, body: userDoc },
+      { match: pathIs("/v1/stores"), status: 200, body: storesCollection },
+      { match: pathIs("/v1/stores/42"), status: 200, body: storeDoc },
+      { match: pathIs("/v1/variants/800"), status: 200, body: subscriptionVariantDoc },
+      { match: pathIs("/v1/products/100"), status: 200, body: publishedProductDoc },
+    ]);
+
+    const report = await doctor(http, "test", { storeId: 42, variantId: 800 });
+
+    expect(report.ok).toBe(true);
+    expect(report.results.some((r) => r.name === "subscriptionPlan")).toBe(true);
+  });
+
+  it("includes discount failure in overall ok", async () => {
+    const http = makeClient([
+      { match: pathIs("/v1/users/me"), status: 200, body: userDoc },
+      { match: pathIs("/v1/stores"), status: 200, body: storesCollection },
+      { match: pathIs("/v1/stores/42"), status: 200, body: storeDoc },
+      { match: pathIs("/v1/discounts/9999"), status: 404, body: unauthorizedError },
+    ]);
+
+    const report = await doctor(http, "test", { storeId: 42, discountId: 9999 });
+
+    expect(report.ok).toBe(false);
+    expect(report.results.some((r) => r.name === "discount" && !r.ok)).toBe(true);
   });
 });

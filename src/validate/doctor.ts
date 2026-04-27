@@ -4,6 +4,9 @@ import { validateConnection } from "./connection.js";
 import { validateStore } from "./store.js";
 import { validateProduct } from "./product.js";
 import { validateWebhook } from "./webhook.js";
+import { validateDiscount } from "./discount.js";
+import { validateLicenseKey } from "./licenseKey.js";
+import { validateSubscriptionPlan } from "./subscriptionPlan.js";
 
 /**
  * Optional targets for the doctor run. If a target is omitted, its validator
@@ -13,6 +16,9 @@ export interface DoctorOptions {
   storeId?: string | number;
   productId?: string | number;
   webhookUrl?: string;
+  discountId?: string | number;
+  licenseKeyId?: string | number;
+  variantId?: string | number;
 }
 
 /**
@@ -55,6 +61,33 @@ export async function doctor(
       await validateWebhook(http, mode, {
         storeId: options.storeId,
         url: options.webhookUrl,
+      })
+    );
+  }
+
+  if (options.storeId !== undefined && options.discountId !== undefined) {
+    results.push(
+      await validateDiscount(http, mode, {
+        storeId: options.storeId,
+        discountId: options.discountId,
+      })
+    );
+  }
+
+  if (options.storeId !== undefined && options.licenseKeyId !== undefined) {
+    results.push(
+      await validateLicenseKey(http, mode, {
+        storeId: options.storeId,
+        licenseKeyId: options.licenseKeyId,
+      })
+    );
+  }
+
+  if (options.storeId !== undefined && options.variantId !== undefined) {
+    results.push(
+      await validateSubscriptionPlan(http, mode, {
+        storeId: options.storeId,
+        variantId: options.variantId,
       })
     );
   }

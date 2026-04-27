@@ -19,6 +19,34 @@ export interface VariantAttributes {
   updated_at?: string;
 }
 
+/**
+ * Extended variant attributes for subscription plan validation. In Lemon
+ * Squeezy, "subscription plans" live as variants with `is_subscription: true`.
+ * These fields are only present on subscription variants and are checked by
+ * the subscription plan validator to catch misconfigured trial periods,
+ * zero-price plans, and invalid billing intervals.
+ */
+export interface SubscriptionVariantAttributes extends VariantAttributes {
+  is_subscription: boolean;
+  interval: string | null;
+  interval_count: number | null;
+  has_free_trial: boolean;
+  trial_interval: string | null;
+  trial_interval_count: number | null;
+  price: number;
+}
+
+/**
+ * Fetch a single variant by ID. Used by the subscription plan validator to
+ * inspect subscription-specific fields (interval, trial, price).
+ */
+export async function getVariant<TAttr = VariantAttributes>(
+  http: HttpClient,
+  variantId: string | number
+): Promise<JsonApiResource<TAttr>> {
+  return http.getResource<TAttr>(`/v1/variants/${variantId}`);
+}
+
 export async function listVariantsForProduct(
   http: HttpClient,
   productId: string | number

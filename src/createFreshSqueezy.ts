@@ -5,10 +5,15 @@ import { validateConnection, type ConnectionSummary } from "./validate/connectio
 import { validateStore } from "./validate/store.js";
 import { validateProduct, type ProductValidationOptions } from "./validate/product.js";
 import { validateWebhook, type WebhookValidationOptions } from "./validate/webhook.js";
+import { validateDiscount, type DiscountValidationOptions } from "./validate/discount.js";
+import { validateLicenseKey, type LicenseKeyValidationOptions } from "./validate/licenseKey.js";
+import { validateSubscriptionPlan, type SubscriptionPlanValidationOptions, type SubscriptionPlanSummary } from "./validate/subscriptionPlan.js";
 import { doctor, type DoctorOptions } from "./validate/doctor.js";
 import type { StoreAttributes } from "./resources/stores.js";
 import type { ProductAttributes } from "./resources/products.js";
 import type { WebhookAttributes } from "./resources/webhooks.js";
+import type { DiscountAttributes } from "./resources/discounts.js";
+import type { LicenseKeyAttributes } from "./resources/licenseKeys.js";
 
 /**
  * The public client. All consumer code flows through the factory below —
@@ -26,6 +31,9 @@ export interface FreshSqueezyClient {
   validateStore(storeId: string | number): Promise<ValidationResult<StoreAttributes>>;
   validateProduct(options: ProductValidationOptions): Promise<ValidationResult<ProductAttributes>>;
   validateWebhook(options: WebhookValidationOptions): Promise<ValidationResult<WebhookAttributes>>;
+  validateDiscount(options: DiscountValidationOptions): Promise<ValidationResult<DiscountAttributes>>;
+  validateLicenseKey(options: LicenseKeyValidationOptions): Promise<ValidationResult<LicenseKeyAttributes>>;
+  validateSubscriptionPlan(options: SubscriptionPlanValidationOptions): Promise<ValidationResult<SubscriptionPlanSummary>>;
   doctor(options?: DoctorOptions): Promise<DoctorReport>;
 }
 
@@ -52,11 +60,17 @@ export function createFreshSqueezy(config: FreshSqueezyConfig = {}): FreshSqueez
     validateStore: (storeId) => validateStore(http, resolved.mode, storeId),
     validateProduct: (options) => validateProduct(http, resolved.mode, options),
     validateWebhook: (options) => validateWebhook(http, resolved.mode, options),
+    validateDiscount: (options) => validateDiscount(http, resolved.mode, options),
+    validateLicenseKey: (options) => validateLicenseKey(http, resolved.mode, options),
+    validateSubscriptionPlan: (options) => validateSubscriptionPlan(http, resolved.mode, options),
     doctor: (options) =>
       doctor(http, resolved.mode, {
         storeId: options?.storeId ?? resolved.storeId,
         productId: options?.productId,
         webhookUrl: options?.webhookUrl,
+        discountId: options?.discountId,
+        licenseKeyId: options?.licenseKeyId,
+        variantId: options?.variantId,
       }),
   };
 }
