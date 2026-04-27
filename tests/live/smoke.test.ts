@@ -9,7 +9,14 @@ import { createFreshSqueezy } from "../../src/createFreshSqueezy.js";
  * This file is excluded from the default `vitest run` via vitest.config.ts.
  */
 
-const enabled = process.env.LEMON_SQUEEZY_LIVE_SMOKE === "1";
+/**
+ * Gate on both the opt-in flag AND the API key being present.
+ * Why: the workflow is also triggered manually (workflow_dispatch) and on forks
+ * where no secret is configured — without the key check we'd surface a misleading
+ * "missing API key" failure instead of a clean skip.
+ */
+const enabled =
+  process.env.LEMON_SQUEEZY_LIVE_SMOKE === "1" && Boolean(process.env.LEMON_SQUEEZY_API_KEY);
 
 describe.runIf(enabled)("live smoke", () => {
   it("authenticates and lists stores against the real API", async () => {

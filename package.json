@@ -45,7 +45,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:live": "LEMON_SQUEEZY_LIVE_SMOKE=1 vitest run tests/live",
+    "test:live": "LEMON_SQUEEZY_LIVE_SMOKE=1 vitest run --config vitest.live.config.ts",
     "typecheck": "tsc --noEmit",
     "check:changelog": "node scripts/check-changelog.mjs",
     "prepublishOnly": "npm run typecheck && npm run test && npm run build"
