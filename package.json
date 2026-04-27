@@ -1,6 +1,6 @@
 {
   "name": "fresh-squeezy",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Validator-first Lemon Squeezy setup toolkit. Verify your integration before it hits production.",
   "keywords": [
     "lemon-squeezy",
