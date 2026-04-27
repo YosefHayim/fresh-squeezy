@@ -73,19 +73,19 @@ Read `plan.md` first — it documents the non-goals as strongly as the goals. In
 
 When the weekly `changelog-drift` workflow opens an issue:
 
-1. Open the Lemon Squeezy changelog URL from the issue body.
-2. Read the new entries. For each one, decide:
-   - **New webhook event we should recommend?** → add to `RECOMMENDED_WEBHOOK_EVENTS` in `src/support/manifest.ts`.
-   - **New webhook event but integration-specific?** → add to `OPTIONAL_WEBHOOK_EVENTS`.
-   - **New resource / attribute we don't validate yet?** → add a row to `ACKNOWLEDGED_CHANGELOG_ENTRIES` explaining why it's not wrapped.
-3. Update the JSDoc block above each list with the date + link.
-4. Refresh the snapshot so future runs start from the new baseline:
+1. **Read the "New entries" section.** The issue body includes a structured diff listing each new changelog entry with its date, heading, and a body excerpt.
+2. **For each entry, decide:** codify as a check, document as acknowledged, or skip.
+   - **Codify:** Add a validator or wire an existing one to cover the new platform behavior.
+   - **Acknowledge:** The entry is known but out of scope — document it below.
+   - **Skip:** Purely cosmetic or irrelevant changes (typo fixes, branding).
+3. **If codifying or acknowledging:** add a row to `ACKNOWLEDGED_CHANGELOG_ENTRIES` in `src/support/manifest.ts` with the entry's date, a one-line summary, and the action taken (e.g. which validator handles it, or why it's intentionally unwrapped). If codifying, also wire the actual check in `src/validate/`.
+4. **Refresh the snapshot** so future runs start from the new baseline:
    ```
    npm run check:changelog -- --update
    ```
-5. Commit both `src/support/manifest.ts` and `src/support/changelog-snapshot.json` in the same PR. Close the issue on merge.
+5. **Open a PR** titled `chore(changelog): adopt YYYY-MM-DD entries`. Include both `src/support/manifest.ts` and `src/support/changelog-snapshot.json`. Close the drift issue from the PR (e.g. `Closes #123` in the description).
 
-The drift workflow is advisory — it never modifies code automatically. The snapshot file is small (~200 bytes) and safe to diff in reviews.
+The drift workflow is advisory — it never modifies code automatically. The snapshot file is small and safe to diff in reviews.
 
 ## Testing
 

@@ -33,10 +33,23 @@ jobs:
           CURRENT_HASH: ${{ steps.drift.outputs.current_hash }}
           PREVIOUS_SEEN: ${{ steps.drift.outputs.previous_seen }}
           CURRENT_SEEN: ${{ steps.drift.outputs.current_seen }}
+          DIFF_B64: ${{ steps.drift.outputs.diff_b64 }}
           REPO: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
+
+          # Decode the structured diff if present
+          if [ -n "$DIFF_B64" ]; then
+            DIFF=$(printf '%s' "$DIFF_B64" | base64 -d)
+            DIFF_SECTION="## New entries since last snapshot
+
+          $DIFF"
+          else
+            DIFF_SECTION="## New entries since last snapshot
+
+          No structured diff available — review the changelog page manually or re-run after updating the snapshot once."
+          fi
 
           existing=$(gh issue list --repo "$REPO" --state open --label changelog-drift --json number --jq '.[0].number' || true)
           body=$(cat <<EOF_BODY
@@ -46,6 +59,8 @@ jobs:
           - Previous hash: \`$PREVIOUS_HASH\` (seen $PREVIOUS_SEEN)
           - Current hash:  \`$CURRENT_HASH\` (seen $CURRENT_SEEN)
           - Workflow run:  $RUN_URL
+
+          $DIFF_SECTION
 
           ## What to do
 
