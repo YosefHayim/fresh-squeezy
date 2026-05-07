@@ -1,3 +1,4 @@
+import { sameWebhookUrl } from "../core/equality.js";
 import { FreshSqueezyError } from "../core/errors.js";
 import type { HttpClient } from "../core/http.js";
 import type { Mode, ValidationIssue, ValidationResult } from "../core/types.js";
@@ -43,7 +44,7 @@ export async function validateWebhook(
     return buildResult("webhook", mode, issues);
   }
 
-  const match = webhooks.find((webhook) => normalizeUrl(webhook.attributes.url) === normalizeUrl(options.url));
+  const match = webhooks.find((webhook) => sameWebhookUrl(webhook.attributes.url, options.url));
   if (!match) {
     issues.push(
       issue(
@@ -90,12 +91,4 @@ export async function validateWebhook(
   }
 
   return buildResult("webhook", mode, issues, match.attributes);
-}
-
-/**
- * Compare webhook URLs without being tripped up by trailing slashes.
- * Lemon Squeezy strips trailing slashes on save; users often pass them in.
- */
-function normalizeUrl(raw: string): string {
-  return raw.replace(/\/+$/, "").toLowerCase();
 }

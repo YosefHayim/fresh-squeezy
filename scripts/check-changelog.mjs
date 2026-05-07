@@ -21,7 +21,7 @@ import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const CHANGELOG_URL = "https://docs.lemonsqueezy.com/api/getting-started/changelog";
 
@@ -31,34 +31,48 @@ const snapshotPath = resolve(repoRoot, "src/support/changelog-snapshot.json");
 
 const updateMode = process.argv.includes("--update");
 
-/** Date patterns commonly used in changelog headings. */
-const DATE_RE = /\d{4}-\d{2}-\d{2}|(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}/i;
+/**
+ * Date patterns commonly used in changelog headings. Accepts ISO
+ * (`2026-02-25`) and the long form Lemon Squeezy actually renders
+ * (`February 25th, 2026` — note the ordinal suffix), so the structured
+ * diff in the drift issue actually lists new entries instead of falling
+ * back to "no diff available".
+ */
+export const DATE_RE = /\d{4}-\d{2}-\d{2}|(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4}/i;
 
 async function main() {
   const html = await fetchText(CHANGELOG_URL);
   const normalized = normalize(html);
-  const hash = sha256(normalized);
+  const currentEntries = extractEntries(normalized);
+  const hash = sha256(canonicalize(currentEntries));
   const fetchedAt = new Date().toISOString();
 
   if (updateMode || !existsSync(snapshotPath)) {
-    await writeSnapshot({ url: CHANGELOG_URL, fetchedAt, hash, html: normalized });
+    await writeSnapshot({
+      url: CHANGELOG_URL,
+      fetchedAt,
+      hash,
+      entryCount: currentEntries.length,
+      entries: currentEntries,
+    });
     console.log(`Snapshot written: ${snapshotPath}`);
-    console.log(`  url:  ${CHANGELOG_URL}`);
-    console.log(`  hash: ${hash}`);
+    console.log(`  url:        ${CHANGELOG_URL}`);
+    console.log(`  hash:       ${hash}`);
+    console.log(`  entries:    ${currentEntries.length}`);
     return;
   }
 
   const previous = JSON.parse(await readFile(snapshotPath, "utf8"));
   if (previous.hash === hash) {
     console.log(`No drift. Changelog unchanged since ${previous.fetchedAt}.`);
+    console.log(`  ${currentEntries.length} entries match the snapshot.`);
     return;
   }
 
   // --- Drift detected ---
   process.exitCode = 1;
 
-  const currentEntries = extractEntries(normalized);
-  const previousEntries = extractEntries(previous.html || "");
+  const previousEntries = previousSnapshotEntries(previous);
   const newEntries = diffEntries(previousEntries, currentEntries);
   const formattedDiff = formatDiff(newEntries);
 
@@ -106,15 +120,52 @@ async function fetchText(url) {
 }
 
 /**
- * Strip volatile noise so the hash only changes when meaningful content
- * changes. We intentionally keep this conservative — a false positive costs
- * a human review, a false negative costs a silent miss.
+ * Strip volatile noise so the snapshot is stable across site rebuilds.
+ *
+ * The raw HTML is a Next.js page full of Tailwind class strings and asset
+ * hashes that churn whenever the docs site redeploys. We isolate the
+ * changelog body (`<main>` if present, else the full doc), drop scripts /
+ * styles / comments, and collapse whitespace. Tags themselves are kept so
+ * `extractEntries()` can still find `<hN>` headings for the drift diff.
+ *
+ * The hash is computed from `hashable(normalized)` so structural class-name
+ * churn does not flip the hash on its own.
  */
 function normalize(html) {
-  return html
+  return isolateMain(html)
     .replace(/<script[\s\S]*?<\/script>/gi, "")
     .replace(/<style[\s\S]*?<\/style>/gi, "")
     .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Strip the `<main>` wrapper if present so we hash the changelog body, not
+ * the navigation chrome. Falls back to the whole document if the marker
+ * disappears in a future redesign.
+ */
+function isolateMain(html) {
+  const match = html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i);
+  return match ? match[1] : html;
+}
+
+/**
+ * Reduce normalized HTML to plain text for hashing. Drops tags, decodes
+ * common entities, collapses whitespace. Used only for the hash — the
+ * snapshot still stores the tag-preserving normalized form so the diff
+ * path can locate headings.
+ */
+function hashable(html) {
+  return html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#x27;/g, "'")
+    .replace(/&nbsp;/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -156,7 +207,7 @@ function stripTags(html) {
  * heading elements whose text contains a date pattern. Each entry
  * includes the date, heading text, and a plain-text body excerpt.
  */
-function extractEntries(html) {
+export function extractEntries(html) {
   if (!html) return [];
 
   const entries = [];
@@ -176,14 +227,65 @@ function extractEntries(html) {
     const excerpt = stripTags(html.slice(bodyStart, bodyEnd)).replace(/\s+/g, " ").trim().slice(0, 400);
 
     const dateMatch = headings[i].text.match(DATE_RE);
+    const date = dateMatch ? dateMatch[0] : "unknown";
     entries.push({
-      date: dateMatch ? dateMatch[0] : "unknown",
+      date,
+      isoDate: toIsoDate(date),
       heading: headings[i].text.trim(),
       excerpt,
     });
   }
 
-  return entries;
+  // Sort newest-first so the snapshot is naturally readable: open the file
+  // and the most recent entries are at the top of the array.
+  return entries.sort((a, b) => (b.isoDate ?? "").localeCompare(a.isoDate ?? ""));
+}
+
+const MONTHS = {
+  january: "01", february: "02", march: "03", april: "04",
+  may: "05", june: "06", july: "07", august: "08",
+  september: "09", october: "10", november: "11", december: "12",
+};
+
+/**
+ * Convert a heading date — either ISO (`2026-02-25`) or long form
+ * (`February 25th, 2026`) — to a sortable ISO string. Returns `null` if the
+ * date can't be parsed; that pushes such entries to the end of the
+ * newest-first sort.
+ */
+export function toIsoDate(raw) {
+  if (!raw || raw === "unknown") return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const m = raw.match(/^(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})$/i);
+  if (!m) return null;
+  const month = MONTHS[m[1].toLowerCase()];
+  if (!month) return null;
+  const day = m[2].padStart(2, "0");
+  return `${m[3]}-${month}-${day}`;
+}
+
+/**
+ * Reduce an entry list to a stable string for hashing. Hashes the
+ * heading + excerpt of each entry — order-stable because `extractEntries`
+ * sorts newest-first. A new entry, an edited excerpt, or a removed entry
+ * all flip the hash; cosmetic HTML / class-name changes do not.
+ */
+function canonicalize(entries) {
+  return JSON.stringify(
+    entries.map((e) => ({ heading: e.heading, excerpt: e.excerpt }))
+  );
+}
+
+/**
+ * Read entries from a previous snapshot, supporting both the new structured
+ * format (`entries` array) and the legacy HTML-blob format (`html` field).
+ * Lets the drift workflow keep working through the rollout that flipped
+ * the snapshot shape.
+ */
+function previousSnapshotEntries(previous) {
+  if (Array.isArray(previous?.entries)) return previous.entries;
+  if (typeof previous?.html === "string") return extractEntries(previous.html);
+  return [];
 }
 
 /**
@@ -191,7 +293,7 @@ function extractEntries(html) {
  * matched by heading text. Headings are unique enough for changelog
  * entries to avoid false negatives.
  */
-function diffEntries(previous, current) {
+export function diffEntries(previous, current) {
   const prevHeadings = new Set(previous.map(e => e.heading));
   return current.filter(e => !prevHeadings.has(e.heading));
 }
@@ -203,7 +305,8 @@ function diffEntries(previous, current) {
 function formatDiff(newEntries) {
   if (newEntries.length === 0) return "";
   return newEntries.map(e => {
-    const block = [`### ${e.date}: ${e.heading}`];
+    const title = e.heading === e.date ? e.date : `${e.date}: ${e.heading}`;
+    const block = [`### ${title}`];
     if (e.excerpt) {
       block.push("", e.excerpt + (e.excerpt.length >= 400 ? "…" : ""));
     }
@@ -211,7 +314,13 @@ function formatDiff(newEntries) {
   }).join("\n\n");
 }
 
-main().catch((err) => {
-  console.error(err instanceof Error ? err.stack ?? err.message : String(err));
-  process.exit(2);
-});
+// Only run as a CLI when invoked directly (e.g. `node scripts/check-changelog.mjs`).
+// Importing this module from a test or script should not trigger a network fetch.
+const invokedAsCli =
+  process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+if (invokedAsCli) {
+  main().catch((err) => {
+    console.error(err instanceof Error ? err.stack ?? err.message : String(err));
+    process.exit(2);
+  });
+}

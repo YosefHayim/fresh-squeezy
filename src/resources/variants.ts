@@ -15,6 +15,13 @@ export interface VariantAttributes {
   interval?: string | null;
   interval_count?: number | null;
   has_license_keys?: boolean;
+  /**
+   * Hosted-checkout-style links keyed by purpose. Added 2024-06-09 — older
+   * SDK and validator versions don't surface this field, so consumers had
+   * to read `meta.product_links` manually before. Optional because the
+   * field is absent on older variants.
+   */
+  links?: Record<string, string>;
   created_at?: string;
   updated_at?: string;
 }
@@ -47,11 +54,16 @@ export async function getVariant<TAttr = VariantAttributes>(
   return http.getResource<TAttr>(`/v1/variants/${variantId}`);
 }
 
+/**
+ * List every variant of the product, paginated so products with more than
+ * one page of variants don't trip the `VARIANT_UNPUBLISHED` heuristic when
+ * the only published variants happen to live past page 1.
+ */
 export async function listVariantsForProduct(
   http: HttpClient,
   productId: string | number
 ): Promise<JsonApiResource<VariantAttributes>[]> {
-  return http.getCollection<VariantAttributes>("/v1/variants", {
+  return http.paginate<VariantAttributes>("/v1/variants", {
     "filter[product_id]": String(productId),
   });
 }

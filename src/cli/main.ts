@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import dotenv from "dotenv";
 import type { Mode } from "../core/types.js";
+import { runAugmentCommand } from "./commands/augment.js";
 import { runDoctorCommand } from "./commands/doctor.js";
 import { runValidateCommand, type ValidateTarget } from "./commands/validate.js";
 import { runInitCommand } from "./commands/init.js";
@@ -125,6 +126,22 @@ program
   .option("--env-file <path>", "Where to write credentials (default: .env.local)")
   .action(async (opts: { envFile?: string }) => {
     const code = await runInitCommand({ envFile: opts.envFile });
+    process.exit(code);
+  });
+
+const types = program
+  .command("types")
+  .description("Type-augmentation utilities for the official Lemon Squeezy SDK and hand-rolled types");
+
+types
+  .command("augment")
+  .description(
+    "Generate a .d.ts that intersects your Lemon Squeezy resource types with fields fresh-squeezy already tracks (e.g. payment_processor, tax_inclusive, refunded_amount*)."
+  )
+  .option("--out <path>", "Output path (default: lemonsqueezy.augment.d.ts in CWD)")
+  .option("--force", "Emit the generic file even when @lemonsqueezy/lemonsqueezy.js is detected")
+  .action(async (opts: { out?: string; force?: boolean }) => {
+    const code = await runAugmentCommand({ out: opts.out, force: Boolean(opts.force) });
     process.exit(code);
   });
 

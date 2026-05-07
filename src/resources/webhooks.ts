@@ -16,11 +16,16 @@ export interface WebhookAttributes {
   test_mode?: boolean;
 }
 
+/**
+ * List every webhook registered on the store, walking pagination so a store
+ * with more than one page of webhooks doesn't produce a false
+ * `WEBHOOK_NOT_FOUND` from `validateWebhook`.
+ */
 export async function listWebhooksForStore(
   http: HttpClient,
   storeId: string | number
 ): Promise<JsonApiResource<WebhookAttributes>[]> {
-  return http.getCollection<WebhookAttributes>("/v1/webhooks", {
+  return http.paginate<WebhookAttributes>("/v1/webhooks", {
     "filter[store_id]": String(storeId),
   });
 }

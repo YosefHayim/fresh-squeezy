@@ -1,8 +1,8 @@
-import { FreshSqueezyError } from "../core/errors.js";
 import type { HttpClient } from "../core/http.js";
 import type { Mode, ValidationIssue, ValidationResult } from "../core/types.js";
 import { getProduct, type ProductAttributes } from "../resources/products.js";
 import { listVariantsForProduct } from "../resources/variants.js";
+import { checkStoreOwnership, probeFetch } from "./probe.js";
 import { ISSUE_CODES, buildResult, issue } from "./rules.js";
 
 export interface ProductValidationOptions {
@@ -23,48 +23,30 @@ export async function validateProduct(
 ): Promise<ValidationResult<ProductAttributes>> {
   const issues: ValidationIssue[] = [];
 
-  let product;
-  try {
-    product = await getProduct(http, options.productId);
-  } catch (err) {
-    if (err instanceof FreshSqueezyError && err.status === 404) {
-      issues.push(
-        issue(
-          ISSUE_CODES.PRODUCT_NOT_FOUND,
-          "error",
-          `Product ${options.productId} not found.`,
-          {
-            suggestedFix: "Verify the product ID in the Lemon Squeezy dashboard.",
-            context: { productId: String(options.productId) },
-          }
-        )
-      );
-      return buildResult("product", mode, issues);
-    }
-    const message = err instanceof Error ? err.message : "Unknown error";
-    issues.push(issue(ISSUE_CODES.UNKNOWN, "error", message));
+  const fetched = await probeFetch(() => getProduct(http, options.productId), {
+    notFoundCode: ISSUE_CODES.PRODUCT_NOT_FOUND,
+    notFoundMessage: `Product ${options.productId} not found.`,
+    notFoundFix: "Verify the product ID in the Lemon Squeezy dashboard.",
+    notFoundContext: { productId: String(options.productId) },
+  });
+
+  if (!fetched.ok) {
+    issues.push(fetched.issue);
     return buildResult("product", mode, issues);
   }
 
-  const attrs = product.attributes;
+  const attrs = fetched.resource.attributes;
 
   if (options.expectedStoreId !== undefined) {
-    const expected = String(options.expectedStoreId);
-    const actual = String(attrs.store_id);
-    if (expected !== actual) {
-      issues.push(
-        issue(
-          ISSUE_CODES.PRODUCT_WRONG_STORE,
-          "error",
-          `Product belongs to store ${actual}, expected ${expected}.`,
-          {
-            suggestedFix:
-              "Either use the correct store ID or the correct product ID — IDs should not cross stores.",
-            context: { expectedStoreId: expected, actualStoreId: actual },
-          }
-        )
-      );
-    }
+    const mismatch = checkStoreOwnership({
+      expectedStoreId: options.expectedStoreId,
+      actualStoreId: attrs.store_id,
+      code: ISSUE_CODES.PRODUCT_WRONG_STORE,
+      label: "Product",
+      suggestedFix:
+        "Either use the correct store ID or the correct product ID — IDs should not cross stores.",
+    });
+    if (mismatch) issues.push(mismatch);
   }
 
   if (attrs.status !== "published") {
