@@ -1,14 +1,15 @@
 {
   "name": "fresh-squeezy",
   "version": "0.1.8",
-  "description": "Validator-first Lemon Squeezy setup toolkit. Verify your integration before it hits production.",
+  "description": "Validate your Lemon Squeezy integration against changelog drift the official SDK hasn't shipped yet.",
   "keywords": [
     "lemon-squeezy",
-    "lemonsqueezy",
     "billing",
+    "cli",
     "validator",
-    "doctor",
-    "cli"
+    "typescript",
+    "nodejs",
+    "webhooks"
   ],
   "license": "MIT",
   "author": "fresh-squeezy contributors",
