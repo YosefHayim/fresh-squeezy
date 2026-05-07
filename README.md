@@ -1,81 +1,32 @@
 # fresh-squeezy
 
-Validator-first Lemon Squeezy setup doctor. Verify your integration before it ships.
+Validator-first Lemon Squeezy doctor. Catches misconfigurations before they ship. CLI + library, Node 20+.
 
-Library + CLI. One call, one structured report, one exit code.
-
----
-
-## Why this exists
-
-The official [`@lemonsqueezy/lemonsqueezy.js`](https://github.com/lmsqueezy/lemonsqueezy.js) SDK is great at making API calls. But integration bugs almost never live in the API calls — they live in configuration. Wrong store. Wrong mode. Unpublished product. Webhook registered but missing the one event your refund flow depends on. Live API key accidentally loaded in staging.
-
-`fresh-squeezy` answers a different question fast:
-
-> Is my API key pointed at the right store, in the right mode, with a product that is actually published and a webhook subscribed to the events my app relies on?
-
-### The pain it removes
-
-- **Postman + dashboard ping-pong.** Today you copy IDs out of the Lemon Squeezy UI, paste them into env files, and hit Postman to verify each one. One CLI call replaces that loop.
-- **SDK lag.** The official JS SDK last shipped v4.0.0 on 2024-11-05. The platform has added three behaviors since (`affiliate_activated`, `payment_processor`, `customer_updated`) that the SDK does not surface. `fresh-squeezy` tracks them in `src/support/manifest.ts` and a weekly drift workflow files an issue the moment the changelog moves again.
-- **The scariest bug: prod-in-staging.** `fresh-squeezy` calls `/v1/users/me` and compares the `meta.test_mode` flag (API changelog 2024-01-05) against the mode you declared. Mismatch = `MODE_MISMATCH` error, doctor exits 1. Neither the SDK nor a hand-rolled wrapper catches this by default.
-- **Repeat work across products.** Every new SaaS inside a company repeats the same billing setup dance. This is one place for the checks so the next product integration is a five-minute job, not a week of yak-shaving.
-
-### Why a validator, not another SDK
-
-Most teams already use the official SDK or plain `fetch` for API calls. They don't need another wrapper — they need **fewer silent misconfigurations**. `fresh-squeezy` is intentionally thin:
-
-- 7 validators (`connection`, `store`, `product`, `webhook`, `discount`, `licenseKey`, `subscriptionPlan`) that return the same `ValidationResult` shape every time
-- `doctor()` composes them into one report
-- A raw `request()` escape hatch so you never hit a wall when the platform adds something we haven't wrapped yet
-- Static, reviewed support manifest — no live scraping in runtime code
-- Stable issue codes so CI can branch on findings
-
-If a check feels magical, something is wrong.
-
-### Open source by design
-
-This project is MIT-licensed and deliberately scoped to stay small. The goal is to make it easy for any team (ours or yours) to drop it into a new product, wire it into CI, and trust the output. Contributions that keep it boring — more coverage, more validators, better error messages — are exactly the shape we want. See [CONTRIBUTING.md](./CONTRIBUTING.md).
-
----
-
-## What it checks
-
-| Validator    | Catches                                                                                                                           |
-| ------------ | --------------------------------------------------------------------------------------------------------------------------------- |
-| `connection` | Invalid key, unreachable account, no stores, **declared mode ≠ key's actual mode** (`MODE_MISMATCH`)                              |
-| `store`      | Wrong store ID, store owned by a different account                                                                                |
-| `product`    | Unpublished product, product on the wrong store, missing or all-draft variants, missing buy URL                                   |
-| `webhook`    | Webhook URL not registered, missing recommended events (order lifecycle, subscription lifecycle, refunds), missing optional newer events |
-| `discount`   | Draft discounts, expired or not-yet-active windows, invalid amounts (≤0 or >100%), store ownership mismatch                       |
-| `licenseKey` | Disabled keys, expired keys, keys at activation limit, store ownership mismatch                                                    |
-| `subscriptionPlan` | Non-subscription variants, invalid billing intervals, zero-price plans, inconsistent trial settings, draft variants, store ownership mismatch |
-
-Every validator returns the same `ValidationResult` — stable public contract, switchable by `issue.code`.
-
----
-
-## Install
+## 30-second start
 
 ```bash
-npm install fresh-squeezy
-# or
-pnpm add fresh-squeezy
-```
-
-Requires Node.js 20+.
-
-## Setup (90 seconds)
-
-```bash
-cp .env.example .env.local
-# fill in LEMON_SQUEEZY_API_KEY (test or live)
+npm i -D fresh-squeezy
+cp .env.example .env.local                # fill in LEMON_SQUEEZY_API_KEY
 npx fresh-squeezy doctor --all-stores
 ```
 
-That's the entire onboarding. No store ID to copy from the dashboard — the CLI discovers reachable stores itself.
+No store ID to copy from the dashboard — the CLI discovers reachable stores itself.
 
-## Quick start — CLI
+| Exit | Meaning |
+|------|---------|
+| `0`  | All validators passed |
+| `1`  | One or more validators reported `error`-level issues |
+| `2`  | Fatal (missing key, invalid flags, network failure) |
+
+## What it catches that Postman and the official SDK won't
+
+- **Prod key pointed at staging.** `MODE_MISMATCH` fires when the key's true `meta.test_mode` (API changelog 2024-01-05) disagrees with the declared mode. Doctor exits 1. Neither the SDK nor a hand-rolled wrapper catches this by default.
+- **Silent store-ownership mismatches.** Products, discounts, license keys, and subscription plans whose `store_id` doesn't match the store you scoped the run to. Stable codes: `PRODUCT_WRONG_STORE`, `DISCOUNT_STORE_MISMATCH`, `LICENSE_KEY_STORE_MISMATCH`, `PLAN_STORE_MISMATCH`.
+- **Webhook subscribed to the wrong events.** Diff against a manifest of recommended events (order/subscription lifecycle, refunds) and newer-but-optional events the SDK doesn't ship.
+- **Platform drift.** A weekly GitHub Action hashes the [Lemon Squeezy API changelog](https://docs.lemonsqueezy.com/api/getting-started/changelog) against `src/support/changelog-snapshot.json` and opens an issue when it moves. Tracked additions beyond the official SDK as of 2026-04-24: `customer_updated` (2026-02-25), `payment_processor` on Subscription (2025-06-11), Affiliates + `affiliate_activated` (2025-01-21), `test_mode` on `/v1/users/me` (2024-01-05).
+- **Postman + dashboard ping-pong.** One `doctor` call replaces the loop of copying IDs out of the UI, pasting them into env files, and verifying each one by hand.
+
+## CLI
 
 ```bash
 # TTY: multi-select stores interactively, run doctor on each
@@ -87,7 +38,7 @@ npx fresh-squeezy doctor --all-stores
 # Specific stores
 npx fresh-squeezy doctor --store-ids 12,34,56
 
-# Scope the run to a product + webhook
+# Scope to a product + webhook
 npx fresh-squeezy doctor --store-ids 12 \
   --product-id 987 \
   --webhook-url https://app.example.com/api/webhooks/lemon-squeezy
@@ -101,24 +52,14 @@ npx fresh-squeezy validate webhook \
 npx fresh-squeezy doctor --all-stores --json
 ```
 
-Exit codes:
-
-| Code | Meaning                                        |
-| ---- | ---------------------------------------------- |
-| `0`  | All validators passed                          |
-| `1`  | One or more validators reported `error`-level  |
-| `2`  | Fatal error (missing key, invalid flags, etc.) |
-
-### Store resolution
-
-Resolution order used by every store-scoped command:
+Store resolution order, used by every store-scoped command:
 
 1. `--store-ids 1,2,3` (comma-separated, explicit)
 2. `--all-stores` (every store reachable with the key)
-3. TTY: inquirer multi-select
-4. No TTY + no flag: run connection-only (useful as a CI smoke check)
+3. TTY: inquirer multi-select prompt
+4. No TTY + no flag: connection-only run (useful as a CI smoke check)
 
-## Quick start — library
+## Library
 
 ```ts
 import { createFreshSqueezy } from "fresh-squeezy";
@@ -126,7 +67,7 @@ import { createFreshSqueezy } from "fresh-squeezy";
 const lemon = createFreshSqueezy(); // reads LEMON_SQUEEZY_API_KEY, LEMON_SQUEEZY_MODE
 
 const report = await lemon.doctor({
-  storeId: 12,                              // library is single-store per call
+  storeId: 12,                      // library is single-store per call
   productId: 987,
   webhookUrl: "https://app.example.com/api/webhooks/lemon-squeezy",
 });
@@ -141,75 +82,41 @@ if (!report.ok) {
 }
 ```
 
-For multi-store runs at the library layer, call `doctor()` in a loop across the store IDs you care about — the CLI does exactly this.
+For multi-store runs at the library layer, call `doctor()` in a loop. The CLI does exactly this.
+
+Public types: [`FreshSqueezyClient`](src/createFreshSqueezy.ts), [`ValidationResult<T>`](src/core/types.ts), [`DoctorReport`](src/core/types.ts). Switch on `issue.code` in CI logic — codes are stable across minor versions.
 
 ## Sandbox vs live
 
-Lemon Squeezy serves both modes from the same API host. Mode is determined by which key you use. `fresh-squeezy` surfaces the mode on every result **and** cross-checks the declared mode against the key's actual mode using `meta.test_mode` from `/v1/users/me` (API changelog 2024-01-05). If they disagree, `validateConnection` fires `MODE_MISMATCH` as an error and `doctor` exits 1 — that's the fastest way to catch a prod key pointed at staging (or vice versa) before it does damage.
+Lemon Squeezy serves both modes from the same API host; mode is determined by the key. `fresh-squeezy` cross-checks the declared mode against `meta.test_mode` from `/v1/users/me`. Mismatch = `MODE_MISMATCH`, doctor exits 1 — the fastest way to catch a prod key pointed at staging before it does damage.
 
 ```ts
 const lemon = createFreshSqueezy({ mode: "test" });
 const result = await lemon.validateConnection();
-console.log(result.mode);                 // "test" (declared)
-console.log(result.resource?.actualMode); // "live" — alarm bell
+result.mode;                 // "test" (declared)
+result.resource?.actualMode; // "live" — alarm bell
 ```
 
-The CLI default is `--mode test`. Override with `--mode live`.
+The CLI default is `--mode test`. Override with `--mode live`. For nightly platform-drift checks in CI, run `npm run test:live` with `LEMON_SQUEEZY_LIVE_SMOKE=1` and a test-mode key.
 
-Live smoke testing in CI: the repo ships an opt-in `npm run test:live` target gated on `LEMON_SQUEEZY_LIVE_SMOKE=1`. Run it nightly with a secret test-mode key so platform drift surfaces before a release.
+## Issue codes
 
-## API
+Switch on `issue.code` in CI. All codes are stable across minor versions.
 
-### `createFreshSqueezy(config?)`
+| Code | Meaning |
+|------|---------|
+| `AUTH_FAILED` | Invalid or missing API key |
+| `MODE_MISMATCH` | Declared mode doesn't match key's `meta.test_mode` |
+| `NETWORK_ERROR` | Lemon Squeezy unreachable |
+| `STORE_NOT_FOUND` / `STORE_NOT_OWNED` | Store ID invalid or owned by another account |
+| `PRODUCT_UNPUBLISHED` / `PRODUCT_WRONG_STORE` / `PRODUCT_NO_BUY_URL` | Product can't accept checkout |
+| `VARIANT_MISSING` / `VARIANT_UNPUBLISHED` | Product has no live variants |
+| `WEBHOOK_NOT_FOUND` / `WEBHOOK_EVENTS_MISSING` / `WEBHOOK_OPTIONAL_EVENTS` | Webhook URL not registered or under-subscribed |
+| `DISCOUNT_DRAFT` / `DISCOUNT_EXPIRED` / `DISCOUNT_NOT_STARTED` / `DISCOUNT_INVALID_AMOUNT` / `DISCOUNT_REDEMPTIONS_EXHAUSTED` / `DISCOUNT_STORE_MISMATCH` | Discount won't apply at checkout |
+| `LICENSE_KEY_DISABLED` / `LICENSE_KEY_EXPIRED` / `LICENSE_KEY_AT_ACTIVATION_LIMIT` / `LICENSE_KEY_STORE_MISMATCH` | License key won't activate |
+| `PLAN_NOT_SUBSCRIPTION` / `PLAN_INVALID_INTERVAL` / `PLAN_FREE_PRICE` / `PLAN_TRIAL_INCONSISTENT` / `PLAN_DRAFT` / `PLAN_STORE_MISMATCH` | Subscription plan misconfigured |
 
-```ts
-createFreshSqueezy({
-  apiKey?: string;         // default: process.env.LEMON_SQUEEZY_API_KEY
-  storeId?: string | number; // optional — also read from env for lib consumers
-  mode?: "test" | "live";  // default: process.env.LEMON_SQUEEZY_MODE ?? "test"
-  baseUrl?: string;        // default: "https://api.lemonsqueezy.com"
-  fetch?: typeof fetch;    // default: globalThis.fetch
-});
-```
-
-Returns a `FreshSqueezyClient`:
-
-```ts
-client.mode
-client.request(options)       // raw escape hatch
-client.validateConnection()
-client.validateStore(id)
-client.validateProduct({ productId, expectedStoreId? })
-client.validateWebhook({ storeId, url })
-client.validateDiscount({ storeId, discountId })
-client.validateLicenseKey({ storeId, licenseKeyId })
-client.validateSubscriptionPlan({ storeId, variantId })
-client.doctor({ storeId?, productId?, webhookUrl?, discountId?, licenseKeyId?, variantId? })
-```
-
-### `ValidationResult<T>`
-
-```ts
-{
-  ok: boolean;
-  mode: "test" | "live";
-  name: string;
-  resource?: T;
-  issues: Array<{
-    code: string;
-    severity: "info" | "warning" | "error";
-    message: string;
-    suggestedFix?: string;
-    context?: Record<string, string | number | boolean | null>;
-  }>;
-}
-```
-
-Switch on `issue.code` in CI logic — codes are stable across minor versions.
-
-### Raw escape hatch
-
-For endpoints not yet wrapped (new changelog entries, License API, affiliates):
+For endpoints not yet wrapped, use the raw escape hatch:
 
 ```ts
 const user = await lemon.request({ path: "/v1/users/me" });
@@ -217,36 +124,36 @@ const user = await lemon.request({ path: "/v1/users/me" });
 
 ## Environment variables
 
-Only two matter to the CLI:
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `LEMON_SQUEEZY_API_KEY` | yes | Bearer token (library + CLI) |
+| `LEMON_SQUEEZY_MODE` | no | `test` (default) or `live` |
+| `LEMON_SQUEEZY_STORE_ID` | no | Convenience default for `client.doctor()` — library only |
 
-| Variable                 | Required | Used by           | Purpose                                    |
-| ------------------------ | -------- | ----------------- | ------------------------------------------ |
-| `LEMON_SQUEEZY_API_KEY`  | yes      | library + CLI     | Bearer token                               |
-| `LEMON_SQUEEZY_MODE`     | no       | library + CLI     | `test` (default) or `live`                 |
-| `LEMON_SQUEEZY_STORE_ID` | no       | library consumers | Convenience default for `client.doctor()`  |
+The CLI does not read `LEMON_SQUEEZY_STORE_ID`; use `--store-ids` or `--all-stores` so store selection stays explicit per command.
 
-The CLI does **not** read `LEMON_SQUEEZY_STORE_ID` — use `--store-ids` or `--all-stores` so store selection stays explicit per-command.
+## Reference
 
-## Changelog drift watcher
+### Validators
 
-A weekly GitHub Action fetches the [Lemon Squeezy API changelog](https://docs.lemonsqueezy.com/api/getting-started/changelog), hashes the normalized content, and compares it against `src/support/changelog-snapshot.json`. On drift, it opens a labeled issue with previous/current hashes, a link to the workflow run, and refresh instructions. Advisory only — no runtime code ever scrapes the changelog.
+- **`validateConnection`** — Reachability, key validity, store presence, declared-vs-actual mode. [→ source](src/validate/connection.ts)
+- **`validateStore`** — Store ID exists and is owned by the key's account. [→ source](src/validate/store.ts)
+- **`validateProduct`** — Published, on the expected store, has live variants and a buy URL. [→ source](src/validate/product.ts)
+- **`validateWebhook`** — Webhook URL registered and subscribed to recommended events. [→ source](src/validate/webhook.ts)
+- **`validateDiscount`** — Active, in-window, valid amount, store ownership matches. [→ source](src/validate/discount.ts)
+- **`validateLicenseKey`** — Enabled, not expired, activations available, store ownership matches. [→ source](src/validate/licenseKey.ts)
+- **`validateSubscriptionPlan`** — Subscription type, valid interval, non-zero price, consistent trial. [→ source](src/validate/subscriptionPlan.ts)
+- **`doctor`** — Composes the above into one `DoctorReport`. [→ source](src/validate/doctor.ts)
 
-Tracked platform additions beyond the official SDK (as of 2026-04-24):
+### CLI commands
 
-- `customer_updated` webhook event — added **2026-02-25**
-- `payment_processor` property on Subscription — added **2025-06-11**
-- Affiliates endpoints + `affiliate_activated` webhook — added **2025-01-21**
-- `test_mode` flag on `/v1/users/me` — added **2024-01-05** (powers `MODE_MISMATCH`)
-
-## Scope (v1)
-
-**In**: connection, store, product, webhook validators; `doctor()`; library + CLI; sandbox-mode fixture tests + opt-in live smoke.
-
-**Out**: License API, affiliates, changelog scraper in runtime, dashboard UI. On the roadmap for v2 if demand is real.
+- **`doctor`** — Run every configured validator and emit a report. [→ source](src/cli/commands/doctor.ts)
+- **`validate <name>`** — Run a single validator. [→ source](src/cli/commands/validate.ts)
+- **`init`** — Interactive setup: ask for credentials, pick a store, run doctor. [→ source](src/cli/commands/init.ts)
 
 ## Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md). TL;DR: clone, `npm install`, `npm test`. Manual QA steps in [docs/MANUAL_QA.md](./docs/MANUAL_QA.md).
+See [CONTRIBUTING.md](./CONTRIBUTING.md). Clone, `npm install`, `npm test`.
 
 ## License
 
