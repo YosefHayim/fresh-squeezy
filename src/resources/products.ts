@@ -26,11 +26,16 @@ export async function getProduct(
   return http.getResource<ProductAttributes>(`/v1/products/${productId}`);
 }
 
+/**
+ * List every product in the store, paginated. Used by the CLI's
+ * interactive product picker; without pagination only the first 25
+ * products are offered.
+ */
 export async function listProducts(
   http: HttpClient,
   storeId: string | number
 ): Promise<JsonApiResource<ProductAttributes>[]> {
-  return http.getCollection<ProductAttributes>("/v1/products", {
+  return http.paginate<ProductAttributes>("/v1/products", {
     "filter[store_id]": String(storeId),
   });
 }

@@ -1,8 +1,9 @@
-import { FreshSqueezyError } from "../core/errors.js";
 import type { HttpClient } from "../core/http.js";
+import { resolveActualMode } from "../core/mode.js";
 import type { Mode, ValidationIssue, ValidationResult } from "../core/types.js";
 import { getAuthenticatedUser, type UserAttributes } from "../resources/users.js";
 import { listStores } from "../resources/stores.js";
+import { mapErrorToIssue } from "./probe.js";
 import { ISSUE_CODES, buildResult, issue } from "./rules.js";
 
 /**
@@ -78,37 +79,15 @@ export async function validateConnection(
 
     return buildResult("connection", mode, issues, summary);
   } catch (err) {
-    issues.push(toConnectionIssue(err));
+    issues.push(
+      mapErrorToIssue(err, {
+        unauthorized: {
+          code: ISSUE_CODES.AUTH_FAILED,
+          message: "API key rejected by Lemon Squeezy.",
+          suggestedFix: "Regenerate the key at https://app.lemonsqueezy.com/settings/api.",
+        },
+      })
+    );
     return buildResult("connection", mode, issues);
   }
-}
-
-/**
- * Map the boolean `meta.test_mode` flag to our `Mode` type. Returns
- * `undefined` when the field is absent so older accounts / proxies that
- * don't surface it don't produce spurious MODE_MISMATCH failures.
- */
-function resolveActualMode(testMode: boolean | undefined): Mode | undefined {
-  if (testMode === true) return "test";
-  if (testMode === false) return "live";
-  return undefined;
-}
-
-function toConnectionIssue(err: unknown): ValidationIssue {
-  if (err instanceof FreshSqueezyError) {
-    if (err.code === "UNAUTHORIZED") {
-      return issue(ISSUE_CODES.AUTH_FAILED, "error", "API key rejected by Lemon Squeezy.", {
-        suggestedFix: "Regenerate the key at https://app.lemonsqueezy.com/settings/api.",
-        context: { status: err.status ?? null },
-      });
-    }
-    if (err.code === "NETWORK_ERROR") {
-      return issue(ISSUE_CODES.NETWORK_ERROR, "error", `Could not reach Lemon Squeezy: ${err.message}`);
-    }
-    return issue(ISSUE_CODES.UNKNOWN, "error", err.message, {
-      context: { status: err.status ?? null, code: err.code },
-    });
-  }
-  const message = err instanceof Error ? err.message : "Unknown error";
-  return issue(ISSUE_CODES.UNKNOWN, "error", message);
 }

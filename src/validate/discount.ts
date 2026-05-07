@@ -1,7 +1,7 @@
-import { FreshSqueezyError } from "../core/errors.js";
 import type { HttpClient } from "../core/http.js";
 import type { Mode, ValidationIssue, ValidationResult } from "../core/types.js";
 import { getDiscount, type DiscountAttributes } from "../resources/discounts.js";
+import { checkStoreOwnership, probeFetch } from "./probe.js";
 import { ISSUE_CODES, buildResult, issue } from "./rules.js";
 
 export interface DiscountValidationOptions {
@@ -28,41 +28,28 @@ export async function validateDiscount(
 ): Promise<ValidationResult<DiscountAttributes>> {
   const issues: ValidationIssue[] = [];
 
-  let discount;
-  try {
-    discount = await getDiscount(http, options.discountId);
-  } catch (err) {
-    if (err instanceof FreshSqueezyError && err.status === 404) {
-      issues.push(
-        issue(ISSUE_CODES.DISCOUNT_NOT_FOUND, "error", `Discount ${options.discountId} not found.`, {
-          suggestedFix: "Verify the discount ID in the Lemon Squeezy dashboard.",
-          context: { discountId: String(options.discountId) },
-        })
-      );
-      return buildResult("discount", mode, issues);
-    }
-    const message = err instanceof Error ? err.message : "Unknown error";
-    issues.push(issue(ISSUE_CODES.UNKNOWN, "error", message));
+  const fetched = await probeFetch(() => getDiscount(http, options.discountId), {
+    notFoundCode: ISSUE_CODES.DISCOUNT_NOT_FOUND,
+    notFoundMessage: `Discount ${options.discountId} not found.`,
+    notFoundFix: "Verify the discount ID in the Lemon Squeezy dashboard.",
+    notFoundContext: { discountId: String(options.discountId) },
+  });
+
+  if (!fetched.ok) {
+    issues.push(fetched.issue);
     return buildResult("discount", mode, issues);
   }
 
-  const attrs = discount.attributes;
+  const attrs = fetched.resource.attributes;
 
-  const expectedStore = String(options.storeId);
-  const actualStore = String(attrs.store_id);
-  if (expectedStore !== actualStore) {
-    issues.push(
-      issue(
-        ISSUE_CODES.DISCOUNT_STORE_MISMATCH,
-        "error",
-        `Discount belongs to store ${actualStore}, expected ${expectedStore}.`,
-        {
-          suggestedFix: "Use the correct store ID or discount ID — discounts should not cross stores.",
-          context: { expectedStoreId: expectedStore, actualStoreId: actualStore },
-        }
-      )
-    );
-  }
+  const mismatch = checkStoreOwnership({
+    expectedStoreId: options.storeId,
+    actualStoreId: attrs.store_id,
+    code: ISSUE_CODES.DISCOUNT_STORE_MISMATCH,
+    label: "Discount",
+    suggestedFix: "Use the correct store ID or discount ID — discounts should not cross stores.",
+  });
+  if (mismatch) issues.push(mismatch);
 
   if (attrs.status === "draft") {
     issues.push(

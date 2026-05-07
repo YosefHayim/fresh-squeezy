@@ -24,6 +24,12 @@ export async function getStore(
   return http.getResource<StoreAttributes>(`/v1/stores/${storeId}`);
 }
 
+/**
+ * List every store reachable with the configured API key, paginated.
+ * Used by `validateConnection` to populate the connection summary, and by
+ * the CLI's `--all-stores` flag. Pagination matters here for accounts that
+ * own a large catalogue of stores.
+ */
 export async function listStores(http: HttpClient): Promise<JsonApiResource<StoreAttributes>[]> {
-  return http.getCollection<StoreAttributes>("/v1/stores");
+  return http.paginate<StoreAttributes>("/v1/stores");
 }

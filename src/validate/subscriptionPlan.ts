@@ -1,8 +1,8 @@
-import { FreshSqueezyError } from "../core/errors.js";
 import type { HttpClient } from "../core/http.js";
 import type { Mode, ValidationIssue, ValidationResult } from "../core/types.js";
 import { getProduct } from "../resources/products.js";
 import { getVariant, type SubscriptionVariantAttributes } from "../resources/variants.js";
+import { checkStoreOwnership, probeFetch } from "./probe.js";
 import { ISSUE_CODES, buildResult, issue } from "./rules.js";
 
 export interface SubscriptionPlanValidationOptions {
@@ -40,29 +40,22 @@ export async function validateSubscriptionPlan(
 ): Promise<ValidationResult<SubscriptionPlanSummary>> {
   const issues: ValidationIssue[] = [];
 
-  let variant;
-  try {
-    variant = await getVariant<SubscriptionVariantAttributes>(http, options.variantId);
-  } catch (err) {
-    if (err instanceof FreshSqueezyError && err.status === 404) {
-      issues.push(
-        issue(
-          ISSUE_CODES.PLAN_VARIANT_NOT_FOUND,
-          "error",
-          `Variant ${options.variantId} not found.`,
-          {
-            suggestedFix: "Verify the variant ID in the Lemon Squeezy dashboard.",
-            context: { variantId: String(options.variantId) },
-          }
-        )
-      );
-      return buildResult("subscriptionPlan", mode, issues);
+  const fetched = await probeFetch(
+    () => getVariant<SubscriptionVariantAttributes>(http, options.variantId),
+    {
+      notFoundCode: ISSUE_CODES.PLAN_VARIANT_NOT_FOUND,
+      notFoundMessage: `Variant ${options.variantId} not found.`,
+      notFoundFix: "Verify the variant ID in the Lemon Squeezy dashboard.",
+      notFoundContext: { variantId: String(options.variantId) },
     }
-    const message = err instanceof Error ? err.message : "Unknown error";
-    issues.push(issue(ISSUE_CODES.UNKNOWN, "error", message));
+  );
+
+  if (!fetched.ok) {
+    issues.push(fetched.issue);
     return buildResult("subscriptionPlan", mode, issues);
   }
 
+  const variant = fetched.resource;
   const attrs = variant.attributes;
 
   if (!attrs.is_subscription) {
@@ -156,21 +149,15 @@ export async function validateSubscriptionPlan(
   // If the fetch fails, skip the check rather than blocking the whole validation.
   try {
     const product = await getProduct(http, attrs.product_id);
-    const expectedStore = String(options.storeId);
-    const actualStore = String(product.attributes.store_id);
-    if (expectedStore !== actualStore) {
-      issues.push(
-        issue(
-          ISSUE_CODES.PLAN_STORE_MISMATCH,
-          "error",
-          `Subscription variant belongs to store ${actualStore} (via product ${attrs.product_id}), expected ${expectedStore}.`,
-          {
-            suggestedFix: "Use the correct store ID or variant ID — plans should not cross stores.",
-            context: { expectedStoreId: expectedStore, actualStoreId: actualStore, productId: String(attrs.product_id) },
-          }
-        )
-      );
-    }
+    const mismatch = checkStoreOwnership({
+      expectedStoreId: options.storeId,
+      actualStoreId: product.attributes.store_id,
+      code: ISSUE_CODES.PLAN_STORE_MISMATCH,
+      label: `Subscription variant (via product ${attrs.product_id})`,
+      suggestedFix: "Use the correct store ID or variant ID — plans should not cross stores.",
+      extraContext: { productId: String(attrs.product_id) },
+    });
+    if (mismatch) issues.push(mismatch);
   } catch {
     // Intentionally silent — the product fetch is advisory for the store
     // cross-check and should not block the rest of the validation.

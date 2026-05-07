@@ -95,9 +95,9 @@ export class HttpClient {
   }
 
   /**
-   * Fetch a JSON:API collection and return its `data` array.
-   * Pagination is the caller's responsibility — use `meta.page` on the raw
-   * request for multi-page traversal.
+   * Fetch a single page of a JSON:API collection. Most callers want
+   * `paginate()` instead — this method is kept for one-shot lookups where
+   * the caller knows the result fits in a single page.
    */
   async getCollection<TAttr>(
     path: string,
@@ -105,6 +105,39 @@ export class HttpClient {
   ): Promise<JsonApiResource<TAttr>[]> {
     const doc = await this.request<JsonApiCollection<TAttr>>({ path, query });
     return doc.data;
+  }
+
+  /**
+   * Walk a JSON:API collection across every page and concatenate the
+   * results. Lemon Squeezy returns 25 items per page by default; without
+   * pagination, validators silently miss anything past the first page (e.g.
+   * `validateWebhook` on a store with 26+ webhooks would falsely report
+   * `WEBHOOK_NOT_FOUND` for any webhook on page 2).
+   *
+   * Stops as soon as `meta.page.lastPage` is reached. Falls back to a
+   * single-page fetch if the API does not surface page metadata.
+   *
+   * Caller-supplied `page[number]` is honored as the starting page; we
+   * advance from there. `page[size]` is left untouched so callers can tune
+   * batch size (max 100 per Lemon Squeezy docs).
+   */
+  async paginate<TAttr>(
+    path: string,
+    query?: RequestOptions["query"]
+  ): Promise<JsonApiResource<TAttr>[]> {
+    const startPage = Number(query?.["page[number]"] ?? 1)
+    const all: JsonApiResource<TAttr>[] = [];
+
+    let pageNumber = startPage;
+    while (true) {
+      const pagedQuery = { ...(query ?? {}), "page[number]": pageNumber };
+      const doc = await this.request<JsonApiCollection<TAttr>>({ path, query: pagedQuery });
+      all.push(...doc.data);
+
+      const lastPage = doc.meta?.page?.lastPage;
+      if (lastPage === undefined || pageNumber >= lastPage) return all;
+      pageNumber += 1;
+    }
   }
 
   private buildUrl(path: string, query?: RequestOptions["query"]): string {

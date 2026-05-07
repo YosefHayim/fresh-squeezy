@@ -1,7 +1,20 @@
 /**
  * Sandbox fixtures captured against a Lemon Squeezy test-mode store.
  * Keep them deterministic — no timestamps that drift, no counters.
+ *
+ * Sections (grep `// ==` to jump):
+ *   == users ==          userDoc, liveUserDoc
+ *   == stores ==         storesCollection, storeDoc
+ *   == products ==       publishedProductDoc, unpublishedProductDoc, productOnWrongStoreDoc
+ *   == variants ==       variantsCollection*
+ *   == webhooks ==       webhooksCollection*
+ *   == discounts ==      *DiscountDoc
+ *   == license keys ==   *LicenseKeyDoc
+ *   == subscription variants ==  *VariantDoc (subscription-shaped)
+ *   == errors ==         unauthorizedError, notFoundError
  */
+
+// == users ==
 
 export const userDoc = {
   data: {
@@ -33,6 +46,8 @@ export const liveUserDoc = {
   },
 };
 
+// == stores ==
+
 export const storesCollection = {
   data: [
     {
@@ -62,6 +77,8 @@ export const storeDoc = {
     },
   },
 };
+
+// == products ==
 
 export const publishedProductDoc = {
   data: {
@@ -108,6 +125,8 @@ export const productOnWrongStoreDoc = {
   },
 };
 
+// == variants ==
+
 export const variantsCollectionPublished = {
   data: [
     {
@@ -143,6 +162,8 @@ export const variantsCollectionAllDraft = {
     },
   ],
 };
+
+// == webhooks ==
 
 export const webhooksCollectionComplete = {
   data: [
@@ -188,6 +209,8 @@ export const webhooksCollectionMissingEvents = {
 export const webhooksCollectionEmpty = { data: [] };
 
 // --- Discount fixtures ---
+
+// == discounts ==
 
 export const publishedDiscountDoc = {
   data: {
@@ -359,6 +382,8 @@ export const wrongStoreDiscountDoc = {
 
 // --- License key fixtures ---
 
+// == license keys ==
+
 export const activeLicenseKeyDoc = {
   data: {
     type: "license-keys",
@@ -440,6 +465,8 @@ export const wrongStoreLicenseKeyDoc = {
 };
 
 // --- Subscription variant fixtures ---
+
+// == subscription variants ==
 
 export const subscriptionVariantDoc = {
   data: {
@@ -580,6 +607,8 @@ export const wrongStoreSubscriptionVariantDoc = {
     },
   },
 };
+
+// == errors ==
 
 export const unauthorizedError = {
   errors: [

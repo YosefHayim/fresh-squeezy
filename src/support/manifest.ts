@@ -8,7 +8,7 @@
  * changelog page with `npm run check:changelog -- --update`.
  *
  * Changelog source: https://docs.lemonsqueezy.com/api/getting-started/changelog
- * Last reviewed:    2026-04-24
+ * Last reviewed:    2026-05-07
  */
 
 /**
@@ -22,6 +22,12 @@ export const SUPPORTED_RESOURCES = [
   "products",
   "variants",
   "webhooks",
+  // Type-only support: no validator yet, but the attribute interface and a
+  // `getX()` fetch helper are exported so consumers using the raw escape
+  // hatch get typed responses.
+  "orders",
+  "subscriptions",
+  "prices",
 ] as const;
 
 /**
@@ -88,13 +94,72 @@ export const ACKNOWLEDGED_CHANGELOG_ENTRIES = [
   {
     date: "2025-06-11",
     summary: "Added payment_processor attribute to Subscription objects.",
-    handledBy:
-      "Not wrapped — reachable via client.request('/v1/subscriptions/:id'). Add a validator only if a real integration needs it.",
+    handledBy: "Surfaced as SubscriptionAttributes.payment_processor in src/resources/subscriptions.ts.",
   },
   {
     date: "2025-01-21",
     summary: "Added Affiliates endpoints and affiliate_activated webhook.",
     handledBy: "OPTIONAL_WEBHOOK_EVENTS (event only; resource stays v2 scope)",
+  },
+  {
+    date: "2024-09-10",
+    summary: "Added fraudulent Order status.",
+    handledBy: "OrderAttributes.status union includes 'fraudulent' (src/resources/orders.ts).",
+  },
+  {
+    date: "2024-09-04",
+    summary: "Added Issue an Order refund and Issue a Subscription Invoice refund endpoints.",
+    handledBy: "Not wrapped — reachable via client.request('/v1/orders/:id/refund'). Refund-amount fields surfaced on OrderAttributes.",
+  },
+  {
+    date: "2024-08-07",
+    summary: "Added refunded_amount, refunded_amount_usd, refunded_amount_formatted to Order and Subscription invoice objects.",
+    handledBy: "OrderAttributes.refunded_amount* (src/resources/orders.ts).",
+  },
+  {
+    date: "2024-06-09",
+    summary: "Added links property to Variant objects.",
+    handledBy: "VariantAttributes.links (src/resources/variants.ts).",
+  },
+  {
+    date: "2024-05-20",
+    summary: "Added Generate order invoice endpoint.",
+    handledBy: "Not wrapped — reachable via client.request('/v1/orders/:id/generate-invoice').",
+  },
+  {
+    date: "2024-04-09",
+    summary: "License Key expires_at is now mutable via the update endpoint.",
+    handledBy: "Type unchanged (LicenseKeyAttributes.expires_at already nullable string). Mutation reachable via client.request('PATCH /v1/license-keys/:id').",
+  },
+  {
+    date: "2024-03-28",
+    summary: "Subscription trial_ends_at is now mutable via the update endpoint.",
+    handledBy: "SubscriptionAttributes.trial_ends_at (src/resources/subscriptions.ts). Mutation reachable via client.request().",
+  },
+  {
+    date: "2024-02-20",
+    summary: "Added urls.update_customer_portal to Subscription objects.",
+    handledBy: "SubscriptionUrls.update_customer_portal (src/resources/subscriptions.ts).",
+  },
+  {
+    date: "2024-02-12",
+    summary: "Added Generate subscription invoice endpoint and invoice_immediately / disable_prorations parameters.",
+    handledBy: "Not wrapped — reachable via client.request().",
+  },
+  {
+    date: "2024-02-05",
+    summary: "Added tax_inclusive parameter to Order objects and Subscription invoice objects.",
+    handledBy: "OrderAttributes.tax_inclusive, SubscriptionAttributes.tax_inclusive.",
+  },
+  {
+    date: "2024-01-21",
+    summary: "Added setup_fee_enabled / setup_fee to Price objects; setup_fee* to Subscription invoice.",
+    handledBy: "PriceAttributes.setup_fee*, OrderAttributes.setup_fee.",
+  },
+  {
+    date: "2024-01-15",
+    summary: "Added unit_price_decimal to Price objects.",
+    handledBy: "PriceAttributes.unit_price_decimal.",
   },
   {
     date: "2024-01-05",
