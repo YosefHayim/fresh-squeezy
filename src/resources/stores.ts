@@ -1,11 +1,12 @@
 import type { HttpClient } from "../core/http.js";
 import type { JsonApiResource } from "../core/types.js";
+import type { GeneratedStoreAttributes } from "../generated/lemonSqueezyApiTypes.js";
 
 /**
  * Subset of store attributes fresh-squeezy reads.
  * Full schema at https://docs.lemonsqueezy.com/api/stores.
  */
-export interface StoreAttributes {
+export interface StoreAttributes extends GeneratedStoreAttributes {
   name: string;
   slug: string;
   domain?: string | null;

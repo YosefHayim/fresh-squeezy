@@ -31,7 +31,10 @@ export async function validateLicenseKey(
 
   if (!fetched.ok) {
     issues.push(fetched.issue);
-    return buildResult("licenseKey", mode, issues);
+    return buildResult<LicenseKeyAttributes>("licenseKey", mode, issues, undefined, {
+      label: `license key ${options.licenseKeyId}`,
+      id: String(options.licenseKeyId),
+    });
   }
 
   const attrs = fetched.resource.attributes;
@@ -91,5 +94,8 @@ export async function validateLicenseKey(
     );
   }
 
-  return buildResult("licenseKey", mode, issues, attrs);
+  return buildResult("licenseKey", mode, issues, attrs, {
+    label: attrs.key_short,
+    id: String(options.licenseKeyId),
+  });
 }

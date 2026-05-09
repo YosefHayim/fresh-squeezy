@@ -37,7 +37,10 @@ export async function validateDiscount(
 
   if (!fetched.ok) {
     issues.push(fetched.issue);
-    return buildResult("discount", mode, issues);
+    return buildResult<DiscountAttributes>("discount", mode, issues, undefined, {
+      label: `discount ${options.discountId}`,
+      id: String(options.discountId),
+    });
   }
 
   const attrs = fetched.resource.attributes;
@@ -134,5 +137,8 @@ export async function validateDiscount(
     );
   }
 
-  return buildResult("discount", mode, issues, attrs);
+  return buildResult("discount", mode, issues, attrs, {
+    label: `${attrs.name} (${attrs.code})`,
+    id: String(options.discountId),
+  });
 }

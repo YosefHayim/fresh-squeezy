@@ -100,9 +100,11 @@ function renderAugmentationFile(flavour: Flavour): string {
  * Why this file exists: the live Lemon Squeezy API has acquired fields
  * since the SDK / hand-rolled types in this repo were last updated
  * (e.g. \`payment_processor\`, \`tax_inclusive\`, \`refunded_amount*\`,
- * \`setup_fee*\`, \`unit_price_decimal\`). fresh-squeezy tracks them in its
- * manifest; this file makes them appear on your existing resource types
- * so you don't hand-roll the additions.
+ * \`setup_fee*\`, \`unit_price_decimal\`, checkout color options,
+ * \`skip_trial\`, \`variant_quantities\`, subscription item proration
+ * flags, and order item \`quantity\`). fresh-squeezy also generates a
+ * broad resource map from Lemon Squeezy's object docs, so newly documented
+ * attributes can flow in after \`npm run generate:api-types\`.
  *
  * To wire it in:
  *   1. Make sure your tsconfig.json's "include" covers this file (most
@@ -124,9 +126,21 @@ function renderAugmentationFile(flavour: Flavour): string {
 } from "@lemonsqueezy/lemonsqueezy.js";
 import type {
   LatestSubscriptionFields,
+  LatestSubscriptionInvoiceFields,
+  LatestSubscriptionItemUpdateFields,
   LatestOrderFields,
+  LatestOrderItemFields,
   LatestVariantFields,
   LatestPriceFields,
+  LatestCheckoutFields,
+  LatestCheckoutOptionsFields,
+  LatestCheckoutDataFields,
+  LatestLemonSqueezyResourceName,
+  LatestFieldsFor,
+  WithLatestLemonSqueezyFields,
+  GeneratedLemonSqueezyFieldMap,
+  GeneratedLemonSqueezyResourceName,
+  GeneratedLemonSqueezyResourceType,
 } from "fresh-squeezy";
 
 /**
@@ -141,6 +155,25 @@ export interface LemonSqueezyAugmented {
   variant: AugmentResponse<Variant, LatestVariantFields>;
   price: AugmentResponse<Price, LatestPriceFields>;
 }
+
+export type {
+  WithLatestLemonSqueezyFields,
+  LatestSubscriptionFields,
+  LatestSubscriptionInvoiceFields,
+  LatestSubscriptionItemUpdateFields,
+  LatestOrderFields,
+  LatestOrderItemFields,
+  LatestVariantFields,
+  LatestPriceFields,
+  LatestCheckoutFields,
+  LatestCheckoutOptionsFields,
+  LatestCheckoutDataFields,
+  LatestLemonSqueezyResourceName,
+  LatestFieldsFor,
+  GeneratedLemonSqueezyFieldMap,
+  GeneratedLemonSqueezyResourceName,
+  GeneratedLemonSqueezyResourceType,
+};
 
 /**
  * Helper that walks the official SDK's response envelope and intersects
@@ -175,17 +208,39 @@ type AugmentResponse<T, Fields> = T extends {
     `import type {
   WithLatestLemonSqueezyFields,
   LatestSubscriptionFields,
+  LatestSubscriptionInvoiceFields,
+  LatestSubscriptionItemUpdateFields,
   LatestOrderFields,
+  LatestOrderItemFields,
   LatestVariantFields,
   LatestPriceFields,
+  LatestCheckoutFields,
+  LatestCheckoutOptionsFields,
+  LatestCheckoutDataFields,
+  LatestLemonSqueezyResourceName,
+  LatestFieldsFor,
+  GeneratedLemonSqueezyFieldMap,
+  GeneratedLemonSqueezyResourceName,
+  GeneratedLemonSqueezyResourceType,
 } from "fresh-squeezy";
 
 export type {
   WithLatestLemonSqueezyFields,
   LatestSubscriptionFields,
+  LatestSubscriptionInvoiceFields,
+  LatestSubscriptionItemUpdateFields,
   LatestOrderFields,
+  LatestOrderItemFields,
   LatestVariantFields,
   LatestPriceFields,
+  LatestCheckoutFields,
+  LatestCheckoutOptionsFields,
+  LatestCheckoutDataFields,
+  LatestLemonSqueezyResourceName,
+  LatestFieldsFor,
+  GeneratedLemonSqueezyFieldMap,
+  GeneratedLemonSqueezyResourceName,
+  GeneratedLemonSqueezyResourceType,
 };
 
 /* Example with a hand-rolled or third-party type:
@@ -196,7 +251,7 @@ export type {
  *
  * function describe(sub: MySubscription) {
  *   console.log(sub.payment_processor);   // typed
- *   console.log(sub.tax_inclusive);       // typed
+ *   type MyCheckout = WithLatestLemonSqueezyFields<MyExistingCheckout, "checkout">;
  * }
  */
 `

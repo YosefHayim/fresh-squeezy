@@ -1,11 +1,12 @@
 import type { HttpClient } from "../core/http.js";
 import type { JsonApiResource } from "../core/types.js";
+import type { GeneratedProductAttributes } from "../generated/lemonSqueezyApiTypes.js";
 
 /**
  * Subset of product attributes we need for validation. `status` drives the
  * "unpublished product" check; `store_id` drives ownership checks.
  */
-export interface ProductAttributes {
+export interface ProductAttributes extends GeneratedProductAttributes {
   name: string;
   slug: string;
   description?: string | null;

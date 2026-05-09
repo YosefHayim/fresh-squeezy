@@ -1,11 +1,12 @@
 import type { HttpClient } from "../core/http.js";
 import type { JsonApiResource } from "../core/types.js";
+import type { GeneratedLicenseKeyAttributes } from "../generated/lemonSqueezyApiTypes.js";
 
 /**
  * Subset of Lemon Squeezy license-key attributes used by the license key
  * validator. Full schema at https://docs.lemonsqueezy.com/api/license-keys.
  */
-export interface LicenseKeyAttributes {
+export interface LicenseKeyAttributes extends GeneratedLicenseKeyAttributes {
   key_short: string;
   status: "active" | "inactive" | "expired" | "disabled";
   expires_at: string | null;

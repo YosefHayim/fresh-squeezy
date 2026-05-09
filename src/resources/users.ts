@@ -1,11 +1,12 @@
 import type { HttpClient } from "../core/http.js";
 import type { JsonApiDocument, JsonApiResource } from "../core/types.js";
+import type { GeneratedUserAttributes } from "../generated/lemonSqueezyApiTypes.js";
 
 /**
  * Subset of the Lemon Squeezy `users` resource attributes we rely on.
  * Full schema at https://docs.lemonsqueezy.com/api/users.
  */
-export interface UserAttributes {
+export interface UserAttributes extends GeneratedUserAttributes {
   name: string;
   email: string;
   color?: string;

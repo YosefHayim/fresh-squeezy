@@ -32,7 +32,10 @@ export async function validateProduct(
 
   if (!fetched.ok) {
     issues.push(fetched.issue);
-    return buildResult("product", mode, issues);
+    return buildResult<ProductAttributes>("product", mode, issues, undefined, {
+      label: `product ${options.productId}`,
+      id: String(options.productId),
+    });
   }
 
   const attrs = fetched.resource.attributes;
@@ -100,5 +103,8 @@ export async function validateProduct(
     issues.push(issue(ISSUE_CODES.UNKNOWN, "warning", message));
   }
 
-  return buildResult("product", mode, issues, attrs);
+  return buildResult("product", mode, issues, attrs, {
+    label: attrs.name,
+    id: String(options.productId),
+  });
 }

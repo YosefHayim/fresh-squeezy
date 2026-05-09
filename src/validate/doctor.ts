@@ -24,10 +24,15 @@ import type { LicenseKeyAttributes } from "../resources/licenseKeys.js";
 export interface DoctorOptions {
   storeId?: string | number;
   productId?: string | number;
+  productIds?: Array<string | number>;
   webhookUrl?: string;
+  webhookUrls?: string[];
   discountId?: string | number;
+  discountIds?: Array<string | number>;
   licenseKeyId?: string | number;
+  licenseKeyIds?: Array<string | number>;
   variantId?: string | number;
+  variantIds?: Array<string | number>;
 }
 
 /**
@@ -104,6 +109,11 @@ export async function doctor(
   assertOptionsCoherent(options);
 
   const results: ValidationResult[] = [];
+  const productIds = collectValues(options.productId, options.productIds);
+  const webhookUrls = collectValues(options.webhookUrl, options.webhookUrls);
+  const discountIds = collectValues(options.discountId, options.discountIds);
+  const licenseKeyIds = collectValues(options.licenseKeyId, options.licenseKeyIds);
+  const variantIds = collectValues(options.variantId, options.variantIds);
 
   const connection = await validators.connection(http, mode);
   results.push(connection);
@@ -116,49 +126,57 @@ export async function doctor(
     results.push(await validators.store(http, mode, options.storeId));
   }
 
-  if (options.productId !== undefined) {
+  for (const productId of productIds) {
     results.push(
       await validators.product(http, mode, {
-        productId: options.productId,
+        productId,
         expectedStoreId: options.storeId,
       })
     );
   }
 
-  if (options.storeId !== undefined && options.webhookUrl !== undefined) {
-    results.push(
-      await validators.webhook(http, mode, {
-        storeId: options.storeId,
-        url: options.webhookUrl,
-      })
-    );
+  if (options.storeId !== undefined) {
+    for (const webhookUrl of webhookUrls) {
+      results.push(
+        await validators.webhook(http, mode, {
+          storeId: options.storeId,
+          url: webhookUrl,
+        })
+      );
+    }
   }
 
-  if (options.storeId !== undefined && options.discountId !== undefined) {
-    results.push(
-      await validators.discount(http, mode, {
-        storeId: options.storeId,
-        discountId: options.discountId,
-      })
-    );
+  if (options.storeId !== undefined) {
+    for (const discountId of discountIds) {
+      results.push(
+        await validators.discount(http, mode, {
+          storeId: options.storeId,
+          discountId,
+        })
+      );
+    }
   }
 
-  if (options.storeId !== undefined && options.licenseKeyId !== undefined) {
-    results.push(
-      await validators.licenseKey(http, mode, {
-        storeId: options.storeId,
-        licenseKeyId: options.licenseKeyId,
-      })
-    );
+  if (options.storeId !== undefined) {
+    for (const licenseKeyId of licenseKeyIds) {
+      results.push(
+        await validators.licenseKey(http, mode, {
+          storeId: options.storeId,
+          licenseKeyId,
+        })
+      );
+    }
   }
 
-  if (options.storeId !== undefined && options.variantId !== undefined) {
-    results.push(
-      await validators.subscriptionPlan(http, mode, {
-        storeId: options.storeId,
-        variantId: options.variantId,
-      })
-    );
+  if (options.storeId !== undefined) {
+    for (const variantId of variantIds) {
+      results.push(
+        await validators.subscriptionPlan(http, mode, {
+          storeId: options.storeId,
+          variantId,
+        })
+      );
+    }
   }
 
   const ok = results.every((result) => result.ok);
@@ -180,10 +198,10 @@ function assertOptionsCoherent(options: DoctorOptions): void {
   if (options.storeId !== undefined) return;
 
   const dependent: Array<keyof DoctorOptions> = [];
-  if (options.webhookUrl !== undefined) dependent.push("webhookUrl");
-  if (options.discountId !== undefined) dependent.push("discountId");
-  if (options.licenseKeyId !== undefined) dependent.push("licenseKeyId");
-  if (options.variantId !== undefined) dependent.push("variantId");
+  if (hasAny(options.webhookUrl, options.webhookUrls)) dependent.push("webhookUrl");
+  if (hasAny(options.discountId, options.discountIds)) dependent.push("discountId");
+  if (hasAny(options.licenseKeyId, options.licenseKeyIds)) dependent.push("licenseKeyId");
+  if (hasAny(options.variantId, options.variantIds)) dependent.push("variantId");
 
   if (dependent.length === 0) return;
 
@@ -191,4 +209,17 @@ function assertOptionsCoherent(options: DoctorOptions): void {
     code: "DOCTOR_OPTIONS_INVALID",
     message: `doctor() received ${dependent.join(", ")} without storeId. These validators cannot run without a store; pass \`storeId\` or remove the dependent options.`,
   });
+}
+
+function collectValues<T>(single: T | undefined, many: T[] | undefined): T[] {
+  const values = new Set<T>();
+  if (single !== undefined) values.add(single);
+  for (const value of many ?? []) {
+    if (value !== undefined) values.add(value);
+  }
+  return Array.from(values);
+}
+
+function hasAny<T>(single: T | undefined, many: T[] | undefined): boolean {
+  return single !== undefined || (many?.length ?? 0) > 0;
 }
