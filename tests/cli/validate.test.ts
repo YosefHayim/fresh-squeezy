@@ -34,9 +34,12 @@ describe("runValidateCommand", () => {
   });
 
   it("requires --store-ids or --all-stores for `validate store` in non-interactive mode", async () => {
-    vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     const code = await runValidateCommand("store", { mode: "test", isInteractive: false });
     expect(code).toBe(2);
+    const message = String(stderr.mock.calls[0]?.[0] ?? "");
+    expect(message).toContain("Try:");
+    expect(message).toContain("fresh-squeezy validate store --store-ids 12");
   });
 
   it("runs the store validator per --store-ids entry", async () => {

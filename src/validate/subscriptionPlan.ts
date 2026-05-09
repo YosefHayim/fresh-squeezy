@@ -52,7 +52,10 @@ export async function validateSubscriptionPlan(
 
   if (!fetched.ok) {
     issues.push(fetched.issue);
-    return buildResult("subscriptionPlan", mode, issues);
+    return buildResult<SubscriptionPlanSummary>("subscriptionPlan", mode, issues, undefined, {
+      label: `variant ${options.variantId}`,
+      id: String(options.variantId),
+    });
   }
 
   const variant = fetched.resource;
@@ -172,5 +175,8 @@ export async function validateSubscriptionPlan(
     status: attrs.status,
   };
 
-  return buildResult("subscriptionPlan", mode, issues, summary);
+  return buildResult("subscriptionPlan", mode, issues, summary, {
+    label: attrs.name,
+    id: String(options.variantId),
+  });
 }

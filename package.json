@@ -1,14 +1,15 @@
 {
   "name": "fresh-squeezy",
   "version": "0.1.8",
-  "description": "Validator-first Lemon Squeezy setup toolkit. Verify your integration before it hits production.",
+  "description": "Validate your Lemon Squeezy integration against changelog drift the official SDK hasn't shipped yet.",
   "keywords": [
     "lemon-squeezy",
-    "lemonsqueezy",
     "billing",
+    "cli",
     "validator",
-    "doctor",
-    "cli"
+    "typescript",
+    "nodejs",
+    "webhooks"
   ],
   "license": "MIT",
   "author": "fresh-squeezy contributors",
@@ -48,6 +49,8 @@
     "test:live": "LEMON_SQUEEZY_LIVE_SMOKE=1 vitest run --config vitest.live.config.ts",
     "typecheck": "tsc --noEmit",
     "check:changelog": "node scripts/check-changelog.mjs",
+    "generate:api-types": "node scripts/generate-api-types.mjs --update",
+    "check:api-types": "node scripts/generate-api-types.mjs",
     "prepublishOnly": "npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {

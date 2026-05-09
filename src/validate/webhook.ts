@@ -37,11 +37,17 @@ export async function validateWebhook(
           context: { status: err.status ?? null, code: err.code },
         })
       );
-      return buildResult("webhook", mode, issues);
+      return buildResult<WebhookAttributes>("webhook", mode, issues, undefined, {
+        label: options.url,
+        url: options.url,
+      });
     }
     const message = err instanceof Error ? err.message : "Unknown error";
     issues.push(issue(ISSUE_CODES.UNKNOWN, "error", message));
-    return buildResult("webhook", mode, issues);
+    return buildResult<WebhookAttributes>("webhook", mode, issues, undefined, {
+      label: options.url,
+      url: options.url,
+    });
   }
 
   const match = webhooks.find((webhook) => sameWebhookUrl(webhook.attributes.url, options.url));
@@ -58,7 +64,10 @@ export async function validateWebhook(
         }
       )
     );
-    return buildResult("webhook", mode, issues);
+    return buildResult<WebhookAttributes>("webhook", mode, issues, undefined, {
+      label: options.url,
+      url: options.url,
+    });
   }
 
   const subscribed = new Set(match.attributes.events);
@@ -90,5 +99,9 @@ export async function validateWebhook(
     );
   }
 
-  return buildResult("webhook", mode, issues, match.attributes);
+  return buildResult("webhook", mode, issues, match.attributes, {
+    label: match.attributes.url,
+    id: match.id,
+    url: match.attributes.url,
+  });
 }

@@ -5,35 +5,43 @@ Validator-first Lemon Squeezy doctor. Catches misconfigurations before they ship
 ## 30-second start
 
 ```bash
-npm i -D fresh-squeezy
-cp .env.example .env.local                # fill in LEMON_SQUEEZY_API_KEY
-npx fresh-squeezy doctor --all-stores
+npx fresh-squeezy
 ```
 
-No store ID to copy from the dashboard — the CLI discovers reachable stores itself.
+The first run adds `fresh-squeezy` to devDependencies when it is missing, then starts the guided setup. No store ID to copy from the dashboard — the CLI discovers reachable stores itself. Use `npx fresh-squeezy --no-install` to run the setup without editing `package.json`.
 
 | Exit | Meaning |
 |------|---------|
 | `0`  | All validators passed |
 | `1`  | One or more validators reported `error`-level issues |
 | `2`  | Fatal (missing key, invalid flags, network failure) |
+| `130` | User cancelled an interactive flow |
 
 ## What it catches that Postman and the official SDK won't
 
 - **Prod key pointed at staging.** `MODE_MISMATCH` fires when the key's true `meta.test_mode` (API changelog 2024-01-05) disagrees with the declared mode. Doctor exits 1. Neither the SDK nor a hand-rolled wrapper catches this by default.
 - **Silent store-ownership mismatches.** Products, discounts, license keys, and subscription plans whose `store_id` doesn't match the store you scoped the run to. Stable codes: `PRODUCT_WRONG_STORE`, `DISCOUNT_STORE_MISMATCH`, `LICENSE_KEY_STORE_MISMATCH`, `PLAN_STORE_MISMATCH`.
 - **Webhook subscribed to the wrong events.** Diff against a manifest of recommended events (order/subscription lifecycle, refunds) and newer-but-optional events the SDK doesn't ship.
-- **Platform drift.** A weekly GitHub Action hashes the [Lemon Squeezy API changelog](https://docs.lemonsqueezy.com/api/getting-started/changelog) against `src/support/changelog-snapshot.json` and opens an issue when it moves. Tracked additions beyond the official SDK as of 2026-04-24: `customer_updated` (2026-02-25), `payment_processor` on Subscription (2025-06-11), Affiliates + `affiliate_activated` (2025-01-21), `test_mode` on `/v1/users/me` (2024-01-05).
+- **Platform drift.** A weekly GitHub Action hashes the [Lemon Squeezy API changelog](https://docs.lemonsqueezy.com/api/getting-started/changelog) against `src/support/changelog-snapshot.json`, refreshes docs-derived API types, and opens follow-up work when policy decisions are needed. Tracked additions include `customer_updated` (2026-02-25), `payment_processor` on Subscription (2025-06-11), Affiliates + `affiliate_activated` (2025-01-21), order item `quantity` (2024-12-06), checkout styling / `skip_trial` / `variant_quantities`, subscription invoice refund fields, and `test_mode` on `/v1/users/me` (2024-01-05).
 - **Postman + dashboard ping-pong.** One `doctor` call replaces the loop of copying IDs out of the UI, pasting them into env files, and verifying each one by hand.
 
 ## CLI
 
 ```bash
+# First run: install as a dev dependency, then start guided setup
+npx fresh-squeezy
+
+# Guided setup only: reuse env values, pick a store, choose one or more resource checks
+npx fresh-squeezy init
+
 # TTY: multi-select stores interactively, run doctor on each
 npx fresh-squeezy doctor
 
 # Non-interactive: every reachable store
 npx fresh-squeezy doctor --all-stores
+
+# Full sweep: discover products, webhooks, discounts, license keys, and subscription plans
+npx fresh-squeezy doctor --all-stores --all-resources
 
 # Specific stores
 npx fresh-squeezy doctor --store-ids 12,34,56
@@ -48,8 +56,8 @@ npx fresh-squeezy validate webhook \
   --store-ids 12,34 \
   --webhook-url https://app.example.com/api/webhooks/lemon-squeezy
 
-# Machine-readable output for CI
-npx fresh-squeezy doctor --all-stores --json
+# Machine-readable full sweep for CI
+npx fresh-squeezy doctor --all-stores --all-resources --json
 ```
 
 Store resolution order, used by every store-scoped command:
@@ -58,6 +66,8 @@ Store resolution order, used by every store-scoped command:
 2. `--all-stores` (every store reachable with the key)
 3. TTY: inquirer multi-select prompt
 4. No TTY + no flag: connection-only run (useful as a CI smoke check)
+
+By default, `doctor` validates connection and store access plus any explicit resource flags you pass. Add `--all-resources` when you want the CLI to discover and validate every supported resource in the selected store(s).
 
 ## Library
 
@@ -84,7 +94,14 @@ if (!report.ok) {
 
 For multi-store runs at the library layer, call `doctor()` in a loop. The CLI does exactly this.
 
-Public types: [`FreshSqueezyClient`](src/createFreshSqueezy.ts), [`ValidationResult<T>`](src/core/types.ts), [`DoctorReport`](src/core/types.ts). Switch on `issue.code` in CI logic — codes are stable across minor versions.
+Public types: [`FreshSqueezyClient`](src/createFreshSqueezy.ts), [`ValidationResult<T>`](src/core/types.ts), [`DoctorReport`](src/core/types.ts), resource attribute interfaces under [`src/resources`](src/resources), docs-generated Lemon Squeezy object types in [`src/generated/lemonSqueezyApiTypes.ts`](src/generated/lemonSqueezyApiTypes.ts), and changelog augmentation helpers in [`src/augmentations.ts`](src/augmentations.ts). Switch on `issue.code` in CI logic — codes are stable across minor versions.
+`ValidationResult.target` is optional and identifies the checked resource in human output and JSON when a validator has a product, webhook, store, discount, license key, or variant handle.
+
+Generate a local augmentation file when your app uses the official SDK or older hand-rolled types:
+
+```bash
+npx fresh-squeezy types augment
+```
 
 ## Sandbox vs live
 
@@ -98,6 +115,7 @@ result.resource?.actualMode; // "live" — alarm bell
 ```
 
 The CLI default is `--mode test`. Override with `--mode live`. For nightly platform-drift checks in CI, run `npm run test:live` with `LEMON_SQUEEZY_LIVE_SMOKE=1` and a test-mode key.
+Guided setup asks for explicit confirmation before continuing with a detected live-mode key.
 
 ## Issue codes
 
@@ -122,6 +140,16 @@ For endpoints not yet wrapped, use the raw escape hatch:
 const user = await lemon.request({ path: "/v1/users/me" });
 ```
 
+For wrapped-but-not-validated endpoints, import the exported attribute type and use `request()`:
+
+```ts
+import type { SubscriptionInvoiceAttributes } from "fresh-squeezy";
+
+const invoice = await lemon.request<{ data: { attributes: SubscriptionInvoiceAttributes } }>({
+  path: "/v1/subscription-invoices/123",
+});
+```
+
 ## Environment variables
 
 | Variable | Required | Purpose |
@@ -144,12 +172,25 @@ The CLI does not read `LEMON_SQUEEZY_STORE_ID`; use `--store-ids` or `--all-stor
 - **`validateLicenseKey`** — Enabled, not expired, activations available, store ownership matches. [→ source](src/validate/licenseKey.ts)
 - **`validateSubscriptionPlan`** — Subscription type, valid interval, non-zero price, consistent trial. [→ source](src/validate/subscriptionPlan.ts)
 - **`doctor`** — Composes the above into one `DoctorReport`. [→ source](src/validate/doctor.ts)
+- **Types/resources** — Changelog-backed interfaces for customers, checkouts, order items, subscription invoices/items, usage records, affiliates, and more. [→ source](src/resources)
 
 ### CLI commands
 
-- **`doctor`** — Run every configured validator and emit a report. [→ source](src/cli/commands/doctor.ts)
+- **`doctor`** — Run configured validators; add `--all-resources` for discovery-backed full sweeps. [→ source](src/cli/commands/doctor.ts)
 - **`validate <name>`** — Run a single validator. [→ source](src/cli/commands/validate.ts)
 - **`init`** — Interactive setup: ask for credentials, pick a store, run doctor. [→ source](src/cli/commands/init.ts)
+- **`types augment`** — Emit a local `.d.ts` for changelog fields not present in older SDK/local types. [→ source](src/cli/commands/augment.ts)
+
+## Keeping API Types Current
+
+Resource coverage is generated from Lemon Squeezy's object docs, so most newly documented fields do not require a hand edit:
+
+```bash
+npm run generate:api-types
+npm run check:api-types
+```
+
+Manual review still applies to validator behavior and webhook policy: new events belong in `RECOMMENDED_WEBHOOK_EVENTS` or `OPTIONAL_WEBHOOK_EVENTS`, and meaningful platform changes should be acknowledged in `ACKNOWLEDGED_CHANGELOG_ENTRIES`.
 
 ## Contributing
 

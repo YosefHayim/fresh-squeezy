@@ -25,8 +25,14 @@ export async function validateStore(
 
   if (!fetched.ok) {
     issues.push(fetched.issue);
-    return buildResult("store", mode, issues);
+    return buildResult<StoreAttributes>("store", mode, issues, undefined, {
+      label: `store ${storeId}`,
+      id: String(storeId),
+    });
   }
 
-  return buildResult("store", mode, issues, fetched.resource.attributes);
+  return buildResult("store", mode, issues, fetched.resource.attributes, {
+    label: fetched.resource.attributes.name,
+    id: String(storeId),
+  });
 }

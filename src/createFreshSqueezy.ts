@@ -67,10 +67,15 @@ export function createFreshSqueezy(config: FreshSqueezyConfig = {}): FreshSqueez
       doctor(http, resolved.mode, {
         storeId: options?.storeId ?? resolved.storeId,
         productId: options?.productId,
+        productIds: options?.productIds,
         webhookUrl: options?.webhookUrl,
+        webhookUrls: options?.webhookUrls,
         discountId: options?.discountId,
+        discountIds: options?.discountIds,
         licenseKeyId: options?.licenseKeyId,
+        licenseKeyIds: options?.licenseKeyIds,
         variantId: options?.variantId,
+        variantIds: options?.variantIds,
       }),
   };
 }

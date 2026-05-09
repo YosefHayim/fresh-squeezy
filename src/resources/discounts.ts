@@ -1,11 +1,12 @@
 import type { HttpClient } from "../core/http.js";
 import type { JsonApiResource } from "../core/types.js";
+import type { GeneratedDiscountAttributes } from "../generated/lemonSqueezyApiTypes.js";
 
 /**
  * Subset of Lemon Squeezy discount attributes used by the discount validator.
  * Full schema at https://docs.lemonsqueezy.com/api/discounts.
  */
-export interface DiscountAttributes {
+export interface DiscountAttributes extends GeneratedDiscountAttributes {
   name: string;
   code: string;
   amount: number;

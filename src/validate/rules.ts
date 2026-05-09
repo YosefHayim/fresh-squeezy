@@ -1,4 +1,9 @@
-import type { ValidationIssue, ValidationResult, ValidationSeverity } from "../core/types.js";
+import type {
+  ValidationIssue,
+  ValidationResult,
+  ValidationSeverity,
+  ValidationTarget,
+} from "../core/types.js";
 
 /**
  * Stable issue codes. Consumers may switch on these in CI — do not rename
@@ -72,7 +77,8 @@ export function buildResult<T>(
   name: string,
   mode: ValidationResult["mode"],
   issues: ValidationIssue[],
-  resource?: T
+  resource?: T,
+  target?: ValidationTarget
 ): ValidationResult<T> {
   const result: ValidationResult<T> = {
     name,
@@ -81,5 +87,6 @@ export function buildResult<T>(
     issues,
   };
   if (resource !== undefined) result.resource = resource;
+  if (target !== undefined) result.target = target;
   return result;
 }

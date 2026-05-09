@@ -1,5 +1,6 @@
 import type { HttpClient } from "../core/http.js";
 import type { JsonApiResource } from "../core/types.js";
+import type { GeneratedPriceAttributes } from "../generated/lemonSqueezyApiTypes.js";
 
 /**
  * Subset of Lemon Squeezy price attributes. Prices are nested under
@@ -11,7 +12,7 @@ import type { JsonApiResource } from "../core/types.js";
  *   - `setup_fee_enabled`, `setup_fee` — added 2024-01-21.
  *   - `unit_price_decimal` — added 2024-01-15.
  */
-export interface PriceAttributes {
+export interface PriceAttributes extends GeneratedPriceAttributes {
   variant_id: number;
   category: "one_time" | "subscription" | "lead_magnet" | "pwyw";
   scheme: "standard" | "package" | "graduated" | "volume";
@@ -29,7 +30,7 @@ export interface PriceAttributes {
   suggested_price?: number | null;
   tax_code?: string;
   /** Added 2024-01-21. */
-  setup_fee_enabled?: boolean;
+  setup_fee_enabled?: boolean | null;
   /** Added 2024-01-21. Setup fee in cents, paired with `setup_fee_enabled`. */
   setup_fee?: number | null;
   created_at?: string;

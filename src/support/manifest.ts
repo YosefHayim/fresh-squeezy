@@ -1,34 +1,21 @@
+import { GENERATED_LEMON_SQUEEZY_RESOURCES } from "../generated/lemonSqueezyApiTypes.js";
+
 /**
  * Support manifest: the locally reviewed source of truth for what
  * fresh-squeezy explicitly understands on the Lemon Squeezy platform.
  *
- * The plan deliberately favors a static, reviewed manifest over live changelog
- * scraping (see plan.md §Non-goals). When the platform adds new resources,
- * fields, or webhook events, bump the entries below and re-snapshot the
- * changelog page with `npm run check:changelog -- --update`.
+ * Resource/type coverage is generated from Lemon Squeezy object docs with
+ * `npm run generate:api-types`. Validator policy remains reviewed here:
+ * when the platform adds new webhook events or behavior, bump the entries
+ * below and re-snapshot the changelog page with
+ * `npm run check:changelog -- --update`.
  *
  * Changelog source: https://docs.lemonsqueezy.com/api/getting-started/changelog
  * Last reviewed:    2026-05-07
  */
 
-/**
- * Resources fresh-squeezy wraps today. Anything outside this list is still
- * reachable via the raw `request()` escape hatch but has no dedicated
- * validator.
- */
-export const SUPPORTED_RESOURCES = [
-  "users",
-  "stores",
-  "products",
-  "variants",
-  "webhooks",
-  // Type-only support: no validator yet, but the attribute interface and a
-  // `getX()` fetch helper are exported so consumers using the raw escape
-  // hatch get typed responses.
-  "orders",
-  "subscriptions",
-  "prices",
-] as const;
+/** Resources fresh-squeezy understands today, generated from object docs. */
+export const SUPPORTED_RESOURCES = GENERATED_LEMON_SQUEEZY_RESOURCES;
 
 /**
  * Webhook events fresh-squeezy expects a production integration to subscribe to
@@ -102,6 +89,11 @@ export const ACKNOWLEDGED_CHANGELOG_ENTRIES = [
     handledBy: "OPTIONAL_WEBHOOK_EVENTS (event only; resource stays v2 scope)",
   },
   {
+    date: "2024-12-06",
+    summary: "Added quantity parameter to OrderItem objects.",
+    handledBy: "OrderItemAttributes.quantity (src/resources/orderItems.ts).",
+  },
+  {
     date: "2024-09-10",
     summary: "Added fraudulent Order status.",
     handledBy: "OrderAttributes.status union includes 'fraudulent' (src/resources/orders.ts).",
@@ -114,7 +106,7 @@ export const ACKNOWLEDGED_CHANGELOG_ENTRIES = [
   {
     date: "2024-08-07",
     summary: "Added refunded_amount, refunded_amount_usd, refunded_amount_formatted to Order and Subscription invoice objects.",
-    handledBy: "OrderAttributes.refunded_amount* (src/resources/orders.ts).",
+    handledBy: "OrderAttributes.refunded_amount*, SubscriptionInvoiceAttributes.refunded_amount*.",
   },
   {
     date: "2024-06-09",
@@ -134,7 +126,8 @@ export const ACKNOWLEDGED_CHANGELOG_ENTRIES = [
   {
     date: "2024-03-28",
     summary: "Subscription trial_ends_at is now mutable via the update endpoint.",
-    handledBy: "SubscriptionAttributes.trial_ends_at (src/resources/subscriptions.ts). Mutation reachable via client.request().",
+    handledBy:
+      "SubscriptionAttributes.trial_ends_at plus CheckoutOptions.skip_trial. Mutations remain reachable via client.request().",
   },
   {
     date: "2024-02-20",
@@ -144,17 +137,17 @@ export const ACKNOWLEDGED_CHANGELOG_ENTRIES = [
   {
     date: "2024-02-12",
     summary: "Added Generate subscription invoice endpoint and invoice_immediately / disable_prorations parameters.",
-    handledBy: "Not wrapped — reachable via client.request().",
+    handledBy: "SubscriptionItemUpdateAttributes.invoice_immediately / disable_prorations; invoice endpoint reachable via client.request().",
   },
   {
     date: "2024-02-05",
     summary: "Added tax_inclusive parameter to Order objects and Subscription invoice objects.",
-    handledBy: "OrderAttributes.tax_inclusive, SubscriptionAttributes.tax_inclusive.",
+    handledBy: "OrderAttributes.tax_inclusive, SubscriptionInvoiceAttributes.tax_inclusive.",
   },
   {
     date: "2024-01-21",
     summary: "Added setup_fee_enabled / setup_fee to Price objects; setup_fee* to Subscription invoice.",
-    handledBy: "PriceAttributes.setup_fee*, OrderAttributes.setup_fee.",
+    handledBy: "PriceAttributes.setup_fee*, OrderAttributes.setup_fee*.",
   },
   {
     date: "2024-01-15",
@@ -166,6 +159,27 @@ export const ACKNOWLEDGED_CHANGELOG_ENTRIES = [
     summary: "Added test_mode flag to /v1/users/me meta.",
     handledBy:
       "Read in validateConnection to emit MODE_MISMATCH when the key's true mode differs from the caller's declared mode.",
+  },
+  {
+    date: "2023-09-19",
+    summary: "Added customer_portal URLs to Subscription and Customer objects.",
+    handledBy: "SubscriptionUrls.customer_portal and CustomerUrls.customer_portal.",
+  },
+  {
+    date: "2023-08-23",
+    summary: "Added checkout_data.variant_quantities, subscription items, prices, and usage-based billing.",
+    handledBy:
+      "CheckoutData.variant_quantities, SubscriptionItemAttributes, UsageRecordAttributes, PriceAttributes.",
+  },
+  {
+    date: "2023-08-14",
+    summary: "Added customer_id, user_name, user_email to Subscription invoice objects.",
+    handledBy: "SubscriptionInvoiceAttributes customer fields.",
+  },
+  {
+    date: "2023-03-30",
+    summary: "Added receipt URL to Order objects.",
+    handledBy: "OrderUrls.receipt.",
   },
 ] as const;
 

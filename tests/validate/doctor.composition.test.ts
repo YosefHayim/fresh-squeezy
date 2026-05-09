@@ -108,14 +108,73 @@ describe("doctor composition", () => {
     expect(captured).toEqual({ productId: 100, expectedStoreId: 42 });
   });
 
+  it("runs one validator result per plural configured target", async () => {
+    const calls: string[] = [];
+    const validators = createFakeValidators({
+      product: async (_http, mode, options) => {
+        calls.push(`product:${options.productId}`);
+        return buildResult("product", mode, []);
+      },
+      webhook: async (_http, mode, options) => {
+        calls.push(`webhook:${options.url}`);
+        return buildResult("webhook", mode, []);
+      },
+      discount: async (_http, mode, options) => {
+        calls.push(`discount:${options.discountId}`);
+        return buildResult("discount", mode, []);
+      },
+      licenseKey: async (_http, mode, options) => {
+        calls.push(`licenseKey:${options.licenseKeyId}`);
+        return buildResult("licenseKey", mode, []);
+      },
+      subscriptionPlan: async (_http, mode, options) => {
+        calls.push(`subscriptionPlan:${options.variantId}`);
+        return buildResult("subscriptionPlan", mode, []);
+      },
+    });
+
+    const report = await doctor(
+      HTTP_STUB,
+      "test",
+      {
+        storeId: 42,
+        productIds: [100, 101],
+        webhookUrls: ["https://a.test", "https://b.test"],
+        discountIds: [600, 601],
+        licenseKeyIds: [700, 701],
+        variantIds: [800, 801],
+      },
+      validators
+    );
+
+    expect(report.ok).toBe(true);
+    expect(calls).toEqual([
+      "product:100",
+      "product:101",
+      "webhook:https://a.test",
+      "webhook:https://b.test",
+      "discount:600",
+      "discount:601",
+      "licenseKey:700",
+      "licenseKey:701",
+      "subscriptionPlan:800",
+      "subscriptionPlan:801",
+    ]);
+    expect(report.results).toHaveLength(12);
+  });
+
   it("throws DOCTOR_OPTIONS_INVALID when a dependent option is set without storeId", async () => {
     const validators = createFakeValidators();
 
     for (const opts of [
       { discountId: 1 },
+      { discountIds: [1] },
       { licenseKeyId: 1 },
+      { licenseKeyIds: [1] },
       { webhookUrl: "https://x" },
+      { webhookUrls: ["https://x"] },
       { variantId: 1 },
+      { variantIds: [1] },
     ]) {
       await expect(doctor(HTTP_STUB, "test", opts, validators)).rejects.toMatchObject({
         name: "FreshSqueezyError",

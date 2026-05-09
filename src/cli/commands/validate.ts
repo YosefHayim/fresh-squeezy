@@ -1,6 +1,7 @@
 import { createFreshSqueezy, type FreshSqueezyClient } from "../../createFreshSqueezy.js";
 import { FreshSqueezyError } from "../../core/errors.js";
 import type { Mode, ValidationResult } from "../../core/types.js";
+import { getValidateHints, renderCliError } from "../errors.js";
 import { renderResult } from "../render.js";
 import { resolveStores } from "../resolveStores.js";
 
@@ -71,10 +72,10 @@ export async function runValidateCommand(
     const message =
       err instanceof FreshSqueezyError
         ? err.message
-        : err instanceof Error
-          ? err.message
-          : String(err);
-    process.stderr.write(`fresh-squeezy: ${message}\n`);
+          : err instanceof Error
+            ? err.message
+            : String(err);
+    process.stderr.write(renderCliError(message, getValidateHints(err, target)));
     return 2;
   }
 }

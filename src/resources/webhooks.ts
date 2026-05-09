@@ -1,12 +1,13 @@
 import type { HttpClient } from "../core/http.js";
 import type { JsonApiResource } from "../core/types.js";
+import type { GeneratedWebhookAttributes } from "../generated/lemonSqueezyApiTypes.js";
 
 /**
  * Subset of webhook attributes we read. `events` is an ordered list of
  * subscribed event names; the validator cross-references these against the
  * support manifest to catch missing subscriptions.
  */
-export interface WebhookAttributes {
+export interface WebhookAttributes extends GeneratedWebhookAttributes {
   store_id: number;
   url: string;
   events: string[];

@@ -36,6 +36,17 @@ export interface ValidationIssue {
 }
 
 /**
+ * Human/resource handle for the thing a validator checked. This keeps
+ * multi-resource CLI output attributable without forcing consumers to parse
+ * provider-specific resource attributes.
+ */
+export interface ValidationTarget {
+  label: string;
+  id?: string;
+  url?: string;
+}
+
+/**
  * Return shape for every validator.
  *
  * `ok` is `false` if any issue has `severity: "error"`. `mode` surfaces the
@@ -46,6 +57,7 @@ export interface ValidationResult<T = unknown> {
   ok: boolean;
   mode: Mode;
   name: string;
+  target?: ValidationTarget;
   resource?: T;
   issues: ValidationIssue[];
 }

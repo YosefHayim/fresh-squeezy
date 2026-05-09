@@ -28,6 +28,10 @@ jobs:
 
       - run: npm ci
 
+      - name: docs-derived API types
+        if: matrix.node == '20'
+        run: npm run check:api-types
+
       - name: typecheck
         run: npm run typecheck
 

@@ -1,13 +1,17 @@
 import { createFreshSqueezy, type FreshSqueezyClient } from "../../createFreshSqueezy.js";
 import { FreshSqueezyError } from "../../core/errors.js";
 import type { DoctorReport, Mode } from "../../core/types.js";
+import { getDoctorHints, renderCliError } from "../errors.js";
+import { discoverInitResourceChoices, type InitResourceChoices } from "../resourceDiscovery.js";
 import { renderReport } from "../render.js";
 import { resolveStores } from "../resolveStores.js";
+import type { InitDoctorTarget } from "../prompts.js";
 
 export interface DoctorCommandOptions {
   mode?: Mode;
   storeIds?: string[];
   allStores?: boolean;
+  allResources?: boolean;
   productId?: string;
   webhookUrl?: string;
   discountId?: string;
@@ -27,6 +31,14 @@ export interface DoctorJsonOutput {
   mode: Mode;
   reports: DoctorReport[];
 }
+
+const ALL_RESOURCE_TARGETS: InitDoctorTarget[] = [
+  "product",
+  "webhook",
+  "discount",
+  "license-key",
+  "subscription-plan",
+];
 
 /**
  * `fresh-squeezy doctor` — run every validator across each resolved store and
@@ -48,16 +60,10 @@ export async function runDoctorCommand(options: DoctorCommandOptions): Promise<n
     }
 
     const reports = await Promise.all(
-      resolved.storeIds.map((storeId) =>
-        client.doctor({
-          storeId,
-          productId: options.productId,
-          webhookUrl: options.webhookUrl,
-          discountId: options.discountId,
-          licenseKeyId: options.licenseKeyId,
-          variantId: options.variantId,
-        })
-      )
+      resolved.storeIds.map(async (storeId) => {
+        const targets = await resolveDoctorTargets(client, storeId, options);
+        return client.doctor({ storeId, ...targets });
+      })
     );
 
     const ok = reports.every((report) => report.ok);
@@ -69,6 +75,11 @@ export async function runDoctorCommand(options: DoctorCommandOptions): Promise<n
       for (const report of reports) {
         process.stdout.write(`${renderReport(report)}\n\n`);
       }
+      if (!options.allResources && !hasExplicitResourceSelection(options)) {
+        process.stderr.write(
+          "fresh-squeezy: resource checks were skipped; pass --all-resources or explicit resource flags to validate products, webhooks, discounts, license keys, and subscription plans.\n"
+        );
+      }
     }
 
     return ok ? 0 : 1;
@@ -76,6 +87,98 @@ export async function runDoctorCommand(options: DoctorCommandOptions): Promise<n
     writeFatal(err, options.json ?? false);
     return 2;
   }
+}
+
+async function resolveDoctorTargets(
+  client: FreshSqueezyClient,
+  storeId: string,
+  options: DoctorCommandOptions
+): Promise<{
+  productIds?: string[];
+  webhookUrls?: string[];
+  discountIds?: string[];
+  licenseKeyIds?: string[];
+  variantIds?: string[];
+}> {
+  const explicit = {
+    productIds: one(options.productId),
+    webhookUrls: one(options.webhookUrl),
+    discountIds: one(options.discountId),
+    licenseKeyIds: one(options.licenseKeyId),
+    variantIds: one(options.variantId),
+  };
+
+  if (!options.allResources) return explicit;
+
+  const discovered = await discoverInitResourceChoices(client, storeId, ALL_RESOURCE_TARGETS);
+  reportDiscoveryErrors(discovered);
+  if (!options.json) {
+    process.stderr.write(
+      `fresh-squeezy: discovered store ${storeId} resources: ${formatDiscoveryCounts(discovered)}.\n`
+    );
+  }
+
+  return {
+    productIds: mergeValues(explicit.productIds, values(discovered.products)),
+    webhookUrls: mergeValues(explicit.webhookUrls, values(discovered.webhooks)),
+    discountIds: mergeValues(explicit.discountIds, values(discovered.discounts)),
+    licenseKeyIds: mergeValues(explicit.licenseKeyIds, values(discovered.licenseKeys)),
+    variantIds: mergeValues(explicit.variantIds, values(discovered.subscriptionPlans)),
+  };
+}
+
+function formatDiscoveryCounts(choices: InitResourceChoices): string {
+  return [
+    countLabel("products", choices.products.choices.length),
+    countLabel("webhooks", choices.webhooks.choices.length),
+    countLabel("discounts", choices.discounts.choices.length),
+    countLabel("license keys", choices.licenseKeys.choices.length),
+    countLabel("subscription plans", choices.subscriptionPlans.choices.length),
+  ].join(", ");
+}
+
+function countLabel(label: string, count: number): string {
+  return `${label} ${count}`;
+}
+
+function reportDiscoveryErrors(choices: InitResourceChoices): void {
+  const errors = [
+    choices.products.error && `products: ${choices.products.error}`,
+    choices.webhooks.error && `webhooks: ${choices.webhooks.error}`,
+    choices.discounts.error && `discounts: ${choices.discounts.error}`,
+    choices.licenseKeys.error && `license keys: ${choices.licenseKeys.error}`,
+    choices.subscriptionPlans.error && `subscription plans: ${choices.subscriptionPlans.error}`,
+  ].filter((entry): entry is string => Boolean(entry));
+
+  for (const error of errors) {
+    process.stderr.write(`fresh-squeezy: discovery skipped ${error}\n`);
+  }
+}
+
+function values(group: { choices: Array<{ value: string }> }): string[] | undefined {
+  return group.choices.length > 0 ? group.choices.map((choice) => choice.value) : undefined;
+}
+
+function one(value: string | undefined): string[] | undefined {
+  return value ? [value] : undefined;
+}
+
+function mergeValues(
+  explicit: string[] | undefined,
+  discovered: string[] | undefined
+): string[] | undefined {
+  const merged = Array.from(new Set([...(explicit ?? []), ...(discovered ?? [])]));
+  return merged.length > 0 ? merged : undefined;
+}
+
+function hasExplicitResourceSelection(options: DoctorCommandOptions): boolean {
+  return Boolean(
+    options.productId ||
+      options.webhookUrl ||
+      options.discountId ||
+      options.licenseKeyId ||
+      options.variantId
+  );
 }
 
 /**
@@ -116,5 +219,5 @@ function writeFatal(err: unknown, asJson: boolean): void {
     return;
   }
   const message = err instanceof Error ? err.message : String(err);
-  process.stderr.write(`fresh-squeezy: ${message}\n`);
+  process.stderr.write(renderCliError(message, getDoctorHints(err)));
 }

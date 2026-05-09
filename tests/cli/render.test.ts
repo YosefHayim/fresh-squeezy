@@ -15,6 +15,17 @@ describe("renderResult", () => {
     expect(stripAnsi(renderResult(result))).toContain("PASS [test] connection");
   });
 
+  it("prints the checked resource target when one is available", () => {
+    const result: ValidationResult = {
+      name: "product",
+      ok: true,
+      mode: "test",
+      target: { label: "Pro Plan", id: "100" },
+      issues: [],
+    };
+    expect(stripAnsi(renderResult(result))).toContain("PASS [test] product Pro Plan - id 100");
+  });
+
   it("marks a failing result as FAIL and lists issues with codes", () => {
     const result: ValidationResult = {
       name: "store",
@@ -53,6 +64,7 @@ describe("renderReport", () => {
     };
     const text = stripAnsi(renderReport(report));
     expect(text).toContain("fresh-squeezy doctor: FAILED");
+    expect(text).toContain("1/2 checks failed");
     expect(text).toContain("PASS [test] connection");
     expect(text).toContain("FAIL [test] store");
   });

@@ -33,6 +33,10 @@ describe("runAugmentCommand", () => {
     expect(out).toContain('from "@lemonsqueezy/lemonsqueezy.js"');
     expect(out).toContain("LemonSqueezyAugmented");
     expect(out).toContain("LatestSubscriptionFields");
+    expect(out).toContain("LatestCheckoutFields");
+    expect(out).toContain("LatestSubscriptionInvoiceFields");
+    expect(out).toContain("GeneratedLemonSqueezyFieldMap");
+    expect(out).toContain("LatestFieldsFor");
   });
 
   it("emits the generic file when the SDK is not installed", async () => {
@@ -48,6 +52,9 @@ describe("runAugmentCommand", () => {
     const out = readFileSync(join(workdir, "lemonsqueezy.augment.d.ts"), "utf8");
     expect(out).not.toContain('from "@lemonsqueezy/lemonsqueezy.js"');
     expect(out).toContain("WithLatestLemonSqueezyFields");
+    expect(out).toContain('"checkout"');
+    expect(out).toContain("LatestOrderItemFields");
+    expect(out).toContain("GeneratedLemonSqueezyResourceName");
   });
 
   it("emits the generic file with --force even when the SDK is detected", async () => {
