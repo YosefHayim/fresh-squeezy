@@ -1,6 +1,6 @@
 {
   "name": "fresh-squeezy",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Validate your Lemon Squeezy integration against changelog drift the official SDK hasn't shipped yet.",
   "keywords": [
     "lemon-squeezy",
