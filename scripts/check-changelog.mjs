@@ -128,8 +128,9 @@ async function fetchText(url) {
  * styles / comments, and collapse whitespace. Tags themselves are kept so
  * `extractEntries()` can still find `<hN>` headings for the drift diff.
  *
- * The hash is computed from `hashable(normalized)` so structural class-name
- * churn does not flip the hash on its own.
+ * The hash is computed from the extracted entries
+ * (`canonicalize(extractEntries(normalized))`), not the raw markup, so
+ * structural class-name churn does not flip the hash on its own.
  */
 function normalize(html) {
   return isolateMain(html)
@@ -148,26 +149,6 @@ function normalize(html) {
 function isolateMain(html) {
   const match = html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i);
   return match ? match[1] : html;
-}
-
-/**
- * Reduce normalized HTML to plain text for hashing. Drops tags, decodes
- * common entities, collapses whitespace. Used only for the hash — the
- * snapshot still stores the tag-preserving normalized form so the diff
- * path can locate headings.
- */
-function hashable(html) {
-  return html
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&#x27;/g, "'")
-    .replace(/&nbsp;/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 function sha256(value) {

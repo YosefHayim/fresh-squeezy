@@ -37,6 +37,10 @@ describe("runAugmentCommand", () => {
     expect(out).toContain("LatestSubscriptionInvoiceFields");
     expect(out).toContain("GeneratedLemonSqueezyFieldMap");
     expect(out).toContain("LatestFieldsFor");
+    // Widened response map covers every SDK-response-shaped resource, not just the original four.
+    expect(out).toContain("AugmentResponse<SubscriptionInvoice, LatestSubscriptionInvoiceFields>");
+    expect(out).toContain("AugmentResponse<OrderItem, LatestOrderItemFields>");
+    expect(out).toContain("AugmentResponse<Checkout, LatestCheckoutFields>");
   });
 
   it("emits the generic file when the SDK is not installed", async () => {

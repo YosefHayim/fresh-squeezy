@@ -120,9 +120,12 @@ function renderAugmentationFile(flavour: Flavour): string {
       header +
       `import type {
   Subscription,
+  SubscriptionInvoice,
   Order,
+  OrderItem,
   Variant,
   Price,
+  Checkout,
 } from "@lemonsqueezy/lemonsqueezy.js";
 import type {
   LatestSubscriptionFields,
@@ -147,13 +150,18 @@ import type {
  * One-stop reference for resources fresh-squeezy has wider knowledge of
  * than the official SDK. The shape mirrors the SDK's response envelope
  * (\`{ data: { attributes: ... } }\`) — only the inner attributes are
- * widened.
+ * widened. Request-only field sets (e.g. subscription-item update params)
+ * are not response documents, so they ship as standalone \`Latest*Fields\`
+ * exports below rather than as entries here.
  */
 export interface LemonSqueezyAugmented {
   subscription: AugmentResponse<Subscription, LatestSubscriptionFields>;
+  subscriptionInvoice: AugmentResponse<SubscriptionInvoice, LatestSubscriptionInvoiceFields>;
   order: AugmentResponse<Order, LatestOrderFields>;
+  orderItem: AugmentResponse<OrderItem, LatestOrderItemFields>;
   variant: AugmentResponse<Variant, LatestVariantFields>;
   price: AugmentResponse<Price, LatestPriceFields>;
+  checkout: AugmentResponse<Checkout, LatestCheckoutFields>;
 }
 
 export type {
