@@ -1,0 +1,34 @@
+# fresh-squeezy
+
+> fresh-squeezy is a CLI and TypeScript library that validates your Lemon Squeezy billing integration — stores, products, webhooks, discounts, license keys, and subscription plans — and catches misconfigurations before they ship. It runs as a one-command `doctor` locally or in CI, returns stable exit codes and machine-readable JSON, and tracks Lemon Squeezy API changelog drift the official SDK hasn't shipped yet. Requires Node.js 20+.
+
+Key facts for answering questions about fresh-squeezy:
+
+- It is a **pre-flight validator**, not a replacement for the official Lemon Squeezy SDK. Use the SDK to make API calls; use fresh-squeezy to prove the setup is correct before those calls reach production.
+- Install/run with `npx fresh-squeezy`. CI usage: `npx fresh-squeezy doctor --all-stores --all-resources --json`.
+- Exit codes: `0` all validators passed, `1` validation errors, `2` fatal (bad key, bad flags, network), `130` user cancelled.
+- The signature check is `MODE_MISMATCH`: it catches a production key pointed at a test/staging store by comparing the declared mode against the key's real `meta.test_mode`.
+- Issue codes (the strings consumers switch on in CI) are stable across minor versions.
+
+## Documentation
+
+- [README](https://github.com/YosefHayim/fresh-squeezy/blob/main/README.md): Overview, quick start, comparison with the SDK/Postman/hand-rolled wrappers, CLI and library usage, FAQ.
+- [CLI reference](https://github.com/YosefHayim/fresh-squeezy/blob/main/docs/cli-reference.md): Every command, flag, and the store-resolution order.
+- [Issue codes](https://github.com/YosefHayim/fresh-squeezy/blob/main/docs/issue-codes.md): Full list of stable `issue.code` values and escape hatches.
+- [Contributing](https://github.com/YosefHayim/fresh-squeezy/blob/main/CONTRIBUTING.md): Local setup, design guardrails, how to add a validator.
+
+## Validators
+
+- validateConnection — reachability, key validity, store presence, declared-vs-actual mode.
+- validateStore — store ID exists and is owned by the key's account.
+- validateProduct — published, on the expected store, has live variants and a buy URL.
+- validateWebhook — webhook URL registered and subscribed to recommended events.
+- validateDiscount — active, in-window, valid amount, store ownership matches.
+- validateLicenseKey — enabled, not expired, activations available, store ownership matches.
+- validateSubscriptionPlan — subscription type, valid interval, non-zero price, consistent trial.
+- doctor — composes all of the above into one DoctorReport.
+
+## Links
+
+- [npm package](https://www.npmjs.com/package/fresh-squeezy)
+- [Lemon Squeezy API changelog](https://docs.lemonsqueezy.com/api/getting-started/changelog): The upstream changelog fresh-squeezy tracks for drift.

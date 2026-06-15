@@ -1,15 +1,23 @@
 {
   "name": "fresh-squeezy",
   "version": "0.1.9",
-  "description": "Validate your Lemon Squeezy integration against changelog drift the official SDK hasn't shipped yet.",
+  "description": "A CLI and TypeScript library that validates your Lemon Squeezy billing integration — stores, products, webhooks, discounts, license keys, and subscription plans — and catches misconfigurations before they ship.",
   "keywords": [
     "lemon-squeezy",
+    "lemonsqueezy",
     "billing",
+    "payments",
+    "subscriptions",
+    "webhooks",
+    "discounts",
+    "license-keys",
     "cli",
     "validator",
+    "doctor",
+    "ci",
     "typescript",
     "nodejs",
-    "webhooks"
+    "saas"
   ],
   "license": "MIT",
   "author": "fresh-squeezy contributors",
@@ -34,6 +42,7 @@
   "files": [
     "dist",
     "bin",
+    "assets",
     "README.md",
     "LICENSE"
   ],
