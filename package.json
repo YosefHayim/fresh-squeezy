@@ -1,6 +1,6 @@
 {
   "name": "fresh-squeezy",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "A CLI and TypeScript library that validates your Lemon Squeezy billing integration — stores, products, webhooks, discounts, license keys, and subscription plans — and catches misconfigurations before they ship.",
   "keywords": [
     "lemon-squeezy",
