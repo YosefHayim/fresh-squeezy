@@ -16,6 +16,23 @@ have a dedicated skill, defer to it instead of restating:
 vitest / tsup / Biome conventions live here and in their own docs. This file covers only
 what is specific to fresh-squeezy.
 
+## Scripts — shared `package.json` contract
+
+This repo follows the **workspace-wide script contract** — the same script _names_ across every
+sibling repo so muscle memory and CI carry across projects. SSOT + full table:
+`dufflebag/templates/mdFiles/CODE-STYLE.md → Scripts`. Only `dev`/`build`/`start` bend to the stack.
+
+- **Canonical names** — `dev` · `build` · `cli` · `test` (`vitest run`) · `test:watch` ·
+  `test:coverage` · `typecheck` (`tsc --noEmit`) · `lint` (`biome check .`) ·
+  `lint:fix` (`biome check --write .`) · `format` (`biome format --write .`) · `check:ci` (`biome ci .`) ·
+  `verify` — the one gate (`check:ci && typecheck && test && build`).
+- **`ns:action`** — variants nest under `:` (`test:watch`, `test:coverage`, `lint:fix`), never a dash.
+- **One `verify` gate** — never re-split into `qa`/`quality`/`validate`.
+- **`cli`** — the interactive front door (bare = menu, `-- <sub>` = direct, non-TTY never hangs).
+
+_Aligned 2026-07-02:_ added `lint:fix` and `verify`. The `cli` is exposed via the published
+`fresh-squeezy` bin — there is no `tsx` dev-runner in this repo, so no source-run `cli` dev script.
+
 ## Rules
 
 ### Function declarations at module scope

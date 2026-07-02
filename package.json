@@ -53,6 +53,8 @@
     "typecheck": "tsc --noEmit",
     "format": "biome format --write .",
     "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "verify": "biome ci . && tsc --noEmit && vitest run && npm run build",
     "check:changelog": "node src/scripts/check-changelog.mjs",
     "generate:api-types": "node src/scripts/generate-api-types.mjs --update",
     "check:api-types": "node src/scripts/generate-api-types.mjs",
