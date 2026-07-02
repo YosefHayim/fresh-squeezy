@@ -68,13 +68,7 @@ export interface LatestSubscriptionInvoiceFields {
  */
 export interface LatestOrderFields {
   /** Added 2024-09-10. Manual fraud flag. Treat as terminal. */
-  status?:
-    | "pending"
-    | "failed"
-    | "paid"
-    | "refunded"
-    | "fraudulent"
-    | "partial_refund";
+  status?: "pending" | "failed" | "paid" | "refunded" | "fraudulent" | "partial_refund";
   /** Added 2024-02-05. */
   tax_inclusive?: boolean;
   /** Added 2024-08-07. Refund-amount fields, useful for reconciling partials. */
@@ -192,7 +186,5 @@ export type LatestFieldsFor<R extends LatestLemonSqueezyResourceName> =
  * resource label. Convenience over `T & LatestSubscriptionFields` because
  * the resource string is easier to remember and lints cleanly.
  */
-export type WithLatestLemonSqueezyFields<
-  T,
-  R extends LatestLemonSqueezyResourceName,
-> = T & LatestFieldsFor<R>;
+export type WithLatestLemonSqueezyFields<T, R extends LatestLemonSqueezyResourceName> = T &
+  LatestFieldsFor<R>;

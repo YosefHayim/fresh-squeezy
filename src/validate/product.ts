@@ -1,6 +1,6 @@
 import type { HttpClient } from "../core/http.js";
 import type { Mode, ValidationIssue, ValidationResult } from "../core/types.js";
-import { getProduct, type ProductAttributes } from "../resources/products.js";
+import { type ProductAttributes, getProduct } from "../resources/products.js";
 import { listVariantsForProduct } from "../resources/variants.js";
 import { checkStoreOwnership, probeFetch } from "./probe.js";
 import { ISSUE_CODES, buildResult, issue } from "./rules.js";
@@ -19,7 +19,7 @@ export interface ProductValidationOptions {
 export async function validateProduct(
   http: HttpClient,
   mode: Mode,
-  options: ProductValidationOptions
+  options: ProductValidationOptions,
 ): Promise<ValidationResult<ProductAttributes>> {
   const issues: ValidationIssue[] = [];
 
@@ -39,6 +39,52 @@ export async function validateProduct(
   }
 
   const attrs = fetched.resource.attributes;
+  issues.push(...checkProduct(attrs, { expectedStoreId: options.expectedStoreId }));
+
+  // Variant population needs a second fetch, so it stays out of the pure check.
+  try {
+    const variants = await listVariantsForProduct(http, options.productId);
+    if (variants.length === 0) {
+      issues.push(
+        issue(
+          ISSUE_CODES.VARIANT_MISSING,
+          "error",
+          "Product has no variants. Customers cannot purchase it.",
+          { suggestedFix: "Add at least one variant in the product configuration." },
+        ),
+      );
+    } else if (!variants.some((variant) => variant.attributes.status === "published")) {
+      issues.push(
+        issue(
+          ISSUE_CODES.VARIANT_UNPUBLISHED,
+          "error",
+          "Product has variants but none are published.",
+          { suggestedFix: "Publish at least one variant." },
+        ),
+      );
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error fetching variants";
+    issues.push(issue(ISSUE_CODES.UNKNOWN, "warning", message));
+  }
+
+  return buildResult("product", mode, issues, attrs, {
+    label: attrs.name,
+    id: String(options.productId),
+  });
+}
+
+/**
+ * Pure attribute assertions for a product: store ownership, publish state, and
+ * hosted-checkout availability. The variant-population rule needs a second
+ * fetch and stays in `validateProduct`; everything here runs on plain data, so
+ * the rules are unit-testable without a mock fetch.
+ */
+export function checkProduct(
+  attrs: ProductAttributes,
+  options: { expectedStoreId?: string | number } = {},
+): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
 
   if (options.expectedStoreId !== undefined) {
     const mismatch = checkStoreOwnership({
@@ -61,8 +107,8 @@ export async function validateProduct(
         {
           suggestedFix: "Publish the product in the Lemon Squeezy dashboard before selling.",
           context: { status: attrs.status },
-        }
-      )
+        },
+      ),
     );
   }
 
@@ -72,39 +118,10 @@ export async function validateProduct(
         ISSUE_CODES.PRODUCT_NO_BUY_URL,
         "warning",
         "Product has no buy-now URL. Hosted checkout may be disabled.",
-        { suggestedFix: "Enable buy-now in product settings, or use a custom checkout flow." }
-      )
+        { suggestedFix: "Enable buy-now in product settings, or use a custom checkout flow." },
+      ),
     );
   }
 
-  try {
-    const variants = await listVariantsForProduct(http, options.productId);
-    if (variants.length === 0) {
-      issues.push(
-        issue(
-          ISSUE_CODES.VARIANT_MISSING,
-          "error",
-          "Product has no variants. Customers cannot purchase it.",
-          { suggestedFix: "Add at least one variant in the product configuration." }
-        )
-      );
-    } else if (!variants.some((variant) => variant.attributes.status === "published")) {
-      issues.push(
-        issue(
-          ISSUE_CODES.VARIANT_UNPUBLISHED,
-          "error",
-          "Product has variants but none are published.",
-          { suggestedFix: "Publish at least one variant." }
-        )
-      );
-    }
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error fetching variants";
-    issues.push(issue(ISSUE_CODES.UNKNOWN, "warning", message));
-  }
-
-  return buildResult("product", mode, issues, attrs, {
-    label: attrs.name,
-    id: String(options.productId),
-  });
+  return issues;
 }

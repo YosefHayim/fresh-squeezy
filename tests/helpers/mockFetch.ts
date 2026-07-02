@@ -19,17 +19,23 @@ export function createMockFetch(routes: MockRoute[]): MockFetchResult {
   const calls: MockFetchResult["calls"] = [];
 
   const mock: typeof fetch = async (input, init) => {
-    const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+    const url =
+      typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
     const method = (init?.method ?? "GET").toUpperCase();
     const body = typeof init?.body === "string" ? init.body : undefined;
     calls.push({ method, url, body });
 
     const route = routes.find((entry) => entry.match({ method, url }));
     if (!route) {
-      return new Response(JSON.stringify({ errors: [{ status: "404", code: "no_route", title: "No mock route", detail: url }] }), {
-        status: 404,
-        headers: { "content-type": "application/vnd.api+json" },
-      });
+      return new Response(
+        JSON.stringify({
+          errors: [{ status: "404", code: "no_route", title: "No mock route", detail: url }],
+        }),
+        {
+          status: 404,
+          headers: { "content-type": "application/vnd.api+json" },
+        },
+      );
     }
 
     return new Response(JSON.stringify(route.body), {
@@ -45,7 +51,11 @@ export function pathIs(expected: string, method = "GET"): MockRoute["match"] {
   return ({ method: m, url }) => m === method && new URL(url).pathname === expected;
 }
 
-export function pathIsWithQuery(expected: string, query: Record<string, string>, method = "GET"): MockRoute["match"] {
+export function pathIsWithQuery(
+  expected: string,
+  query: Record<string, string>,
+  method = "GET",
+): MockRoute["match"] {
   return ({ method: m, url }) => {
     if (m !== method) return false;
     const parsed = new URL(url);

@@ -24,7 +24,7 @@ export interface WebhookAttributes extends GeneratedWebhookAttributes {
  */
 export async function listWebhooksForStore(
   http: HttpClient,
-  storeId: string | number
+  storeId: string | number,
 ): Promise<JsonApiResource<WebhookAttributes>[]> {
   return http.paginate<WebhookAttributes>("/v1/webhooks", {
     "filter[store_id]": String(storeId),

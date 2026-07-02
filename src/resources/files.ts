@@ -11,14 +11,14 @@ export interface FileAttributes extends GeneratedFileAttributes {}
 
 export async function getFile(
   http: HttpClient,
-  fileId: string | number
+  fileId: string | number,
 ): Promise<JsonApiResource<FileAttributes>> {
   return http.getResource<FileAttributes>(`/v1/files/${fileId}`);
 }
 
 export async function listFilesForVariant(
   http: HttpClient,
-  variantId: string | number
+  variantId: string | number,
 ): Promise<JsonApiResource<FileAttributes>[]> {
   return http.paginate<FileAttributes>("/v1/files", {
     "filter[variant_id]": String(variantId),

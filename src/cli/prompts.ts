@@ -1,5 +1,5 @@
 import path from "node:path";
-import inquirer from "inquirer";
+import { checkbox, confirm, input, password, select } from "@inquirer/prompts";
 import {
   EMPTY_INIT_RESOURCE_CHOICES,
   type InitResourceChoices,
@@ -11,7 +11,7 @@ import {
  *
  * Isolated from the command handler so the command stays focused on the flow
  * (ask → detect → confirm → write) and prompts can be unit-tested by mocking
- * inquirer without pulling in the full commander program.
+ * `@inquirer/prompts` without pulling in the full commander program.
  */
 
 export interface InitAnswers {
@@ -26,16 +26,18 @@ export interface InitDoctorTargets {
   variantIds?: string[];
 }
 
-export type InitDoctorTarget = "product" | "webhook" | "discount" | "license-key" | "subscription-plan";
+export type InitDoctorTarget =
+  | "product"
+  | "webhook"
+  | "discount"
+  | "license-key"
+  | "subscription-plan";
 export type LauncherAction = "init" | "doctor" | "examples" | "exit";
 
 type DoctorTargetField = keyof InitDoctorTargets;
-type InitDoctorAnswers = Partial<Record<DoctorTargetField, string[] | string>>;
 type ManualQuestion = {
-  type: "input";
-  name: DoctorTargetField;
+  field: DoctorTargetField;
   message: string;
-  theme: typeof PROMPT_THEME;
   validate: (value: string) => true | string;
 };
 type EmptyTargetAction = "manual" | "skip";
@@ -48,65 +50,51 @@ const PROMPT_THEME = {
 } as const;
 
 export async function pickLauncherAction(): Promise<LauncherAction> {
-  const { action } = await inquirer.prompt<{ action: LauncherAction }>([
-    {
-      type: "list",
-      name: "action",
-      message: "What do you want to do?",
-      theme: PROMPT_THEME,
-      choices: [
-        {
-          name: "Start guided setup — key, store, checks, doctor",
-          value: "init",
-        },
-        {
-          name: "Run doctor now — pick stores interactively when needed",
-          value: "doctor",
-        },
-        {
-          name: "Show command examples — copy/paste friendly",
-          value: "examples",
-        },
-        {
-          name: "Exit",
-          value: "exit",
-        },
-      ],
-    },
-  ]);
-  return action;
+  return select<LauncherAction>({
+    message: "What do you want to do?",
+    theme: PROMPT_THEME,
+    choices: [
+      {
+        name: "Start guided setup — key, store, checks, doctor",
+        value: "init",
+      },
+      {
+        name: "Run doctor now — pick stores interactively when needed",
+        value: "doctor",
+      },
+      {
+        name: "Show command examples — copy/paste friendly",
+        value: "examples",
+      },
+      {
+        name: "Exit",
+        value: "exit",
+      },
+    ],
+  });
 }
 
 export async function askForApiKey(): Promise<InitAnswers> {
-  const answers = await inquirer.prompt<InitAnswers>([
-    {
-      type: "password",
-      name: "apiKey",
-      message: "Paste your Lemon Squeezy API key:",
-      mask: "",
-      theme: PROMPT_THEME,
-      validate: (value: string) => (value.trim().length > 0 ? true : "API key is required."),
-    },
-  ]);
-  return { apiKey: answers.apiKey.trim() };
+  const apiKey = await password({
+    message: "Paste your Lemon Squeezy API key:",
+    mask: false,
+    theme: PROMPT_THEME,
+    validate: (value: string) => (value.trim().length > 0 ? true : "API key is required."),
+  });
+  return { apiKey: apiKey.trim() };
 }
 
 export async function pickStore(
-  choices: { id: string; name: string; slug: string }[]
+  choices: { id: string; name: string; slug: string }[],
 ): Promise<string> {
-  const { storeId } = await inquirer.prompt<{ storeId: string }>([
-    {
-      type: "list",
-      name: "storeId",
-      message: "Pick a store to validate against:",
-      theme: PROMPT_THEME,
-      choices: choices.map((entry) => ({
-        name: `${entry.name} (${entry.slug}) — id ${entry.id}`,
-        value: entry.id,
-      })),
-    },
-  ]);
-  return storeId;
+  return select<string>({
+    message: "Pick a store to validate against:",
+    theme: PROMPT_THEME,
+    choices: choices.map((entry) => ({
+      name: `${entry.name} (${entry.slug}) — id ${entry.id}`,
+      value: entry.id,
+    })),
+  });
 }
 
 /**
@@ -116,53 +104,41 @@ export async function pickStore(
  * picks something — callers enforce the "at least one" rule.
  */
 export async function pickStores(
-  choices: { id: string; name: string; slug: string }[]
+  choices: { id: string; name: string; slug: string }[],
 ): Promise<string[]> {
-  const { storeIds } = await inquirer.prompt<{ storeIds: string[] }>([
-    {
-      type: "checkbox",
-      name: "storeIds",
-      message: "Pick one or more stores (space to toggle, enter to confirm):",
-      theme: PROMPT_THEME,
-      choices: choices.map((entry, index) => ({
-        name: `${entry.name} (${entry.slug}) — id ${entry.id}`,
-        value: entry.id,
-        checked: index === 0,
-      })),
-      validate: (values: unknown) =>
-        Array.isArray(values) && values.length > 0 ? true : "Pick at least one store.",
-    },
-  ]);
-  return storeIds;
+  return checkbox<string>({
+    message: "Pick one or more stores (space to toggle, enter to confirm):",
+    theme: PROMPT_THEME,
+    choices: choices.map((entry, index) => ({
+      name: `${entry.name} (${entry.slug}) — id ${entry.id}`,
+      value: entry.id,
+      checked: index === 0,
+    })),
+    validate: (selected) => (selected.length > 0 ? true : "Pick at least one store."),
+  });
 }
 
 export async function selectDoctorTargets(): Promise<InitDoctorTarget[]> {
-  const { targets } = await inquirer.prompt<{ targets: InitDoctorTarget[] }>([
-    {
-      type: "checkbox",
-      name: "targets",
-      message: "Add resource checks to this doctor run?",
-      theme: PROMPT_THEME,
-      choices: [
-        { name: "Product checkout", value: "product" },
-        { name: "Webhook registration", value: "webhook" },
-        { name: "Discount code", value: "discount" },
-        { name: "License key", value: "license-key" },
-        { name: "Subscription plan", value: "subscription-plan" },
-      ],
-    },
-  ]);
-
-  return targets;
+  return checkbox<InitDoctorTarget>({
+    message: "Add resource checks to this doctor run?",
+    theme: PROMPT_THEME,
+    choices: [
+      { name: "Product checkout", value: "product" },
+      { name: "Webhook registration", value: "webhook" },
+      { name: "Discount code", value: "discount" },
+      { name: "License key", value: "license-key" },
+      { name: "Subscription plan", value: "subscription-plan" },
+    ],
+  });
 }
 
 export async function askForDoctorTargetValues(
   targets: InitDoctorTarget[],
-  choices: InitResourceChoices = EMPTY_INIT_RESOURCE_CHOICES
+  choices: InitResourceChoices = EMPTY_INIT_RESOURCE_CHOICES,
 ): Promise<InitDoctorTargets> {
   if (targets.length === 0) return {};
 
-  const answers: InitDoctorAnswers = {};
+  const answers: Partial<Record<DoctorTargetField, string[] | string>> = {};
   const manualQuestions: ManualQuestion[] = [];
 
   if (targets.includes("product")) {
@@ -225,14 +201,18 @@ export async function askForDoctorTargetValues(
       field: "variantIds",
       pickMessage: "Pick subscription plans to validate:",
       emptyMessage: "No subscription plans selected. What now?",
-      manualMessage: "Subscription plan variant IDs to validate (comma-separated, leave empty to skip):",
+      manualMessage:
+        "Subscription plan variant IDs to validate (comma-separated, leave empty to skip):",
       validate: optional("Variant ID"),
     });
   }
 
-  if (manualQuestions.length > 0) {
-    const manualAnswers = await inquirer.prompt<InitDoctorAnswers>(manualQuestions);
-    Object.assign(answers, manualAnswers);
+  for (const question of manualQuestions) {
+    answers[question.field] = await input({
+      message: question.message,
+      theme: PROMPT_THEME,
+      validate: question.validate,
+    });
   }
 
   return {
@@ -245,33 +225,23 @@ export async function askForDoctorTargetValues(
 }
 
 export async function confirmLiveModeRun(): Promise<boolean> {
-  const { continueLive } = await inquirer.prompt<{ continueLive: boolean }>([
-    {
-      type: "confirm",
-      name: "continueLive",
-      message: "This is a live-mode key. Continue with live checks?",
-      default: false,
-      theme: PROMPT_THEME,
-    },
-  ]);
-  return continueLive;
+  return confirm({
+    message: "This is a live-mode key. Continue with live checks?",
+    default: false,
+    theme: PROMPT_THEME,
+  });
 }
 
 export async function confirmWriteEnvFile(filePath: string): Promise<boolean> {
-  const { confirm } = await inquirer.prompt<{ confirm: boolean }>([
-    {
-      type: "confirm",
-      name: "confirm",
-      message: `Write these values to ${formatPromptPath(filePath)}?`,
-      default: true,
-      theme: PROMPT_THEME,
-    },
-  ]);
-  return confirm;
+  return confirm({
+    message: `Write these values to ${formatPromptPath(filePath)}?`,
+    default: true,
+    theme: PROMPT_THEME,
+  });
 }
 
 async function resolveTargetValue(input: {
-  answers: InitDoctorAnswers;
+  answers: Partial<Record<DoctorTargetField, string[] | string>>;
   manualQuestions: ManualQuestion[];
   group: ResourceChoiceGroup;
   field: DoctorTargetField;
@@ -282,27 +252,21 @@ async function resolveTargetValue(input: {
 }): Promise<void> {
   if (input.group.choices.length === 0) {
     input.manualQuestions.push({
-      type: "input",
-      name: input.field,
+      field: input.field,
       message: input.manualMessage,
-      theme: PROMPT_THEME,
       validate: input.validate,
     });
     return;
   }
 
-  const { values } = await inquirer.prompt<{ values: string[] }>([
-    {
-      type: "checkbox",
-      name: "values",
-      message: input.pickMessage,
-      theme: PROMPT_THEME,
-      choices: input.group.choices.map((choice) => ({
-        name: choice.label,
-        value: choice.value,
-      })),
-    },
-  ]);
+  const values = await checkbox<string>({
+    message: input.pickMessage,
+    theme: PROMPT_THEME,
+    choices: input.group.choices.map((choice) => ({
+      name: choice.label,
+      value: choice.value,
+    })),
+  });
 
   if (values.length > 0) {
     input.answers[input.field] = values;
@@ -312,29 +276,22 @@ async function resolveTargetValue(input: {
   const action = await askEmptyTargetAction(input.emptyMessage);
   if (action === "manual") {
     input.manualQuestions.push({
-      type: "input",
-      name: input.field,
+      field: input.field,
       message: input.manualMessage,
-      theme: PROMPT_THEME,
       validate: input.validate,
     });
   }
 }
 
 async function askEmptyTargetAction(message: string): Promise<EmptyTargetAction> {
-  const { action } = await inquirer.prompt<{ action: EmptyTargetAction }>([
-    {
-      type: "list",
-      name: "action",
-      message,
-      theme: PROMPT_THEME,
-      choices: [
-        { name: "Enter manually", value: "manual" },
-        { name: "Skip this check", value: "skip" },
-      ],
-    },
-  ]);
-  return action;
+  return select<EmptyTargetAction>({
+    message,
+    theme: PROMPT_THEME,
+    choices: [
+      { name: "Enter manually", value: "manual" },
+      { name: "Skip this check", value: "skip" },
+    ],
+  });
 }
 
 function required(label: string): (value: string) => true | string {

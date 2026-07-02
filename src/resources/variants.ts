@@ -63,7 +63,7 @@ export interface SubscriptionVariantAttributes extends VariantAttributes {
  */
 export async function getVariant<TAttr = VariantAttributes>(
   http: HttpClient,
-  variantId: string | number
+  variantId: string | number,
 ): Promise<JsonApiResource<TAttr>> {
   return http.getResource<TAttr>(`/v1/variants/${variantId}`);
 }
@@ -75,7 +75,7 @@ export async function getVariant<TAttr = VariantAttributes>(
  */
 export async function listVariantsForProduct(
   http: HttpClient,
-  productId: string | number
+  productId: string | number,
 ): Promise<JsonApiResource<VariantAttributes>[]> {
   return http.paginate<VariantAttributes>("/v1/variants", {
     "filter[product_id]": String(productId),

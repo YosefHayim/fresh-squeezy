@@ -101,7 +101,7 @@ export class HttpClient {
    */
   async getCollection<TAttr>(
     path: string,
-    query?: RequestOptions["query"]
+    query?: RequestOptions["query"],
   ): Promise<JsonApiResource<TAttr>[]> {
     const doc = await this.request<JsonApiCollection<TAttr>>({ path, query });
     return doc.data;
@@ -123,9 +123,9 @@ export class HttpClient {
    */
   async paginate<TAttr>(
     path: string,
-    query?: RequestOptions["query"]
+    query?: RequestOptions["query"],
   ): Promise<JsonApiResource<TAttr>[]> {
-    const startPage = Number(query?.["page[number]"] ?? 1)
+    const startPage = Number(query?.["page[number]"] ?? 1);
     const all: JsonApiResource<TAttr>[] = [];
 
     let pageNumber = startPage;
@@ -181,6 +181,6 @@ function extractJsonApiErrors(body: unknown): JsonApiError[] {
   const errors = (body as { errors?: unknown }).errors;
   if (!Array.isArray(errors)) return [];
   return errors.filter(
-    (entry): entry is JsonApiError => typeof entry === "object" && entry !== null
+    (entry): entry is JsonApiError => typeof entry === "object" && entry !== null,
   );
 }

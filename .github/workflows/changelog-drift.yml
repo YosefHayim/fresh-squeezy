@@ -67,7 +67,7 @@ jobs:
 
       - name: Run drift check
         id: drift
-        run: node scripts/check-changelog.mjs
+        run: node src/scripts/check-changelog.mjs
 
       - name: Open drift issue
         if: failure() && steps.drift.outputs.drifted == 'true'

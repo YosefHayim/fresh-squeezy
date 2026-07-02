@@ -19,10 +19,7 @@ export function getDoctorHints(err: unknown): string[] {
   if (!isFreshSqueezyError(err)) return [];
 
   if (err.code === "MISSING_API_KEY") {
-    return [
-      "fresh-squeezy init",
-      `export ${ENV_KEYS.apiKey}=ls_live_or_test_key`,
-    ];
+    return ["fresh-squeezy init", `export ${ENV_KEYS.apiKey}=ls_live_or_test_key`];
   }
 
   if (err.code === "INVALID_MODE") {
@@ -40,10 +37,7 @@ export function getValidateHints(err: unknown, target: ValidateTarget): string[]
   if (!isFreshSqueezyError(err)) return [];
 
   if (err.code === "MISSING_API_KEY") {
-    return [
-      "fresh-squeezy init",
-      `export ${ENV_KEYS.apiKey}=ls_live_or_test_key`,
-    ];
+    return ["fresh-squeezy init", `export ${ENV_KEYS.apiKey}=ls_live_or_test_key`];
   }
 
   if (err.code === "INVALID_MODE") {

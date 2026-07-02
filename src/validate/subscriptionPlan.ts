@@ -1,7 +1,7 @@
 import type { HttpClient } from "../core/http.js";
 import type { Mode, ValidationIssue, ValidationResult } from "../core/types.js";
 import { getProduct } from "../resources/products.js";
-import { getVariant, type SubscriptionVariantAttributes } from "../resources/variants.js";
+import { type SubscriptionVariantAttributes, getVariant } from "../resources/variants.js";
 import { checkStoreOwnership, probeFetch } from "./probe.js";
 import { ISSUE_CODES, buildResult, issue } from "./rules.js";
 
@@ -36,7 +36,7 @@ const VALID_INTERVALS = new Set(["day", "week", "month", "year"]);
 export async function validateSubscriptionPlan(
   http: HttpClient,
   mode: Mode,
-  options: SubscriptionPlanValidationOptions
+  options: SubscriptionPlanValidationOptions,
 ): Promise<ValidationResult<SubscriptionPlanSummary>> {
   const issues: ValidationIssue[] = [];
 
@@ -47,7 +47,7 @@ export async function validateSubscriptionPlan(
       notFoundMessage: `Variant ${options.variantId} not found.`,
       notFoundFix: "Verify the variant ID in the Lemon Squeezy dashboard.",
       notFoundContext: { variantId: String(options.variantId) },
-    }
+    },
   );
 
   if (!fetched.ok) {
@@ -61,95 +61,11 @@ export async function validateSubscriptionPlan(
   const variant = fetched.resource;
   const attrs = variant.attributes;
 
-  if (!attrs.is_subscription) {
-    issues.push(
-      issue(
-        ISSUE_CODES.PLAN_NOT_SUBSCRIPTION,
-        "error",
-        `Variant ${options.variantId} is not a subscription variant (is_subscription is false).`,
-        {
-          suggestedFix: "Use a variant that has subscription billing enabled, or use the regular variant validator.",
-          context: { variantId: String(options.variantId) },
-        }
-      )
-    );
-  }
-
-  if (!attrs.interval || !VALID_INTERVALS.has(attrs.interval)) {
-    issues.push(
-      issue(
-        ISSUE_CODES.PLAN_INVALID_INTERVAL,
-        "error",
-        `Subscription variant has invalid interval: "${attrs.interval ?? "missing"}". Expected one of: day, week, month, year.`,
-        {
-          suggestedFix: "Set a valid billing interval in the variant configuration.",
-          context: { interval: attrs.interval ?? null },
-        }
-      )
-    );
-  }
-
-  if (attrs.interval_count === null || attrs.interval_count <= 0) {
-    issues.push(
-      issue(
-        ISSUE_CODES.PLAN_INVALID_INTERVAL,
-        "error",
-        `Subscription variant has invalid interval_count: ${attrs.interval_count}. Must be a positive integer.`,
-        {
-          suggestedFix: "Set interval_count to a positive value (e.g. 1 for monthly, 2 for biweekly).",
-          context: { intervalCount: attrs.interval_count },
-        }
-      )
-    );
-  }
-
-  if (attrs.price === 0 && attrs.is_subscription) {
-    issues.push(
-      issue(
-        ISSUE_CODES.PLAN_FREE_PRICE,
-        "warning",
-        `Subscription variant has a price of 0 — this is almost always a misconfiguration for paid plans.`,
-        {
-          suggestedFix: "Set the variant price to the intended amount in cents, or confirm this is intentionally free.",
-          context: { price: attrs.price },
-        }
-      )
-    );
-  }
-
-  if (attrs.has_free_trial && (!attrs.trial_interval || (attrs.trial_interval_count ?? 0) <= 0)) {
-    issues.push(
-      issue(
-        ISSUE_CODES.PLAN_TRIAL_INCONSISTENT,
-        "warning",
-        `Subscription variant has free trial enabled but trial interval is misconfigured (interval: "${attrs.trial_interval ?? "missing"}", count: ${attrs.trial_interval_count ?? 0}).`,
-        {
-          suggestedFix: "Set a valid trial interval and count, or disable the free trial.",
-          context: {
-            trialInterval: attrs.trial_interval ?? null,
-            trialIntervalCount: attrs.trial_interval_count ?? null,
-          },
-        }
-      )
-    );
-  }
-
-  if (attrs.status === "draft") {
-    issues.push(
-      issue(
-        ISSUE_CODES.PLAN_DRAFT,
-        "warning",
-        `Subscription variant is in draft status — customers cannot subscribe.`,
-        {
-          suggestedFix: "Publish the variant in the Lemon Squeezy dashboard.",
-          context: { status: attrs.status },
-        }
-      )
-    );
-  }
+  issues.push(...checkSubscriptionPlan(attrs, { variantId: options.variantId }));
 
   // Store cross-check: fetch the parent product to compare store ownership.
-  // If the fetch fails, skip the check rather than blocking the whole validation.
+  // Needs a second fetch, so it stays out of the pure check. If the fetch
+  // fails, skip the check rather than blocking the whole validation.
   try {
     const product = await getProduct(http, attrs.product_id);
     const mismatch = checkStoreOwnership({
@@ -179,4 +95,110 @@ export async function validateSubscriptionPlan(
     label: attrs.name,
     id: String(options.variantId),
   });
+}
+
+/**
+ * Pure attribute assertions for a subscription variant: that it is actually a
+ * subscription, has a valid interval / interval_count, is not free-priced, has
+ * consistent trial settings, and is not a draft. The store cross-check needs a
+ * second fetch and stays in `validateSubscriptionPlan`; everything here runs on
+ * plain data, so the rules are unit-testable without a mock fetch.
+ */
+export function checkSubscriptionPlan(
+  attrs: SubscriptionVariantAttributes,
+  options: { variantId: string | number },
+): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  if (!attrs.is_subscription) {
+    issues.push(
+      issue(
+        ISSUE_CODES.PLAN_NOT_SUBSCRIPTION,
+        "error",
+        `Variant ${options.variantId} is not a subscription variant (is_subscription is false).`,
+        {
+          suggestedFix:
+            "Use a variant that has subscription billing enabled, or use the regular variant validator.",
+          context: { variantId: String(options.variantId) },
+        },
+      ),
+    );
+  }
+
+  if (!attrs.interval || !VALID_INTERVALS.has(attrs.interval)) {
+    issues.push(
+      issue(
+        ISSUE_CODES.PLAN_INVALID_INTERVAL,
+        "error",
+        `Subscription variant has invalid interval: "${attrs.interval ?? "missing"}". Expected one of: day, week, month, year.`,
+        {
+          suggestedFix: "Set a valid billing interval in the variant configuration.",
+          context: { interval: attrs.interval ?? null },
+        },
+      ),
+    );
+  }
+
+  if (attrs.interval_count === null || attrs.interval_count <= 0) {
+    issues.push(
+      issue(
+        ISSUE_CODES.PLAN_INVALID_INTERVAL,
+        "error",
+        `Subscription variant has invalid interval_count: ${attrs.interval_count}. Must be a positive integer.`,
+        {
+          suggestedFix:
+            "Set interval_count to a positive value (e.g. 1 for monthly, 2 for biweekly).",
+          context: { intervalCount: attrs.interval_count },
+        },
+      ),
+    );
+  }
+
+  if (attrs.price === 0 && attrs.is_subscription) {
+    issues.push(
+      issue(
+        ISSUE_CODES.PLAN_FREE_PRICE,
+        "warning",
+        "Subscription variant has a price of 0 — this is almost always a misconfiguration for paid plans.",
+        {
+          suggestedFix:
+            "Set the variant price to the intended amount in cents, or confirm this is intentionally free.",
+          context: { price: attrs.price },
+        },
+      ),
+    );
+  }
+
+  if (attrs.has_free_trial && (!attrs.trial_interval || (attrs.trial_interval_count ?? 0) <= 0)) {
+    issues.push(
+      issue(
+        ISSUE_CODES.PLAN_TRIAL_INCONSISTENT,
+        "warning",
+        `Subscription variant has free trial enabled but trial interval is misconfigured (interval: "${attrs.trial_interval ?? "missing"}", count: ${attrs.trial_interval_count ?? 0}).`,
+        {
+          suggestedFix: "Set a valid trial interval and count, or disable the free trial.",
+          context: {
+            trialInterval: attrs.trial_interval ?? null,
+            trialIntervalCount: attrs.trial_interval_count ?? null,
+          },
+        },
+      ),
+    );
+  }
+
+  if (attrs.status === "draft") {
+    issues.push(
+      issue(
+        ISSUE_CODES.PLAN_DRAFT,
+        "warning",
+        "Subscription variant is in draft status — customers cannot subscribe.",
+        {
+          suggestedFix: "Publish the variant in the Lemon Squeezy dashboard.",
+          context: { status: attrs.status },
+        },
+      ),
+    );
+  }
+
+  return issues;
 }

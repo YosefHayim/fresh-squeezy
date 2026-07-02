@@ -1,6 +1,6 @@
 import type { HttpClient } from "../core/http.js";
 import type { Mode, ValidationIssue, ValidationResult } from "../core/types.js";
-import { getDiscount, type DiscountAttributes } from "../resources/discounts.js";
+import { type DiscountAttributes, getDiscount } from "../resources/discounts.js";
 import { checkStoreOwnership, probeFetch } from "./probe.js";
 import { ISSUE_CODES, buildResult, issue } from "./rules.js";
 
@@ -24,7 +24,7 @@ export interface DiscountValidationOptions {
 export async function validateDiscount(
   http: HttpClient,
   mode: Mode,
-  options: DiscountValidationOptions
+  options: DiscountValidationOptions,
 ): Promise<ValidationResult<DiscountAttributes>> {
   const issues: ValidationIssue[] = [];
 
@@ -44,6 +44,24 @@ export async function validateDiscount(
   }
 
   const attrs = fetched.resource.attributes;
+  issues.push(...checkDiscount(attrs, { storeId: options.storeId }));
+
+  return buildResult("discount", mode, issues, attrs, {
+    label: `${attrs.name} (${attrs.code})`,
+    id: String(options.discountId),
+  });
+}
+
+/**
+ * Pure attribute assertions for a discount: store ownership, draft/expiry/
+ * activation windows, redemption exhaustion, and amount validity. No I/O, so
+ * the rules are unit-testable with plain data.
+ */
+export function checkDiscount(
+  attrs: DiscountAttributes,
+  options: { storeId: string | number },
+): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
 
   const mismatch = checkStoreOwnership({
     expectedStoreId: options.storeId,
@@ -61,10 +79,11 @@ export async function validateDiscount(
         "warning",
         `Discount "${attrs.name}" is in draft status — customers cannot redeem it.`,
         {
-          suggestedFix: "Publish the discount in the Lemon Squeezy dashboard before sharing the code.",
+          suggestedFix:
+            "Publish the discount in the Lemon Squeezy dashboard before sharing the code.",
           context: { name: attrs.name, code: attrs.code },
-        }
-      )
+        },
+      ),
     );
   }
 
@@ -78,8 +97,8 @@ export async function validateDiscount(
         {
           suggestedFix: "Extend the expiration date or create a new discount.",
           context: { name: attrs.name, expiresAt: attrs.expires_at },
-        }
-      )
+        },
+      ),
     );
   }
 
@@ -92,8 +111,8 @@ export async function validateDiscount(
         {
           suggestedFix: "Wait for the start date or adjust it in the dashboard.",
           context: { name: attrs.name, startsAt: attrs.starts_at },
-        }
-      )
+        },
+      ),
     );
   }
 
@@ -106,8 +125,8 @@ export async function validateDiscount(
         {
           suggestedFix: "Increase max_redemptions or disable the redemption limit.",
           context: { name: attrs.name, maxRedemptions: attrs.max_redemptions },
-        }
-      )
+        },
+      ),
     );
   }
 
@@ -120,8 +139,8 @@ export async function validateDiscount(
         {
           suggestedFix: "Set a positive discount amount in the dashboard.",
           context: { name: attrs.name, amount: attrs.amount },
-        }
-      )
+        },
+      ),
     );
   } else if (attrs.amount_type === "percent" && attrs.amount > 100) {
     issues.push(
@@ -132,13 +151,10 @@ export async function validateDiscount(
         {
           suggestedFix: "Set the discount to 100% or less.",
           context: { name: attrs.name, amount: attrs.amount, amountType: attrs.amount_type },
-        }
-      )
+        },
+      ),
     );
   }
 
-  return buildResult("discount", mode, issues, attrs, {
-    label: `${attrs.name} (${attrs.code})`,
-    id: String(options.discountId),
-  });
+  return issues;
 }

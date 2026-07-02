@@ -1,6 +1,6 @@
 import type { HttpClient } from "../core/http.js";
 import type { Mode, ValidationIssue, ValidationResult } from "../core/types.js";
-import { getLicenseKey, type LicenseKeyAttributes } from "../resources/licenseKeys.js";
+import { type LicenseKeyAttributes, getLicenseKey } from "../resources/licenseKeys.js";
 import { checkStoreOwnership, probeFetch } from "./probe.js";
 import { ISSUE_CODES, buildResult, issue } from "./rules.js";
 
@@ -18,7 +18,7 @@ export interface LicenseKeyValidationOptions {
 export async function validateLicenseKey(
   http: HttpClient,
   mode: Mode,
-  options: LicenseKeyValidationOptions
+  options: LicenseKeyValidationOptions,
 ): Promise<ValidationResult<LicenseKeyAttributes>> {
   const issues: ValidationIssue[] = [];
 
@@ -38,6 +38,24 @@ export async function validateLicenseKey(
   }
 
   const attrs = fetched.resource.attributes;
+  issues.push(...checkLicenseKey(attrs, { storeId: options.storeId }));
+
+  return buildResult("licenseKey", mode, issues, attrs, {
+    label: attrs.key_short,
+    id: String(options.licenseKeyId),
+  });
+}
+
+/**
+ * Pure attribute assertions for a license key: store ownership, disabled/
+ * expired state, and activation-limit exhaustion. No I/O, so the rules are
+ * unit-testable with plain data.
+ */
+export function checkLicenseKey(
+  attrs: LicenseKeyAttributes,
+  options: { storeId: string | number },
+): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
 
   const mismatch = checkStoreOwnership({
     expectedStoreId: options.storeId,
@@ -57,8 +75,8 @@ export async function validateLicenseKey(
         {
           suggestedFix: "Re-enable the license key in the Lemon Squeezy dashboard.",
           context: { keyShort: attrs.key_short },
-        }
-      )
+        },
+      ),
     );
   }
 
@@ -71,8 +89,8 @@ export async function validateLicenseKey(
         {
           suggestedFix: "Extend the expiration date or issue a new license key.",
           context: { keyShort: attrs.key_short, expiresAt: attrs.expires_at },
-        }
-      )
+        },
+      ),
     );
   }
 
@@ -89,13 +107,10 @@ export async function validateLicenseKey(
             instancesCount: attrs.instances_count,
             activationLimit: attrs.activation_limit,
           },
-        }
-      )
+        },
+      ),
     );
   }
 
-  return buildResult("licenseKey", mode, issues, attrs, {
-    label: attrs.key_short,
-    id: String(options.licenseKeyId),
-  });
+  return issues;
 }

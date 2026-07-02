@@ -24,7 +24,7 @@ export interface LicenseKeyAttributes extends GeneratedLicenseKeyAttributes {
  */
 export async function getLicenseKey(
   http: HttpClient,
-  licenseKeyId: string | number
+  licenseKeyId: string | number,
 ): Promise<JsonApiResource<LicenseKeyAttributes>> {
   return http.getResource<LicenseKeyAttributes>(`/v1/license-keys/${licenseKeyId}`);
 }

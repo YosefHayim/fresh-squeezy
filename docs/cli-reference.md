@@ -5,7 +5,8 @@ Full command, flag, and store-resolution reference for the `fresh-squeezy` CLI. 
 ## Commands
 
 ```bash
-# First run: install as a dev dependency, then start guided setup
+# First run: install as a dev dependency, then open the interactive front door
+# (no key configured yet → jumps straight to guided setup)
 npx fresh-squeezy
 
 # Guided setup only: reuse env values, pick a store, choose one or more resource checks
@@ -42,6 +43,15 @@ npx fresh-squeezy types augment
 
 `npx fresh-squeezy --no-install` runs the setup without editing `package.json`.
 
+## Interactive front door
+
+A bare `fresh-squeezy` in a TTY first ensures the package is a dev dependency, then:
+
+- **No API key configured** → jumps straight to guided setup (`init`).
+- **API key present** → opens an action menu that routes to the same handlers as the flags: guided setup, `doctor` (with interactive store selection), copy/paste command examples, or exit.
+
+Flags and non-interactive shells never open the menu — they defer (`doctor` falls back to a connection-only run) or exit `2`, so nothing hangs in CI.
+
 ## Command summary
 
 | Command | What it does | Source |
@@ -57,7 +67,7 @@ Used by every store-scoped command, in priority order:
 
 1. `--store-ids 1,2,3` (comma-separated, explicit)
 2. `--all-stores` (every store reachable with the key)
-3. TTY: inquirer multi-select prompt
+3. TTY: interactive multi-select prompt (`@inquirer/prompts`)
 4. No TTY + no flag: connection-only run (useful as a CI smoke check)
 
 By default, `doctor` validates connection and store access plus any explicit resource flags you pass. Add `--all-resources` when you want the CLI to discover and validate every supported resource in the selected store(s).

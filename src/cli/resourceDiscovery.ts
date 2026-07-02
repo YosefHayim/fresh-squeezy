@@ -1,6 +1,6 @@
-import type { FreshSqueezyClient } from "../createFreshSqueezy.js";
 import type { RequestOptions } from "../core/http.js";
 import type { JsonApiCollection, JsonApiResource } from "../core/types.js";
+import type { FreshSqueezyClient } from "../createFreshSqueezy.js";
 import type { DiscountAttributes } from "../resources/discounts.js";
 import type { LicenseKeyAttributes } from "../resources/licenseKeys.js";
 import type { ProductAttributes } from "../resources/products.js";
@@ -37,7 +37,7 @@ export const EMPTY_INIT_RESOURCE_CHOICES: InitResourceChoices = {
 export async function discoverInitResourceChoices(
   client: FreshSqueezyClient,
   storeId: string,
-  targets: InitDoctorTarget[]
+  targets: InitDoctorTarget[],
 ): Promise<InitResourceChoices> {
   const choices: InitResourceChoices = {
     products: { choices: [] },
@@ -50,7 +50,7 @@ export async function discoverInitResourceChoices(
 
   if (targets.includes("product") || targets.includes("subscription-plan")) {
     const result = await discover(() =>
-      paginate<ProductAttributes>(client, "/v1/products", { "filter[store_id]": storeId })
+      paginate<ProductAttributes>(client, "/v1/products", { "filter[store_id]": storeId }),
     );
     if (result.ok) {
       products = result.value;
@@ -62,7 +62,7 @@ export async function discoverInitResourceChoices(
 
   if (targets.includes("webhook")) {
     const result = await discover(() =>
-      paginate<WebhookAttributes>(client, "/v1/webhooks", { "filter[store_id]": storeId })
+      paginate<WebhookAttributes>(client, "/v1/webhooks", { "filter[store_id]": storeId }),
     );
     choices.webhooks = result.ok
       ? { choices: result.value.map(toWebhookChoice) }
@@ -71,7 +71,7 @@ export async function discoverInitResourceChoices(
 
   if (targets.includes("discount")) {
     const result = await discover(() =>
-      paginate<DiscountAttributes>(client, "/v1/discounts", { "filter[store_id]": storeId })
+      paginate<DiscountAttributes>(client, "/v1/discounts", { "filter[store_id]": storeId }),
     );
     choices.discounts = result.ok
       ? { choices: result.value.map(toDiscountChoice) }
@@ -80,7 +80,7 @@ export async function discoverInitResourceChoices(
 
   if (targets.includes("license-key")) {
     const result = await discover(() =>
-      paginate<LicenseKeyAttributes>(client, "/v1/license-keys", { "filter[store_id]": storeId })
+      paginate<LicenseKeyAttributes>(client, "/v1/license-keys", { "filter[store_id]": storeId }),
     );
     choices.licenseKeys = result.ok
       ? { choices: result.value.map(toLicenseKeyChoice) }
@@ -101,7 +101,7 @@ export async function discoverInitResourceChoices(
 
 async function discoverSubscriptionPlans(
   client: FreshSqueezyClient,
-  products: JsonApiResource<ProductAttributes>[]
+  products: JsonApiResource<ProductAttributes>[],
 ): Promise<ResourceChoiceGroup> {
   const discovered: ResourceChoice[] = [];
 
@@ -109,7 +109,7 @@ async function discoverSubscriptionPlans(
     const result = await discover(() =>
       paginate<SubscriptionVariantAttributes>(client, "/v1/variants", {
         "filter[product_id]": product.id,
-      })
+      }),
     );
     if (!result.ok) {
       return { choices: discovered, error: result.error };
@@ -128,7 +128,7 @@ async function discoverSubscriptionPlans(
 async function paginate<TAttributes>(
   client: FreshSqueezyClient,
   path: string,
-  query: RequestOptions["query"]
+  query: RequestOptions["query"],
 ): Promise<JsonApiResource<TAttributes>[]> {
   const all: JsonApiResource<TAttributes>[] = [];
   let pageNumber = Number(query?.["page[number]"] ?? 1);
@@ -147,7 +147,7 @@ async function paginate<TAttributes>(
 }
 
 async function discover<T>(
-  load: () => Promise<T>
+  load: () => Promise<T>,
 ): Promise<{ ok: true; value: T } | { ok: false; error: string }> {
   try {
     return { ok: true, value: await load() };
@@ -186,7 +186,7 @@ function toLicenseKeyChoice(licenseKey: JsonApiResource<LicenseKeyAttributes>): 
 
 function toSubscriptionPlanChoice(
   variant: JsonApiResource<SubscriptionVariantAttributes>,
-  productName: string
+  productName: string,
 ): ResourceChoice {
   const interval = variant.attributes.interval
     ? `${variant.attributes.interval_count ?? 1}/${variant.attributes.interval}`

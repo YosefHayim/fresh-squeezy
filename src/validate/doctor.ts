@@ -1,21 +1,21 @@
 import { FreshSqueezyError } from "../core/errors.js";
 import type { HttpClient } from "../core/http.js";
 import type { DoctorReport, Mode, ValidationResult } from "../core/types.js";
-import { validateConnection, type ConnectionSummary } from "./connection.js";
-import { validateStore } from "./store.js";
-import { validateProduct, type ProductValidationOptions } from "./product.js";
-import { validateWebhook, type WebhookValidationOptions } from "./webhook.js";
-import { validateDiscount, type DiscountValidationOptions } from "./discount.js";
-import { validateLicenseKey, type LicenseKeyValidationOptions } from "./licenseKey.js";
-import {
-  validateSubscriptionPlan,
-  type SubscriptionPlanValidationOptions,
-} from "./subscriptionPlan.js";
-import type { StoreAttributes } from "../resources/stores.js";
-import type { ProductAttributes } from "../resources/products.js";
-import type { WebhookAttributes } from "../resources/webhooks.js";
 import type { DiscountAttributes } from "../resources/discounts.js";
 import type { LicenseKeyAttributes } from "../resources/licenseKeys.js";
+import type { ProductAttributes } from "../resources/products.js";
+import type { StoreAttributes } from "../resources/stores.js";
+import type { WebhookAttributes } from "../resources/webhooks.js";
+import { type ConnectionSummary, validateConnection } from "./connection.js";
+import { type DiscountValidationOptions, validateDiscount } from "./discount.js";
+import { type LicenseKeyValidationOptions, validateLicenseKey } from "./licenseKey.js";
+import { type ProductValidationOptions, validateProduct } from "./product.js";
+import { validateStore } from "./store.js";
+import {
+  type SubscriptionPlanValidationOptions,
+  validateSubscriptionPlan,
+} from "./subscriptionPlan.js";
+import { type WebhookValidationOptions, validateWebhook } from "./webhook.js";
 
 /**
  * Optional targets for the doctor run. If a target is omitted, its validator
@@ -49,32 +49,32 @@ export interface DoctorValidators {
   store: (
     http: HttpClient,
     mode: Mode,
-    storeId: string | number
+    storeId: string | number,
   ) => Promise<ValidationResult<StoreAttributes>>;
   product: (
     http: HttpClient,
     mode: Mode,
-    options: ProductValidationOptions
+    options: ProductValidationOptions,
   ) => Promise<ValidationResult<ProductAttributes>>;
   webhook: (
     http: HttpClient,
     mode: Mode,
-    options: WebhookValidationOptions
+    options: WebhookValidationOptions,
   ) => Promise<ValidationResult<WebhookAttributes>>;
   discount: (
     http: HttpClient,
     mode: Mode,
-    options: DiscountValidationOptions
+    options: DiscountValidationOptions,
   ) => Promise<ValidationResult<DiscountAttributes>>;
   licenseKey: (
     http: HttpClient,
     mode: Mode,
-    options: LicenseKeyValidationOptions
+    options: LicenseKeyValidationOptions,
   ) => Promise<ValidationResult<LicenseKeyAttributes>>;
   subscriptionPlan: (
     http: HttpClient,
     mode: Mode,
-    options: SubscriptionPlanValidationOptions
+    options: SubscriptionPlanValidationOptions,
   ) => Promise<ValidationResult>;
 }
 
@@ -104,7 +104,7 @@ export async function doctor(
   http: HttpClient,
   mode: Mode,
   options: DoctorOptions = {},
-  validators: DoctorValidators = DEFAULT_VALIDATORS
+  validators: DoctorValidators = DEFAULT_VALIDATORS,
 ): Promise<DoctorReport> {
   assertOptionsCoherent(options);
 
@@ -131,7 +131,7 @@ export async function doctor(
       await validators.product(http, mode, {
         productId,
         expectedStoreId: options.storeId,
-      })
+      }),
     );
   }
 
@@ -141,7 +141,7 @@ export async function doctor(
         await validators.webhook(http, mode, {
           storeId: options.storeId,
           url: webhookUrl,
-        })
+        }),
       );
     }
   }
@@ -152,7 +152,7 @@ export async function doctor(
         await validators.discount(http, mode, {
           storeId: options.storeId,
           discountId,
-        })
+        }),
       );
     }
   }
@@ -163,7 +163,7 @@ export async function doctor(
         await validators.licenseKey(http, mode, {
           storeId: options.storeId,
           licenseKeyId,
-        })
+        }),
       );
     }
   }
@@ -174,7 +174,7 @@ export async function doctor(
         await validators.subscriptionPlan(http, mode, {
           storeId: options.storeId,
           variantId,
-        })
+        }),
       );
     }
   }

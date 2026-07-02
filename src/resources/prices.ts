@@ -44,7 +44,7 @@ export interface PriceAttributes extends GeneratedPriceAttributes {
  */
 export async function getPrice(
   http: HttpClient,
-  priceId: string | number
+  priceId: string | number,
 ): Promise<JsonApiResource<PriceAttributes>> {
   return http.getResource<PriceAttributes>(`/v1/prices/${priceId}`);
 }

@@ -12,16 +12,16 @@ export interface LicenseKeyInstanceAttributes extends GeneratedLicenseKeyInstanc
 
 export async function getLicenseKeyInstance(
   http: HttpClient,
-  licenseKeyInstanceId: string | number
+  licenseKeyInstanceId: string | number,
 ): Promise<JsonApiResource<LicenseKeyInstanceAttributes>> {
   return http.getResource<LicenseKeyInstanceAttributes>(
-    `/v1/license-key-instances/${licenseKeyInstanceId}`
+    `/v1/license-key-instances/${licenseKeyInstanceId}`,
   );
 }
 
 export async function listLicenseKeyInstancesForLicenseKey(
   http: HttpClient,
-  licenseKeyId: string | number
+  licenseKeyId: string | number,
 ): Promise<JsonApiResource<LicenseKeyInstanceAttributes>[]> {
   return http.paginate<LicenseKeyInstanceAttributes>("/v1/license-key-instances", {
     "filter[license_key_id]": String(licenseKeyId),

@@ -16,16 +16,16 @@ export interface DiscountRedemptionAttributes extends GeneratedDiscountRedemptio
 
 export async function getDiscountRedemption(
   http: HttpClient,
-  discountRedemptionId: string | number
+  discountRedemptionId: string | number,
 ): Promise<JsonApiResource<DiscountRedemptionAttributes>> {
   return http.getResource<DiscountRedemptionAttributes>(
-    `/v1/discount-redemptions/${discountRedemptionId}`
+    `/v1/discount-redemptions/${discountRedemptionId}`,
   );
 }
 
 export async function listDiscountRedemptionsForDiscount(
   http: HttpClient,
-  discountId: string | number
+  discountId: string | number,
 ): Promise<JsonApiResource<DiscountRedemptionAttributes>[]> {
   return http.paginate<DiscountRedemptionAttributes>("/v1/discount-redemptions", {
     "filter[discount_id]": String(discountId),

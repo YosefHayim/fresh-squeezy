@@ -55,7 +55,7 @@ export function mapErrorToIssue(err: unknown, mapping: IssueMapping = {}): Valid
       return issue(
         ISSUE_CODES.NETWORK_ERROR,
         "error",
-        `Could not reach Lemon Squeezy: ${err.message}`
+        `Could not reach Lemon Squeezy: ${err.message}`,
       );
     }
     return issue(ISSUE_CODES.UNKNOWN, "error", err.message, {
@@ -101,22 +101,37 @@ export type FetchProbeOutcome<T> =
  */
 export async function probeFetch<T>(
   fetcher: () => Promise<T>,
-  options: FetchProbeOptions
+  options: FetchProbeOptions,
+): Promise<FetchProbeOutcome<T>> {
+  return probeCollection(fetcher, {
+    notFound: {
+      code: options.notFoundCode,
+      message: options.notFoundMessage,
+      ...(options.notFoundFix !== undefined ? { suggestedFix: options.notFoundFix } : {}),
+      ...(options.notFoundContext !== undefined ? { context: options.notFoundContext } : {}),
+    },
+  });
+}
+
+/**
+ * Run a fetch — typically a list/collection endpoint — through the shared
+ * error mapper without `probeFetch`'s single-resource `notFound` slot. Pass an
+ * `IssueMapping` to translate specific statuses (e.g. 401 → `AUTH_FAILED` for
+ * the connection validator); omit it and every failure normalizes to
+ * `NETWORK_ERROR` / `UNKNOWN`.
+ *
+ * The deletion test: without this, `validateWebhook` and `validateConnection`
+ * would each hand-roll the same try/catch → `mapErrorToIssue` skeleton that
+ * `probeFetch` already centralizes for single-resource fetches.
+ */
+export async function probeCollection<T>(
+  fetcher: () => Promise<T>,
+  mapping: IssueMapping = {},
 ): Promise<FetchProbeOutcome<T>> {
   try {
     return { ok: true, resource: await fetcher() };
   } catch (err) {
-    return {
-      ok: false,
-      issue: mapErrorToIssue(err, {
-        notFound: {
-          code: options.notFoundCode,
-          message: options.notFoundMessage,
-          ...(options.notFoundFix !== undefined ? { suggestedFix: options.notFoundFix } : {}),
-          ...(options.notFoundContext !== undefined ? { context: options.notFoundContext } : {}),
-        },
-      }),
-    };
+    return { ok: false, issue: mapErrorToIssue(err, mapping) };
   }
 }
 
@@ -168,6 +183,6 @@ export function checkStoreOwnership(check: OwnershipCheck): ValidationIssue | nu
     {
       ...(check.suggestedFix !== undefined ? { suggestedFix: check.suggestedFix } : {}),
       context,
-    }
+    },
   );
 }

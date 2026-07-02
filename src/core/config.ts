@@ -1,5 +1,5 @@
-import type { FreshSqueezyConfig, Mode, ResolvedConfig } from "./types.js";
 import { FreshSqueezyError } from "./errors.js";
+import type { FreshSqueezyConfig, Mode, ResolvedConfig } from "./types.js";
 
 /**
  * Lemon Squeezy API root. Test and live share the same host — mode is determined

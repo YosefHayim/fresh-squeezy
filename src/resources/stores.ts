@@ -20,7 +20,7 @@ export interface StoreAttributes extends GeneratedStoreAttributes {
 
 export async function getStore(
   http: HttpClient,
-  storeId: string | number
+  storeId: string | number,
 ): Promise<JsonApiResource<StoreAttributes>> {
   return http.getResource<StoreAttributes>(`/v1/stores/${storeId}`);
 }

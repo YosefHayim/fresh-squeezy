@@ -22,7 +22,7 @@ export interface ProductAttributes extends GeneratedProductAttributes {
 
 export async function getProduct(
   http: HttpClient,
-  productId: string | number
+  productId: string | number,
 ): Promise<JsonApiResource<ProductAttributes>> {
   return http.getResource<ProductAttributes>(`/v1/products/${productId}`);
 }
@@ -34,7 +34,7 @@ export async function getProduct(
  */
 export async function listProducts(
   http: HttpClient,
-  storeId: string | number
+  storeId: string | number,
 ): Promise<JsonApiResource<ProductAttributes>[]> {
   return http.paginate<ProductAttributes>("/v1/products", {
     "filter[store_id]": String(storeId),

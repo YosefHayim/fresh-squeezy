@@ -55,14 +55,7 @@ export interface SubscriptionAttributes extends GeneratedSubscriptionAttributes 
   variant_name: string;
   user_name: string;
   user_email: string;
-  status:
-    | "on_trial"
-    | "active"
-    | "paused"
-    | "past_due"
-    | "unpaid"
-    | "cancelled"
-    | "expired";
+  status: "on_trial" | "active" | "paused" | "past_due" | "unpaid" | "cancelled" | "expired";
   status_formatted: string;
   card_brand?: string | null;
   card_last_four?: string | null;
@@ -90,7 +83,7 @@ export interface SubscriptionAttributes extends GeneratedSubscriptionAttributes 
  */
 export async function getSubscription(
   http: HttpClient,
-  subscriptionId: string | number
+  subscriptionId: string | number,
 ): Promise<JsonApiResource<SubscriptionAttributes>> {
   return http.getResource<SubscriptionAttributes>(`/v1/subscriptions/${subscriptionId}`);
 }
