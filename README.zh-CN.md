@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://github.com/YosefHayim/fresh-squeezy">
-    <img src="assets/fresh-squeezy-hero.png" alt="fresh-squeezy —— 面向你的 Lemon Squeezy 配置的「验证优先」体检工具。在上线前捕获计费与 webhook 配置错误。" width="640" />
+    <img src="public/fresh-squeezy-hero.png" alt="fresh-squeezy —— 面向你的 Lemon Squeezy 配置的「验证优先」体检工具。在上线前捕获计费与 webhook 配置错误。" width="640" />
   </a>
 </p>
 

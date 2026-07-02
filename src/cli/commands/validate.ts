@@ -1,6 +1,6 @@
-import { createFreshSqueezy, type FreshSqueezyClient } from "../../createFreshSqueezy.js";
 import { FreshSqueezyError } from "../../core/errors.js";
 import type { Mode, ValidationResult } from "../../core/types.js";
+import { type FreshSqueezyClient, createFreshSqueezy } from "../../createFreshSqueezy.js";
 import { getValidateHints, renderCliError } from "../errors.js";
 import { renderResult } from "../render.js";
 import { resolveStores } from "../resolveStores.js";
@@ -18,7 +18,14 @@ export interface ValidateCommandOptions {
   isInteractive?: boolean;
 }
 
-export type ValidateTarget = "connection" | "store" | "product" | "webhook" | "discount" | "license-key" | "subscription-plan";
+export type ValidateTarget =
+  | "connection"
+  | "store"
+  | "product"
+  | "webhook"
+  | "discount"
+  | "license-key"
+  | "subscription-plan";
 
 /**
  * `fresh-squeezy validate <target>` — run one validator. Store-scoped targets
@@ -31,7 +38,7 @@ export type ValidateTarget = "connection" | "store" | "product" | "webhook" | "d
  */
 export async function runValidateCommand(
   target: ValidateTarget,
-  options: ValidateCommandOptions
+  options: ValidateCommandOptions,
 ): Promise<number> {
   try {
     const client = createFreshSqueezy({ mode: options.mode });
@@ -72,9 +79,9 @@ export async function runValidateCommand(
     const message =
       err instanceof FreshSqueezyError
         ? err.message
-          : err instanceof Error
-            ? err.message
-            : String(err);
+        : err instanceof Error
+          ? err.message
+          : String(err);
     process.stderr.write(renderCliError(message, getValidateHints(err, target)));
     return 2;
   }
@@ -83,7 +90,7 @@ export async function runValidateCommand(
 async function resolveStoresForTarget(
   client: FreshSqueezyClient,
   target: ValidateTarget,
-  options: ValidateCommandOptions
+  options: ValidateCommandOptions,
 ): Promise<string[]> {
   const resolved = await resolveStores(client, {
     storeIds: options.storeIds,
@@ -103,23 +110,21 @@ async function runPerStore(
   client: FreshSqueezyClient,
   target: ValidateTarget,
   storeIds: string[],
-  options: ValidateCommandOptions
+  options: ValidateCommandOptions,
 ): Promise<ValidationResult[]> {
   if (target === "store") {
     return Promise.all(storeIds.map((id) => client.validateStore(id)));
   }
   if (target === "webhook") {
     const url = required(options.webhookUrl, "--webhook-url is required for `validate webhook`.");
-    return Promise.all(
-      storeIds.map((storeId) => client.validateWebhook({ storeId, url }))
-    );
+    return Promise.all(storeIds.map((storeId) => client.validateWebhook({ storeId, url })));
   }
   return [];
 }
 
 async function runProduct(
   client: FreshSqueezyClient,
-  options: ValidateCommandOptions
+  options: ValidateCommandOptions,
 ): Promise<ValidationResult> {
   const productId = required(options.productId, "--product-id is required for `validate product`.");
   const expected = options.storeIds?.[0];
@@ -131,28 +136,46 @@ async function runProduct(
 
 async function runDiscount(
   client: FreshSqueezyClient,
-  options: ValidateCommandOptions
+  options: ValidateCommandOptions,
 ): Promise<ValidationResult> {
-  const discountId = required(options.discountId, "--discount-id is required for `validate discount`.");
-  const storeId = required(options.storeIds?.[0], "--store-ids is required for `validate discount`.");
+  const discountId = required(
+    options.discountId,
+    "--discount-id is required for `validate discount`.",
+  );
+  const storeId = required(
+    options.storeIds?.[0],
+    "--store-ids is required for `validate discount`.",
+  );
   return client.validateDiscount({ storeId, discountId });
 }
 
 async function runLicenseKey(
   client: FreshSqueezyClient,
-  options: ValidateCommandOptions
+  options: ValidateCommandOptions,
 ): Promise<ValidationResult> {
-  const licenseKeyId = required(options.licenseKeyId, "--license-key-id is required for `validate license-key`.");
-  const storeId = required(options.storeIds?.[0], "--store-ids is required for `validate license-key`.");
+  const licenseKeyId = required(
+    options.licenseKeyId,
+    "--license-key-id is required for `validate license-key`.",
+  );
+  const storeId = required(
+    options.storeIds?.[0],
+    "--store-ids is required for `validate license-key`.",
+  );
   return client.validateLicenseKey({ storeId, licenseKeyId });
 }
 
 async function runSubscriptionPlan(
   client: FreshSqueezyClient,
-  options: ValidateCommandOptions
+  options: ValidateCommandOptions,
 ): Promise<ValidationResult> {
-  const variantId = required(options.variantId, "--variant-id is required for `validate subscription-plan`.");
-  const storeId = required(options.storeIds?.[0], "--store-ids is required for `validate subscription-plan`.");
+  const variantId = required(
+    options.variantId,
+    "--variant-id is required for `validate subscription-plan`.",
+  );
+  const storeId = required(
+    options.storeIds?.[0],
+    "--store-ids is required for `validate subscription-plan`.",
+  );
   return client.validateSubscriptionPlan({ storeId, variantId });
 }
 

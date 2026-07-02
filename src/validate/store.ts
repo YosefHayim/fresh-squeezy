@@ -1,6 +1,6 @@
 import type { HttpClient } from "../core/http.js";
 import type { Mode, ValidationIssue, ValidationResult } from "../core/types.js";
-import { getStore, type StoreAttributes } from "../resources/stores.js";
+import { type StoreAttributes, getStore } from "../resources/stores.js";
 import { probeFetch } from "./probe.js";
 import { ISSUE_CODES, buildResult } from "./rules.js";
 
@@ -12,7 +12,7 @@ import { ISSUE_CODES, buildResult } from "./rules.js";
 export async function validateStore(
   http: HttpClient,
   mode: Mode,
-  storeId: string | number
+  storeId: string | number,
 ): Promise<ValidationResult<StoreAttributes>> {
   const issues: ValidationIssue[] = [];
 

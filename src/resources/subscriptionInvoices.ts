@@ -2,12 +2,7 @@ import type { HttpClient } from "../core/http.js";
 import type { JsonApiResource } from "../core/types.js";
 import type { GeneratedSubscriptionInvoiceAttributes } from "../generated/lemonSqueezyApiTypes.js";
 
-export type SubscriptionInvoiceStatus =
-  | "pending"
-  | "paid"
-  | "void"
-  | "refunded"
-  | "partial_refund";
+export type SubscriptionInvoiceStatus = "pending" | "paid" | "void" | "refunded" | "partial_refund";
 
 export type SubscriptionInvoiceBillingReason = "initial" | "renewal" | "updated";
 
@@ -58,16 +53,16 @@ export interface SubscriptionInvoiceAttributes extends GeneratedSubscriptionInvo
 
 export async function getSubscriptionInvoice(
   http: HttpClient,
-  subscriptionInvoiceId: string | number
+  subscriptionInvoiceId: string | number,
 ): Promise<JsonApiResource<SubscriptionInvoiceAttributes>> {
   return http.getResource<SubscriptionInvoiceAttributes>(
-    `/v1/subscription-invoices/${subscriptionInvoiceId}`
+    `/v1/subscription-invoices/${subscriptionInvoiceId}`,
   );
 }
 
 export async function listSubscriptionInvoicesForSubscription(
   http: HttpClient,
-  subscriptionId: string | number
+  subscriptionId: string | number,
 ): Promise<JsonApiResource<SubscriptionInvoiceAttributes>[]> {
   return http.paginate<SubscriptionInvoiceAttributes>("/v1/subscription-invoices", {
     "filter[subscription_id]": String(subscriptionId),

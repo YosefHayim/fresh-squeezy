@@ -14,14 +14,14 @@ export interface UsageRecordAttributes extends GeneratedUsageRecordAttributes {
 
 export async function getUsageRecord(
   http: HttpClient,
-  usageRecordId: string | number
+  usageRecordId: string | number,
 ): Promise<JsonApiResource<UsageRecordAttributes>> {
   return http.getResource<UsageRecordAttributes>(`/v1/usage-records/${usageRecordId}`);
 }
 
 export async function listUsageRecordsForSubscriptionItem(
   http: HttpClient,
-  subscriptionItemId: string | number
+  subscriptionItemId: string | number,
 ): Promise<JsonApiResource<UsageRecordAttributes>[]> {
   return http.paginate<UsageRecordAttributes>("/v1/usage-records", {
     "filter[subscription_item_id]": String(subscriptionItemId),

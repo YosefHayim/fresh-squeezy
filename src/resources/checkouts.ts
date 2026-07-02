@@ -126,14 +126,14 @@ export interface CheckoutAttributes extends GeneratedCheckoutAttributes {
 
 export async function getCheckout(
   http: HttpClient,
-  checkoutId: string | number
+  checkoutId: string | number,
 ): Promise<JsonApiResource<CheckoutAttributes>> {
   return http.getResource<CheckoutAttributes>(`/v1/checkouts/${checkoutId}`);
 }
 
 export async function listCheckoutsForStore(
   http: HttpClient,
-  storeId: string | number
+  storeId: string | number,
 ): Promise<JsonApiResource<CheckoutAttributes>[]> {
   return http.paginate<CheckoutAttributes>("/v1/checkouts", {
     "filter[store_id]": String(storeId),

@@ -1,5 +1,5 @@
-import type { FreshSqueezyClient } from "../createFreshSqueezy.js";
 import { FreshSqueezyError } from "../core/errors.js";
+import type { FreshSqueezyClient } from "../createFreshSqueezy.js";
 import { pickStores } from "./prompts.js";
 
 /**
@@ -37,7 +37,7 @@ export interface ResolveStoresOutput {
  */
 export async function resolveStores(
   client: FreshSqueezyClient,
-  input: ResolveStoresInput
+  input: ResolveStoresInput,
 ): Promise<ResolveStoresOutput> {
   if (input.storeIds && input.storeIds.length > 0) {
     return { storeIds: dedupe(input.storeIds), skipped: false };
@@ -77,7 +77,7 @@ export async function resolveStores(
         name: result.resource?.name ?? "(unnamed)",
         slug: result.resource?.slug ?? "",
       };
-    })
+    }),
   );
 
   const picked = await pickStores(detailed);

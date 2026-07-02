@@ -41,9 +41,7 @@ type Flavour = "with-sdk" | "generic";
  * current version, so a CI step can safely regenerate after each
  * fresh-squeezy upgrade. Returns 0 on success, 2 on I/O failure.
  */
-export async function runAugmentCommand(
-  options: AugmentCommandOptions = {}
-): Promise<number> {
+export async function runAugmentCommand(options: AugmentCommandOptions = {}): Promise<number> {
   const cwd = options.cwd ?? process.cwd();
   const outPath = resolve(cwd, options.out ?? "lemonsqueezy.augment.d.ts");
 
@@ -56,11 +54,11 @@ export async function runAugmentCommand(
     process.stdout.write(`fresh-squeezy: wrote ${outPath} (${flavour}).\n`);
     if (flavour === "with-sdk") {
       process.stdout.write(
-        `Use it via: import type { LemonSqueezyAugmented } from "./lemonsqueezy.augment";\n`
+        `Use it via: import type { LemonSqueezyAugmented } from "./lemonsqueezy.augment";\n`,
       );
     } else {
       process.stdout.write(
-        `Use it via: import type { WithLatestLemonSqueezyFields } from "./lemonsqueezy.augment";\n`
+        `Use it via: import type { WithLatestLemonSqueezyFields } from "./lemonsqueezy.augment";\n`,
       );
     }
     return 0;
@@ -116,9 +114,7 @@ function renderAugmentationFile(flavour: Flavour): string {
 `;
 
   if (flavour === "with-sdk") {
-    return (
-      header +
-      `import type {
+    return `${header}import type {
   Subscription,
   SubscriptionInvoice,
   Order,
@@ -207,13 +203,10 @@ type AugmentResponse<T, Fields> = T extends {
  *   console.log(attrs.urls?.update_customer_portal);
  * }
  */
-`
-    );
+`;
   }
 
-  return (
-    header +
-    `import type {
+  return `${header}import type {
   WithLatestLemonSqueezyFields,
   LatestSubscriptionFields,
   LatestSubscriptionInvoiceFields,
@@ -262,6 +255,5 @@ export type {
  *   type MyCheckout = WithLatestLemonSqueezyFields<MyExistingCheckout, "checkout">;
  * }
  */
-`
-  );
+`;
 }

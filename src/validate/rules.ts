@@ -54,7 +54,7 @@ export function issue(
   code: string,
   severity: ValidationSeverity,
   message: string,
-  extras: { suggestedFix?: string; context?: ValidationIssue["context"] } = {}
+  extras: { suggestedFix?: string; context?: ValidationIssue["context"] } = {},
 ): ValidationIssue {
   const base: ValidationIssue = { code, severity, message };
   if (extras.suggestedFix !== undefined) base.suggestedFix = extras.suggestedFix;
@@ -78,7 +78,7 @@ export function buildResult<T>(
   mode: ValidationResult["mode"],
   issues: ValidationIssue[],
   resource?: T,
-  target?: ValidationTarget
+  target?: ValidationTarget,
 ): ValidationResult<T> {
   const result: ValidationResult<T> = {
     name,

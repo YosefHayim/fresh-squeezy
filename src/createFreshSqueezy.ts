@@ -1,19 +1,23 @@
 import { resolveConfig } from "./core/config.js";
 import { HttpClient, type RequestOptions } from "./core/http.js";
-import type { FreshSqueezyConfig, DoctorReport, Mode, ValidationResult } from "./core/types.js";
-import { validateConnection, type ConnectionSummary } from "./validate/connection.js";
-import { validateStore } from "./validate/store.js";
-import { validateProduct, type ProductValidationOptions } from "./validate/product.js";
-import { validateWebhook, type WebhookValidationOptions } from "./validate/webhook.js";
-import { validateDiscount, type DiscountValidationOptions } from "./validate/discount.js";
-import { validateLicenseKey, type LicenseKeyValidationOptions } from "./validate/licenseKey.js";
-import { validateSubscriptionPlan, type SubscriptionPlanValidationOptions, type SubscriptionPlanSummary } from "./validate/subscriptionPlan.js";
-import { doctor, type DoctorOptions } from "./validate/doctor.js";
-import type { StoreAttributes } from "./resources/stores.js";
-import type { ProductAttributes } from "./resources/products.js";
-import type { WebhookAttributes } from "./resources/webhooks.js";
+import type { DoctorReport, FreshSqueezyConfig, Mode, ValidationResult } from "./core/types.js";
 import type { DiscountAttributes } from "./resources/discounts.js";
 import type { LicenseKeyAttributes } from "./resources/licenseKeys.js";
+import type { ProductAttributes } from "./resources/products.js";
+import type { StoreAttributes } from "./resources/stores.js";
+import type { WebhookAttributes } from "./resources/webhooks.js";
+import { type ConnectionSummary, validateConnection } from "./validate/connection.js";
+import { type DiscountValidationOptions, validateDiscount } from "./validate/discount.js";
+import { type DoctorOptions, doctor } from "./validate/doctor.js";
+import { type LicenseKeyValidationOptions, validateLicenseKey } from "./validate/licenseKey.js";
+import { type ProductValidationOptions, validateProduct } from "./validate/product.js";
+import { validateStore } from "./validate/store.js";
+import {
+  type SubscriptionPlanSummary,
+  type SubscriptionPlanValidationOptions,
+  validateSubscriptionPlan,
+} from "./validate/subscriptionPlan.js";
+import { type WebhookValidationOptions, validateWebhook } from "./validate/webhook.js";
 
 /**
  * The public client. All consumer code flows through the factory below —
@@ -31,9 +35,15 @@ export interface FreshSqueezyClient {
   validateStore(storeId: string | number): Promise<ValidationResult<StoreAttributes>>;
   validateProduct(options: ProductValidationOptions): Promise<ValidationResult<ProductAttributes>>;
   validateWebhook(options: WebhookValidationOptions): Promise<ValidationResult<WebhookAttributes>>;
-  validateDiscount(options: DiscountValidationOptions): Promise<ValidationResult<DiscountAttributes>>;
-  validateLicenseKey(options: LicenseKeyValidationOptions): Promise<ValidationResult<LicenseKeyAttributes>>;
-  validateSubscriptionPlan(options: SubscriptionPlanValidationOptions): Promise<ValidationResult<SubscriptionPlanSummary>>;
+  validateDiscount(
+    options: DiscountValidationOptions,
+  ): Promise<ValidationResult<DiscountAttributes>>;
+  validateLicenseKey(
+    options: LicenseKeyValidationOptions,
+  ): Promise<ValidationResult<LicenseKeyAttributes>>;
+  validateSubscriptionPlan(
+    options: SubscriptionPlanValidationOptions,
+  ): Promise<ValidationResult<SubscriptionPlanSummary>>;
   doctor(options?: DoctorOptions): Promise<DoctorReport>;
 }
 

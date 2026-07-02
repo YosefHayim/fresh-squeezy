@@ -81,7 +81,8 @@ export const ACKNOWLEDGED_CHANGELOG_ENTRIES = [
   {
     date: "2025-06-11",
     summary: "Added payment_processor attribute to Subscription objects.",
-    handledBy: "Surfaced as SubscriptionAttributes.payment_processor in src/resources/subscriptions.ts.",
+    handledBy:
+      "Surfaced as SubscriptionAttributes.payment_processor in src/resources/subscriptions.ts.",
   },
   {
     date: "2025-01-21",
@@ -101,11 +102,13 @@ export const ACKNOWLEDGED_CHANGELOG_ENTRIES = [
   {
     date: "2024-09-04",
     summary: "Added Issue an Order refund and Issue a Subscription Invoice refund endpoints.",
-    handledBy: "Not wrapped — reachable via client.request('/v1/orders/:id/refund'). Refund-amount fields surfaced on OrderAttributes.",
+    handledBy:
+      "Not wrapped — reachable via client.request('/v1/orders/:id/refund'). Refund-amount fields surfaced on OrderAttributes.",
   },
   {
     date: "2024-08-07",
-    summary: "Added refunded_amount, refunded_amount_usd, refunded_amount_formatted to Order and Subscription invoice objects.",
+    summary:
+      "Added refunded_amount, refunded_amount_usd, refunded_amount_formatted to Order and Subscription invoice objects.",
     handledBy: "OrderAttributes.refunded_amount*, SubscriptionInvoiceAttributes.refunded_amount*.",
   },
   {
@@ -121,7 +124,8 @@ export const ACKNOWLEDGED_CHANGELOG_ENTRIES = [
   {
     date: "2024-04-09",
     summary: "License Key expires_at is now mutable via the update endpoint.",
-    handledBy: "Type unchanged (LicenseKeyAttributes.expires_at already nullable string). Mutation reachable via client.request('PATCH /v1/license-keys/:id').",
+    handledBy:
+      "Type unchanged (LicenseKeyAttributes.expires_at already nullable string). Mutation reachable via client.request('PATCH /v1/license-keys/:id').",
   },
   {
     date: "2024-03-28",
@@ -136,8 +140,10 @@ export const ACKNOWLEDGED_CHANGELOG_ENTRIES = [
   },
   {
     date: "2024-02-12",
-    summary: "Added Generate subscription invoice endpoint and invoice_immediately / disable_prorations parameters.",
-    handledBy: "SubscriptionItemUpdateAttributes.invoice_immediately / disable_prorations; invoice endpoint reachable via client.request().",
+    summary:
+      "Added Generate subscription invoice endpoint and invoice_immediately / disable_prorations parameters.",
+    handledBy:
+      "SubscriptionItemUpdateAttributes.invoice_immediately / disable_prorations; invoice endpoint reachable via client.request().",
   },
   {
     date: "2024-02-05",
@@ -146,7 +152,8 @@ export const ACKNOWLEDGED_CHANGELOG_ENTRIES = [
   },
   {
     date: "2024-01-21",
-    summary: "Added setup_fee_enabled / setup_fee to Price objects; setup_fee* to Subscription invoice.",
+    summary:
+      "Added setup_fee_enabled / setup_fee to Price objects; setup_fee* to Subscription invoice.",
     handledBy: "PriceAttributes.setup_fee*, OrderAttributes.setup_fee*.",
   },
   {
@@ -167,7 +174,8 @@ export const ACKNOWLEDGED_CHANGELOG_ENTRIES = [
   },
   {
     date: "2023-08-23",
-    summary: "Added checkout_data.variant_quantities, subscription items, prices, and usage-based billing.",
+    summary:
+      "Added checkout_data.variant_quantities, subscription items, prices, and usage-based billing.",
     handledBy:
       "CheckoutData.variant_quantities, SubscriptionItemAttributes, UsageRecordAttributes, PriceAttributes.",
   },

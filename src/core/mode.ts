@@ -1,6 +1,4 @@
-import type { HttpClient } from "./http.js";
 import type { Mode } from "./types.js";
-import { getAuthenticatedUser } from "../resources/users.js";
 
 /**
  * Map the boolean `meta.test_mode` flag from `/v1/users/me` to our `Mode` type.
@@ -12,26 +10,12 @@ import { getAuthenticatedUser } from "../resources/users.js";
  *
  * Pure function — exposed publicly so consumers can resolve a key's true mode
  * from a `/v1/users/me` document they already have, without re-running the
- * full connection validator.
+ * full connection validator. Keeping it free of any resource import is what
+ * lets `core/` stay foundational (it never reaches up into `resources/`); the
+ * I/O counterpart `fetchActualMode` lives in `validate/connection.ts`.
  */
 export function resolveActualMode(testMode: boolean | undefined): Mode | undefined {
   if (testMode === true) return "test";
   if (testMode === false) return "live";
   return undefined;
-}
-
-/**
- * Ask the Lemon Squeezy API which mode the configured key actually belongs to.
- *
- * Useful as a fail-fast check at app boot — e.g. refuse to start if a prod key
- * is loaded into a staging deployment — without paying for a full doctor run.
- * Returns `undefined` if the API doesn't surface `meta.test_mode` (older
- * proxies, partial responses).
- *
- * Throws `FreshSqueezyError` on auth or network failure; callers that want a
- * structured non-throwing result should use `validateConnection` instead.
- */
-export async function fetchActualMode(http: HttpClient): Promise<Mode | undefined> {
-  const doc = await getAuthenticatedUser(http);
-  return resolveActualMode(doc.meta?.test_mode);
 }

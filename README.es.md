@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://github.com/YosefHayim/fresh-squeezy">
-    <img src="assets/fresh-squeezy-hero.png" alt="fresh-squeezy — el doctor con enfoque en validación para tu configuración de Lemon Squeezy. Detecta errores de configuración de facturación y webhooks antes de que lleguen a producción." width="640" />
+    <img src="public/fresh-squeezy-hero.png" alt="fresh-squeezy — el doctor con enfoque en validación para tu configuración de Lemon Squeezy. Detecta errores de configuración de facturación y webhooks antes de que lleguen a producción." width="640" />
   </a>
 </p>
 

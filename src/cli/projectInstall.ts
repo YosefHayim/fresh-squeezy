@@ -31,7 +31,7 @@ export interface EnsureProjectInstallOptions {
 export type RunPackageCommand = (
   command: string,
   args: string[],
-  options: { cwd: string }
+  options: { cwd: string },
 ) => Promise<number>;
 
 interface PackageJson {
@@ -43,7 +43,7 @@ interface PackageJson {
 }
 
 export async function ensureFreshSqueezyDevDependency(
-  options: EnsureProjectInstallOptions = {}
+  options: EnsureProjectInstallOptions = {},
 ): Promise<ProjectInstallResult> {
   if (options.skipInstall) {
     return { status: "skipped" };
@@ -131,7 +131,7 @@ function buildInstallCommand(packageManager: PackageManager, packageSpec: string
 function runPackageCommand(
   command: string,
   args: string[],
-  options: { cwd: string }
+  options: { cwd: string },
 ): Promise<number> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {

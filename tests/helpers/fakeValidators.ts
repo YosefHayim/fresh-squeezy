@@ -1,6 +1,6 @@
 import type { Mode, ValidationResult } from "../../src/core/types.js";
-import { buildResult } from "../../src/validate/rules.js";
 import type { DoctorValidators } from "../../src/validate/doctor.js";
+import { buildResult } from "../../src/validate/rules.js";
 
 /**
  * Build a `DoctorValidators` object with passing defaults. Override only the
@@ -12,11 +12,8 @@ import type { DoctorValidators } from "../../src/validate/doctor.js";
  * inspect it; tests that need a populated resource can supply their own
  * override.
  */
-export function createFakeValidators(
-  overrides: Partial<DoctorValidators> = {}
-): DoctorValidators {
-  const ok = <T>(name: string, mode: Mode): ValidationResult<T> =>
-    buildResult<T>(name, mode, []);
+export function createFakeValidators(overrides: Partial<DoctorValidators> = {}): DoctorValidators {
+  const ok = <T>(name: string, mode: Mode): ValidationResult<T> => buildResult<T>(name, mode, []);
 
   const defaults: DoctorValidators = {
     connection: async (_http, mode) => ok("connection", mode),

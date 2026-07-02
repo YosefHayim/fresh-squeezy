@@ -1,24 +1,15 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import chalk from "chalk";
-import { createFreshSqueezy, type FreshSqueezyClient } from "../../createFreshSqueezy.js";
 import { ENV_KEYS } from "../../core/config.js";
 import type { Mode, ValidationResult } from "../../core/types.js";
+import { type FreshSqueezyClient, createFreshSqueezy } from "../../createFreshSqueezy.js";
 import type { ConnectionSummary } from "../../validate/connection.js";
-import {
-  renderBrandHeader,
-  renderCancelMessage,
-  renderDetected,
-  renderStep,
-} from "../brand.js";
+import { renderBrandHeader, renderCancelMessage, renderDetected, renderStep } from "../brand.js";
 import { renderCliError } from "../errors.js";
-import { renderReport } from "../render.js";
 import {
-  discoverInitResourceChoices,
-  type InitResourceChoices,
-  type ResourceChoiceGroup,
-} from "../resourceDiscovery.js";
-import {
+  type InitDoctorTarget,
+  type InitDoctorTargets,
   askForApiKey,
   askForDoctorTargetValues,
   confirmLiveModeRun,
@@ -26,9 +17,13 @@ import {
   isPromptCancel,
   pickStore,
   selectDoctorTargets,
-  type InitDoctorTargets,
-  type InitDoctorTarget,
 } from "../prompts.js";
+import { renderReport } from "../render.js";
+import {
+  type InitResourceChoices,
+  type ResourceChoiceGroup,
+  discoverInitResourceChoices,
+} from "../resourceDiscovery.js";
 
 export interface InitCommandOptions {
   envFile?: string;
@@ -42,7 +37,7 @@ export interface InitCommandOptions {
  *  1. Read API key from env or ask for it if missing.
  *  2. List reachable stores via `/v1/stores`, let the user pick one.
  *  3. Ask which resource-specific validators should run now.
- *  4. Optionally persist credentials to `.env.local`.
+ *  4. Optionally persist credentials to `.env`.
  *  5. Run `doctor()` against the chosen config and print the report.
  *
  * Returns an exit code so the CLI wrapper can forward it to `process.exit`.
@@ -65,7 +60,7 @@ async function runInitFlow(options: InitCommandOptions): Promise<number> {
       renderCliError("`fresh-squeezy init` requires an interactive terminal.", [
         "fresh-squeezy doctor --all-stores",
         "fresh-squeezy validate connection",
-      ])
+      ]),
     );
     return 2;
   }
@@ -73,8 +68,8 @@ async function runInitFlow(options: InitCommandOptions): Promise<number> {
   process.stdout.write(
     renderBrandHeader(
       "Guided setup",
-      "Connect a key, pick the right store, and run a focused billing doctor."
-    )
+      "Connect a key, pick the right store, and run a focused billing doctor.",
+    ),
   );
 
   process.stdout.write(renderStep(1, 5, "Credentials", "reuse env when available"));
@@ -96,7 +91,9 @@ async function runInitFlow(options: InitCommandOptions): Promise<number> {
   const storeIds = connection.resource?.storeIds ?? [];
   if (storeIds.length === 0) {
     process.stdout.write(
-      chalk.yellow("No stores reachable with this key. Create a store in Lemon Squeezy and retry.\n")
+      chalk.yellow(
+        "No stores reachable with this key. Create a store in Lemon Squeezy and retry.\n",
+      ),
     );
     return 1;
   }
@@ -114,7 +111,9 @@ async function runInitFlow(options: InitCommandOptions): Promise<number> {
 
   if (pickable.length === 0) {
     process.stdout.write(
-      chalk.yellow("Stores were discovered, but none could be validated. Check account access and retry.\n")
+      chalk.yellow(
+        "Stores were discovered, but none could be validated. Check account access and retry.\n",
+      ),
     );
     return 1;
   }
@@ -128,7 +127,7 @@ async function runInitFlow(options: InitCommandOptions): Promise<number> {
   process.stdout.write(renderDiscoverySummary(resourceChoices, selectedTargets));
   const doctorTargets = await askForDoctorTargetValues(selectedTargets, resourceChoices);
 
-  const envPath = path.resolve(process.cwd(), options.envFile ?? ".env.local");
+  const envPath = path.resolve(process.cwd(), options.envFile ?? ".env");
   const checkNames = getDoctorCheckNames(doctorTargets);
   process.stdout.write(renderSetupSummary({ envPath, mode, storeId, checkNames }));
   const shouldWrite = await confirmWriteEnvFile(envPath);
@@ -145,12 +144,14 @@ async function runInitFlow(options: InitCommandOptions): Promise<number> {
 }
 
 async function resolveStoreSelection(
-  pickable: Array<{ id: string; name: string; slug: string }>
+  pickable: Array<{ id: string; name: string; slug: string }>,
 ): Promise<string> {
   if (pickable.length === 1) {
     const store = pickable[0];
     if (!store) throw new Error("Expected one reachable store.");
-    process.stdout.write(renderDetected("Store", `${store.name} (${store.slug})`, `id ${store.id}`));
+    process.stdout.write(
+      renderDetected("Store", `${store.name} (${store.slug})`, `id ${store.id}`),
+    );
     return store.id;
   }
 
@@ -160,15 +161,16 @@ async function resolveStoreSelection(
 async function discoverChoices(
   client: FreshSqueezyClient,
   storeId: string,
-  selectedTargets: InitDoctorTarget[]
+  selectedTargets: InitDoctorTarget[],
 ): Promise<InitResourceChoices> {
-  if (selectedTargets.length === 0) return {
-    products: { choices: [] },
-    webhooks: { choices: [] },
-    discounts: { choices: [] },
-    licenseKeys: { choices: [] },
-    subscriptionPlans: { choices: [] },
-  };
+  if (selectedTargets.length === 0)
+    return {
+      products: { choices: [] },
+      webhooks: { choices: [] },
+      discounts: { choices: [] },
+      licenseKeys: { choices: [] },
+      subscriptionPlans: { choices: [] },
+    };
 
   return discoverInitResourceChoices(client, storeId, selectedTargets);
 }
@@ -211,7 +213,9 @@ async function createDetectedClient(apiKey: string): Promise<{
   }
 
   if (envMode) {
-    process.stdout.write(chalk.dim(`Using ${ENV_KEYS.mode}=${envMode}; API mode was not exposed.\n`));
+    process.stdout.write(
+      chalk.dim(`Using ${ENV_KEYS.mode}=${envMode}; API mode was not exposed.\n`),
+    );
     return { client, mode: envMode, connection };
   }
 
@@ -223,7 +227,9 @@ function parseEnvMode(): Mode | undefined {
   const value = process.env[ENV_KEYS.mode]?.trim();
   if (value === "test" || value === "live") return value;
   if (value) {
-    process.stdout.write(chalk.yellow(`Ignoring invalid ${ENV_KEYS.mode}=${value}; expected test or live.\n`));
+    process.stdout.write(
+      chalk.yellow(`Ignoring invalid ${ENV_KEYS.mode}=${value}; expected test or live.\n`),
+    );
   }
   return undefined;
 }
@@ -261,7 +267,7 @@ function renderSetupSummary(input: {
 
 async function writeEnvFile(
   envPath: string,
-  values: { apiKey: string; mode: string; storeId: string }
+  values: { apiKey: string; mode: string; storeId: string },
 ): Promise<void> {
   const updates = new Map<string, string>([
     [ENV_KEYS.apiKey, values.apiKey],
@@ -306,7 +312,7 @@ async function readEnvFile(envPath: string): Promise<string> {
 
 function renderDiscoverySummary(
   choices: InitResourceChoices,
-  selectedTargets: InitDoctorTarget[]
+  selectedTargets: InitDoctorTarget[],
 ): string {
   if (selectedTargets.length === 0) return chalk.dim("  No optional resource checks selected.\n");
 
@@ -324,7 +330,9 @@ function renderDiscoverySummary(
     if (group.error) {
       lines.push(chalk.yellow(`  ! ${label} discovery failed; manual entry is available.`));
     } else {
-      lines.push(renderDetected(label, String(group.choices.length), "Lemon Squeezy API").trimEnd());
+      lines.push(
+        renderDetected(label, String(group.choices.length), "Lemon Squeezy API").trimEnd(),
+      );
     }
   }
 

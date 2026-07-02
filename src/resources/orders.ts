@@ -63,13 +63,7 @@ export interface OrderAttributes extends GeneratedOrderAttributes {
   refunded_amount_formatted?: string | null;
   refunded?: boolean;
   refunded_at?: string | null;
-  status:
-    | "pending"
-    | "failed"
-    | "paid"
-    | "refunded"
-    | "fraudulent"
-    | "partial_refund";
+  status: "pending" | "failed" | "paid" | "refunded" | "fraudulent" | "partial_refund";
   status_formatted: string;
   subtotal_formatted?: string;
   setup_fee_formatted?: string;
@@ -90,7 +84,7 @@ export interface OrderAttributes extends GeneratedOrderAttributes {
  */
 export async function getOrder(
   http: HttpClient,
-  orderId: string | number
+  orderId: string | number,
 ): Promise<JsonApiResource<OrderAttributes>> {
   return http.getResource<OrderAttributes>(`/v1/orders/${orderId}`);
 }

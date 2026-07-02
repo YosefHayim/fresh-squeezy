@@ -41,14 +41,14 @@ export interface CustomerAttributes extends GeneratedCustomerAttributes {
 
 export async function getCustomer(
   http: HttpClient,
-  customerId: string | number
+  customerId: string | number,
 ): Promise<JsonApiResource<CustomerAttributes>> {
   return http.getResource<CustomerAttributes>(`/v1/customers/${customerId}`);
 }
 
 export async function listCustomersForStore(
   http: HttpClient,
-  storeId: string | number
+  storeId: string | number,
 ): Promise<JsonApiResource<CustomerAttributes>[]> {
   return http.paginate<CustomerAttributes>("/v1/customers", {
     "filter[store_id]": String(storeId),

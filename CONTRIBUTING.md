@@ -13,7 +13,7 @@ Thanks for looking. `fresh-squeezy` aims to stay small and boring — contributi
 git clone https://github.com/YosefHayim/fresh-squeezy.git
 cd fresh-squeezy
 npm install
-cp .env.example .env.local   # fill in your key (test or live) if you want to run the CLI
+cp .env.example .env   # fill in your key if you want to run the CLI
 ```
 
 ## Common commands
@@ -35,23 +35,19 @@ src/
   core/        transport, config, errors, shared types
   resources/   thin JSON:API wrappers (users, stores, products, variants, webhooks)
   validate/    validators + doctor composition (the actual product)
-  support/     locally reviewed manifest of what fresh-squeezy understands
-               + changelog-snapshot.json (drift baseline)
-  cli/         commander + inquirer shell over the library
-scripts/
-  check-changelog.mjs      drift detector used by the weekly workflow
+  support/     locally reviewed manifest + changelog-snapshot.json (drift baseline)
+  cli/         commander + @inquirer/prompts shell over the library
+  scripts/     build/CI scripts (changelog drift, API-type generation)
+  *.test.ts    unit tests colocated beside the module they cover
 tests/
-  core/        unit tests for http + config
-  validate/    unit tests for each validator + doctor
-  cli/         CLI command unit tests (stubbed fetch)
   fixtures/    canned JSON:API responses from a test-mode store
+  helpers/     mockFetch + fake validators
   live/        opt-in live smoke (LEMON_SQUEEZY_LIVE_SMOKE=1)
-  helpers/     mockFetch helper
 ```
 
 ## Design guardrails
 
-Read `plan.md` first — it documents the non-goals as strongly as the goals. In short:
+Read `PROJECT.md` first — it documents the non-goals as strongly as the goals. In short:
 
 1. **Validator-first.** New endpoints should land as validators, not as passthroughs that hide HTTP calls.
 2. **One HTTP layer.** Everything goes through `src/core/http.ts` for auth, error normalization, and retry behavior.
@@ -64,7 +60,7 @@ Read `plan.md` first — it documents the non-goals as strongly as the goals. In
 1. If the platform resource isn't in `src/resources/`, add a thin file there first — attributes type + a `getX` / `listX` helper.
 2. Add the validator in `src/validate/<name>.ts`. Use `rules.ts` helpers so the result shape stays identical.
 3. Add issue codes to `ISSUE_CODES` in `rules.ts`. Treat them as stable public API.
-4. Add unit tests in `tests/validate/<name>.test.ts` using fixtures from `tests/fixtures/sandbox/data.ts`.
+4. Add a colocated unit test `src/validate/<name>.test.ts` using fixtures from `tests/fixtures/sandbox/data.ts`.
 5. Wire it into `doctor()` if it belongs in the default health check.
 6. Mirror the validator as a `fresh-squeezy validate <name>` CLI subcommand in `src/cli/main.ts`.
 7. Update the README table.
@@ -92,7 +88,7 @@ The drift workflow is advisory — it never modifies code automatically. The sna
 - **Unit tests** run against recorded fixtures. Fast, deterministic, run on every push. Coverage threshold is 80% lines / 80% functions / 75% branches.
 - **Live smoke tests** run nightly in CI against a secret test-mode key. If you add a validator that talks to a new endpoint, extend `tests/live/smoke.test.ts` so drift is caught before the next release.
 - **Changelog drift** runs weekly (Monday 06:00 UTC). See above.
-- Manual QA steps for humans before a release: `docs/MANUAL_QA.md`.
+- Before a release, smoke the CLI by hand against a test-mode key: `npx fresh-squeezy` (guided setup) and `fresh-squeezy doctor --all-stores`. See `docs/cli-reference.md`.
 
 ## Commit style
 

@@ -1,9 +1,9 @@
 import { sameWebhookUrl } from "../core/equality.js";
-import { FreshSqueezyError } from "../core/errors.js";
 import type { HttpClient } from "../core/http.js";
 import type { Mode, ValidationIssue, ValidationResult } from "../core/types.js";
-import { listWebhooksForStore, type WebhookAttributes } from "../resources/webhooks.js";
+import { type WebhookAttributes, listWebhooksForStore } from "../resources/webhooks.js";
 import { OPTIONAL_WEBHOOK_EVENTS, RECOMMENDED_WEBHOOK_EVENTS } from "../support/manifest.js";
+import { probeCollection } from "./probe.js";
 import { ISSUE_CODES, buildResult, issue } from "./rules.js";
 
 export interface WebhookValidationOptions {
@@ -23,32 +23,19 @@ export interface WebhookValidationOptions {
 export async function validateWebhook(
   http: HttpClient,
   mode: Mode,
-  options: WebhookValidationOptions
+  options: WebhookValidationOptions,
 ): Promise<ValidationResult<WebhookAttributes>> {
   const issues: ValidationIssue[] = [];
 
-  let webhooks;
-  try {
-    webhooks = await listWebhooksForStore(http, options.storeId);
-  } catch (err) {
-    if (err instanceof FreshSqueezyError) {
-      issues.push(
-        issue(ISSUE_CODES.UNKNOWN, "error", err.message, {
-          context: { status: err.status ?? null, code: err.code },
-        })
-      );
-      return buildResult<WebhookAttributes>("webhook", mode, issues, undefined, {
-        label: options.url,
-        url: options.url,
-      });
-    }
-    const message = err instanceof Error ? err.message : "Unknown error";
-    issues.push(issue(ISSUE_CODES.UNKNOWN, "error", message));
+  const fetched = await probeCollection(() => listWebhooksForStore(http, options.storeId));
+  if (!fetched.ok) {
+    issues.push(fetched.issue);
     return buildResult<WebhookAttributes>("webhook", mode, issues, undefined, {
       label: options.url,
       url: options.url,
     });
   }
+  const webhooks = fetched.resource;
 
   const match = webhooks.find((webhook) => sameWebhookUrl(webhook.attributes.url, options.url));
   if (!match) {
@@ -61,8 +48,8 @@ export async function validateWebhook(
           suggestedFix:
             "Register the webhook in Lemon Squeezy (Settings → Webhooks) and subscribe to the recommended events.",
           context: { storeId: String(options.storeId), url: options.url },
-        }
-      )
+        },
+      ),
     );
     return buildResult<WebhookAttributes>("webhook", mode, issues, undefined, {
       label: options.url,
@@ -81,10 +68,11 @@ export async function validateWebhook(
         "error",
         `Webhook is missing recommended events: ${missingRecommended.join(", ")}.`,
         {
-          suggestedFix: "Subscribe to all recommended events so the integration survives plan changes and refunds.",
+          suggestedFix:
+            "Subscribe to all recommended events so the integration survives plan changes and refunds.",
           context: { missing: missingRecommended.join(",") },
-        }
-      )
+        },
+      ),
     );
   }
 
@@ -94,8 +82,8 @@ export async function validateWebhook(
         ISSUE_CODES.WEBHOOK_OPTIONAL_EVENTS,
         "info",
         `Optional events not subscribed: ${missingOptional.join(", ")}.`,
-        { context: { missing: missingOptional.join(",") } }
-      )
+        { context: { missing: missingOptional.join(",") } },
+      ),
     );
   }
 

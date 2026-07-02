@@ -29,7 +29,7 @@ export interface DiscountAttributes extends GeneratedDiscountAttributes {
  */
 export async function getDiscount(
   http: HttpClient,
-  discountId: string | number
+  discountId: string | number,
 ): Promise<JsonApiResource<DiscountAttributes>> {
   return http.getResource<DiscountAttributes>(`/v1/discounts/${discountId}`);
 }

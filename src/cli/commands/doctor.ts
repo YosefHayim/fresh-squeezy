@@ -1,11 +1,11 @@
-import { createFreshSqueezy, type FreshSqueezyClient } from "../../createFreshSqueezy.js";
 import { FreshSqueezyError } from "../../core/errors.js";
 import type { DoctorReport, Mode } from "../../core/types.js";
+import { type FreshSqueezyClient, createFreshSqueezy } from "../../createFreshSqueezy.js";
 import { getDoctorHints, renderCliError } from "../errors.js";
-import { discoverInitResourceChoices, type InitResourceChoices } from "../resourceDiscovery.js";
+import type { InitDoctorTarget } from "../prompts.js";
 import { renderReport } from "../render.js";
 import { resolveStores } from "../resolveStores.js";
-import type { InitDoctorTarget } from "../prompts.js";
+import { type InitResourceChoices, discoverInitResourceChoices } from "../resourceDiscovery.js";
 
 export interface DoctorCommandOptions {
   mode?: Mode;
@@ -63,7 +63,7 @@ export async function runDoctorCommand(options: DoctorCommandOptions): Promise<n
       resolved.storeIds.map(async (storeId) => {
         const targets = await resolveDoctorTargets(client, storeId, options);
         return client.doctor({ storeId, ...targets });
-      })
+      }),
     );
 
     const ok = reports.every((report) => report.ok);
@@ -77,7 +77,7 @@ export async function runDoctorCommand(options: DoctorCommandOptions): Promise<n
       }
       if (!options.allResources && !hasExplicitResourceSelection(options)) {
         process.stderr.write(
-          "fresh-squeezy: resource checks were skipped; pass --all-resources or explicit resource flags to validate products, webhooks, discounts, license keys, and subscription plans.\n"
+          "fresh-squeezy: resource checks were skipped; pass --all-resources or explicit resource flags to validate products, webhooks, discounts, license keys, and subscription plans.\n",
         );
       }
     }
@@ -92,7 +92,7 @@ export async function runDoctorCommand(options: DoctorCommandOptions): Promise<n
 async function resolveDoctorTargets(
   client: FreshSqueezyClient,
   storeId: string,
-  options: DoctorCommandOptions
+  options: DoctorCommandOptions,
 ): Promise<{
   productIds?: string[];
   webhookUrls?: string[];
@@ -114,7 +114,7 @@ async function resolveDoctorTargets(
   reportDiscoveryErrors(discovered);
   if (!options.json) {
     process.stderr.write(
-      `fresh-squeezy: discovered store ${storeId} resources: ${formatDiscoveryCounts(discovered)}.\n`
+      `fresh-squeezy: discovered store ${storeId} resources: ${formatDiscoveryCounts(discovered)}.\n`,
     );
   }
 
@@ -165,7 +165,7 @@ function one(value: string | undefined): string[] | undefined {
 
 function mergeValues(
   explicit: string[] | undefined,
-  discovered: string[] | undefined
+  discovered: string[] | undefined,
 ): string[] | undefined {
   const merged = Array.from(new Set([...(explicit ?? []), ...(discovered ?? [])]));
   return merged.length > 0 ? merged : undefined;
@@ -177,7 +177,7 @@ function hasExplicitResourceSelection(options: DoctorCommandOptions): boolean {
       options.webhookUrl ||
       options.discountId ||
       options.licenseKeyId ||
-      options.variantId
+      options.variantId,
   );
 }
 
@@ -188,7 +188,7 @@ function hasExplicitResourceSelection(options: DoctorCommandOptions): boolean {
  */
 async function runConnectionOnly(
   client: FreshSqueezyClient,
-  options: DoctorCommandOptions
+  options: DoctorCommandOptions,
 ): Promise<number> {
   const connection = await client.validateConnection();
   const report: DoctorReport = {
@@ -202,7 +202,7 @@ async function runConnectionOnly(
     process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
   } else {
     process.stderr.write(
-      "fresh-squeezy: no --store-ids or --all-stores and stdin is not a TTY; running connection-only.\n"
+      "fresh-squeezy: no --store-ids or --all-stores and stdin is not a TTY; running connection-only.\n",
     );
     process.stdout.write(`${renderReport(report)}\n`);
   }
@@ -214,7 +214,10 @@ function writeFatal(err: unknown, asJson: boolean): void {
     const payload =
       err instanceof FreshSqueezyError
         ? { ok: false, error: { code: err.code, message: err.message, status: err.status ?? null } }
-        : { ok: false, error: { code: "UNKNOWN", message: err instanceof Error ? err.message : String(err) } };
+        : {
+            ok: false,
+            error: { code: "UNKNOWN", message: err instanceof Error ? err.message : String(err) },
+          };
     process.stderr.write(`${JSON.stringify(payload)}\n`);
     return;
   }

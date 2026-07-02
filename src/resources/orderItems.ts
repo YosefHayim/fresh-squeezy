@@ -20,14 +20,14 @@ export interface OrderItemAttributes extends GeneratedOrderItemAttributes {
 
 export async function getOrderItem(
   http: HttpClient,
-  orderItemId: string | number
+  orderItemId: string | number,
 ): Promise<JsonApiResource<OrderItemAttributes>> {
   return http.getResource<OrderItemAttributes>(`/v1/order-items/${orderItemId}`);
 }
 
 export async function listOrderItemsForOrder(
   http: HttpClient,
-  orderId: string | number
+  orderId: string | number,
 ): Promise<JsonApiResource<OrderItemAttributes>[]> {
   return http.paginate<OrderItemAttributes>("/v1/order-items", {
     "filter[order_id]": String(orderId),

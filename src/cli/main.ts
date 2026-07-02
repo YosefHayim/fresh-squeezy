@@ -4,9 +4,9 @@ import dotenv from "dotenv";
 import type { Mode } from "../core/types.js";
 import { runAugmentCommand } from "./commands/augment.js";
 import { runDoctorCommand } from "./commands/doctor.js";
-import { runLauncherCommand } from "./commands/launcher.js";
-import { runValidateCommand, type ValidateTarget } from "./commands/validate.js";
 import { runInitCommand } from "./commands/init.js";
+import { runLauncherCommand } from "./commands/launcher.js";
+import { type ValidateTarget, runValidateCommand } from "./commands/validate.js";
 import { renderCliError } from "./errors.js";
 
 /**
@@ -19,7 +19,6 @@ import { renderCliError } from "./errors.js";
  * API deliberately stays single-store-per-call.
  */
 
-dotenv.config({ path: ".env.local" });
 dotenv.config();
 
 const isInteractive = Boolean(process.stdin.isTTY);
@@ -46,7 +45,7 @@ Start:
 
 Store selection:
   Use --store-ids 12,34 for explicit stores, --all-stores for automation, or run in a TTY to pick stores interactively.
-`
+`,
 );
 
 program.action(async (opts: { install?: boolean }) => {
@@ -55,7 +54,7 @@ program.action(async (opts: { install?: boolean }) => {
       renderCliError("`fresh-squeezy` guided setup requires an interactive terminal.", [
         "fresh-squeezy doctor --all-stores",
         "fresh-squeezy validate connection",
-      ])
+      ]),
     );
     process.exit(2);
   }
@@ -74,7 +73,10 @@ const doctor = program
   .option("-m, --mode <mode>", "test or live", parseMode)
   .option("--store-ids <ids>", "Comma-separated store IDs (e.g. 1,2,3)", parseCsv)
   .option("--all-stores", "Run against every reachable store, no prompt")
-  .option("--all-resources", "Discover and validate every supported resource in each selected store")
+  .option(
+    "--all-resources",
+    "Discover and validate every supported resource in each selected store",
+  )
   .option("--product-id <id>", "Product to validate")
   .option("--webhook-url <url>", "Webhook URL to validate")
   .option("--discount-id <id>", "Discount to validate")
@@ -107,7 +109,7 @@ Examples:
   fresh-squeezy doctor --all-stores --all-resources
   fresh-squeezy doctor --store-ids 12 --product-id 987 --webhook-url https://app.example.com/api/webhooks/lemon-squeezy
   fresh-squeezy doctor --all-stores --all-resources --json
-`
+`,
 );
 
 const validate = program.command("validate").description("Run a single validator");
@@ -122,7 +124,7 @@ Examples:
 
 Targets:
   connection, store, product, webhook, discount, license-key, subscription-plan
-`
+`,
 );
 
 validate
@@ -145,7 +147,11 @@ validate
   .command("product")
   .description("Check a product is published with at least one variant")
   .requiredOption("--product-id <id>", "Product ID to validate")
-  .option("--store-ids <ids>", "Expected owning store IDs (first is used for cross-check)", parseCsv)
+  .option(
+    "--store-ids <ids>",
+    "Expected owning store IDs (first is used for cross-check)",
+    parseCsv,
+  )
   .option("-m, --mode <mode>", "test or live", parseMode)
   .option("--json", "Emit machine-readable JSON")
   .action(async (opts: ValidateCliOpts) => runValidate("product", opts));
@@ -190,7 +196,7 @@ validate
 program
   .command("init")
   .description("Interactive setup: ask for credentials, pick a store, run doctor")
-  .option("--env-file <path>", "Where to write credentials (default: .env.local)")
+  .option("--env-file <path>", "Where to write credentials (default: .env)")
   .action(async (opts: { envFile?: string }) => {
     const code = await runInitCommand({ envFile: opts.envFile, isInteractive });
     process.exit(code);
@@ -198,12 +204,14 @@ program
 
 const types = program
   .command("types")
-  .description("Type-augmentation utilities for the official Lemon Squeezy SDK and hand-rolled types");
+  .description(
+    "Type-augmentation utilities for the official Lemon Squeezy SDK and hand-rolled types",
+  );
 
 types
   .command("augment")
   .description(
-    "Generate a .d.ts that intersects your Lemon Squeezy resource types with changelog fields fresh-squeezy tracks."
+    "Generate a .d.ts that intersects your Lemon Squeezy resource types with changelog fields fresh-squeezy tracks.",
   )
   .option("--out <path>", "Output path (default: lemonsqueezy.augment.d.ts in CWD)")
   .option("--force", "Emit the generic file even when @lemonsqueezy/lemonsqueezy.js is detected")

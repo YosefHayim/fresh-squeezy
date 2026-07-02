@@ -23,16 +23,16 @@ export interface SubscriptionItemUpdateAttributes {
 
 export async function getSubscriptionItem(
   http: HttpClient,
-  subscriptionItemId: string | number
+  subscriptionItemId: string | number,
 ): Promise<JsonApiResource<SubscriptionItemAttributes>> {
   return http.getResource<SubscriptionItemAttributes>(
-    `/v1/subscription-items/${subscriptionItemId}`
+    `/v1/subscription-items/${subscriptionItemId}`,
   );
 }
 
 export async function listSubscriptionItemsForSubscription(
   http: HttpClient,
-  subscriptionId: string | number
+  subscriptionId: string | number,
 ): Promise<JsonApiResource<SubscriptionItemAttributes>[]> {
   return http.paginate<SubscriptionItemAttributes>("/v1/subscription-items", {
     "filter[subscription_id]": String(subscriptionId),
@@ -41,7 +41,7 @@ export async function listSubscriptionItemsForSubscription(
 
 export function buildSubscriptionItemUpdateBody(
   subscriptionItemId: string | number,
-  attributes: SubscriptionItemUpdateAttributes
+  attributes: SubscriptionItemUpdateAttributes,
 ): RequestOptions["body"] {
   return {
     data: {

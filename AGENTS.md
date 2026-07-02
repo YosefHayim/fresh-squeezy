@@ -15,3 +15,28 @@ Canonical role names (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-fo
 ### Domain docs
 
 Single-context layout: one `CONTEXT.md` and `docs/adr/` at the repo root (created lazily by `/grill-with-docs`). See `docs/agents/domain.md`.
+
+## Conventions
+
+<!-- rules digest — full guide in CODE-STYLE.md; edit there -->
+
+- **Functions:** `function` declarations at module scope; arrows only for inline callbacks. Named exports only — zero `export default`. `src/index.ts` is a uniform `export *` barrel.
+- **Control flow:** guard-clause early returns; validators accumulate `const issues: ValidationIssue[] = []` + `push`, end in `buildResult` — never throw.
+- **Types:** `interface` for shapes, `type` for unions, `as const` for lookup tables (positioned top-of-file, after imports). `unknown` never `any`. One `FreshSqueezyError` (`code`/`status`); callers branch on `.code`.
+- **Layers:** strict `generated → core → resources → validate → cli`. `core/` imports only `core/` + `generated/` — never upward. `fetch` only in `core/http.ts`.
+- **Validators:** rich ones (`product`/`discount`/`licenseKey`/`subscriptionPlan`) split a pure `check*(attributes)` from the fetch; thin ones stay fused. Error → issue mapping goes through `probeFetch`/`probeCollection` — no hand-rolled mapping, no silent `catch {}`.
+- **Docs:** JSDoc the _why_ on every exported symbol.
+- **Formatting:** Biome (`npm run format` / `npm run lint`) — double quotes, semicolons, width 100, trailing commas. See `biome.json` (ADR-0001).
+- **CLI:** bare + TTY → action menu; flags/non-TTY defer, never hang; both call the same command functions. Exit `0`/`1`/`2`/`130`.
+
+Full guide with before/after: `CODE-STYLE.md`. Architecture decisions: `docs/adr/current/`.
+
+## Repo layout
+
+<!-- structure digest — full rationale in docs/adr/current/0005-repo-structure.md -->
+
+- **`src/`** — all source. Unit tests are **colocated** as `*.test.ts` beside the module they cover. Layers import one-directionally: `generated → core → resources → validate → cli`. Build/CI scripts live in `src/scripts/` (`.mjs`, inert to the TS build).
+- **`tests/`** — only what has no single owning module: `fixtures/`, `helpers/`, and `live/` (opt-in integration smoke). No unit tests here.
+- **`public/`** — README/GitHub assets; **not** published to npm (`files` omits it).
+- **Env** — one gitignored `.env`; `.env.example` carries only real secrets (the API key). Mode defaults to `test`; stores come from `--store-ids`.
+- **No `bin/`** — the published binary is `dist/cli.js` (shebang added by tsup); `package.json` `bin` points straight at it.
