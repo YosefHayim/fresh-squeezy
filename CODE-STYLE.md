@@ -33,6 +33,12 @@ sibling repo so muscle memory and CI carry across projects. SSOT + full table:
 _Aligned 2026-07-02:_ added `lint:fix` and `verify`. The `cli` is exposed via the published
 `fresh-squeezy` bin — there is no `tsx` dev-runner in this repo, so no source-run `cli` dev script.
 
+### `scripts/dev/` — local-only tooling (gitignored)
+
+Scripts for local debugging, one-off experiments, or personal dev utilities go in `scripts/dev/`. This folder is **gitignored** — it never reaches the remote. Production scripts stay at the `scripts/` root.
+
+When creating a new script, ask: _"Would CI or another contributor need this?"_ If **no** → `scripts/dev/`.
+
 ## Rules
 
 ### Function declarations at module scope
