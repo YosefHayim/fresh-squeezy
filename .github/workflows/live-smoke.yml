@@ -19,12 +19,12 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: "20"
-          cache: npm
+          cache: pnpm
 
-      - run: npm ci
+      - run: pnpm install --frozen-lockfile
 
       - name: Build
-        run: npm run build
+        run: pnpm build
 
       - name: Run live smoke tests
         env:
@@ -32,4 +32,4 @@ jobs:
           LEMON_SQUEEZY_API_KEY: ${{ secrets.LEMON_SQUEEZY_API_KEY }}
           LEMON_SQUEEZY_STORE_ID: ${{ secrets.LEMON_SQUEEZY_STORE_ID }}
           LEMON_SQUEEZY_MODE: ${{ secrets.LEMON_SQUEEZY_MODE || 'test' }}
-        run: npm run test:live
+        run: pnpm test:live

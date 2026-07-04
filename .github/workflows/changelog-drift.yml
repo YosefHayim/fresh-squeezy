@@ -23,7 +23,7 @@ jobs:
           node-version: "20"
 
       - name: Refresh docs-derived API types
-        run: npm run generate:api-types
+        run: pnpm generate:api-types
 
       - name: Open API type refresh PR
         env:
@@ -109,13 +109,13 @@ jobs:
           ## What to do
 
           1. Open the changelog URL above and review the new entries.
-          2. Run \`npm run generate:api-types\` if the scheduled type refresh PR did not already cover object-field changes.
+          2. Run \`pnpm generate:api-types\` if the scheduled type refresh PR did not already cover object-field changes.
           3. Update \`src/support/manifest.ts\` for policy-level changes:
              - Add new webhook events to \`RECOMMENDED_WEBHOOK_EVENTS\` or \`OPTIONAL_WEBHOOK_EVENTS\`.
              - Add a row to \`ACKNOWLEDGED_CHANGELOG_ENTRIES\` with the date + how it's handled.
           4. Refresh the snapshot:
              \`\`\`
-             npm run check:changelog -- --update
+             pnpm check:changelog -- --update
              \`\`\`
           5. Commit the manifest change, generated types if changed, and \`src/support/changelog-snapshot.json\`.
           EOF_BODY
