@@ -25,7 +25,7 @@ export const ENV_KEYS = {
  * just `apiKey`), so callers can surface a clear setup error at construction
  * time rather than at first request.
  */
-export function resolveConfig(input: FreshSqueezyConfig = {}): ResolvedConfig {
+export const resolveConfig = (input: FreshSqueezyConfig = {}): ResolvedConfig => {
   const apiKey = input.apiKey ?? process.env[ENV_KEYS.apiKey];
   if (!apiKey) {
     throw new FreshSqueezyError({
@@ -44,12 +44,12 @@ export function resolveConfig(input: FreshSqueezyConfig = {}): ResolvedConfig {
     baseUrl: input.baseUrl ?? DEFAULT_BASE_URL,
     fetch: input.fetch ?? globalThis.fetch,
   };
-}
+};
 
-function normalizeMode(value: string): Mode {
+const normalizeMode = (value: string): Mode => {
   if (value === "test" || value === "live") return value;
   throw new FreshSqueezyError({
     code: "INVALID_MODE",
     message: `Mode must be "test" or "live", got "${value}".`,
   });
-}
+};

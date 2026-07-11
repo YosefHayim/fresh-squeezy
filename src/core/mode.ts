@@ -14,8 +14,8 @@ import type { Mode } from "./types.js";
  * lets `core/` stay foundational (it never reaches up into `resources/`); the
  * I/O counterpart `fetchActualMode` lives in `validate/connection.ts`.
  */
-export function resolveActualMode(testMode: boolean | undefined): Mode | undefined {
+export const resolveActualMode = (testMode: boolean | undefined): Mode | undefined => {
   if (testMode === true) return "test";
   if (testMode === false) return "live";
   return undefined;
-}
+};

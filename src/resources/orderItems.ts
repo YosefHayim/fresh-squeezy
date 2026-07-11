@@ -18,18 +18,18 @@ export interface OrderItemAttributes extends GeneratedOrderItemAttributes {
   updated_at?: string;
 }
 
-export async function getOrderItem(
+export const getOrderItem = async (
   http: HttpClient,
   orderItemId: string | number,
-): Promise<JsonApiResource<OrderItemAttributes>> {
+): Promise<JsonApiResource<OrderItemAttributes>> => {
   return http.getResource<OrderItemAttributes>(`/v1/order-items/${orderItemId}`);
-}
+};
 
-export async function listOrderItemsForOrder(
+export const listOrderItemsForOrder = async (
   http: HttpClient,
   orderId: string | number,
-): Promise<JsonApiResource<OrderItemAttributes>[]> {
+): Promise<JsonApiResource<OrderItemAttributes>[]> => {
   return http.paginate<OrderItemAttributes>("/v1/order-items", {
     "filter[order_id]": String(orderId),
   });
-}
+};

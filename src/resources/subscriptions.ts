@@ -77,13 +77,93 @@ export interface SubscriptionAttributes extends GeneratedSubscriptionAttributes 
 }
 
 /**
- * Fetch a single subscription by ID. Provided for consumers that want
- * typed access without hand-rolling the JSON:API envelope; the library
- * has no subscription *validator* yet.
+ * Fetch a single subscription by ID.
+ *
+ * @param http - Shared API client.
+ * @param subscriptionId - Subscription id.
+ * @returns The subscription resource.
+ * @throws {FreshSqueezyError} On HTTP/network failure.
+ *
+ * @example
+ * ```ts
+ * const sub = await getSubscription(http, 1);
+ * ```
  */
-export async function getSubscription(
+export const getSubscription = async (
   http: HttpClient,
   subscriptionId: string | number,
-): Promise<JsonApiResource<SubscriptionAttributes>> {
+): Promise<JsonApiResource<SubscriptionAttributes>> => {
   return http.getResource<SubscriptionAttributes>(`/v1/subscriptions/${subscriptionId}`);
-}
+};
+
+/**
+ * List subscriptions for a store.
+ *
+ * @param http - Shared API client.
+ * @param storeId - Store filter.
+ * @returns Subscription resources.
+ * @throws {FreshSqueezyError} On HTTP/network failure.
+ *
+ * @example
+ * ```ts
+ * const subs = await listSubscriptionsForStore(http, 1);
+ * ```
+ */
+export const listSubscriptionsForStore = async (
+  http: HttpClient,
+  storeId: string | number,
+): Promise<JsonApiResource<SubscriptionAttributes>[]> => {
+  return http.paginate<SubscriptionAttributes>("/v1/subscriptions", {
+    "filter[store_id]": String(storeId),
+  });
+};
+
+/**
+ * Update a subscription (PATCH /v1/subscriptions/:id) — plan change, pause, etc.
+ * Docs: https://docs.lemonsqueezy.com/api/subscriptions/update-subscription
+ *
+ * @param http - Shared API client.
+ * @param subscriptionId - Subscription id.
+ * @param body - JSON:API update document.
+ * @returns The updated subscription.
+ * @throws {FreshSqueezyError} On HTTP/network failure.
+ *
+ * @example
+ * ```ts
+ * const sub = await updateSubscription(http, 1, {
+ *   data: { type: "subscriptions", id: "1", attributes: { variant_id: 2 } },
+ * });
+ * ```
+ */
+export const updateSubscription = async (
+  http: HttpClient,
+  subscriptionId: string | number,
+  body: unknown,
+): Promise<JsonApiResource<SubscriptionAttributes>> => {
+  return http.patchResource<SubscriptionAttributes>(`/v1/subscriptions/${subscriptionId}`, body);
+};
+
+/**
+ * Cancel a subscription (DELETE /v1/subscriptions/:id).
+ * Docs: https://docs.lemonsqueezy.com/api/subscriptions/cancel-subscription
+ *
+ * @param http - Shared API client.
+ * @param subscriptionId - Subscription id.
+ * @returns The cancelled subscription resource when the API returns one.
+ * @throws {FreshSqueezyError} On HTTP/network failure.
+ *
+ * @example
+ * ```ts
+ * const sub = await cancelSubscription(http, 1);
+ * ```
+ */
+export const cancelSubscription = async (
+  http: HttpClient,
+  subscriptionId: string | number,
+): Promise<JsonApiResource<SubscriptionAttributes> | undefined> => {
+  const doc = await http.request<{ data?: JsonApiResource<SubscriptionAttributes> }>({
+    method: "DELETE",
+    path: `/v1/subscriptions/${subscriptionId}`,
+  });
+  return doc?.data;
+};

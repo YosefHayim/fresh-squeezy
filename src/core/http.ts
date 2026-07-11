@@ -17,7 +17,8 @@ export interface RequestOptions {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
   path: string;
   query?: Record<string, string | number | undefined>;
-  body?: Record<string, unknown>;
+  /** JSON:API document or other request body; stringified when present. */
+  body?: unknown;
   signal?: AbortSignal;
 }
 
@@ -95,6 +96,40 @@ export class HttpClient {
   }
 
   /**
+   * POST a JSON:API document and return the created `data` resource.
+   *
+   * @param path - API path starting with `/v1/...`.
+   * @param body - JSON:API create document.
+   * @returns The created resource.
+   */
+  async postResource<TAttr>(path: string, body: unknown): Promise<JsonApiResource<TAttr>> {
+    const doc = await this.request<JsonApiDocument<TAttr>>({ method: "POST", path, body });
+    return doc.data;
+  }
+
+  /**
+   * PATCH a JSON:API document and return the updated `data` resource.
+   *
+   * @param path - API path starting with `/v1/...`.
+   * @param body - JSON:API update document.
+   * @returns The updated resource.
+   */
+  async patchResource<TAttr>(path: string, body: unknown): Promise<JsonApiResource<TAttr>> {
+    const doc = await this.request<JsonApiDocument<TAttr>>({ method: "PATCH", path, body });
+    return doc.data;
+  }
+
+  /**
+   * DELETE a resource. Lemon Squeezy often returns an empty body on success.
+   *
+   * @param path - API path starting with `/v1/...`.
+   * @returns Nothing — single void return, not a multi-field bag.
+   */
+  async deleteResource(path: string): Promise<void> {
+    await this.request({ method: "DELETE", path });
+  }
+
+  /**
    * Fetch a single page of a JSON:API collection. Most callers want
    * `paginate()` instead — this method is kept for one-shot lookups where
    * the caller knows the result fits in a single page.
@@ -152,15 +187,15 @@ export class HttpClient {
   }
 }
 
-function safeJsonParse(text: string): unknown {
+const safeJsonParse = (text: string): unknown => {
   try {
     return JSON.parse(text);
   } catch {
     return text;
   }
-}
+};
 
-function toApiError(status: number, body: unknown): FreshSqueezyError {
+const toApiError = (status: number, body: unknown): FreshSqueezyError => {
   const errors = extractJsonApiErrors(body);
   const first = errors[0];
   const code =
@@ -174,13 +209,13 @@ function toApiError(status: number, body: unknown): FreshSqueezyError {
   const message =
     first?.detail ?? first?.title ?? `Lemon Squeezy request failed with status ${status}`;
   return new FreshSqueezyError({ code, status, message, detail: body });
-}
+};
 
-function extractJsonApiErrors(body: unknown): JsonApiError[] {
+const extractJsonApiErrors = (body: unknown): JsonApiError[] => {
   if (!body || typeof body !== "object") return [];
   const errors = (body as { errors?: unknown }).errors;
   if (!Array.isArray(errors)) return [];
   return errors.filter(
     (entry): entry is JsonApiError => typeof entry === "object" && entry !== null,
   );
-}
+};

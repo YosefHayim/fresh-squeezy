@@ -13,10 +13,10 @@
  * often paste the trailing-slash form into their config. The webhook validator
  * relies on this rule to match a configured URL against the registered list.
  */
-export function sameWebhookUrl(a: string, b: string): boolean {
+export const sameWebhookUrl = (a: string, b: string): boolean => {
   return normalizeWebhookUrl(a) === normalizeWebhookUrl(b);
-}
+};
 
-function normalizeWebhookUrl(raw: string): string {
+const normalizeWebhookUrl = (raw: string): string => {
   return raw.replace(/\/+$/, "").toLowerCase();
-}
+};

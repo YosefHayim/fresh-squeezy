@@ -42,7 +42,7 @@ export interface InitCommandOptions {
  *
  * Returns an exit code so the CLI wrapper can forward it to `process.exit`.
  */
-export async function runInitCommand(options: InitCommandOptions = {}): Promise<number> {
+export const runInitCommand = async (options: InitCommandOptions = {}): Promise<number> => {
   try {
     return await runInitFlow(options);
   } catch (err) {
@@ -52,9 +52,9 @@ export async function runInitCommand(options: InitCommandOptions = {}): Promise<
     }
     throw err;
   }
-}
+};
 
-async function runInitFlow(options: InitCommandOptions): Promise<number> {
+const runInitFlow = async (options: InitCommandOptions): Promise<number> => {
   if (options.isInteractive === false) {
     process.stderr.write(
       renderCliError("`fresh-squeezy init` requires an interactive terminal.", [
@@ -141,11 +141,11 @@ async function runInitFlow(options: InitCommandOptions): Promise<number> {
   process.stdout.write(`${renderReport(report)}\n`);
 
   return report.ok ? 0 : 1;
-}
+};
 
-async function resolveStoreSelection(
+const resolveStoreSelection = async (
   pickable: Array<{ id: string; name: string; slug: string }>,
-): Promise<string> {
+): Promise<string> => {
   if (pickable.length === 1) {
     const store = pickable[0];
     if (!store) throw new Error("Expected one reachable store.");
@@ -156,13 +156,13 @@ async function resolveStoreSelection(
   }
 
   return pickStore(pickable);
-}
+};
 
-async function discoverChoices(
+const discoverChoices = async (
   client: FreshSqueezyClient,
   storeId: string,
   selectedTargets: InitDoctorTarget[],
-): Promise<InitResourceChoices> {
+): Promise<InitResourceChoices> => {
   if (selectedTargets.length === 0)
     return {
       products: { choices: [] },
@@ -173,9 +173,9 @@ async function discoverChoices(
     };
 
   return discoverInitResourceChoices(client, storeId, selectedTargets);
-}
+};
 
-async function resolveApiKey(): Promise<string> {
+const resolveApiKey = async (): Promise<string> => {
   const envApiKey = process.env[ENV_KEYS.apiKey]?.trim();
   if (envApiKey) {
     process.stdout.write(chalk.dim(`Using ${ENV_KEYS.apiKey} from environment.\n`));
@@ -184,13 +184,15 @@ async function resolveApiKey(): Promise<string> {
 
   const answers = await askForApiKey();
   return answers.apiKey;
-}
+};
 
-async function createDetectedClient(apiKey: string): Promise<{
+const createDetectedClient = async (
+  apiKey: string,
+): Promise<{
   client: FreshSqueezyClient;
   mode: Mode;
   connection: ValidationResult<ConnectionSummary>;
-}> {
+}> => {
   const envMode = parseEnvMode();
   const initialMode = envMode ?? "test";
   let client = createFreshSqueezy({ apiKey, mode: initialMode });
@@ -221,9 +223,9 @@ async function createDetectedClient(apiKey: string): Promise<{
 
   process.stdout.write(chalk.dim("Could not auto-detect key mode; using test mode.\n"));
   return { client, mode: initialMode, connection };
-}
+};
 
-function parseEnvMode(): Mode | undefined {
+const parseEnvMode = (): Mode | undefined => {
   const value = process.env[ENV_KEYS.mode]?.trim();
   if (value === "test" || value === "live") return value;
   if (value) {
@@ -232,9 +234,9 @@ function parseEnvMode(): Mode | undefined {
     );
   }
   return undefined;
-}
+};
 
-function getDoctorCheckNames(targets: InitDoctorTargets): string[] {
+const getDoctorCheckNames = (targets: InitDoctorTargets): string[] => {
   const names = ["connection", "store"];
   pushCheckName(names, "product", targets.productIds);
   pushCheckName(names, "webhook", targets.webhookUrls);
@@ -242,19 +244,19 @@ function getDoctorCheckNames(targets: InitDoctorTargets): string[] {
   pushCheckName(names, "licenseKey", targets.licenseKeyIds);
   pushCheckName(names, "subscriptionPlan", targets.variantIds);
   return names;
-}
+};
 
-function pushCheckName(names: string[], name: string, values: string[] | undefined): void {
+const pushCheckName = (names: string[], name: string, values: string[] | undefined): void => {
   if (!values || values.length === 0) return;
   names.push(values.length === 1 ? name : `${name} x${values.length}`);
-}
+};
 
-function renderSetupSummary(input: {
+const renderSetupSummary = (input: {
   envPath: string;
   mode: Mode;
   storeId: string;
   checkNames: string[];
-}): string {
+}): string => {
   return [
     renderStep(5, 5, "Ready to verify", "review before writing env"),
     `  ${chalk.dim("mode")}   ${input.mode}`,
@@ -263,12 +265,12 @@ function renderSetupSummary(input: {
     `  ${chalk.dim("env")}    ${input.envPath}`,
     "",
   ].join("\n");
-}
+};
 
-async function writeEnvFile(
+const writeEnvFile = async (
   envPath: string,
   values: { apiKey: string; mode: string; storeId: string },
-): Promise<void> {
+): Promise<void> => {
   const updates = new Map<string, string>([
     [ENV_KEYS.apiKey, values.apiKey],
     [ENV_KEYS.storeId, values.storeId],
@@ -297,9 +299,9 @@ async function writeEnvFile(
 
   await fs.mkdir(path.dirname(envPath), { recursive: true });
   await fs.writeFile(envPath, `${next.join("\n").replace(/\n*$/, "")}\n`, { encoding: "utf8" });
-}
+};
 
-async function readEnvFile(envPath: string): Promise<string> {
+const readEnvFile = async (envPath: string): Promise<string> => {
   try {
     return await fs.readFile(envPath, "utf8");
   } catch (err) {
@@ -308,12 +310,12 @@ async function readEnvFile(envPath: string): Promise<string> {
     }
     throw err;
   }
-}
+};
 
-function renderDiscoverySummary(
+const renderDiscoverySummary = (
   choices: InitResourceChoices,
   selectedTargets: InitDoctorTarget[],
-): string {
+): string => {
   if (selectedTargets.length === 0) return chalk.dim("  No optional resource checks selected.\n");
 
   const groups: Array<[InitDoctorTarget, string, ResourceChoiceGroup]> = [
@@ -337,4 +339,4 @@ function renderDiscoverySummary(
   }
 
   return `${lines.join("\n")}\n`;
-}
+};

@@ -51,20 +51,99 @@ export interface SubscriptionInvoiceAttributes extends GeneratedSubscriptionInvo
   test_mode?: boolean;
 }
 
-export async function getSubscriptionInvoice(
+/**
+ * Retrieve a subscription invoice.
+ *
+ * @param http - Shared API client.
+ * @param subscriptionInvoiceId - Invoice id.
+ * @returns The invoice resource.
+ * @throws {FreshSqueezyError} On HTTP/network failure.
+ *
+ * @example
+ * ```ts
+ * const invoice = await getSubscriptionInvoice(http, 1);
+ * ```
+ */
+export const getSubscriptionInvoice = async (
   http: HttpClient,
   subscriptionInvoiceId: string | number,
-): Promise<JsonApiResource<SubscriptionInvoiceAttributes>> {
+): Promise<JsonApiResource<SubscriptionInvoiceAttributes>> => {
   return http.getResource<SubscriptionInvoiceAttributes>(
     `/v1/subscription-invoices/${subscriptionInvoiceId}`,
   );
-}
+};
 
-export async function listSubscriptionInvoicesForSubscription(
+/**
+ * List invoices for a subscription.
+ *
+ * @param http - Shared API client.
+ * @param subscriptionId - Parent subscription id.
+ * @returns Invoice resources.
+ * @throws {FreshSqueezyError} On HTTP/network failure.
+ *
+ * @example
+ * ```ts
+ * const invoices = await listSubscriptionInvoicesForSubscription(http, 1);
+ * ```
+ */
+export const listSubscriptionInvoicesForSubscription = async (
   http: HttpClient,
   subscriptionId: string | number,
-): Promise<JsonApiResource<SubscriptionInvoiceAttributes>[]> {
+): Promise<JsonApiResource<SubscriptionInvoiceAttributes>[]> => {
   return http.paginate<SubscriptionInvoiceAttributes>("/v1/subscription-invoices", {
     "filter[subscription_id]": String(subscriptionId),
   });
-}
+};
+
+/**
+ * Refund a subscription invoice (POST /v1/subscription-invoices/:id/refund).
+ * Docs: https://docs.lemonsqueezy.com/api/subscription-invoices/issue-refund
+ *
+ * @param http - Shared API client.
+ * @param subscriptionInvoiceId - Invoice id.
+ * @param body - Optional partial-refund document.
+ * @returns The updated invoice.
+ * @throws {FreshSqueezyError} On HTTP/network failure.
+ *
+ * @example
+ * ```ts
+ * const invoice = await refundSubscriptionInvoice(http, 1);
+ * ```
+ */
+export const refundSubscriptionInvoice = async (
+  http: HttpClient,
+  subscriptionInvoiceId: string | number,
+  body?: unknown,
+): Promise<JsonApiResource<SubscriptionInvoiceAttributes>> => {
+  return http.postResource<SubscriptionInvoiceAttributes>(
+    `/v1/subscription-invoices/${subscriptionInvoiceId}/refund`,
+    body ?? {},
+  );
+};
+
+/**
+ * Generate a subscription invoice PDF/URL.
+ * Docs: https://docs.lemonsqueezy.com/api/subscription-invoices/generate-subscription-invoice
+ *
+ * @param http - Shared API client.
+ * @param subscriptionInvoiceId - Invoice id.
+ * @param body - Optional generation attributes.
+ * @returns API response document.
+ * @throws {FreshSqueezyError} On HTTP/network failure.
+ *
+ * @example
+ * ```ts
+ * const doc = await generateSubscriptionInvoice(http, 1);
+ * ```
+ */
+export const generateSubscriptionInvoice = async (
+  http: HttpClient,
+  subscriptionInvoiceId: string | number,
+  body?: unknown,
+): Promise<unknown> => {
+  return http.request({
+    method: "POST",
+    path: `/v1/subscription-invoices/${subscriptionInvoiceId}/generate-invoice`,
+    body: body ?? {},
+  });
+};

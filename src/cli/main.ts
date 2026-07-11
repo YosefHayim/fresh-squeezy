@@ -2,10 +2,12 @@ import { readFileSync } from "node:fs";
 import { Command } from "commander";
 import dotenv from "dotenv";
 import type { Mode } from "../core/types.js";
+import type { OpVerb } from "../resources/registry.js";
 import { runAugmentCommand } from "./commands/augment.js";
 import { runDoctorCommand } from "./commands/doctor.js";
 import { runInitCommand } from "./commands/init.js";
 import { runLauncherCommand } from "./commands/launcher.js";
+import { runResourceOpCommand } from "./commands/resourceOps.js";
 import { type ValidateTarget, runValidateCommand } from "./commands/validate.js";
 import { renderCliError } from "./errors.js";
 
@@ -21,14 +23,98 @@ import { renderCliError } from "./errors.js";
 
 dotenv.config();
 
+const parseMode = (value: string): Mode => {
+  if (value === "test" || value === "live") return value;
+  throw new Error(`Mode must be "test" or "live", got "${value}"`);
+};
+
+const parseCsv = (value: string): string[] => {
+  return value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+};
+
+const readPackageVersion = (): string => {
+  const candidates = [
+    new URL("../package.json", import.meta.url),
+    new URL("../../package.json", import.meta.url),
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      const payload = JSON.parse(readFileSync(candidate, "utf8")) as { version?: unknown };
+      if (typeof payload.version === "string") return payload.version;
+    } catch {
+      // Try the next path. Source runs from src/cli, the built binary runs from dist.
+    }
+  }
+
+  return "0.0.0";
+};
+
+interface DoctorCliOpts {
+  mode?: Mode;
+  storeIds?: string[];
+  allStores?: boolean;
+  allResources?: boolean;
+  productId?: string;
+  webhookUrl?: string;
+  discountId?: string;
+  licenseKeyId?: string;
+  variantId?: string;
+  json?: boolean;
+}
+
+interface ValidateCliOpts {
+  mode?: Mode;
+  storeIds?: string[];
+  allStores?: boolean;
+  productId?: string;
+  webhookUrl?: string;
+  discountId?: string;
+  licenseKeyId?: string;
+  variantId?: string;
+  json?: boolean;
+}
+
+interface ResourceOpCliOpts {
+  mode?: Mode;
+  id?: string;
+  storeIds?: string[];
+  parentId?: string;
+  body?: string;
+  bodyFile?: string;
+  yes?: boolean;
+  json?: boolean;
+}
+
 const isInteractive = Boolean(process.stdin.isTTY);
 const packageVersion = readPackageVersion();
+
+const runValidate = async (target: ValidateTarget, opts: ValidateCliOpts): Promise<void> => {
+  const code = await runValidateCommand(target, {
+    mode: opts.mode,
+    storeIds: opts.storeIds,
+    allStores: Boolean(opts.allStores),
+    productId: opts.productId,
+    webhookUrl: opts.webhookUrl,
+    discountId: opts.discountId,
+    licenseKeyId: opts.licenseKeyId,
+    variantId: opts.variantId,
+    json: Boolean(opts.json),
+    isInteractive,
+  });
+  process.exit(code);
+};
 
 const program = new Command();
 
 program
   .name("fresh-squeezy")
-  .description("Lemon Squeezy integration doctor for billing teams")
+  .description(
+    "Dual-mode Lemon Squeezy CLI: doctor/validate pre-flight + docs-backed resource ops (get/list/create/…)",
+  )
   .version(packageVersion)
   .option("--no-install", "Skip adding fresh-squeezy to devDependencies before guided setup")
   .showSuggestionAfterError()
@@ -37,11 +123,23 @@ program
 program.addHelpText(
   "after",
   `
-Start:
+Start (doctor setup):
   fresh-squeezy              add as a dev dependency, then run guided setup
   fresh-squeezy --no-install run guided setup without editing package.json
   fresh-squeezy doctor --all-stores --all-resources
   fresh-squeezy validate webhook --store-ids 12 --webhook-url https://app.example.com/api/webhooks/lemon-squeezy
+
+Ops (docs-backed Lemon Squeezy API only — products/variants are read-only):
+  fresh-squeezy ops --list
+  fresh-squeezy get product --id 42 --json
+  fresh-squeezy list webhook --store-ids 12
+  fresh-squeezy create webhook --body-file webhook.json --yes
+  fresh-squeezy cancel subscription --id 9 --yes
+  fresh-squeezy refund order --id 100 --yes
+  fresh-squeezy generate-invoice order --id 100 --yes
+
+Safety: delete/cancel/refund always need --yes (or TTY confirm); live-mode writes need --yes too.
+Bodies are JSON:API documents via --body or --body-file (not flat flags).
 
 Store selection:
   Use --store-ids 12,34 for explicit stores, --all-stores for automation, or run in a TTY to pick stores interactively.
@@ -220,6 +318,70 @@ types
     process.exit(code);
   });
 
+program
+  .command("ops")
+  .description("List docs-backed resource ops (Lemon Squeezy official API matrix)")
+  .option("--list", "Print the full verb matrix", true)
+  .option("--json", "Emit machine-readable JSON")
+  .action(async (opts: { json?: boolean }) => {
+    const code = await runResourceOpCommand({
+      resource: "",
+      verb: "get",
+      listCatalog: true,
+      json: Boolean(opts.json),
+    });
+    process.exit(code);
+  });
+
+const OP_VERBS: OpVerb[] = [
+  "get",
+  "list",
+  "create",
+  "update",
+  "delete",
+  "cancel",
+  "refund",
+  "generate-invoice",
+  "current-usage",
+];
+
+for (const verb of OP_VERBS) {
+  program
+    .command(`${verb} <resource>`)
+    .description(`Docs-backed ${verb} for a Lemon Squeezy resource`)
+    .option("-m, --mode <mode>", "test or live", parseMode)
+    .option("--id <id>", "Resource id")
+    .option(
+      "--store-ids <ids>",
+      "Comma-separated store IDs (first used for list filters)",
+      parseCsv,
+    )
+    .option(
+      "--parent-id <id>",
+      "Parent resource id for nested lists (product, order, subscription, …)",
+    )
+    .option("--body <json>", "JSON:API body string")
+    .option("--body-file <path>", "Path to JSON:API body file")
+    .option("--yes", "Skip confirm; required for live writes and destructive ops when non-TTY")
+    .option("--json", "Emit machine-readable JSON")
+    .action(async (resource: string, opts: ResourceOpCliOpts) => {
+      const code = await runResourceOpCommand({
+        verb,
+        resource,
+        mode: opts.mode,
+        id: opts.id,
+        storeIds: opts.storeIds,
+        parentId: opts.parentId,
+        body: opts.body,
+        bodyFile: opts.bodyFile,
+        yes: Boolean(opts.yes),
+        json: Boolean(opts.json),
+        isInteractive,
+      });
+      process.exit(code);
+    });
+}
+
 program.parseAsync(process.argv).catch((err: unknown) => {
   const message = err instanceof Error ? err.message : String(err);
   const hints = message.includes("Mode must be")
@@ -228,74 +390,3 @@ program.parseAsync(process.argv).catch((err: unknown) => {
   process.stderr.write(renderCliError(message, hints));
   process.exit(2);
 });
-
-function parseMode(value: string): Mode {
-  if (value === "test" || value === "live") return value;
-  throw new Error(`Mode must be "test" or "live", got "${value}"`);
-}
-
-function parseCsv(value: string): string[] {
-  return value
-    .split(",")
-    .map((entry) => entry.trim())
-    .filter((entry) => entry.length > 0);
-}
-
-function readPackageVersion(): string {
-  const candidates = [
-    new URL("../package.json", import.meta.url),
-    new URL("../../package.json", import.meta.url),
-  ];
-
-  for (const candidate of candidates) {
-    try {
-      const payload = JSON.parse(readFileSync(candidate, "utf8")) as { version?: unknown };
-      if (typeof payload.version === "string") return payload.version;
-    } catch {
-      // Try the next path. Source runs from src/cli, the built binary runs from dist.
-    }
-  }
-
-  return "0.0.0";
-}
-
-interface DoctorCliOpts {
-  mode?: Mode;
-  storeIds?: string[];
-  allStores?: boolean;
-  allResources?: boolean;
-  productId?: string;
-  webhookUrl?: string;
-  discountId?: string;
-  licenseKeyId?: string;
-  variantId?: string;
-  json?: boolean;
-}
-
-interface ValidateCliOpts {
-  mode?: Mode;
-  storeIds?: string[];
-  allStores?: boolean;
-  productId?: string;
-  webhookUrl?: string;
-  discountId?: string;
-  licenseKeyId?: string;
-  variantId?: string;
-  json?: boolean;
-}
-
-async function runValidate(target: ValidateTarget, opts: ValidateCliOpts): Promise<void> {
-  const code = await runValidateCommand(target, {
-    mode: opts.mode,
-    storeIds: opts.storeIds,
-    allStores: Boolean(opts.allStores),
-    productId: opts.productId,
-    webhookUrl: opts.webhookUrl,
-    discountId: opts.discountId,
-    licenseKeyId: opts.licenseKeyId,
-    variantId: opts.variantId,
-    json: Boolean(opts.json),
-    isInteractive,
-  });
-  process.exit(code);
-}

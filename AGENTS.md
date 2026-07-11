@@ -20,14 +20,16 @@ Single-context layout: one `CONTEXT.md` and `docs/adr/` at the repo root (create
 
 <!-- rules digest — full guide in CODE-STYLE.md; edit there -->
 
-- **Functions:** `function` declarations at module scope; arrows only for inline callbacks. Named exports only — zero `export default`. `src/index.ts` is a uniform `export *` barrel.
-- **Control flow:** guard-clause early returns; validators accumulate `const issues: ValidationIssue[] = []` + `push`, end in `buildResult` — never throw.
-- **Types:** `interface` for shapes, `type` for unions, `as const` for lookup tables (positioned top-of-file, after imports). `unknown` never `any`. One `FreshSqueezyError` (`code`/`status`); callers branch on `.code`.
+- **Functions:** `const` arrows only (sync/async) — never `function` / `async function` declarations (class methods ok). Named exports only — zero `export default`. `src/index.ts` is a pure `export *` wildcard barrel — no after-import re-exports, no named `export { x } from`. No BC shims; rewrite callers.
+- **Control flow:** guard-clause early returns; validators accumulate `const issues: ValidationIssue[] = []` + `push`, end in `buildResult` — never throw. Resource ops throw `FreshSqueezyError`.
+- **Types:** `interface` for shapes, `type` for unions, `as const` for lookup tables (positioned top-of-file, after imports). `unknown` never `any`. One `FreshSqueezyError` (`code`/`status`); callers branch on `.code`. Single named return — no multi-object bags.
 - **Layers:** strict `generated → core → resources → validate → cli`. `core/` imports only `core/` + `generated/` — never upward. `fetch` only in `core/http.ts`.
 - **Validators:** rich ones (`product`/`discount`/`licenseKey`/`subscriptionPlan`) split a pure `check*(attributes)` from the fetch; thin ones stay fused. Error → issue mapping goes through `probeFetch`/`probeCollection` — no hand-rolled mapping, no silent `catch {}`.
-- **Docs:** JSDoc the _why_ on every exported symbol.
+- **Ops:** docs-backed only (`resourceRegistry` + `docsPath`). No inventing product/variant create. Nested client + CLI hybrid verbs via `invokeOp`.
+- **Docs:** TSDoc why + `@param` + `@returns` + `@example` (+ `@throws` on ops). Agent skill: `skills/fresh-squeezy-ops/SKILL.md`.
 - **Formatting:** Biome (`npm run format` / `npm run lint`) — double quotes, semicolons, width 100, trailing commas. See `biome.json` (ADR-0001).
-- **CLI:** bare + TTY → action menu; flags/non-TTY defer, never hang; both call the same command functions. Exit `0`/`1`/`2`/`130`.
+- **CLI:** bare + TTY → action menu; flags/non-TTY defer, never hang; both call the same command functions. Exit `0`/`1`/`2`/`130`. Live/destructive ops need `--yes` or TTY confirm.
+- **Golden path (resource verb):** docs confirm → `resources/*` helper → registry → `invokeOp` + nested client → tests → `pnpm verify`.
 
 Full guide with before/after: `CODE-STYLE.md`. Architecture decisions: `docs/adr/current/`.
 

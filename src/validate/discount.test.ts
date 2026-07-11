@@ -15,10 +15,10 @@ import { resolveConfig } from "../core/config.js";
 import { HttpClient } from "../core/http.js";
 import { validateDiscount } from "./discount.js";
 
-function makeClient(routes: Parameters<typeof createMockFetch>[0]) {
+const makeClient = (routes: Parameters<typeof createMockFetch>[0]) => {
   const { fetch } = createMockFetch(routes);
   return new HttpClient(resolveConfig({ apiKey: "k", fetch }));
-}
+};
 
 describe("validateDiscount", () => {
   it("returns ok for a valid published discount", async () => {

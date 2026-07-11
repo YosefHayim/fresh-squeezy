@@ -43,14 +43,16 @@ export type AuthenticatedUserDocument = JsonApiDocument<UserAttributes> & { meta
  * account identity for logs, and exposes `meta.test_mode` for mode
  * mismatch detection.
  */
-export async function getAuthenticatedUser(http: HttpClient): Promise<AuthenticatedUserDocument> {
+export const getAuthenticatedUser = async (
+  http: HttpClient,
+): Promise<AuthenticatedUserDocument> => {
   return http.request<AuthenticatedUserDocument>({ path: "/v1/users/me" });
-}
+};
 
 /**
  * Backwards-compatible helper if a caller only wants the resource (old
  * `getAuthenticatedUser` shape). Internal — not re-exported from the root.
  */
-export function userResource(doc: AuthenticatedUserDocument): JsonApiResource<UserAttributes> {
+export const userResource = (doc: AuthenticatedUserDocument): JsonApiResource<UserAttributes> => {
   return doc.data;
-}
+};

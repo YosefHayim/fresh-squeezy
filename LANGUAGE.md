@@ -18,3 +18,8 @@ issues, and PRs. Definitions plus aliases to avoid. Orientation lives in `CONTEX
 | **support manifest** | `src/support/manifest.ts` — locally reviewed webhook policy + acknowledged changelog entries. | config, registry |
 | **drift** | Divergence between the live Lemon Squeezy changelog and the committed snapshot. | diff, delta |
 | **FreshSqueezyError** | The single error class (`code`/`status`) thrown by the HTTP layer and for programmer-errors. | ApiError, HttpError |
+| **resource verb** | One docs-backed operation on a resource (`get`, `create`, `cancel`, `refund`, …). | endpoint method, CRUD (when non-CRUD) |
+| **resourceRegistry** | `src/resources/registry.ts` — implemented ops with `docsPath`; what ships in CLI/client. | OpenAPI, route table |
+| **ops command** | Hybrid CLI: `get\|list\|create\|update\|delete\|cancel\|refund\|generate-invoice\|current-usage <resource>`. | admin API, SDK call |
+| **write safety** | Gates for mutate: delete/cancel/refund always; all writes in live; `--yes` or TTY confirm; never prompt non-TTY. | confirm flag only |
+| **body input** | JSON:API document via `--body` / `--body-file` (not flag-per-field). | form fields, query params |

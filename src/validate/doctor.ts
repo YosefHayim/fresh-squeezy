@@ -100,12 +100,12 @@ export const DEFAULT_VALIDATORS: DoctorValidators = {
  * The optional `validators` parameter lets tests inject fakes without a fetch
  * mock; production callers omit it and get `DEFAULT_VALIDATORS`.
  */
-export async function doctor(
+export const doctor = async (
   http: HttpClient,
   mode: Mode,
   options: DoctorOptions = {},
   validators: DoctorValidators = DEFAULT_VALIDATORS,
-): Promise<DoctorReport> {
+): Promise<DoctorReport> => {
   assertOptionsCoherent(options);
 
   const results: ValidationResult[] = [];
@@ -181,7 +181,7 @@ export async function doctor(
 
   const ok = results.every((result) => result.ok);
   return { ok, mode, results };
-}
+};
 
 /**
  * Validators downstream of `storeId` (webhook, discount, licenseKey,
@@ -194,7 +194,7 @@ export async function doctor(
  * miscall is surfaced at construction time rather than masked as a passing
  * doctor run.
  */
-function assertOptionsCoherent(options: DoctorOptions): void {
+const assertOptionsCoherent = (options: DoctorOptions): void => {
   if (options.storeId !== undefined) return;
 
   const dependent: Array<keyof DoctorOptions> = [];
@@ -209,17 +209,17 @@ function assertOptionsCoherent(options: DoctorOptions): void {
     code: "DOCTOR_OPTIONS_INVALID",
     message: `doctor() received ${dependent.join(", ")} without storeId. These validators cannot run without a store; pass \`storeId\` or remove the dependent options.`,
   });
-}
+};
 
-function collectValues<T>(single: T | undefined, many: T[] | undefined): T[] {
+const collectValues = <T>(single: T | undefined, many: T[] | undefined): T[] => {
   const values = new Set<T>();
   if (single !== undefined) values.add(single);
   for (const value of many ?? []) {
     if (value !== undefined) values.add(value);
   }
   return Array.from(values);
-}
+};
 
-function hasAny<T>(single: T | undefined, many: T[] | undefined): boolean {
+const hasAny = <T>(single: T | undefined, many: T[] | undefined): boolean => {
   return single !== undefined || (many?.length ?? 0) > 0;
-}
+};

@@ -16,11 +16,11 @@ export interface ProductValidationOptions {
  * least one published variant. Surfaces the most common misconfigurations
  * caught in the wild (unpublished product, wrong store, missing variants).
  */
-export async function validateProduct(
+export const validateProduct = async (
   http: HttpClient,
   mode: Mode,
   options: ProductValidationOptions,
-): Promise<ValidationResult<ProductAttributes>> {
+): Promise<ValidationResult<ProductAttributes>> => {
   const issues: ValidationIssue[] = [];
 
   const fetched = await probeFetch(() => getProduct(http, options.productId), {
@@ -72,7 +72,7 @@ export async function validateProduct(
     label: attrs.name,
     id: String(options.productId),
   });
-}
+};
 
 /**
  * Pure attribute assertions for a product: store ownership, publish state, and
@@ -80,10 +80,10 @@ export async function validateProduct(
  * fetch and stays in `validateProduct`; everything here runs on plain data, so
  * the rules are unit-testable without a mock fetch.
  */
-export function checkProduct(
+export const checkProduct = (
   attrs: ProductAttributes,
   options: { expectedStoreId?: string | number } = {},
-): ValidationIssue[] {
+): ValidationIssue[] => {
   const issues: ValidationIssue[] = [];
 
   if (options.expectedStoreId !== undefined) {
@@ -124,4 +124,4 @@ export function checkProduct(
   }
 
   return issues;
-}
+};

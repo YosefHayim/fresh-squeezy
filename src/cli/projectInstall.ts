@@ -42,9 +42,9 @@ interface PackageJson {
   peerDependencies?: Record<string, string>;
 }
 
-export async function ensureFreshSqueezyDevDependency(
+export const ensureFreshSqueezyDevDependency = async (
   options: EnsureProjectInstallOptions = {},
-): Promise<ProjectInstallResult> {
+): Promise<ProjectInstallResult> => {
   if (options.skipInstall) {
     return { status: "skipped" };
   }
@@ -80,9 +80,9 @@ export async function ensureFreshSqueezyDevDependency(
   }
 
   return { status: "installed", projectDir, packageJsonPath, packageManager, command };
-}
+};
 
-export async function findPackageJson(cwd: string): Promise<string | undefined> {
+export const findPackageJson = async (cwd: string): Promise<string | undefined> => {
   let current = path.resolve(cwd);
 
   while (true) {
@@ -93,14 +93,14 @@ export async function findPackageJson(cwd: string): Promise<string | undefined> 
     if (parent === current) return undefined;
     current = parent;
   }
-}
+};
 
-async function readPackageJson(packageJsonPath: string): Promise<PackageJson> {
+const readPackageJson = async (packageJsonPath: string): Promise<PackageJson> => {
   const raw = await fs.readFile(packageJsonPath, "utf8");
   return JSON.parse(raw) as PackageJson;
-}
+};
 
-async function detectPackageManager(projectDir: string): Promise<PackageManager> {
+const detectPackageManager = async (projectDir: string): Promise<PackageManager> => {
   if (await pathExists(path.join(projectDir, "pnpm-lock.yaml"))) return "pnpm";
   if (await pathExists(path.join(projectDir, "yarn.lock"))) return "yarn";
   if (
@@ -110,29 +110,29 @@ async function detectPackageManager(projectDir: string): Promise<PackageManager>
     return "bun";
   }
   return "npm";
-}
+};
 
-function hasFreshSqueezy(manifest: PackageJson): boolean {
+const hasFreshSqueezy = (manifest: PackageJson): boolean => {
   return [
     manifest.dependencies,
     manifest.devDependencies,
     manifest.optionalDependencies,
     manifest.peerDependencies,
   ].some((section) => section?.[PACKAGE_NAME] !== undefined);
-}
+};
 
-function buildInstallCommand(packageManager: PackageManager, packageSpec: string): string[] {
+const buildInstallCommand = (packageManager: PackageManager, packageSpec: string): string[] => {
   if (packageManager === "pnpm") return ["pnpm", "add", "-D", packageSpec];
   if (packageManager === "yarn") return ["yarn", "add", "-D", packageSpec];
   if (packageManager === "bun") return ["bun", "add", "-d", packageSpec];
   return ["npm", "install", "--save-dev", packageSpec];
-}
+};
 
-function runPackageCommand(
+const runPackageCommand = (
   command: string,
   args: string[],
   options: { cwd: string },
-): Promise<number> {
+): Promise<number> => {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       cwd: options.cwd,
@@ -143,13 +143,13 @@ function runPackageCommand(
     child.on("error", reject);
     child.on("close", (code) => resolve(code ?? 1));
   });
-}
+};
 
-async function pathExists(filePath: string): Promise<boolean> {
+const pathExists = async (filePath: string): Promise<boolean> => {
   try {
     await fs.access(filePath);
     return true;
   } catch {
     return false;
   }
-}
+};

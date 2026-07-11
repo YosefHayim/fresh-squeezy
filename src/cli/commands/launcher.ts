@@ -18,7 +18,7 @@ export interface LauncherCommandOptions {
   packageVersion?: string;
 }
 
-export async function runLauncherCommand(options: LauncherCommandOptions): Promise<number> {
+export const runLauncherCommand = async (options: LauncherCommandOptions): Promise<number> => {
   if (!options.isInteractive) return 2;
 
   try {
@@ -52,7 +52,7 @@ export async function runLauncherCommand(options: LauncherCommandOptions): Promi
     process.stderr.write(renderCommandExamples());
     return 1;
   }
-}
+};
 
 /**
  * Route a front-door menu choice to the same command handlers the flag-driven
@@ -60,7 +60,7 @@ export async function runLauncherCommand(options: LauncherCommandOptions): Promi
  * TTY multi-select; `examples` prints the copy/paste cheatsheet; `exit` is a
  * clean no-op.
  */
-async function routeLauncherAction(action: LauncherAction): Promise<number> {
+const routeLauncherAction = async (action: LauncherAction): Promise<number> => {
   switch (action) {
     case "init":
       return startGuidedSetup();
@@ -72,16 +72,16 @@ async function routeLauncherAction(action: LauncherAction): Promise<number> {
     case "exit":
       return 0;
   }
-}
+};
 
-function startGuidedSetup(): Promise<number> {
+const startGuidedSetup = (): Promise<number> => {
   process.stdout.write(
     renderStep(2, 2, "Guided setup", "detect credentials, stores, and resources"),
   );
   return runInitCommand({ isInteractive: true });
-}
+};
 
-function renderProjectInstallResult(result: ProjectInstallResult): string {
+const renderProjectInstallResult = (result: ProjectInstallResult): string => {
   if (result.status === "installed") {
     return renderDetected(
       "Dev dependency",
@@ -103,4 +103,4 @@ function renderProjectInstallResult(result: ProjectInstallResult): string {
   }
 
   return chalk.yellow("  No package.json found; running without installing a dev dependency.\n");
-}
+};

@@ -9,11 +9,11 @@ import { ISSUE_CODES, buildResult } from "./rules.js";
  * typically means the key belongs to a different account, not that the store
  * is gone — the suggested fix reflects that.
  */
-export async function validateStore(
+export const validateStore = async (
   http: HttpClient,
   mode: Mode,
   storeId: string | number,
-): Promise<ValidationResult<StoreAttributes>> {
+): Promise<ValidationResult<StoreAttributes>> => {
   const issues: ValidationIssue[] = [];
 
   const fetched = await probeFetch(() => getStore(http, storeId), {
@@ -35,4 +35,4 @@ export async function validateStore(
     label: fetched.resource.attributes.name,
     id: String(storeId),
   });
-}
+};

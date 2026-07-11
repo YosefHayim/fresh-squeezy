@@ -5,10 +5,10 @@ import { resolveConfig } from "../core/config.js";
 import { HttpClient } from "../core/http.js";
 import { validateStore } from "./store.js";
 
-function makeClient(routes: Parameters<typeof createMockFetch>[0]) {
+const makeClient = (routes: Parameters<typeof createMockFetch>[0]) => {
   const { fetch } = createMockFetch(routes);
   return new HttpClient(resolveConfig({ apiKey: "k", fetch }));
-}
+};
 
 describe("validateStore", () => {
   it("returns ok for reachable store", async () => {

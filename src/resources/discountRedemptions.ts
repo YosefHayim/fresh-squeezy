@@ -14,20 +14,20 @@ export interface DiscountRedemptionAttributes extends GeneratedDiscountRedemptio
   updated_at?: string;
 }
 
-export async function getDiscountRedemption(
+export const getDiscountRedemption = async (
   http: HttpClient,
   discountRedemptionId: string | number,
-): Promise<JsonApiResource<DiscountRedemptionAttributes>> {
+): Promise<JsonApiResource<DiscountRedemptionAttributes>> => {
   return http.getResource<DiscountRedemptionAttributes>(
     `/v1/discount-redemptions/${discountRedemptionId}`,
   );
-}
+};
 
-export async function listDiscountRedemptionsForDiscount(
+export const listDiscountRedemptionsForDiscount = async (
   http: HttpClient,
   discountId: string | number,
-): Promise<JsonApiResource<DiscountRedemptionAttributes>[]> {
+): Promise<JsonApiResource<DiscountRedemptionAttributes>[]> => {
   return http.paginate<DiscountRedemptionAttributes>("/v1/discount-redemptions", {
     "filter[discount_id]": String(discountId),
   });
-}
+};

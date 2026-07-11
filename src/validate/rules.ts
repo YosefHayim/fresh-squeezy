@@ -50,36 +50,36 @@ export const ISSUE_CODES = {
  * Build a `ValidationIssue` with defaults for the common case.
  * Extracted so every validator produces consistently shaped issues.
  */
-export function issue(
+export const issue = (
   code: string,
   severity: ValidationSeverity,
   message: string,
   extras: { suggestedFix?: string; context?: ValidationIssue["context"] } = {},
-): ValidationIssue {
+): ValidationIssue => {
   const base: ValidationIssue = { code, severity, message };
   if (extras.suggestedFix !== undefined) base.suggestedFix = extras.suggestedFix;
   if (extras.context !== undefined) base.context = extras.context;
   return base;
-}
+};
 
 /**
  * Fold an issue list into a boolean. Used by every validator so `ok` is
  * computed the same way everywhere.
  */
-export function isOk(issues: ValidationIssue[]): boolean {
+export const isOk = (issues: ValidationIssue[]): boolean => {
   return !issues.some((entry) => entry.severity === "error");
-}
+};
 
 /**
  * Compose a `ValidationResult` with the `ok` flag derived from issues.
  */
-export function buildResult<T>(
+export const buildResult = <T>(
   name: string,
   mode: ValidationResult["mode"],
   issues: ValidationIssue[],
   resource?: T,
   target?: ValidationTarget,
-): ValidationResult<T> {
+): ValidationResult<T> => {
   const result: ValidationResult<T> = {
     name,
     ok: isOk(issues),
@@ -89,4 +89,4 @@ export function buildResult<T>(
   if (resource !== undefined) result.resource = resource;
   if (target !== undefined) result.target = target;
   return result;
-}
+};

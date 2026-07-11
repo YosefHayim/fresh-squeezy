@@ -34,11 +34,11 @@ export const EMPTY_INIT_RESOURCE_CHOICES: InitResourceChoices = {
   subscriptionPlans: { choices: [] },
 };
 
-export async function discoverInitResourceChoices(
+export const discoverInitResourceChoices = async (
   client: FreshSqueezyClient,
   storeId: string,
   targets: InitDoctorTarget[],
-): Promise<InitResourceChoices> {
+): Promise<InitResourceChoices> => {
   const choices: InitResourceChoices = {
     products: { choices: [] },
     webhooks: { choices: [] },
@@ -97,12 +97,12 @@ export async function discoverInitResourceChoices(
   }
 
   return choices;
-}
+};
 
-async function discoverSubscriptionPlans(
+const discoverSubscriptionPlans = async (
   client: FreshSqueezyClient,
   products: JsonApiResource<ProductAttributes>[],
-): Promise<ResourceChoiceGroup> {
+): Promise<ResourceChoiceGroup> => {
   const discovered: ResourceChoice[] = [];
 
   for (const product of products) {
@@ -123,13 +123,13 @@ async function discoverSubscriptionPlans(
   }
 
   return { choices: discovered };
-}
+};
 
-async function paginate<TAttributes>(
+const paginate = async <TAttributes>(
   client: FreshSqueezyClient,
   path: string,
   query: RequestOptions["query"],
-): Promise<JsonApiResource<TAttributes>[]> {
+): Promise<JsonApiResource<TAttributes>[]> => {
   const all: JsonApiResource<TAttributes>[] = [];
   let pageNumber = Number(query?.["page[number]"] ?? 1);
 
@@ -144,50 +144,50 @@ async function paginate<TAttributes>(
     if (lastPage === undefined || pageNumber >= lastPage) return all;
     pageNumber += 1;
   }
-}
+};
 
-async function discover<T>(
+const discover = async <T>(
   load: () => Promise<T>,
-): Promise<{ ok: true; value: T } | { ok: false; error: string }> {
+): Promise<{ ok: true; value: T } | { ok: false; error: string }> => {
   try {
     return { ok: true, value: await load() };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
-}
+};
 
-function toProductChoice(product: JsonApiResource<ProductAttributes>): ResourceChoice {
+const toProductChoice = (product: JsonApiResource<ProductAttributes>): ResourceChoice => {
   return {
     value: product.id,
     label: `${product.attributes.name} (${product.attributes.status}) - id ${product.id}`,
   };
-}
+};
 
-function toWebhookChoice(webhook: JsonApiResource<WebhookAttributes>): ResourceChoice {
+const toWebhookChoice = (webhook: JsonApiResource<WebhookAttributes>): ResourceChoice => {
   return {
     value: webhook.attributes.url,
     label: `${webhook.attributes.url} - id ${webhook.id}`,
   };
-}
+};
 
-function toDiscountChoice(discount: JsonApiResource<DiscountAttributes>): ResourceChoice {
+const toDiscountChoice = (discount: JsonApiResource<DiscountAttributes>): ResourceChoice => {
   return {
     value: discount.id,
     label: `${discount.attributes.name} (${discount.attributes.code}) - id ${discount.id}`,
   };
-}
+};
 
-function toLicenseKeyChoice(licenseKey: JsonApiResource<LicenseKeyAttributes>): ResourceChoice {
+const toLicenseKeyChoice = (licenseKey: JsonApiResource<LicenseKeyAttributes>): ResourceChoice => {
   return {
     value: licenseKey.id,
     label: `${licenseKey.attributes.key_short} (${licenseKey.attributes.status}) - id ${licenseKey.id}`,
   };
-}
+};
 
-function toSubscriptionPlanChoice(
+const toSubscriptionPlanChoice = (
   variant: JsonApiResource<SubscriptionVariantAttributes>,
   productName: string,
-): ResourceChoice {
+): ResourceChoice => {
   const interval = variant.attributes.interval
     ? `${variant.attributes.interval_count ?? 1}/${variant.attributes.interval}`
     : "no interval";
@@ -195,4 +195,4 @@ function toSubscriptionPlanChoice(
     value: variant.id,
     label: `${productName} / ${variant.attributes.name} (${interval}) - id ${variant.id}`,
   };
-}
+};

@@ -18,25 +18,27 @@ them into a one-command `doctor` run with stable exit codes, locally and in CI.
 
 ## Scope
 
-In scope: read-only validation of stores, products, variants, webhooks, discounts, license
-keys, and subscription plans; declared-vs-actual mode detection; `doctor` composition;
-changelog-drift tracking against a committed snapshot; `.d.ts` augmentations for SDK users.
+In scope: pre-flight validation (stores, products, webhooks, discounts, license keys,
+subscription plans, mode); `doctor` composition; **docs-backed resource ops** (get/list
+plus create/update/delete/cancel/refund/generate-invoice/current-usage where the official
+API allows); dual-mode CLI; changelog-drift tracking; `.d.ts` augmentations for SDK users.
 
 ## Non-goals
 
 These are held as firmly as the goals:
 
-1. **Not an SDK.** Use the official Lemon Squeezy SDK to make calls; fresh-squeezy proves
-   the setup is correct first. New endpoints land as **validators, not passthroughs** that
-   hide HTTP calls.
+1. **Not an app-embedding SDK.** Prefer `@lemonsqueezy/lemonsqueezy.js` inside apps.
+   fresh-squeezy is dual-mode **ops + doctor**. Mutations are explicit, docs-backed resource
+   verbs (throw `FreshSqueezyError`) — never silent passthroughs and never invented catalog
+   writes (products/variants/prices have no create API).
 2. **One HTTP layer.** Everything goes through `src/core/http.ts` for auth, error
    normalization, and retry.
 3. **Stable contract.** `ValidationResult` shape and `issue.code` strings are public API;
    breaking either requires a major version bump.
-4. **Mode-awareness everywhere.** Every validator surfaces `mode` so CI can detect
-   test/live confusion.
-5. **Static support manifest + drift snapshot.** No live changelog scraping in runtime
-   code. The weekly drift workflow is advisory — it opens an issue; it never edits code.
+4. **Mode-awareness everywhere.** Every validator surfaces `mode`; live writes and
+   destructive ops require `--yes` or TTY confirm.
+5. **Static support / ops registry + drift snapshot.** No live changelog scraping in
+   runtime code. CI scrape may *propose* matrix gaps; only registered exports ship.
 
 ## Success criteria
 

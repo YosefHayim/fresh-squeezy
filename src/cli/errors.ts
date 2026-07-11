@@ -2,7 +2,7 @@ import { ENV_KEYS } from "../core/config.js";
 import { FreshSqueezyError } from "../core/errors.js";
 import type { ValidateTarget } from "./commands/validate.js";
 
-export function renderCliError(message: string, hints: string[] = []): string {
+export const renderCliError = (message: string, hints: string[] = []): string => {
   const lines = [`fresh-squeezy: ${message}`];
 
   if (hints.length > 0) {
@@ -13,9 +13,9 @@ export function renderCliError(message: string, hints: string[] = []): string {
   }
 
   return `${lines.join("\n")}\n`;
-}
+};
 
-export function getDoctorHints(err: unknown): string[] {
+export const getDoctorHints = (err: unknown): string[] => {
   if (!isFreshSqueezyError(err)) return [];
 
   if (err.code === "MISSING_API_KEY") {
@@ -31,9 +31,9 @@ export function getDoctorHints(err: unknown): string[] {
   }
 
   return [];
-}
+};
 
-export function getValidateHints(err: unknown, target: ValidateTarget): string[] {
+export const getValidateHints = (err: unknown, target: ValidateTarget): string[] => {
   if (!isFreshSqueezyError(err)) return [];
 
   if (err.code === "MISSING_API_KEY") {
@@ -52,9 +52,9 @@ export function getValidateHints(err: unknown, target: ValidateTarget): string[]
   }
 
   return [];
-}
+};
 
-function getMissingArgHints(target: ValidateTarget): string[] {
+const getMissingArgHints = (target: ValidateTarget): string[] => {
   if (target === "connection") {
     return ["fresh-squeezy validate connection"];
   }
@@ -86,8 +86,8 @@ function getMissingArgHints(target: ValidateTarget): string[] {
   }
 
   return ["fresh-squeezy validate subscription-plan --store-ids 12 --variant-id 123"];
-}
+};
 
-function isFreshSqueezyError(err: unknown): err is FreshSqueezyError {
+const isFreshSqueezyError = (err: unknown): err is FreshSqueezyError => {
   return err instanceof FreshSqueezyError;
-}
+};

@@ -33,7 +33,7 @@ export interface IssueMapping {
  * `validateConnection`, which fetches users + stores in one try-block) can
  * reuse the same mapper as `probeFetch` does for single-resource fetches.
  */
-export function mapErrorToIssue(err: unknown, mapping: IssueMapping = {}): ValidationIssue {
+export const mapErrorToIssue = (err: unknown, mapping: IssueMapping = {}): ValidationIssue => {
   if (err instanceof FreshSqueezyError) {
     if (mapping.unauthorized && (err.status === 401 || err.code === "UNAUTHORIZED")) {
       return issue(mapping.unauthorized.code, "error", mapping.unauthorized.message, {
@@ -64,7 +64,7 @@ export function mapErrorToIssue(err: unknown, mapping: IssueMapping = {}): Valid
   }
   const message = err instanceof Error ? err.message : "Unknown error";
   return issue(ISSUE_CODES.UNKNOWN, "error", message);
-}
+};
 
 /**
  * Per-validator metadata for the resource-fetch probe.
@@ -99,10 +99,10 @@ export type FetchProbeOutcome<T> =
  * scaffolding lives here. The deletion test: if this module disappeared every
  * validator would grow back the same try/catch skeleton.
  */
-export async function probeFetch<T>(
+export const probeFetch = async <T>(
   fetcher: () => Promise<T>,
   options: FetchProbeOptions,
-): Promise<FetchProbeOutcome<T>> {
+): Promise<FetchProbeOutcome<T>> => {
   return probeCollection(fetcher, {
     notFound: {
       code: options.notFoundCode,
@@ -111,7 +111,7 @@ export async function probeFetch<T>(
       ...(options.notFoundContext !== undefined ? { context: options.notFoundContext } : {}),
     },
   });
-}
+};
 
 /**
  * Run a fetch — typically a list/collection endpoint — through the shared
@@ -124,16 +124,16 @@ export async function probeFetch<T>(
  * would each hand-roll the same try/catch → `mapErrorToIssue` skeleton that
  * `probeFetch` already centralizes for single-resource fetches.
  */
-export async function probeCollection<T>(
+export const probeCollection = async <T>(
   fetcher: () => Promise<T>,
   mapping: IssueMapping = {},
-): Promise<FetchProbeOutcome<T>> {
+): Promise<FetchProbeOutcome<T>> => {
   try {
     return { ok: true, resource: await fetcher() };
   } catch (err) {
     return { ok: false, issue: mapErrorToIssue(err, mapping) };
   }
-}
+};
 
 /**
  * Inputs for a store-ownership cross-check.
@@ -165,7 +165,7 @@ export interface OwnershipCheck {
  * Both inputs are coerced via `String(...)` so a numeric `store_id` from JSON
  * compares correctly against a string-typed `storeId` from the CLI / env.
  */
-export function checkStoreOwnership(check: OwnershipCheck): ValidationIssue | null {
+export const checkStoreOwnership = (check: OwnershipCheck): ValidationIssue | null => {
   const expected = String(check.expectedStoreId);
   const actual = String(check.actualStoreId);
   if (expected === actual) return null;
@@ -185,4 +185,4 @@ export function checkStoreOwnership(check: OwnershipCheck): ValidationIssue | nu
       context,
     },
   );
-}
+};

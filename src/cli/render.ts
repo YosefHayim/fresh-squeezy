@@ -11,7 +11,7 @@ import type {
  * one place so doctor/validate commands share formatting and consumers can
  * redirect stdout without ANSI codes leaking through (chalk auto-detects TTY).
  */
-export function renderResult(result: ValidationResult): string {
+export const renderResult = (result: ValidationResult): string => {
   const lines: string[] = [];
   const badge = result.ok ? chalk.green("PASS") : chalk.red("FAIL");
   const mode = chalk.dim(`[${result.mode}]`);
@@ -27,17 +27,17 @@ export function renderResult(result: ValidationResult): string {
   }
 
   return lines.join("\n");
-}
+};
 
-function renderTarget(target: ValidationTarget | undefined): string {
+const renderTarget = (target: ValidationTarget | undefined): string => {
   if (!target) return "";
   const parts = [target.label];
   if (target.id) parts.push(`id ${target.id}`);
   if (target.url && target.url !== target.label) parts.push(target.url);
   return parts.join(" - ");
-}
+};
 
-export function renderReport(report: DoctorReport): string {
+export const renderReport = (report: DoctorReport): string => {
   const header = report.ok
     ? chalk.green.bold("fresh-squeezy doctor: OK")
     : chalk.red.bold("fresh-squeezy doctor: FAILED");
@@ -48,9 +48,9 @@ export function renderReport(report: DoctorReport): string {
       : chalk.dim(`${failed}/${report.results.length} checks failed`);
   const body = report.results.map(renderResult).join("\n\n");
   return `${header} ${chalk.dim(`(mode: ${report.mode})`)}\n${summary}\n\n${body}`;
-}
+};
 
-function renderIssueLine(issue: ValidationIssue): string {
+const renderIssueLine = (issue: ValidationIssue): string => {
   const label =
     issue.severity === "error"
       ? chalk.red("✗ error")
@@ -58,4 +58,4 @@ function renderIssueLine(issue: ValidationIssue): string {
         ? chalk.yellow("! warn ")
         : chalk.blue("i info ");
   return `${label} ${chalk.gray(`[${issue.code}]`)} ${issue.message}`;
-}
+};

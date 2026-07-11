@@ -36,10 +36,10 @@ export type ValidateTarget =
  * store. Product runs once because a product ID identifies a single resource;
  * the `--store-ids` value (if any) is used for the cross-store ownership check.
  */
-export async function runValidateCommand(
+export const runValidateCommand = async (
   target: ValidateTarget,
   options: ValidateCommandOptions,
-): Promise<number> {
+): Promise<number> => {
   try {
     const client = createFreshSqueezy({ mode: options.mode });
 
@@ -85,13 +85,13 @@ export async function runValidateCommand(
     process.stderr.write(renderCliError(message, getValidateHints(err, target)));
     return 2;
   }
-}
+};
 
-async function resolveStoresForTarget(
+const resolveStoresForTarget = async (
   client: FreshSqueezyClient,
   target: ValidateTarget,
   options: ValidateCommandOptions,
-): Promise<string[]> {
+): Promise<string[]> => {
   const resolved = await resolveStores(client, {
     storeIds: options.storeIds,
     allStores: options.allStores,
@@ -104,14 +104,14 @@ async function resolveStoresForTarget(
     });
   }
   return resolved.storeIds;
-}
+};
 
-async function runPerStore(
+const runPerStore = async (
   client: FreshSqueezyClient,
   target: ValidateTarget,
   storeIds: string[],
   options: ValidateCommandOptions,
-): Promise<ValidationResult[]> {
+): Promise<ValidationResult[]> => {
   if (target === "store") {
     return Promise.all(storeIds.map((id) => client.validateStore(id)));
   }
@@ -120,24 +120,24 @@ async function runPerStore(
     return Promise.all(storeIds.map((storeId) => client.validateWebhook({ storeId, url })));
   }
   return [];
-}
+};
 
-async function runProduct(
+const runProduct = async (
   client: FreshSqueezyClient,
   options: ValidateCommandOptions,
-): Promise<ValidationResult> {
+): Promise<ValidationResult> => {
   const productId = required(options.productId, "--product-id is required for `validate product`.");
   const expected = options.storeIds?.[0];
   return client.validateProduct({
     productId,
     expectedStoreId: expected,
   });
-}
+};
 
-async function runDiscount(
+const runDiscount = async (
   client: FreshSqueezyClient,
   options: ValidateCommandOptions,
-): Promise<ValidationResult> {
+): Promise<ValidationResult> => {
   const discountId = required(
     options.discountId,
     "--discount-id is required for `validate discount`.",
@@ -147,12 +147,12 @@ async function runDiscount(
     "--store-ids is required for `validate discount`.",
   );
   return client.validateDiscount({ storeId, discountId });
-}
+};
 
-async function runLicenseKey(
+const runLicenseKey = async (
   client: FreshSqueezyClient,
   options: ValidateCommandOptions,
-): Promise<ValidationResult> {
+): Promise<ValidationResult> => {
   const licenseKeyId = required(
     options.licenseKeyId,
     "--license-key-id is required for `validate license-key`.",
@@ -162,12 +162,12 @@ async function runLicenseKey(
     "--store-ids is required for `validate license-key`.",
   );
   return client.validateLicenseKey({ storeId, licenseKeyId });
-}
+};
 
-async function runSubscriptionPlan(
+const runSubscriptionPlan = async (
   client: FreshSqueezyClient,
   options: ValidateCommandOptions,
-): Promise<ValidationResult> {
+): Promise<ValidationResult> => {
   const variantId = required(
     options.variantId,
     "--variant-id is required for `validate subscription-plan`.",
@@ -177,20 +177,20 @@ async function runSubscriptionPlan(
     "--store-ids is required for `validate subscription-plan`.",
   );
   return client.validateSubscriptionPlan({ storeId, variantId });
-}
+};
 
-function emit(result: ValidationResult, options: ValidateCommandOptions): number {
+const emit = (result: ValidationResult, options: ValidateCommandOptions): number => {
   if (options.json) {
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   } else {
     process.stdout.write(`${renderResult(result)}\n`);
   }
   return result.ok ? 0 : 1;
-}
+};
 
-function required<T>(value: T | undefined, message: string): T {
+const required = <T>(value: T | undefined, message: string): T => {
   if (value === undefined || value === null || value === "") {
     throw new FreshSqueezyError({ code: "MISSING_ARG", message });
   }
   return value;
-}
+};

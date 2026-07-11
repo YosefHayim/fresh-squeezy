@@ -41,30 +41,49 @@ When creating a new script, ask: _"Would CI or another contributor need this?"_ 
 
 ## Rules
 
-### Function declarations at module scope
-Every module-scope callable is a `function` declaration. Arrows are for inline callbacks
-only (`.map`, `.filter`).
+### Const arrow functions only (no `function` / `async function` declarations)
+Every module-scope callable is a **`const` arrow** — sync or async. Never
+`function name()` or `async function name()` at module scope (or nested helpers).
+Class methods on `HttpClient` are the only exception (they stay methods).
 ```ts
 // avoid
-export const validateStore = async (http, mode, id) => { /* … */ };
-// after — src/validate/store.ts
-export async function validateStore(
-  http: HttpClient, mode: Mode, storeId: string | number,
-): Promise<ValidationResult<StoreAttributes>> { /* … */ }
-```
-_Why:_ one call-shape everywhere; hoisting lets helpers sit below their callers.
+export async function validateStore(http, mode, storeId) { /* … */ }
+function parseMode(value: string): Mode { /* … */ }
 
-### Named exports only, uniform barrel
-Zero `export default`. `src/index.ts` is a flat `export *` barrel and stays uniform —
-every public module (and every validator) is star-exported.
-```ts
-// after — src/index.ts (all validators, uniform)
-export * from "./validate/store.js";
-export * from "./validate/discount.js";
-export * from "./validate/licenseKey.js";
-export * from "./validate/subscriptionPlan.js";
+// after — const arrows only
+export const validateStore = async (
+  http: HttpClient,
+  mode: Mode,
+  storeId: string | number,
+): Promise<ValidationResult<StoreAttributes>> => { /* … */ };
+
+const parseMode = (value: string): Mode => { /* … */ };
 ```
-_Why:_ grep-able and rename-safe; the whole graph is intentionally public.
+_Why:_ one call-shape everywhere; no hoisting games; matches how agents and modern TS write. Helpers must be declared before use (const is not hoisted).
+
+### Named exports only, pure wildcard barrels
+Zero `export default`. Public surface is **only** `export * from "…"` in barrel files
+(`src/index.ts`, and any future `index.ts` / `index.tsx`). No named re-export lists,
+no `export { foo } from`, no import-then-re-export after the import block.
+
+```ts
+// ✓ src/index.ts — pure wildcard barrel
+export * from "./validate/store.js";
+export * from "./resources/webhooks.js";
+
+// ✗ not this — after-imports re-export / named barrel
+import { getProduct } from "./resources/products.js";
+export { getProduct };
+export { createFreshSqueezy } from "./createFreshSqueezy.js";
+export type { Mode } from "./core/types.js"; // use export * (types ride along)
+```
+_Why:_ one greppable public graph; barrels stay mechanical and agent-safe.
+
+### No backward-compatibility shims
+When style or API shape changes, **rewrite callers** — do not leave dual forms,
+deprecated aliases, `// kept for BC`, or parallel `function` + arrow exports.
+Major bumps own real public contract breaks (`issue.code`, `ValidationResult`);
+internal style is not a BC surface.
 
 ### Guard-clause early returns + imperative `issues[]`
 Fail-path first; accumulate with `push`; end in `buildResult`. No functional map/filter
@@ -107,7 +126,9 @@ imports only from `core/` and `generated/` — never up into `resources/`, `vali
 // avoid — src/core/mode.ts reaching up into resources/ (fetchActualMode)
 import { getAuthenticatedUser } from "../resources/users.js";
 // after — the pure half stays in core/, the I/O half moves out of core/
-export function resolveActualMode(testMode: boolean | undefined): Mode | undefined { /* … */ }
+export const resolveActualMode = (
+  testMode: boolean | undefined,
+): Mode | undefined => { /* … */ };
 ```
 
 ### Validators: pure check*() + thin fetch (rich validators)
@@ -117,12 +138,16 @@ async validator does the fetch and delegates. Thin validators (`store`, `connect
 fused. Mirrors the existing `mode.ts`/`probe.ts` pure-vs-I/O split.
 ```ts
 // after — src/validate/product.ts
-export function checkProduct(attrs: ProductAttributes, storeId?: string): ValidationIssue[] { /* … */ }
-export async function validateProduct(http, mode, id, storeId?) {
+export const checkProduct = (
+  attrs: ProductAttributes,
+  storeId?: string,
+): ValidationIssue[] => { /* … */ };
+
+export const validateProduct = async (http, mode, id, storeId?) => {
   const f = await probeFetch(() => getProduct(http, id), { /* … */ });
   if (!f.ok) return buildResult("product", mode, [f.issue], undefined, target);
   return buildResult("product", mode, checkProduct(f.resource.attributes, storeId), f.resource.attributes, target);
-}
+};
 ```
 _Why:_ the rules become unit-testable with plain data, no mock fetch.
 
@@ -138,16 +163,47 @@ const probed = await probeCollection(() => listWebhooksForStore(http, storeId), 
 if (!probed.ok) { issues.push(probed.issue); return buildResult(/* … */); }
 ```
 
-### JSDoc the why on every exported symbol
-Every exported function/interface/type/const gets a `/** … */` block explaining the _why_,
-not the _what_.
+### TSDoc: why + @param + @returns + @example
+Every exported function gets a `/** … */` block with:
+- summary (_why_, not restating the name)
+- `@param` for each parameter
+- `@returns` for the **single** return type
+- `@example` with a real call
+- `@throws {FreshSqueezyError}` on resource ops that throw
+
+Interfaces/types/consts still get a why-summary. Agents rely on this contract.
 ```ts
 /**
- * Stable issue codes. Consumers may switch on these in CI — do not rename
- * without a major version bump.
+ * Retrieve a product (GET /v1/products/:id). Catalog is read-only in the API.
+ *
+ * @param http - Shared API client.
+ * @param productId - Product id.
+ * @returns The product JSON:API resource.
+ * @throws {FreshSqueezyError} On HTTP/network failure.
+ *
+ * @example
+ * ```ts
+ * const product = await getProduct(http, 42);
+ * ```
  */
-export const ISSUE_CODES = { /* … */ } as const;
+export const getProduct = async (
+  http: HttpClient,
+  productId: string | number,
+): Promise<JsonApiResource<ProductAttributes>> => { /* … */ };
 ```
+
+### Single named return — no multi-object bags
+A function returns **one** value of **one** named type. Never `return { product, variants }`
+or bare tuples of independent entities. Discriminated results (`ValidationResult`,
+`FetchProbeOutcome`) and named DTOs (`ResolveStoresOutput`) are fine — they are one type.
+If two entities are needed, use two functions or a named composite with a job.
+
+### Docs-backed resource verbs only
+`resources/` may expose create/update/delete/cancel/refund/… **only** when
+docs.lemonsqueezy.com/api documents them. Register every verb in
+`src/resources/registry.ts` with a `docsPath`. Never invent catalog writes
+(product/variant/price create). CLI hybrid verbs and nested `createFreshSqueezy()`
+namespaces call `invokeOp` / the same helpers.
 
 ### Naming
 Files `camelCase` (even when the CLI verb is kebab: `subscriptionPlan.ts` ↔
@@ -180,21 +236,40 @@ commas everywhere, `node:` → third-party → local import order. Run `npm run 
 5. Render via `src/cli/render.ts`; support `--json`.
 6. Unit-test with a stubbed `fetch` (`vi.stubGlobal`).
 
+### How to add a resource verb (docs-backed ops)
+1. Confirm the endpoint on docs.lemonsqueezy.com/api (or the proposed scrape snapshot).
+2. Implement in `src/resources/<x>.ts` via `HttpClient` (`getResource` / `postResource` / `patchResource` / `deleteResource` / `paginate`).
+3. Full TSDoc (`@param` / `@returns` / `@example` / `@throws`).
+4. Register in `resourceRegistry` (`docsPath`, body, destructive?, idRole).
+5. Wire `invokeOp` + nested client method on `createFreshSqueezy()`.
+6. Tests for path/method; safety covered by CLI (`--yes`, live gate).
+7. Definition of done: `pnpm verify`, registry entry present, no raw `fetch`, single return type.
+
 ## Exemplars
 
 Write new code like these:
-- `src/validate/store.ts` — the validator skeleton (probeFetch → guard → buildResult).
-- `src/validate/rules.ts` — `issue`/`buildResult` helpers + `ISSUE_CODES` as const.
-- `src/core/http.ts` — the single I/O chokepoint; unknown-narrowing; JSDoc density.
-- `src/core/mode.ts` — pure (`resolveActualMode`) vs I/O (`fetchActualMode`) split.
-- `src/validate/store.test.ts` — `makeClient` + `createMockFetch` + fixture assertions (colocated beside `store.ts`).
+- `src/resources/products.ts` — thin read helpers; catalog honesty.
+- `src/resources/webhooks.ts` — full docs-backed write verbs + TSDoc.
+- `src/resources/registry.ts` / `invokeOp.ts` — matrix + dispatch.
+- `src/validate/product.ts` — rich check*/validate* + probe + buildResult.
+- `src/cli/commands/doctor.ts` — dual-mode command exit codes.
+- `src/cli/commands/resourceOps.ts` — ops safety + body + JSON.
+- `src/core/http.ts` — single I/O chokepoint.
+- `src/cli/commands/init.ts` — multi-step interactive flow.
 
 ## Never
 - `export default` — named exports only.
-- Top-level arrow bindings — `function` declarations at module scope.
+- `function` / `async function` declarations — `const` arrows only (class methods excepted).
+- After-import re-exports (`import { x }; export { x }`) or named `export { x } from`.
+- Backward-compat dual APIs or style shims — rewrite, don't parallel-path.
 - `any` in hand-written code — `unknown` + a narrowing cast.
 - `fetch` outside `core/http.ts` — one transport chokepoint.
 - Upward imports from `core/` — it imports only `core/` + `generated/`.
 - Silent `catch {}` — comment the skip or emit an info issue.
 - Hand-rolled `FreshSqueezyError` → issue mapping — use `probeFetch`/`probeCollection`.
 - `SCREAMING_SNAKE` consts below functions — they sit at the top, after imports.
+- Invented LS endpoints (e.g. `createProduct`) — registry is docs-backed only.
+- Multi-object ad-hoc returns (`{ a, b }` independent entities).
+- Export without `@param` / `@returns` / `@example` on new public functions.
+- Live mutate / delete / cancel / refund without `--yes` or TTY confirm.
+- Prompt when `!stdin.isTTY`.

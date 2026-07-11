@@ -9,18 +9,18 @@ import type { GeneratedFileAttributes } from "../generated/lemonSqueezyApiTypes.
  */
 export interface FileAttributes extends GeneratedFileAttributes {}
 
-export async function getFile(
+export const getFile = async (
   http: HttpClient,
   fileId: string | number,
-): Promise<JsonApiResource<FileAttributes>> {
+): Promise<JsonApiResource<FileAttributes>> => {
   return http.getResource<FileAttributes>(`/v1/files/${fileId}`);
-}
+};
 
-export async function listFilesForVariant(
+export const listFilesForVariant = async (
   http: HttpClient,
   variantId: string | number,
-): Promise<JsonApiResource<FileAttributes>[]> {
+): Promise<JsonApiResource<FileAttributes>[]> => {
   return http.paginate<FileAttributes>("/v1/files", {
     "filter[variant_id]": String(variantId),
   });
-}
+};

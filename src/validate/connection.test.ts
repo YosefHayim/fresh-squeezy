@@ -10,10 +10,10 @@ import { resolveConfig } from "../core/config.js";
 import { HttpClient } from "../core/http.js";
 import { fetchActualMode, validateConnection } from "./connection.js";
 
-function makeClient(routes: Parameters<typeof createMockFetch>[0]) {
+const makeClient = (routes: Parameters<typeof createMockFetch>[0]) => {
   const { fetch } = createMockFetch(routes);
   return new HttpClient(resolveConfig({ apiKey: "k", fetch, mode: "test" }));
-}
+};
 
 describe("validateConnection", () => {
   it("returns ok when key auths and stores are reachable", async () => {

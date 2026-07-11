@@ -5,23 +5,23 @@ a glossary (that's `LANGUAGE.md`) and not the rules (that's `CODE-STYLE.md`).
 
 ## What it is
 
-A pre-flight validator for a Lemon Squeezy billing integration. It proves a setup is
-correct — stores, products, webhooks, discounts, license keys, subscription plans, and
-test-vs-live mode — before those calls reach production. It is **not** a replacement for
-the official Lemon Squeezy SDK: use the SDK to make calls, use fresh-squeezy to catch
-misconfigurations first. Ships as both a CLI (`npx fresh-squeezy`) and a TypeScript
-library.
+A dual-mode **ops + doctor** tool for Lemon Squeezy: pre-flight validation (stores,
+products, webhooks, discounts, license keys, plans, mode) **and** docs-backed resource
+operations (get/list/create/update/delete/cancel/refund/… only where the official API
+documents them). Catalog objects (products/variants/prices/files/stores) are **read-only**
+in the API. It is not an app-embedding SDK — use the official SDK in product code. Ships
+as CLI (`npx fresh-squeezy`) and TypeScript library.
 
 ## Actors
 
-- **Developer at a terminal** — runs `fresh-squeezy` interactively; a bare invocation opens
-  a menu (doctor / validate / init / augment), prompts for a key and stores.
-- **CI runner** — runs `fresh-squeezy doctor --all-stores --all-resources --json`; reads
-  stable exit codes (0/1/2/130) and machine JSON. Never prompted (non-TTY defers).
-- **Library consumer** — imports `createFreshSqueezy()` and calls validators directly,
-  switching on `issue.code`.
-- **The weekly drift workflow** — diffs the Lemon Squeezy changelog against a committed
-  snapshot and opens an issue when upstream moves.
+- **Developer at a terminal** — bare TTY menu (doctor / init / …); hybrid ops
+  (`get|list|create|… <resource>`); prompts for confirms on destructive/live writes.
+- **CI runner / agent** — `doctor --json` and ops with flags + `--yes`; never hangs;
+  exit codes 0/1/2/130.
+- **Library consumer** — `createFreshSqueezy()`: flat `validate*` + nested ops
+  (`client.webhooks.create`, `client.products.get`); switch on `issue.code` for doctor.
+- **The weekly drift workflow** — changelog snapshot + proposed ops gaps; never edits
+  runtime code automatically.
 
 ## Shape
 
@@ -31,9 +31,10 @@ cli`):
 ```
 generated/        auto-generated Lemon Squeezy attribute types
 core/             HttpClient (the one I/O chokepoint), config, FreshSqueezyError, shared types
-resources/        thin JSON:API wrappers — one file per resource (getX / listX)
+resources/        JSON:API helpers + registry + invokeOp (docs-backed verbs only)
 support/          static manifest (webhook policy, acknowledged changelog) + drift snapshot
-validate/         the product — one validator per resource + doctor() composition + rules/probe
+validate/         doctor validators — check*/validate* + composition + rules/probe
+skills/           agent SKILL.md for ops+doctor usage
 augmentations.ts  isolated .d.ts helpers for SDK users (imports only generated/)
 cli/              commander + @inquirer/prompts shell over the library
 scripts/          build/CI tooling (.mjs) — changelog drift + API-type generation

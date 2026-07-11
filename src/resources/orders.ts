@@ -78,13 +78,93 @@ export interface OrderAttributes extends GeneratedOrderAttributes {
 }
 
 /**
- * Fetch a single order by ID. Provided for consumers that want typed
- * access to orders without hand-rolling the JSON:API envelope; the
- * library intentionally has no order *validator* yet.
+ * Fetch a single order by ID.
+ *
+ * @param http - Shared API client.
+ * @param orderId - Order id.
+ * @returns The order resource.
+ * @throws {FreshSqueezyError} On HTTP/network failure.
+ *
+ * @example
+ * ```ts
+ * const order = await getOrder(http, 1);
+ * ```
  */
-export async function getOrder(
+export const getOrder = async (
   http: HttpClient,
   orderId: string | number,
-): Promise<JsonApiResource<OrderAttributes>> {
+): Promise<JsonApiResource<OrderAttributes>> => {
   return http.getResource<OrderAttributes>(`/v1/orders/${orderId}`);
-}
+};
+
+/**
+ * List orders for a store.
+ *
+ * @param http - Shared API client.
+ * @param storeId - Store filter.
+ * @returns Order resources.
+ * @throws {FreshSqueezyError} On HTTP/network failure.
+ *
+ * @example
+ * ```ts
+ * const orders = await listOrdersForStore(http, 1);
+ * ```
+ */
+export const listOrdersForStore = async (
+  http: HttpClient,
+  storeId: string | number,
+): Promise<JsonApiResource<OrderAttributes>[]> => {
+  return http.paginate<OrderAttributes>("/v1/orders", {
+    "filter[store_id]": String(storeId),
+  });
+};
+
+/**
+ * Issue a full or partial order refund (POST /v1/orders/:id/refund).
+ * Docs: https://docs.lemonsqueezy.com/api/orders/issue-refund
+ *
+ * @param http - Shared API client.
+ * @param orderId - Order to refund.
+ * @param body - Optional JSON:API body (`attributes.amount` for partial).
+ * @returns The updated order after refund.
+ * @throws {FreshSqueezyError} On HTTP/network failure.
+ *
+ * @example
+ * ```ts
+ * const order = await refundOrder(http, 1);
+ * ```
+ */
+export const refundOrder = async (
+  http: HttpClient,
+  orderId: string | number,
+  body?: unknown,
+): Promise<JsonApiResource<OrderAttributes>> => {
+  return http.postResource<OrderAttributes>(`/v1/orders/${orderId}/refund`, body ?? {});
+};
+
+/**
+ * Generate an order invoice (POST /v1/orders/:id/generate-invoice).
+ * Docs: https://docs.lemonsqueezy.com/api/orders/generate-order-invoice
+ *
+ * @param http - Shared API client.
+ * @param orderId - Order id.
+ * @param body - Optional locale/name attributes document.
+ * @returns API response document (invoice URL payload).
+ * @throws {FreshSqueezyError} On HTTP/network failure.
+ *
+ * @example
+ * ```ts
+ * const invoice = await generateOrderInvoice(http, 1);
+ * ```
+ */
+export const generateOrderInvoice = async (
+  http: HttpClient,
+  orderId: string | number,
+  body?: unknown,
+): Promise<unknown> => {
+  return http.request({
+    method: "POST",
+    path: `/v1/orders/${orderId}/generate-invoice`,
+    body: body ?? {},
+  });
+};

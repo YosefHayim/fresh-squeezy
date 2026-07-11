@@ -87,6 +87,6 @@ describe("ensureFreshSqueezyDevDependency", () => {
   });
 });
 
-function writePackageJson(value: unknown): void {
+const writePackageJson = (value: unknown): void => {
   writeFileSync(join(workdir, "package.json"), JSON.stringify(value, null, 2));
-}
+};

@@ -39,6 +39,17 @@ npx fresh-squeezy doctor --all-stores --all-resources --json
 
 # Emit a local .d.ts for changelog fields not present in older SDK/local types
 npx fresh-squeezy types augment
+
+# Docs-backed ops matrix (products/variants are read-only on the real API)
+npx fresh-squeezy ops --list
+npx fresh-squeezy ops --list --json
+
+# Resource ops (get/list/create/update/delete/cancel/refund/generate-invoice/current-usage)
+npx fresh-squeezy get product --id 42 --json
+npx fresh-squeezy list webhook --store-ids 12
+npx fresh-squeezy create webhook --body-file webhook.json --mode test
+npx fresh-squeezy cancel subscription --id 9 --yes
+npx fresh-squeezy refund order --id 100 --yes --mode live
 ```
 
 `npx fresh-squeezy --no-install` runs the setup without editing `package.json`.
@@ -60,6 +71,19 @@ Flags and non-interactive shells never open the menu — they defer (`doctor` fa
 | `validate <name>` | Run a single validator | [src/cli/commands/validate.ts](../src/cli/commands/validate.ts) |
 | `init` | Interactive setup: ask for credentials, pick a store, run doctor | [src/cli/commands/init.ts](../src/cli/commands/init.ts) |
 | `types augment` | Emit a local `.d.ts` for changelog fields not present in older SDK/local types | [src/cli/commands/augment.ts](../src/cli/commands/augment.ts) |
+| `ops --list` | Print the docs-backed verb × resource matrix | [src/cli/commands/resourceOps.ts](../src/cli/commands/resourceOps.ts) |
+| `get\|list\|create\|update\|delete\|cancel\|refund\|generate-invoice\|current-usage <resource>` | Docs-backed resource ops (JSON:API body via `--body` / `--body-file`) | [src/cli/commands/resourceOps.ts](../src/cli/commands/resourceOps.ts) |
+
+## Ops safety
+
+| Rule | Behavior |
+|------|----------|
+| `delete` / `cancel` / `refund` | Always require `--yes` or TTY confirm |
+| Live-mode writes | Require `--yes` or TTY confirm |
+| Test-mode create/update | Free when args are complete |
+| Non-TTY missing args | Exit `2` — never hang |
+
+Confirm the matrix with `fresh-squeezy ops --list` before assuming a write exists (products/variants/prices/files/stores are read-only on the official API).
 
 ## Store resolution order
 

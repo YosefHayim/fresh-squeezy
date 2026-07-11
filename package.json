@@ -1,7 +1,7 @@
 {
   "name": "fresh-squeezy",
   "version": "0.1.14",
-  "description": "A CLI and TypeScript library that validates your Lemon Squeezy billing integration — stores, products, webhooks, discounts, license keys, and subscription plans — and catches misconfigurations before they ship.",
+  "description": "Dual-mode Lemon Squeezy ops + doctor: validate billing setup, and run docs-backed API ops (webhooks, discounts, checkouts, subscriptions, refunds, …) from CLI or TypeScript.",
   "keywords": [
     "lemon-squeezy",
     "lemonsqueezy",
@@ -39,11 +39,7 @@
   "bin": {
     "fresh-squeezy": "./dist/cli.js"
   },
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
-  ],
+  "files": ["dist", "README.md", "LICENSE"],
   "engines": {
     "node": ">=20"
   },

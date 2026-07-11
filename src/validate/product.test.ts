@@ -13,10 +13,10 @@ import { resolveConfig } from "../core/config.js";
 import { HttpClient } from "../core/http.js";
 import { validateProduct } from "./product.js";
 
-function makeClient(routes: Parameters<typeof createMockFetch>[0]) {
+const makeClient = (routes: Parameters<typeof createMockFetch>[0]) => {
   const { fetch } = createMockFetch(routes);
   return new HttpClient(resolveConfig({ apiKey: "k", fetch }));
-}
+};
 
 describe("validateProduct", () => {
   it("passes a published product with a published variant", async () => {

@@ -61,23 +61,23 @@ export interface SubscriptionVariantAttributes extends VariantAttributes {
  * Fetch a single variant by ID. Used by the subscription plan validator to
  * inspect subscription-specific fields (interval, trial, price).
  */
-export async function getVariant<TAttr = VariantAttributes>(
+export const getVariant = async <TAttr = VariantAttributes>(
   http: HttpClient,
   variantId: string | number,
-): Promise<JsonApiResource<TAttr>> {
+): Promise<JsonApiResource<TAttr>> => {
   return http.getResource<TAttr>(`/v1/variants/${variantId}`);
-}
+};
 
 /**
  * List every variant of the product, paginated so products with more than
  * one page of variants don't trip the `VARIANT_UNPUBLISHED` heuristic when
  * the only published variants happen to live past page 1.
  */
-export async function listVariantsForProduct(
+export const listVariantsForProduct = async (
   http: HttpClient,
   productId: string | number,
-): Promise<JsonApiResource<VariantAttributes>[]> {
+): Promise<JsonApiResource<VariantAttributes>[]> => {
   return http.paginate<VariantAttributes>("/v1/variants", {
     "filter[product_id]": String(productId),
   });
-}
+};

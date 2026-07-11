@@ -10,20 +10,20 @@ export interface LicenseKeyInstanceAttributes extends GeneratedLicenseKeyInstanc
   updated_at?: string;
 }
 
-export async function getLicenseKeyInstance(
+export const getLicenseKeyInstance = async (
   http: HttpClient,
   licenseKeyInstanceId: string | number,
-): Promise<JsonApiResource<LicenseKeyInstanceAttributes>> {
+): Promise<JsonApiResource<LicenseKeyInstanceAttributes>> => {
   return http.getResource<LicenseKeyInstanceAttributes>(
     `/v1/license-key-instances/${licenseKeyInstanceId}`,
   );
-}
+};
 
-export async function listLicenseKeyInstancesForLicenseKey(
+export const listLicenseKeyInstancesForLicenseKey = async (
   http: HttpClient,
   licenseKeyId: string | number,
-): Promise<JsonApiResource<LicenseKeyInstanceAttributes>[]> {
+): Promise<JsonApiResource<LicenseKeyInstanceAttributes>[]> => {
   return http.paginate<LicenseKeyInstanceAttributes>("/v1/license-key-instances", {
     "filter[license_key_id]": String(licenseKeyId),
   });
-}
+};

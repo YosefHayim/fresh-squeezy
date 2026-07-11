@@ -35,10 +35,10 @@ export interface ResolveStoresOutput {
  * `skipped` lets the caller decide whether to run only connection-level checks
  * or fail loudly — different subcommands want different behavior.
  */
-export async function resolveStores(
+export const resolveStores = async (
   client: FreshSqueezyClient,
   input: ResolveStoresInput,
-): Promise<ResolveStoresOutput> {
+): Promise<ResolveStoresOutput> => {
   if (input.storeIds && input.storeIds.length > 0) {
     return { storeIds: dedupe(input.storeIds), skipped: false };
   }
@@ -88,13 +88,13 @@ export async function resolveStores(
     });
   }
   return { storeIds: picked, skipped: false };
-}
+};
 
 /**
  * Fetch every store reachable with the current key. Errors from the underlying
  * request propagate — callers handle them at the command boundary.
  */
-async function fetchReachableStoreIds(client: FreshSqueezyClient): Promise<string[]> {
+const fetchReachableStoreIds = async (client: FreshSqueezyClient): Promise<string[]> => {
   const connection = await client.validateConnection();
   if (!connection.ok) {
     const authIssue = connection.issues.find((entry) => entry.code === "AUTH_FAILED");
@@ -106,8 +106,8 @@ async function fetchReachableStoreIds(client: FreshSqueezyClient): Promise<strin
     }
   }
   return connection.resource?.storeIds ?? [];
-}
+};
 
-function dedupe(values: string[]): string[] {
+const dedupe = (values: string[]): string[] => {
   return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
-}
+};

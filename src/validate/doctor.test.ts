@@ -16,10 +16,10 @@ import { resolveConfig } from "../core/config.js";
 import { HttpClient } from "../core/http.js";
 import { doctor } from "./doctor.js";
 
-function makeClient(routes: Parameters<typeof createMockFetch>[0]) {
+const makeClient = (routes: Parameters<typeof createMockFetch>[0]) => {
   const { fetch } = createMockFetch(routes);
   return new HttpClient(resolveConfig({ apiKey: "k", fetch, mode: "test" }));
-}
+};
 
 describe("doctor", () => {
   it("stops at connection when auth fails", async () => {

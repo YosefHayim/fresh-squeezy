@@ -21,11 +21,11 @@ export interface DiscountValidationOptions {
  * `/v1/discount-redemptions?filter[discount_id]=` is YAGNI until a consumer
  * asks for it.
  */
-export async function validateDiscount(
+export const validateDiscount = async (
   http: HttpClient,
   mode: Mode,
   options: DiscountValidationOptions,
-): Promise<ValidationResult<DiscountAttributes>> {
+): Promise<ValidationResult<DiscountAttributes>> => {
   const issues: ValidationIssue[] = [];
 
   const fetched = await probeFetch(() => getDiscount(http, options.discountId), {
@@ -50,17 +50,17 @@ export async function validateDiscount(
     label: `${attrs.name} (${attrs.code})`,
     id: String(options.discountId),
   });
-}
+};
 
 /**
  * Pure attribute assertions for a discount: store ownership, draft/expiry/
  * activation windows, redemption exhaustion, and amount validity. No I/O, so
  * the rules are unit-testable with plain data.
  */
-export function checkDiscount(
+export const checkDiscount = (
   attrs: DiscountAttributes,
   options: { storeId: string | number },
-): ValidationIssue[] {
+): ValidationIssue[] => {
   const issues: ValidationIssue[] = [];
 
   const mismatch = checkStoreOwnership({
@@ -157,4 +157,4 @@ export function checkDiscount(
   }
 
   return issues;
-}
+};

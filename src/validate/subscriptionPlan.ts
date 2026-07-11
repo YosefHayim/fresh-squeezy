@@ -33,11 +33,11 @@ const VALID_INTERVALS = new Set(["day", "week", "month", "year"]);
  * `storeId` as advisory — if the product fetch fails the cross-check is
  * silently skipped rather than blocking the entire validation.
  */
-export async function validateSubscriptionPlan(
+export const validateSubscriptionPlan = async (
   http: HttpClient,
   mode: Mode,
   options: SubscriptionPlanValidationOptions,
-): Promise<ValidationResult<SubscriptionPlanSummary>> {
+): Promise<ValidationResult<SubscriptionPlanSummary>> => {
   const issues: ValidationIssue[] = [];
 
   const fetched = await probeFetch(
@@ -95,7 +95,7 @@ export async function validateSubscriptionPlan(
     label: attrs.name,
     id: String(options.variantId),
   });
-}
+};
 
 /**
  * Pure attribute assertions for a subscription variant: that it is actually a
@@ -104,10 +104,10 @@ export async function validateSubscriptionPlan(
  * second fetch and stays in `validateSubscriptionPlan`; everything here runs on
  * plain data, so the rules are unit-testable without a mock fetch.
  */
-export function checkSubscriptionPlan(
+export const checkSubscriptionPlan = (
   attrs: SubscriptionVariantAttributes,
   options: { variantId: string | number },
-): ValidationIssue[] {
+): ValidationIssue[] => {
   const issues: ValidationIssue[] = [];
 
   if (!attrs.is_subscription) {
@@ -201,4 +201,4 @@ export function checkSubscriptionPlan(
   }
 
   return issues;
-}
+};

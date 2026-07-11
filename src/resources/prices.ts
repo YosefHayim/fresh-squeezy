@@ -38,13 +38,43 @@ export interface PriceAttributes extends GeneratedPriceAttributes {
 }
 
 /**
- * Fetch a single price by ID. Provided for consumers reaching the prices
- * endpoint directly — fresh-squeezy reads price information through the
- * subscription plan validator and does not surface a price validator yet.
+ * Fetch a single price by ID (read-only — no create/update/delete in LS API).
+ *
+ * @param http - Shared API client.
+ * @param priceId - Price id.
+ * @returns The price resource.
+ * @throws {FreshSqueezyError} On HTTP/network failure.
+ *
+ * @example
+ * ```ts
+ * const price = await getPrice(http, 1);
+ * ```
  */
-export async function getPrice(
+export const getPrice = async (
   http: HttpClient,
   priceId: string | number,
-): Promise<JsonApiResource<PriceAttributes>> {
+): Promise<JsonApiResource<PriceAttributes>> => {
   return http.getResource<PriceAttributes>(`/v1/prices/${priceId}`);
-}
+};
+
+/**
+ * List prices for a variant.
+ *
+ * @param http - Shared API client.
+ * @param variantId - Variant filter.
+ * @returns Price resources.
+ * @throws {FreshSqueezyError} On HTTP/network failure.
+ *
+ * @example
+ * ```ts
+ * const prices = await listPricesForVariant(http, 1);
+ * ```
+ */
+export const listPricesForVariant = async (
+  http: HttpClient,
+  variantId: string | number,
+): Promise<JsonApiResource<PriceAttributes>[]> => {
+  return http.paginate<PriceAttributes>("/v1/prices", {
+    "filter[variant_id]": String(variantId),
+  });
+};

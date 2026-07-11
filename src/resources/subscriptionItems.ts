@@ -1,4 +1,4 @@
-import type { HttpClient, RequestOptions } from "../core/http.js";
+import type { HttpClient } from "../core/http.js";
 import type { JsonApiResource } from "../core/types.js";
 import type { GeneratedSubscriptionItemAttributes } from "../generated/lemonSqueezyApiTypes.js";
 
@@ -21,28 +21,67 @@ export interface SubscriptionItemUpdateAttributes {
   disable_prorations?: boolean;
 }
 
-export async function getSubscriptionItem(
+/**
+ * Retrieve a subscription item.
+ *
+ * @param http - Shared API client.
+ * @param subscriptionItemId - Item id.
+ * @returns The subscription item resource.
+ * @throws {FreshSqueezyError} On HTTP/network failure.
+ *
+ * @example
+ * ```ts
+ * const item = await getSubscriptionItem(http, 1);
+ * ```
+ */
+export const getSubscriptionItem = async (
   http: HttpClient,
   subscriptionItemId: string | number,
-): Promise<JsonApiResource<SubscriptionItemAttributes>> {
+): Promise<JsonApiResource<SubscriptionItemAttributes>> => {
   return http.getResource<SubscriptionItemAttributes>(
     `/v1/subscription-items/${subscriptionItemId}`,
   );
-}
+};
 
-export async function listSubscriptionItemsForSubscription(
+/**
+ * List subscription items for a subscription.
+ *
+ * @param http - Shared API client.
+ * @param subscriptionId - Parent subscription id.
+ * @returns Subscription item resources.
+ * @throws {FreshSqueezyError} On HTTP/network failure.
+ *
+ * @example
+ * ```ts
+ * const items = await listSubscriptionItemsForSubscription(http, 1);
+ * ```
+ */
+export const listSubscriptionItemsForSubscription = async (
   http: HttpClient,
   subscriptionId: string | number,
-): Promise<JsonApiResource<SubscriptionItemAttributes>[]> {
+): Promise<JsonApiResource<SubscriptionItemAttributes>[]> => {
   return http.paginate<SubscriptionItemAttributes>("/v1/subscription-items", {
     "filter[subscription_id]": String(subscriptionId),
   });
-}
+};
 
-export function buildSubscriptionItemUpdateBody(
+/**
+ * Build a JSON:API update body for a subscription item (quantity / proration).
+ *
+ * @param subscriptionItemId - Item id embedded in the document.
+ * @param attributes - Fields accepted by the update endpoint.
+ * @returns A single JSON:API document (not multiple loose objects).
+ *
+ * @example
+ * ```ts
+ * const body = buildSubscriptionItemUpdateBody(1, { quantity: 3 });
+ * await updateSubscriptionItem(http, 1, body);
+ * ```
+ */
+export const buildSubscriptionItemUpdateBody = (
   subscriptionItemId: string | number,
   attributes: SubscriptionItemUpdateAttributes,
-): RequestOptions["body"] {
+): unknown => {
   return {
     data: {
       type: "subscription-items",
@@ -50,4 +89,57 @@ export function buildSubscriptionItemUpdateBody(
       attributes,
     },
   };
-}
+};
+
+/**
+ * Update a subscription item (PATCH /v1/subscription-items/:id).
+ * Docs: https://docs.lemonsqueezy.com/api/subscription-items/update-subscription-item
+ *
+ * @param http - Shared API client.
+ * @param subscriptionItemId - Item id.
+ * @param body - JSON:API update document.
+ * @returns The updated subscription item.
+ * @throws {FreshSqueezyError} On HTTP/network failure.
+ *
+ * @example
+ * ```ts
+ * const item = await updateSubscriptionItem(
+ *   http,
+ *   1,
+ *   buildSubscriptionItemUpdateBody(1, { quantity: 2 }),
+ * );
+ * ```
+ */
+export const updateSubscriptionItem = async (
+  http: HttpClient,
+  subscriptionItemId: string | number,
+  body: unknown,
+): Promise<JsonApiResource<SubscriptionItemAttributes>> => {
+  return http.patchResource<SubscriptionItemAttributes>(
+    `/v1/subscription-items/${subscriptionItemId}`,
+    body,
+  );
+};
+
+/**
+ * Current-period usage for a usage-based subscription item.
+ * Docs: https://docs.lemonsqueezy.com/api/subscription-items/retrieve-subscription-item-current-usage
+ *
+ * @param http - Shared API client.
+ * @param subscriptionItemId - Item id.
+ * @returns Usage payload for the current billing period.
+ * @throws {FreshSqueezyError} On HTTP/network failure.
+ *
+ * @example
+ * ```ts
+ * const usage = await getSubscriptionItemCurrentUsage(http, 1);
+ * ```
+ */
+export const getSubscriptionItemCurrentUsage = async (
+  http: HttpClient,
+  subscriptionItemId: string | number,
+): Promise<unknown> => {
+  return http.request({
+    path: `/v1/subscription-items/${subscriptionItemId}/current-usage`,
+  });
+};

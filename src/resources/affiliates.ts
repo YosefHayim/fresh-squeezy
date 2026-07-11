@@ -24,18 +24,18 @@ export interface AffiliateAttributes extends GeneratedAffiliateAttributes {
   updated_at?: string;
 }
 
-export async function getAffiliate(
+export const getAffiliate = async (
   http: HttpClient,
   affiliateId: string | number,
-): Promise<JsonApiResource<AffiliateAttributes>> {
+): Promise<JsonApiResource<AffiliateAttributes>> => {
   return http.getResource<AffiliateAttributes>(`/v1/affiliates/${affiliateId}`);
-}
+};
 
-export async function listAffiliatesForStore(
+export const listAffiliatesForStore = async (
   http: HttpClient,
   storeId: string | number,
-): Promise<JsonApiResource<AffiliateAttributes>[]> {
+): Promise<JsonApiResource<AffiliateAttributes>[]> => {
   return http.paginate<AffiliateAttributes>("/v1/affiliates", {
     "filter[store_id]": String(storeId),
   });
-}
+};

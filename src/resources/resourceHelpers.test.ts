@@ -27,7 +27,7 @@ import {
 import { getSubscription } from "./subscriptions.js";
 import { getUsageRecord, listUsageRecordsForSubscriptionItem } from "./usageRecords.js";
 
-function fakeHttp() {
+const fakeHttp = () => {
   const resource = { type: "resource", id: "42", attributes: {} };
   const getResource = vi.fn(async () => resource);
   const paginate = vi.fn(async () => [resource]);
@@ -37,7 +37,7 @@ function fakeHttp() {
     paginate,
     http: { getResource, paginate } as unknown as HttpClient,
   };
-}
+};
 
 describe("resource helper wrappers", () => {
   const getCases: Array<

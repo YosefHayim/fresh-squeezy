@@ -15,11 +15,11 @@ export interface LicenseKeyValidationOptions {
  * four states most likely to cause "why can't my customer activate?"
  * support tickets.
  */
-export async function validateLicenseKey(
+export const validateLicenseKey = async (
   http: HttpClient,
   mode: Mode,
   options: LicenseKeyValidationOptions,
-): Promise<ValidationResult<LicenseKeyAttributes>> {
+): Promise<ValidationResult<LicenseKeyAttributes>> => {
   const issues: ValidationIssue[] = [];
 
   const fetched = await probeFetch(() => getLicenseKey(http, options.licenseKeyId), {
@@ -44,17 +44,17 @@ export async function validateLicenseKey(
     label: attrs.key_short,
     id: String(options.licenseKeyId),
   });
-}
+};
 
 /**
  * Pure attribute assertions for a license key: store ownership, disabled/
  * expired state, and activation-limit exhaustion. No I/O, so the rules are
  * unit-testable with plain data.
  */
-export function checkLicenseKey(
+export const checkLicenseKey = (
   attrs: LicenseKeyAttributes,
   options: { storeId: string | number },
-): ValidationIssue[] {
+): ValidationIssue[] => {
   const issues: ValidationIssue[] = [];
 
   const mismatch = checkStoreOwnership({
@@ -113,4 +113,4 @@ export function checkLicenseKey(
   }
 
   return issues;
-}
+};

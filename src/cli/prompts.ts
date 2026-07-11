@@ -49,7 +49,7 @@ const PROMPT_THEME = {
   },
 } as const;
 
-export async function pickLauncherAction(): Promise<LauncherAction> {
+export const pickLauncherAction = async (): Promise<LauncherAction> => {
   return select<LauncherAction>({
     message: "What do you want to do?",
     theme: PROMPT_THEME,
@@ -72,9 +72,9 @@ export async function pickLauncherAction(): Promise<LauncherAction> {
       },
     ],
   });
-}
+};
 
-export async function askForApiKey(): Promise<InitAnswers> {
+export const askForApiKey = async (): Promise<InitAnswers> => {
   const apiKey = await password({
     message: "Paste your Lemon Squeezy API key:",
     mask: false,
@@ -82,11 +82,11 @@ export async function askForApiKey(): Promise<InitAnswers> {
     validate: (value: string) => (value.trim().length > 0 ? true : "API key is required."),
   });
   return { apiKey: apiKey.trim() };
-}
+};
 
-export async function pickStore(
+export const pickStore = async (
   choices: { id: string; name: string; slug: string }[],
-): Promise<string> {
+): Promise<string> => {
   return select<string>({
     message: "Pick a store to validate against:",
     theme: PROMPT_THEME,
@@ -95,7 +95,7 @@ export async function pickStore(
       value: entry.id,
     })),
   });
-}
+};
 
 /**
  * Multi-select store picker used by `doctor` and `validate` when no
@@ -103,9 +103,9 @@ export async function pickStore(
  * The first store is pre-checked so hitting Enter without toggling still
  * picks something — callers enforce the "at least one" rule.
  */
-export async function pickStores(
+export const pickStores = async (
   choices: { id: string; name: string; slug: string }[],
-): Promise<string[]> {
+): Promise<string[]> => {
   return checkbox<string>({
     message: "Pick one or more stores (space to toggle, enter to confirm):",
     theme: PROMPT_THEME,
@@ -116,9 +116,9 @@ export async function pickStores(
     })),
     validate: (selected) => (selected.length > 0 ? true : "Pick at least one store."),
   });
-}
+};
 
-export async function selectDoctorTargets(): Promise<InitDoctorTarget[]> {
+export const selectDoctorTargets = async (): Promise<InitDoctorTarget[]> => {
   return checkbox<InitDoctorTarget>({
     message: "Add resource checks to this doctor run?",
     theme: PROMPT_THEME,
@@ -130,12 +130,12 @@ export async function selectDoctorTargets(): Promise<InitDoctorTarget[]> {
       { name: "Subscription plan", value: "subscription-plan" },
     ],
   });
-}
+};
 
-export async function askForDoctorTargetValues(
+export const askForDoctorTargetValues = async (
   targets: InitDoctorTarget[],
   choices: InitResourceChoices = EMPTY_INIT_RESOURCE_CHOICES,
-): Promise<InitDoctorTargets> {
+): Promise<InitDoctorTargets> => {
   if (targets.length === 0) return {};
 
   const answers: Partial<Record<DoctorTargetField, string[] | string>> = {};
@@ -222,25 +222,44 @@ export async function askForDoctorTargetValues(
     licenseKeyIds: cleanList(answers.licenseKeyIds),
     variantIds: cleanList(answers.variantIds),
   };
-}
+};
 
-export async function confirmLiveModeRun(): Promise<boolean> {
+export const confirmLiveModeRun = async (): Promise<boolean> => {
   return confirm({
     message: "This is a live-mode key. Continue with live checks?",
     default: false,
     theme: PROMPT_THEME,
   });
-}
+};
 
-export async function confirmWriteEnvFile(filePath: string): Promise<boolean> {
+export const confirmWriteEnvFile = async (filePath: string): Promise<boolean> => {
   return confirm({
     message: `Write these values to ${formatPromptPath(filePath)}?`,
     default: true,
     theme: PROMPT_THEME,
   });
-}
+};
 
-async function resolveTargetValue(input: {
+/**
+ * Confirm a destructive or live-mode resource op before mutating.
+ *
+ * @param message - Prompt shown to the operator.
+ * @returns Whether the user confirmed.
+ *
+ * @example
+ * ```ts
+ * const ok = await confirmResourceOp("Delete webhook 12?");
+ * ```
+ */
+export const confirmResourceOp = async (message: string): Promise<boolean> => {
+  return confirm({
+    message,
+    default: false,
+    theme: PROMPT_THEME,
+  });
+};
+
+const resolveTargetValue = async (input: {
   answers: Partial<Record<DoctorTargetField, string[] | string>>;
   manualQuestions: ManualQuestion[];
   group: ResourceChoiceGroup;
@@ -249,7 +268,7 @@ async function resolveTargetValue(input: {
   emptyMessage: string;
   manualMessage: string;
   validate: (value: string) => true | string;
-}): Promise<void> {
+}): Promise<void> => {
   if (input.group.choices.length === 0) {
     input.manualQuestions.push({
       field: input.field,
@@ -281,9 +300,9 @@ async function resolveTargetValue(input: {
       validate: input.validate,
     });
   }
-}
+};
 
-async function askEmptyTargetAction(message: string): Promise<EmptyTargetAction> {
+const askEmptyTargetAction = async (message: string): Promise<EmptyTargetAction> => {
   return select<EmptyTargetAction>({
     message,
     theme: PROMPT_THEME,
@@ -292,21 +311,21 @@ async function askEmptyTargetAction(message: string): Promise<EmptyTargetAction>
       { name: "Skip this check", value: "skip" },
     ],
   });
-}
+};
 
-function required(label: string): (value: string) => true | string {
+const required = (label: string): ((value: string) => true | string) => {
   return (value: string) => (value.trim().length > 0 ? true : `${label} is required.`);
-}
+};
 
-function optional(label: string): (value: string) => true | string {
+const optional = (label: string): ((value: string) => true | string) => {
   return (value: string) => {
     const trimmed = value.trim();
     if (trimmed.length === 0) return true;
     return required(label)(trimmed);
   };
-}
+};
 
-function validateWebhookUrl(value: string): true | string {
+const validateWebhookUrl = (value: string): true | string => {
   const trimmed = value.trim();
   if (trimmed.length === 0) return "Webhook URL is required.";
 
@@ -318,36 +337,36 @@ function validateWebhookUrl(value: string): true | string {
   } catch {
     return "Enter a valid webhook URL.";
   }
-}
+};
 
-function optionalWebhookUrls(value: string): true | string {
+const optionalWebhookUrls = (value: string): true | string => {
   const values = splitManualValues(value);
   if (values.length === 0) return true;
   return values.every((entry) => validateWebhookUrl(entry) === true)
     ? true
     : "Enter valid webhook URLs.";
-}
+};
 
-function cleanList(value: string[] | string | undefined): string[] | undefined {
+const cleanList = (value: string[] | string | undefined): string[] | undefined => {
   const values = Array.isArray(value) ? value : splitManualValues(value);
   const cleanValues = Array.from(new Set(values.map((entry) => entry.trim()).filter(Boolean)));
   return cleanValues.length > 0 ? cleanValues : undefined;
-}
+};
 
-function splitManualValues(value: string | undefined): string[] {
+const splitManualValues = (value: string | undefined): string[] => {
   return (value ?? "")
     .split(",")
     .map((entry) => entry.trim())
     .filter(Boolean);
-}
+};
 
-function formatPromptPath(filePath: string): string {
+const formatPromptPath = (filePath: string): string => {
   const relative = path.relative(process.cwd(), filePath);
   if (relative && !relative.startsWith("..") && !path.isAbsolute(relative)) return relative;
   return path.basename(filePath);
-}
+};
 
-export function isPromptCancel(error: unknown): boolean {
+export const isPromptCancel = (error: unknown): boolean => {
   if (!(error instanceof Error)) return false;
   return error.name === "ExitPromptError" || error.message.includes("User force closed");
-}
+};

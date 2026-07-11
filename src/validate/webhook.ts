@@ -20,11 +20,11 @@ export interface WebhookValidationOptions {
  * Missing recommended events = error. Missing optional events = info, because
  * not every integration needs them.
  */
-export async function validateWebhook(
+export const validateWebhook = async (
   http: HttpClient,
   mode: Mode,
   options: WebhookValidationOptions,
-): Promise<ValidationResult<WebhookAttributes>> {
+): Promise<ValidationResult<WebhookAttributes>> => {
   const issues: ValidationIssue[] = [];
 
   const fetched = await probeCollection(() => listWebhooksForStore(http, options.storeId));
@@ -92,4 +92,4 @@ export async function validateWebhook(
     id: match.id,
     url: match.attributes.url,
   });
-}
+};

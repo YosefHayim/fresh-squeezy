@@ -18,12 +18,12 @@ export interface StoreAttributes extends GeneratedStoreAttributes {
   updated_at?: string;
 }
 
-export async function getStore(
+export const getStore = async (
   http: HttpClient,
   storeId: string | number,
-): Promise<JsonApiResource<StoreAttributes>> {
+): Promise<JsonApiResource<StoreAttributes>> => {
   return http.getResource<StoreAttributes>(`/v1/stores/${storeId}`);
-}
+};
 
 /**
  * List every store reachable with the configured API key, paginated.
@@ -31,6 +31,6 @@ export async function getStore(
  * the CLI's `--all-stores` flag. Pagination matters here for accounts that
  * own a large catalogue of stores.
  */
-export async function listStores(http: HttpClient): Promise<JsonApiResource<StoreAttributes>[]> {
+export const listStores = async (http: HttpClient): Promise<JsonApiResource<StoreAttributes>[]> => {
   return http.paginate<StoreAttributes>("/v1/stores");
-}
+};

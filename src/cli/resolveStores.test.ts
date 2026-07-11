@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { FreshSqueezyClient } from "../createFreshSqueezy.js";
 import { resolveStores } from "./resolveStores.js";
 
-function stubClient(overrides: Partial<FreshSqueezyClient>): FreshSqueezyClient {
+const stubClient = (overrides: Partial<FreshSqueezyClient>): FreshSqueezyClient => {
   return {
     mode: "test",
     request: vi.fn(),
@@ -13,7 +13,7 @@ function stubClient(overrides: Partial<FreshSqueezyClient>): FreshSqueezyClient 
     doctor: vi.fn(),
     ...overrides,
   } as FreshSqueezyClient;
-}
+};
 
 describe("resolveStores", () => {
   it("prefers --store-ids over anything else", async () => {

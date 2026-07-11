@@ -16,10 +16,10 @@ import { resolveConfig } from "../core/config.js";
 import { HttpClient } from "../core/http.js";
 import { validateSubscriptionPlan } from "./subscriptionPlan.js";
 
-function makeClient(routes: Parameters<typeof createMockFetch>[0]) {
+const makeClient = (routes: Parameters<typeof createMockFetch>[0]) => {
   const { fetch } = createMockFetch(routes);
   return new HttpClient(resolveConfig({ apiKey: "k", fetch }));
-}
+};
 
 describe("validateSubscriptionPlan", () => {
   it("returns ok for a valid subscription variant", async () => {

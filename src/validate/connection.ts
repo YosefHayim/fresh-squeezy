@@ -33,10 +33,10 @@ export interface ConnectionSummary {
  * This is the first check every `doctor()` run performs; if it fails,
  * no downstream validator has anything useful to report.
  */
-export async function validateConnection(
+export const validateConnection = async (
   http: HttpClient,
   mode: Mode,
-): Promise<ValidationResult<ConnectionSummary>> {
+): Promise<ValidationResult<ConnectionSummary>> => {
   const issues: ValidationIssue[] = [];
 
   const fetched = await probeCollection(
@@ -95,7 +95,7 @@ export async function validateConnection(
   }
 
   return buildResult("connection", mode, issues, summary);
-}
+};
 
 /**
  * Ask the Lemon Squeezy API which mode the configured key actually belongs to.
@@ -111,7 +111,7 @@ export async function validateConnection(
  * failure; callers that want a structured non-throwing result should use
  * `validateConnection` instead.
  */
-export async function fetchActualMode(http: HttpClient): Promise<Mode | undefined> {
+export const fetchActualMode = async (http: HttpClient): Promise<Mode | undefined> => {
   const doc = await getAuthenticatedUser(http);
   return resolveActualMode(doc.meta?.test_mode);
-}
+};

@@ -46,7 +46,7 @@ const ALL_RESOURCE_TARGETS: InitDoctorTarget[] = [
  * prompt → connection-only) lives in resolveStores so validate commands can
  * reuse it.
  */
-export async function runDoctorCommand(options: DoctorCommandOptions): Promise<number> {
+export const runDoctorCommand = async (options: DoctorCommandOptions): Promise<number> => {
   try {
     const client = createFreshSqueezy({ mode: options.mode });
     const resolved = await resolveStores(client, {
@@ -87,9 +87,9 @@ export async function runDoctorCommand(options: DoctorCommandOptions): Promise<n
     writeFatal(err, options.json ?? false);
     return 2;
   }
-}
+};
 
-async function resolveDoctorTargets(
+const resolveDoctorTargets = async (
   client: FreshSqueezyClient,
   storeId: string,
   options: DoctorCommandOptions,
@@ -99,7 +99,7 @@ async function resolveDoctorTargets(
   discountIds?: string[];
   licenseKeyIds?: string[];
   variantIds?: string[];
-}> {
+}> => {
   const explicit = {
     productIds: one(options.productId),
     webhookUrls: one(options.webhookUrl),
@@ -125,9 +125,9 @@ async function resolveDoctorTargets(
     licenseKeyIds: mergeValues(explicit.licenseKeyIds, values(discovered.licenseKeys)),
     variantIds: mergeValues(explicit.variantIds, values(discovered.subscriptionPlans)),
   };
-}
+};
 
-function formatDiscoveryCounts(choices: InitResourceChoices): string {
+const formatDiscoveryCounts = (choices: InitResourceChoices): string => {
   return [
     countLabel("products", choices.products.choices.length),
     countLabel("webhooks", choices.webhooks.choices.length),
@@ -135,13 +135,13 @@ function formatDiscoveryCounts(choices: InitResourceChoices): string {
     countLabel("license keys", choices.licenseKeys.choices.length),
     countLabel("subscription plans", choices.subscriptionPlans.choices.length),
   ].join(", ");
-}
+};
 
-function countLabel(label: string, count: number): string {
+const countLabel = (label: string, count: number): string => {
   return `${label} ${count}`;
-}
+};
 
-function reportDiscoveryErrors(choices: InitResourceChoices): void {
+const reportDiscoveryErrors = (choices: InitResourceChoices): void => {
   const errors = [
     choices.products.error && `products: ${choices.products.error}`,
     choices.webhooks.error && `webhooks: ${choices.webhooks.error}`,
@@ -153,25 +153,25 @@ function reportDiscoveryErrors(choices: InitResourceChoices): void {
   for (const error of errors) {
     process.stderr.write(`fresh-squeezy: discovery skipped ${error}\n`);
   }
-}
+};
 
-function values(group: { choices: Array<{ value: string }> }): string[] | undefined {
+const values = (group: { choices: Array<{ value: string }> }): string[] | undefined => {
   return group.choices.length > 0 ? group.choices.map((choice) => choice.value) : undefined;
-}
+};
 
-function one(value: string | undefined): string[] | undefined {
+const one = (value: string | undefined): string[] | undefined => {
   return value ? [value] : undefined;
-}
+};
 
-function mergeValues(
+const mergeValues = (
   explicit: string[] | undefined,
   discovered: string[] | undefined,
-): string[] | undefined {
+): string[] | undefined => {
   const merged = Array.from(new Set([...(explicit ?? []), ...(discovered ?? [])]));
   return merged.length > 0 ? merged : undefined;
-}
+};
 
-function hasExplicitResourceSelection(options: DoctorCommandOptions): boolean {
+const hasExplicitResourceSelection = (options: DoctorCommandOptions): boolean => {
   return Boolean(
     options.productId ||
       options.webhookUrl ||
@@ -179,17 +179,17 @@ function hasExplicitResourceSelection(options: DoctorCommandOptions): boolean {
       options.licenseKeyId ||
       options.variantId,
   );
-}
+};
 
 /**
  * Fallback when no store could be resolved and we are not interactive.
  * Running connection-only gives CI a useful signal ("key works") without
  * silently pretending everything is fine.
  */
-async function runConnectionOnly(
+const runConnectionOnly = async (
   client: FreshSqueezyClient,
   options: DoctorCommandOptions,
-): Promise<number> {
+): Promise<number> => {
   const connection = await client.validateConnection();
   const report: DoctorReport = {
     ok: connection.ok,
@@ -207,9 +207,9 @@ async function runConnectionOnly(
     process.stdout.write(`${renderReport(report)}\n`);
   }
   return connection.ok ? 0 : 1;
-}
+};
 
-function writeFatal(err: unknown, asJson: boolean): void {
+const writeFatal = (err: unknown, asJson: boolean): void => {
   if (asJson) {
     const payload =
       err instanceof FreshSqueezyError
@@ -223,4 +223,4 @@ function writeFatal(err: unknown, asJson: boolean): void {
   }
   const message = err instanceof Error ? err.message : String(err);
   process.stderr.write(renderCliError(message, getDoctorHints(err)));
-}
+};

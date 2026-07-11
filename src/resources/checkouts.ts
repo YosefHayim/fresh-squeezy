@@ -124,18 +124,74 @@ export interface CheckoutAttributes extends GeneratedCheckoutAttributes {
   test_mode?: boolean;
 }
 
-export async function getCheckout(
+/**
+ * Retrieve a checkout (GET /v1/checkouts/:id).
+ *
+ * @param http - Shared API client.
+ * @param checkoutId - Checkout id.
+ * @returns The checkout resource.
+ * @throws {FreshSqueezyError} On HTTP/network failure.
+ *
+ * @example
+ * ```ts
+ * const checkout = await getCheckout(http, 1);
+ * ```
+ */
+export const getCheckout = async (
   http: HttpClient,
   checkoutId: string | number,
-): Promise<JsonApiResource<CheckoutAttributes>> {
+): Promise<JsonApiResource<CheckoutAttributes>> => {
   return http.getResource<CheckoutAttributes>(`/v1/checkouts/${checkoutId}`);
-}
+};
 
-export async function listCheckoutsForStore(
+/**
+ * List checkouts for a store.
+ *
+ * @param http - Shared API client.
+ * @param storeId - Store filter.
+ * @returns Checkout resources.
+ * @throws {FreshSqueezyError} On HTTP/network failure.
+ *
+ * @example
+ * ```ts
+ * const checkouts = await listCheckoutsForStore(http, 1);
+ * ```
+ */
+export const listCheckoutsForStore = async (
   http: HttpClient,
   storeId: string | number,
-): Promise<JsonApiResource<CheckoutAttributes>[]> {
+): Promise<JsonApiResource<CheckoutAttributes>[]> => {
   return http.paginate<CheckoutAttributes>("/v1/checkouts", {
     "filter[store_id]": String(storeId),
   });
-}
+};
+
+/**
+ * Create a checkout (POST /v1/checkouts).
+ * Docs: https://docs.lemonsqueezy.com/api/checkouts/create-checkout
+ *
+ * @param http - Shared API client.
+ * @param body - JSON:API create document (store + variant relationships).
+ * @returns The created checkout (includes `url` for the hosted checkout).
+ * @throws {FreshSqueezyError} On HTTP/network failure.
+ *
+ * @example
+ * ```ts
+ * const checkout = await createCheckout(http, {
+ *   data: {
+ *     type: "checkouts",
+ *     attributes: { checkout_data: { email: "buyer@example.com" } },
+ *     relationships: {
+ *       store: { data: { type: "stores", id: "1" } },
+ *       variant: { data: { type: "variants", id: "1" } },
+ *     },
+ *   },
+ * });
+ * ```
+ */
+export const createCheckout = async (
+  http: HttpClient,
+  body: unknown,
+): Promise<JsonApiResource<CheckoutAttributes>> => {
+  return http.postResource<CheckoutAttributes>("/v1/checkouts", body);
+};
