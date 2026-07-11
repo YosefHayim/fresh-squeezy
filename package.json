@@ -1,6 +1,6 @@
 {
   "name": "fresh-squeezy",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "description": "Dual-mode Lemon Squeezy ops + doctor: validate billing setup, and run docs-backed API ops (webhooks, discounts, checkouts, subscriptions, refunds, …) from CLI or TypeScript.",
   "keywords": [
     "lemon-squeezy",

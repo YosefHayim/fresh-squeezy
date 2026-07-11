@@ -127,7 +127,10 @@ jobs:
       - name: Commit version bump and create tag
         if: steps.skip_check.outputs.skip != 'true'
         run: |
-          git add package.json package-lock.json
+          # pnpm projects ship pnpm-lock.yaml; older history used package-lock.json.
+          git add package.json
+          if [ -f package-lock.json ]; then git add package-lock.json; fi
+          if [ -f pnpm-lock.yaml ]; then git add pnpm-lock.yaml; fi
           git commit -m "chore(release): ${{ steps.version.outputs.version }}"
           git tag -a "${{ steps.version.outputs.version }}" \
             -m "Release ${{ steps.version.outputs.version }} - ${{ steps.desc.outputs.title }}"
