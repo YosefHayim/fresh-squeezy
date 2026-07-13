@@ -10,11 +10,16 @@ opencode.json
 kilo.jsonc
 .clinerules/
 
+# Foreign lockfiles — repo uses pnpm; pnpm-lock.yaml is the single source of truth
+package-lock.json
+yarn.lock
+
 node_modules/
 dist/
 coverage/
 *.log
 .env
+.env*.local
 .DS_Store
 .vscode/
 .idea/
