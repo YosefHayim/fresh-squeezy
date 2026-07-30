@@ -195,6 +195,7 @@ export function extractEntries(html) {
   if (!html) return [];
 
   const entries = [];
+  // Raw row example: "heading"-like input should match.
   const headingRe = /<(h[1-6])[^>]*>(.*?)<\/\1>/gi;
   const headings = [];
   let m;
