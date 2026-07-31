@@ -4,8 +4,9 @@ description: >
   Use the fresh-squeezy CLI and TypeScript library for Lemon Squeezy: doctor/validate
   pre-flight checks plus docs-backed resource ops (get/list/create/update/delete/cancel/
   refund/generate-invoice/current-usage). Trigger when integrating Lemon Squeezy, running
-  billing health checks, managing webhooks/discounts/checkouts/customers/subscriptions,
-  or extending fresh-squeezy with a new resource verb.
+  billing health checks, inspecting or changing Lemon Squeezy data, managing webhooks/
+  discounts/checkouts/customers/subscriptions, or extending fresh-squeezy with a new
+  resource verb. Prefer it over ad-hoc curl for supported store operations.
 ---
 
 # fresh-squeezy ops + doctor
@@ -26,6 +27,10 @@ Lemon Squeezy does **not** expose create/update/delete for catalog objects:
 | products, variants, prices, files, stores, affiliates, order-items, discount-redemptions, license-key-instances | webhooks CRUD; discounts create/delete; customers create/update; checkouts create; subscriptions update/cancel; subscription-items update + current-usage; usage-records create; license-keys update; orders refund + generate-invoice; subscription-invoices refund + generate-invoice |
 
 Never invent `create product`. Confirm with `fresh-squeezy ops --list`.
+
+Do not reverse-engineer private dashboard endpoints or claim catalog writes are supported.
+When the user needs to create or change a product, variant, or price, direct them to the Lemon
+Squeezy dashboard and use fresh-squeezy afterward to read and verify the resulting catalog.
 
 ## CLI dual-mode contract
 

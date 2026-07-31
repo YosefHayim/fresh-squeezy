@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fresh Squeezy Ops"
+  short_description: "Safe Lemon Squeezy doctor and API operations"
+  default_prompt: "Use $fresh-squeezy-ops to inspect or change my Lemon Squeezy setup safely."
