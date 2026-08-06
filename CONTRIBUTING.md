@@ -5,27 +5,28 @@ Thanks for looking. `fresh-squeezy` aims to stay small and boring — contributi
 ## Prerequisites
 
 - Node.js **20+** (the library uses the native `fetch` global)
-- npm (the repo uses a single lockfile; don't introduce pnpm/yarn/bun unless the change is repo-wide)
+- **pnpm** (repo `packageManager` is `pnpm@10`; use Corepack or install pnpm 10 — don't introduce npm/yarn/bun lockfiles)
 
 ## Local setup
 
 ```bash
 git clone https://github.com/YosefHayim/fresh-squeezy.git
 cd fresh-squeezy
-npm install
+pnpm install
 cp .env.example .env   # fill in your key if you want to run the CLI
 ```
 
 ## Common commands
 
 ```bash
-npm run typecheck          # tsc --noEmit, must be clean
-npm run test               # vitest unit tests (fixtures, no network)
-npm run test:coverage      # thresholds: 80/80/75/80
-npm run test:live          # opt-in live API smoke, needs LEMON_SQUEEZY_LIVE_SMOKE=1
-npm run build              # tsup — emits dist/
-npm run dev                # tsup --watch
-npm run check:changelog    # diff Lemon Squeezy changelog vs committed snapshot
+pnpm typecheck          # tsc --noEmit, must be clean
+pnpm test               # vitest unit tests (fixtures, no network)
+pnpm test:coverage      # thresholds: 80/80/75/80
+pnpm test:live          # opt-in live API smoke, needs LEMON_SQUEEZY_LIVE_SMOKE=1
+pnpm build              # tsup — emits dist/
+pnpm dev                # tsup --watch
+pnpm check:changelog    # diff Lemon Squeezy changelog vs committed snapshot
+pnpm verify             # biome ci + tsc + vitest + build (pre-PR gate)
 ```
 
 ## Project layout
@@ -77,7 +78,7 @@ When the weekly `changelog-drift` workflow opens an issue:
 3. **If codifying or acknowledging:** add a row to `ACKNOWLEDGED_CHANGELOG_ENTRIES` in `src/support/manifest.ts` with the entry's date, a one-line summary, and the action taken (e.g. which validator handles it, or why it's intentionally unwrapped). If codifying, also wire the actual check in `src/validate/`.
 4. **Refresh the snapshot** so future runs start from the new baseline:
    ```
-   npm run check:changelog -- --update
+   pnpm check:changelog -- --update
    ```
 5. **Open a PR** titled `chore(changelog): adopt YYYY-MM-DD entries`. Include both `src/support/manifest.ts` and `src/support/changelog-snapshot.json`. Close the drift issue from the PR (e.g. `Closes #123` in the description).
 
@@ -104,8 +105,8 @@ chore(manifest): add customer_updated event (changelog 2026-02-25)
 ## Releasing
 
 1. Bump `version` in `package.json` following semver.
-2. If `src/support/manifest.ts` changed, refresh the snapshot with `npm run check:changelog -- --update`.
-3. Tag the release: `git tag vX.Y.Z && git push --tags`. The `release` workflow publishes to npm using `NPM_TOKEN`.
+2. If `src/support/manifest.ts` changed, refresh the snapshot with `pnpm check:changelog -- --update`.
+3. Tag the release: `git tag vX.Y.Z && git push --tags`. The `release` workflow publishes to the npm registry using `NPM_TOKEN`.
 
 ## Filing issues
 

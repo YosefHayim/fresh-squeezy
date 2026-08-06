@@ -196,7 +196,7 @@ result.mode;                 // "test" (declared)
 result.resource?.actualMode; // "live" — alarm bell
 ```
 
-The CLI default is `--mode test`. Override with `--mode live`. Guided setup asks for explicit confirmation before continuing with a detected live-mode key. For nightly platform-drift checks in CI, run `npm run test:live` with `LEMON_SQUEEZY_LIVE_SMOKE=1` and a test-mode key.
+The CLI default is `--mode test`. Override with `--mode live`. Guided setup asks for explicit confirmation before continuing with a detected live-mode key. For nightly platform-drift checks in CI, run `pnpm test:live` with `LEMON_SQUEEZY_LIVE_SMOKE=1` and a test-mode key.
 
 ## Environment variables
 
@@ -238,8 +238,8 @@ Validators — each returns a stable `ValidationResult`:
 Resource coverage is generated from Lemon Squeezy's object docs, so most newly documented fields don't need a hand edit:
 
 ```bash
-npm run generate:api-types
-npm run check:api-types
+pnpm generate:api-types
+pnpm check:api-types
 ```
 
 ## FAQ

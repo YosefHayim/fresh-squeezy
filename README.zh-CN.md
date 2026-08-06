@@ -158,7 +158,7 @@ result.mode;                 // "test" (declared)
 result.resource?.actualMode; // "live" — alarm bell
 ```
 
-CLI 默认是 `--mode test`。使用 `--mode live` 覆盖。在检测到正式模式密钥时，引导式配置会在继续之前要求明确确认。对于 CI 中的每夜平台漂移检查，请在设置 `LEMON_SQUEEZY_LIVE_SMOKE=1` 并使用测试模式密钥的情况下运行 `npm run test:live`。
+CLI 默认是 `--mode test`。使用 `--mode live` 覆盖。在检测到正式模式密钥时，引导式配置会在继续之前要求明确确认。对于 CI 中的每夜平台漂移检查，请在设置 `LEMON_SQUEEZY_LIVE_SMOKE=1` 并使用测试模式密钥的情况下运行 `pnpm test:live`。
 
 ## 环境变量
 
@@ -200,8 +200,8 @@ CLI 不会读取 `LEMON_SQUEEZY_STORE_ID`；请使用 `--store-ids` 或 `--all-s
 资源覆盖范围是从 Lemon Squeezy 的对象文档生成的，因此大多数新文档化的字段不需要手动编辑：
 
 ```bash
-npm run generate:api-types
-npm run check:api-types
+pnpm generate:api-types
+pnpm check:api-types
 ```
 
 ## FAQ
@@ -236,7 +236,7 @@ Lemon Squeezy 发布 API 变更（新事件、新字段、新资源）的速度�
 
 ## 贡献
 
-参见 [CONTRIBUTING.md](./CONTRIBUTING.md)。克隆仓库，运行 `npm install`、`npm test`。本项目力求保持小巧而朴素 —— 验证优先、单一 HTTP 层、稳定的 `issue.code` 契约。
+参见 [CONTRIBUTING.md](./CONTRIBUTING.md)。克隆仓库，运行 `pnpm install`、`pnpm test`。本项目力求保持小巧而朴素 —— 验证优先、单一 HTTP 层、稳定的 `issue.code` 契约。
 
 ## 贡献者
 
