@@ -25,38 +25,38 @@ export const validateWebhook = async (
   mode: Mode,
   options: WebhookValidationOptions,
 ): Promise<ValidationResult<WebhookAttributes>> => {
-  const issues: ValidationIssue[] = [];
+  const target = { label: options.url, url: options.url };
 
   const fetched = await probeCollection(() => listWebhooksForStore(http, options.storeId));
   if (!fetched.ok) {
-    issues.push(fetched.issue);
-    return buildResult<WebhookAttributes>("webhook", mode, issues, undefined, {
-      label: options.url,
-      url: options.url,
-    });
+    return buildResult<WebhookAttributes>("webhook", mode, [fetched.issue], undefined, target);
   }
-  const webhooks = fetched.resource;
 
-  const match = webhooks.find((webhook) => sameWebhookUrl(webhook.attributes.url, options.url));
+  const match = fetched.resource.find((webhook) =>
+    sameWebhookUrl(webhook.attributes.url, options.url),
+  );
   if (!match) {
-    issues.push(
-      issue(
-        ISSUE_CODES.WEBHOOK_NOT_FOUND,
-        "error",
-        `No webhook registered for URL ${options.url} on store ${options.storeId}.`,
-        {
-          suggestedFix:
-            "Register the webhook in Lemon Squeezy (Settings → Webhooks) and subscribe to the recommended events.",
-          context: { storeId: String(options.storeId), url: options.url },
-        },
-      ),
+    return buildResult<WebhookAttributes>(
+      "webhook",
+      mode,
+      [
+        issue(
+          ISSUE_CODES.WEBHOOK_NOT_FOUND,
+          "error",
+          `No webhook registered for URL ${options.url} on store ${options.storeId}.`,
+          {
+            suggestedFix:
+              "Register the webhook in Lemon Squeezy (Settings → Webhooks) and subscribe to the recommended events.",
+            context: { storeId: String(options.storeId), url: options.url },
+          },
+        ),
+      ],
+      undefined,
+      target,
     );
-    return buildResult<WebhookAttributes>("webhook", mode, issues, undefined, {
-      label: options.url,
-      url: options.url,
-    });
   }
 
+  const issues: ValidationIssue[] = [];
   const subscribed = new Set(match.attributes.events);
   const missingRecommended = RECOMMENDED_WEBHOOK_EVENTS.filter((event) => !subscribed.has(event));
   const missingOptional = OPTIONAL_WEBHOOK_EVENTS.filter((event) => !subscribed.has(event));

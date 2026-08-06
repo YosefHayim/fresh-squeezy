@@ -97,4 +97,21 @@ describe("validateProduct", () => {
     expect(result.ok).toBe(false);
     expect(result.issues.map((entry) => entry.code)).toContain("VARIANT_MISSING");
   });
+
+  it("soft-fails variant listing as a warning without failing the product check", async () => {
+    const http = makeClient([
+      { match: pathIs("/v1/products/100"), status: 200, body: publishedProductDoc },
+      {
+        match: pathIsWithQuery("/v1/variants", { "filter[product_id]": "100" }),
+        status: 500,
+        body: { errors: [{ detail: "upstream" }] },
+      },
+    ]);
+
+    const result = await validateProduct(http, "test", { productId: 100 });
+
+    expect(result.ok).toBe(true);
+    const variantIssue = result.issues.find((entry) => entry.code === "UNKNOWN");
+    expect(variantIssue?.severity).toBe("warning");
+  });
 });

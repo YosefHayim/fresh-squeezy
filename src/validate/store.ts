@@ -1,5 +1,5 @@
 import type { HttpClient } from "../core/http.js";
-import type { Mode, ValidationIssue, ValidationResult } from "../core/types.js";
+import type { Mode, ValidationResult } from "../core/types.js";
 import { type StoreAttributes, getStore } from "../resources/stores.js";
 import { probeFetch } from "./probe.js";
 import { ISSUE_CODES, buildResult } from "./rules.js";
@@ -14,7 +14,7 @@ export const validateStore = async (
   mode: Mode,
   storeId: string | number,
 ): Promise<ValidationResult<StoreAttributes>> => {
-  const issues: ValidationIssue[] = [];
+  const target = { label: `store ${storeId}`, id: String(storeId) };
 
   const fetched = await probeFetch(() => getStore(http, storeId), {
     notFoundCode: ISSUE_CODES.STORE_NOT_FOUND,
@@ -24,14 +24,10 @@ export const validateStore = async (
   });
 
   if (!fetched.ok) {
-    issues.push(fetched.issue);
-    return buildResult<StoreAttributes>("store", mode, issues, undefined, {
-      label: `store ${storeId}`,
-      id: String(storeId),
-    });
+    return buildResult<StoreAttributes>("store", mode, [fetched.issue], undefined, target);
   }
 
-  return buildResult("store", mode, issues, fetched.resource.attributes, {
+  return buildResult("store", mode, [], fetched.resource.attributes, {
     label: fetched.resource.attributes.name,
     id: String(storeId),
   });

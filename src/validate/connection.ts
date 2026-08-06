@@ -37,8 +37,6 @@ export const validateConnection = async (
   http: HttpClient,
   mode: Mode,
 ): Promise<ValidationResult<ConnectionSummary>> => {
-  const issues: ValidationIssue[] = [];
-
   const fetched = await probeCollection(
     async () => {
       const userDoc = await getAuthenticatedUser(http);
@@ -55,8 +53,7 @@ export const validateConnection = async (
   );
 
   if (!fetched.ok) {
-    issues.push(fetched.issue);
-    return buildResult("connection", mode, issues);
+    return buildResult("connection", mode, [fetched.issue]);
   }
 
   const { userDoc, stores } = fetched.resource;
@@ -68,6 +65,8 @@ export const validateConnection = async (
     declaredMode: mode,
     ...(actualMode ? { actualMode } : {}),
   };
+
+  const issues: ValidationIssue[] = [];
 
   if (actualMode && actualMode !== mode) {
     issues.push(

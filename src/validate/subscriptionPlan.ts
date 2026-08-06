@@ -38,7 +38,10 @@ export const validateSubscriptionPlan = async (
   mode: Mode,
   options: SubscriptionPlanValidationOptions,
 ): Promise<ValidationResult<SubscriptionPlanSummary>> => {
-  const issues: ValidationIssue[] = [];
+  const target = {
+    label: `variant ${options.variantId}`,
+    id: String(options.variantId),
+  };
 
   const fetched = await probeFetch(
     () => getVariant<SubscriptionVariantAttributes>(http, options.variantId),
@@ -51,36 +54,37 @@ export const validateSubscriptionPlan = async (
   );
 
   if (!fetched.ok) {
-    issues.push(fetched.issue);
-    return buildResult<SubscriptionPlanSummary>("subscriptionPlan", mode, issues, undefined, {
-      label: `variant ${options.variantId}`,
-      id: String(options.variantId),
-    });
+    return buildResult<SubscriptionPlanSummary>(
+      "subscriptionPlan",
+      mode,
+      [fetched.issue],
+      undefined,
+      target,
+    );
   }
 
   const variant = fetched.resource;
   const attrs = variant.attributes;
+  const issues = checkSubscriptionPlan(attrs, { variantId: options.variantId });
 
-  issues.push(...checkSubscriptionPlan(attrs, { variantId: options.variantId }));
-
-  // Store cross-check: fetch the parent product to compare store ownership.
-  // Needs a second fetch, so it stays out of the pure check. If the fetch
-  // fails, skip the check rather than blocking the whole validation.
-  try {
-    const product = await getProduct(http, attrs.product_id);
+  // Store cross-check needs a second fetch (parent product). Advisory only —
+  // skip on failure rather than blocking the pure attribute checks above.
+  const productProbed = await probeFetch(() => getProduct(http, attrs.product_id), {
+    notFoundCode: ISSUE_CODES.PRODUCT_NOT_FOUND,
+    notFoundMessage: `Product ${attrs.product_id} not found.`,
+  });
+  if (productProbed.ok) {
     const mismatch = checkStoreOwnership({
       expectedStoreId: options.storeId,
-      actualStoreId: product.attributes.store_id,
+      actualStoreId: productProbed.resource.attributes.store_id,
       code: ISSUE_CODES.PLAN_STORE_MISMATCH,
       label: `Subscription variant (via product ${attrs.product_id})`,
       suggestedFix: "Use the correct store ID or variant ID — plans should not cross stores.",
       extraContext: { productId: String(attrs.product_id) },
     });
     if (mismatch) issues.push(mismatch);
-  } catch {
-    // Intentionally silent — the product fetch is advisory for the store
-    // cross-check and should not block the rest of the validation.
   }
+  // product fetch failed: keep silent skip (advisory ownership only)
 
   const summary: SubscriptionPlanSummary = {
     variantId: variant.id,
