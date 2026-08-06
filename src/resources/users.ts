@@ -1,5 +1,5 @@
 import type { HttpClient } from "../core/http.js";
-import type { JsonApiDocument, JsonApiResource } from "../core/types.js";
+import type { JsonApiDocument } from "../core/types.js";
 import type { GeneratedUserAttributes } from "../generated/lemonSqueezyApiTypes.js";
 
 /**
@@ -42,17 +42,19 @@ export type AuthenticatedUserDocument = JsonApiDocument<UserAttributes> & { meta
  * validator: a successful call confirms the key is valid, surfaces the
  * account identity for logs, and exposes `meta.test_mode` for mode
  * mismatch detection.
+ *
+ * @param http - Shared API client.
+ * @returns Full `/v1/users/me` document including `meta.test_mode`.
+ * @throws {FreshSqueezyError} On HTTP/network failure.
+ *
+ * @example
+ * ```ts
+ * const doc = await getAuthenticatedUser(http);
+ * const mode = doc.meta?.test_mode ? "test" : "live";
+ * ```
  */
 export const getAuthenticatedUser = async (
   http: HttpClient,
 ): Promise<AuthenticatedUserDocument> => {
   return http.request<AuthenticatedUserDocument>({ path: "/v1/users/me" });
-};
-
-/**
- * Backwards-compatible helper if a caller only wants the resource (old
- * `getAuthenticatedUser` shape). Internal — not re-exported from the root.
- */
-export const userResource = (doc: AuthenticatedUserDocument): JsonApiResource<UserAttributes> => {
-  return doc.data;
 };

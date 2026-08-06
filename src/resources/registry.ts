@@ -462,6 +462,51 @@ export const resourceRegistry: readonly ResourceVerbSpec[] = [
 ] as const;
 
 /**
+ * Plural CLI tokens → singular registry keys.
+ * Lookups run after `_` → `-` normalization, so only kebab forms live here.
+ */
+const RESOURCE_ALIASES: Record<string, string> = {
+  products: "product",
+  stores: "store",
+  customers: "customer",
+  orders: "order",
+  "order-items": "order-item",
+  subscriptions: "subscription",
+  "subscription-items": "subscription-item",
+  "subscription-invoices": "subscription-invoice",
+  "usage-records": "usage-record",
+  discounts: "discount",
+  "discount-redemptions": "discount-redemption",
+  "license-keys": "license-key",
+  "license-key-instances": "license-key-instance",
+  checkouts: "checkout",
+  webhooks: "webhook",
+  affiliates: "affiliate",
+  variants: "variant",
+  prices: "price",
+  files: "file",
+  users: "user",
+};
+
+/**
+ * Normalize a CLI resource token to the singular registry key.
+ *
+ * @param resource - Raw token (`products`, `order_items`, `webhook`).
+ * @returns Canonical singular resource name used in `resourceRegistry`.
+ */
+export const normalizeResourceName = (resource: string): string => {
+  const normalized = resource.replace(/_/g, "-").toLowerCase();
+  if (RESOURCE_ALIASES[normalized]) {
+    return RESOURCE_ALIASES[normalized];
+  }
+  // naive singular for simple plurals; leave tokens like "status" alone
+  if (normalized.endsWith("s") && normalized !== "status") {
+    return normalized.slice(0, -1);
+  }
+  return normalized;
+};
+
+/**
  * Look up a registry entry.
  *
  * @param resource - CLI resource token.
@@ -469,33 +514,7 @@ export const resourceRegistry: readonly ResourceVerbSpec[] = [
  * @returns The spec, or undefined when not implemented / not in LS API.
  */
 export const findResourceVerb = (resource: string, verb: string): ResourceVerbSpec | undefined => {
-  const normalized = resource.replace(/_/g, "-").toLowerCase();
-  const singular =
-    normalized.endsWith("s") && normalized !== "status" ? normalized.slice(0, -1) : normalized;
-  // keep known plurals that aren't simple -s
-  const aliases: Record<string, string> = {
-    products: "product",
-    stores: "store",
-    customers: "customer",
-    orders: "order",
-    "order-items": "order-item",
-    subscriptions: "subscription",
-    "subscription-items": "subscription-item",
-    "subscription-invoices": "subscription-invoice",
-    "usage-records": "usage-record",
-    discounts: "discount",
-    "discount-redemptions": "discount-redemption",
-    "license-keys": "license-key",
-    "license-key-instances": "license-key-instance",
-    checkouts: "checkout",
-    webhooks: "webhook",
-    affiliates: "affiliate",
-    variants: "variant",
-    prices: "price",
-    files: "file",
-    users: "user",
-  };
-  const key = aliases[normalized] ?? singular;
+  const key = normalizeResourceName(resource);
   return resourceRegistry.find((entry) => entry.resource === key && entry.verb === verb);
 };
 
@@ -506,4 +525,18 @@ export const findResourceVerb = (resource: string, verb: string): ResourceVerbSp
  */
 export const listRegisteredResources = (): string[] => {
   return [...new Set(resourceRegistry.map((entry) => entry.resource))].sort();
+};
+
+/**
+ * All verbs registered for a resource (empty when unknown).
+ *
+ * @param resource - CLI resource token (plural or singular).
+ * @returns Sorted verb list for help / menus.
+ */
+export const listRegisteredVerbs = (resource: string): OpVerb[] => {
+  const key = normalizeResourceName(resource);
+  return resourceRegistry
+    .filter((entry) => entry.resource === key)
+    .map((entry) => entry.verb)
+    .sort();
 };

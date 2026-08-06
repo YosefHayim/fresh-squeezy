@@ -43,7 +43,7 @@ import {
   getUsageRecord,
   listUsageRecordsForSubscriptionItem,
 } from "./usageRecords.js";
-import { getAuthenticatedUser, userResource } from "./users.js";
+import { getAuthenticatedUser } from "./users.js";
 import { getVariant, listVariantsForProduct } from "./variants.js";
 import {
   createWebhook,
@@ -96,8 +96,10 @@ export const invokeOp = async (
 
   const key = `${spec.resource}:${spec.verb}` as const;
   switch (key) {
-    case "user:get":
-      return userResource(await getAuthenticatedUser(http));
+    case "user:get": {
+      const doc = await getAuthenticatedUser(http);
+      return doc.data;
+    }
 
     case "store:get":
       return getStore(http, requireId(args, "store"));
