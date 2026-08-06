@@ -7,11 +7,21 @@ import type {
 } from "./types.js";
 
 /**
+ * Stable FreshSqueezyError.code values for common HTTP status codes.
+ * Unlisted statuses fall through to the JSON:API error `code` or `HTTP_<status>`.
+ */
+const HTTP_STATUS_CODES = {
+  401: "UNAUTHORIZED",
+  404: "NOT_FOUND",
+  429: "RATE_LIMITED",
+} as const;
+
+/**
  * Options for a single HTTP request.
  *
  * `path` is a Lemon Squeezy API path starting with `/v1/...`. The `query`
- * record is serialized as URL search params with JSON:API-style bracketed
- * keys left untouched (e.g. `filter[store_id]`).
+ * record is serialized via `URLSearchParams` (JSON:API bracket keys such as
+ * `filter[store_id]` are accepted as-is and percent-encoded in the final URL).
  */
 export interface RequestOptions {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
@@ -41,7 +51,7 @@ interface JsonApiError {
  * Responsibilities kept in this one place (per plan.md "one source of truth
  * for transport"):
  *   - auth header injection
- *   - query string serialization with JSON:API bracket keys preserved
+ *   - query string serialization (JSON:API bracket keys via URLSearchParams)
  *   - response parsing + error normalization
  *   - surfacing HTTP status in `FreshSqueezyError`
  *
@@ -52,7 +62,7 @@ export class HttpClient {
   constructor(private readonly config: ResolvedConfig) {}
 
   async request<T>(options: RequestOptions): Promise<T> {
-    const url = this.buildUrl(options.path, options.query);
+    const url = this.requestUrl(options.path, options.query);
     const headers: Record<string, string> = {
       Authorization: `Bearer ${this.config.apiKey}`,
       Accept: "application/vnd.api+json",
@@ -61,9 +71,9 @@ export class HttpClient {
       headers["Content-Type"] = "application/vnd.api+json";
     }
 
-    let response: Response;
+    let httpResponse: Response;
     try {
-      response = await this.config.fetch(url, {
+      httpResponse = await this.config.fetch(url, {
         method: options.method ?? "GET",
         headers,
         body: options.body === undefined ? undefined : JSON.stringify(options.body),
@@ -77,11 +87,11 @@ export class HttpClient {
       });
     }
 
-    const text = await response.text();
-    const parsed = text.length > 0 ? safeJsonParse(text) : undefined;
+    const text = await httpResponse.text();
+    const parsed = text.length > 0 ? parseJsonBody(text) : undefined;
 
-    if (!response.ok) {
-      throw toApiError(response.status, parsed);
+    if (!httpResponse.ok) {
+      throw apiError(httpResponse.status, parsed);
     }
 
     return parsed as T;
@@ -175,7 +185,7 @@ export class HttpClient {
     }
   }
 
-  private buildUrl(path: string, query?: RequestOptions["query"]): string {
+  private requestUrl(path: string, query?: RequestOptions["query"]): string {
     const url = new URL(path, this.config.baseUrl);
     if (query) {
       for (const [key, value] of Object.entries(query)) {
@@ -187,7 +197,7 @@ export class HttpClient {
   }
 }
 
-const safeJsonParse = (text: string): unknown => {
+const parseJsonBody = (text: string): unknown => {
   try {
     return JSON.parse(text);
   } catch {
@@ -195,25 +205,19 @@ const safeJsonParse = (text: string): unknown => {
   }
 };
 
-const toApiError = (status: number, body: unknown): FreshSqueezyError => {
-  const errors = extractJsonApiErrors(body);
+const apiError = (status: number, responseBody: unknown): FreshSqueezyError => {
+  const errors = extractJsonApiErrors(responseBody);
   const first = errors[0];
-  const code =
-    status === 401
-      ? "UNAUTHORIZED"
-      : status === 404
-        ? "NOT_FOUND"
-        : status === 429
-          ? "RATE_LIMITED"
-          : (first?.code ?? `HTTP_${status}`);
+  const mapped = HTTP_STATUS_CODES[status as keyof typeof HTTP_STATUS_CODES];
+  const code = mapped ?? first?.code ?? `HTTP_${status}`;
   const message =
     first?.detail ?? first?.title ?? `Lemon Squeezy request failed with status ${status}`;
-  return new FreshSqueezyError({ code, status, message, detail: body });
+  return new FreshSqueezyError({ code, status, message, detail: responseBody });
 };
 
-const extractJsonApiErrors = (body: unknown): JsonApiError[] => {
-  if (!body || typeof body !== "object") return [];
-  const errors = (body as { errors?: unknown }).errors;
+const extractJsonApiErrors = (responseBody: unknown): JsonApiError[] => {
+  if (!responseBody || typeof responseBody !== "object") return [];
+  const errors = (responseBody as { errors?: unknown }).errors;
   if (!Array.isArray(errors)) return [];
   return errors.filter(
     (entry): entry is JsonApiError => typeof entry === "object" && entry !== null,

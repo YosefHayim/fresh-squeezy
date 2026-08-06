@@ -43,4 +43,22 @@ describe("resolveConfig", () => {
       /INVALID_MODE|Mode must be/i,
     );
   });
+
+  it("coerces numeric storeId to string and defaults baseUrl", () => {
+    const resolved = resolveConfig({ apiKey: "k", storeId: 42 });
+    expect(resolved.storeId).toBe("42");
+    expect(resolved.baseUrl).toBe("https://api.lemonsqueezy.com");
+  });
+
+  it("surfaces INVALID_MODE with the bad value in the message", () => {
+    let thrown: unknown;
+    try {
+      resolveConfig({ apiKey: "k", mode: "staging" as never });
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(FreshSqueezyError);
+    expect((thrown as FreshSqueezyError).code).toBe("INVALID_MODE");
+    expect((thrown as FreshSqueezyError).message).toContain("staging");
+  });
 });
