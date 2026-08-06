@@ -132,6 +132,109 @@ export const selectDoctorTargets = async (): Promise<InitDoctorTarget[]> => {
   });
 };
 
+const splitManualValues = (value: string | undefined): string[] =>
+  (value ?? "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+const required = (label: string): ((value: string) => true | string) => {
+  return (value: string) => (value.trim().length > 0 ? true : `${label} is required.`);
+};
+
+const optional = (label: string): ((value: string) => true | string) => {
+  return (value: string) => {
+    const trimmed = value.trim();
+    if (trimmed.length === 0) return true;
+    return required(label)(trimmed);
+  };
+};
+
+const validateWebhookUrl = (value: string): true | string => {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return "Webhook URL is required.";
+
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === "http:" || url.protocol === "https:"
+      ? true
+      : "Webhook URL must start with http:// or https://.";
+  } catch {
+    return "Enter a valid webhook URL.";
+  }
+};
+
+const optionalWebhookUrls = (value: string): true | string => {
+  const values = splitManualValues(value);
+  if (values.length === 0) return true;
+  return values.every((entry) => validateWebhookUrl(entry) === true)
+    ? true
+    : "Enter valid webhook URLs.";
+};
+
+const cleanList = (value: string[] | string | undefined): string[] | undefined => {
+  const values = Array.isArray(value) ? value : splitManualValues(value);
+  const cleaned = Array.from(new Set(values.map((entry) => entry.trim()).filter(Boolean)));
+  return cleaned.length > 0 ? cleaned : undefined;
+};
+
+const DOCTOR_TARGET_SPECS: Array<{
+  target: InitDoctorTarget;
+  field: DoctorTargetField;
+  group: keyof InitResourceChoices;
+  pickMessage: string;
+  emptyMessage: string;
+  manualMessage: string;
+  validate: (value: string) => true | string;
+}> = [
+  {
+    target: "product",
+    field: "productIds",
+    group: "products",
+    pickMessage: "Pick products to validate:",
+    emptyMessage: "No products selected. What now?",
+    manualMessage: "Product IDs to validate (comma-separated, leave empty to skip):",
+    validate: optional("Product ID"),
+  },
+  {
+    target: "webhook",
+    field: "webhookUrls",
+    group: "webhooks",
+    pickMessage: "Pick webhook URLs to validate:",
+    emptyMessage: "No webhook URLs selected. What now?",
+    manualMessage: "Webhook URLs to validate (comma-separated, leave empty to skip):",
+    validate: optionalWebhookUrls,
+  },
+  {
+    target: "discount",
+    field: "discountIds",
+    group: "discounts",
+    pickMessage: "Pick discounts to validate:",
+    emptyMessage: "No discounts selected. What now?",
+    manualMessage: "Discount IDs to validate (comma-separated, leave empty to skip):",
+    validate: optional("Discount ID"),
+  },
+  {
+    target: "license-key",
+    field: "licenseKeyIds",
+    group: "licenseKeys",
+    pickMessage: "Pick license keys to validate:",
+    emptyMessage: "No license keys selected. What now?",
+    manualMessage: "License key IDs to validate (comma-separated, leave empty to skip):",
+    validate: optional("License key ID"),
+  },
+  {
+    target: "subscription-plan",
+    field: "variantIds",
+    group: "subscriptionPlans",
+    pickMessage: "Pick subscription plans to validate:",
+    emptyMessage: "No subscription plans selected. What now?",
+    manualMessage:
+      "Subscription plan variant IDs to validate (comma-separated, leave empty to skip):",
+    validate: optional("Variant ID"),
+  },
+];
+
 export const askForDoctorTargetValues = async (
   targets: InitDoctorTarget[],
   choices: InitResourceChoices = EMPTY_INIT_RESOURCE_CHOICES,
@@ -141,69 +244,17 @@ export const askForDoctorTargetValues = async (
   const answers: Partial<Record<DoctorTargetField, string[] | string>> = {};
   const manualQuestions: ManualQuestion[] = [];
 
-  if (targets.includes("product")) {
+  for (const spec of DOCTOR_TARGET_SPECS) {
+    if (!targets.includes(spec.target)) continue;
     await resolveTargetValue({
       answers,
       manualQuestions,
-      group: choices.products,
-      field: "productIds",
-      pickMessage: "Pick products to validate:",
-      emptyMessage: "No products selected. What now?",
-      manualMessage: "Product IDs to validate (comma-separated, leave empty to skip):",
-      validate: optional("Product ID"),
-    });
-  }
-
-  if (targets.includes("webhook")) {
-    await resolveTargetValue({
-      answers,
-      manualQuestions,
-      group: choices.webhooks,
-      field: "webhookUrls",
-      pickMessage: "Pick webhook URLs to validate:",
-      emptyMessage: "No webhook URLs selected. What now?",
-      manualMessage: "Webhook URLs to validate (comma-separated, leave empty to skip):",
-      validate: optionalWebhookUrls,
-    });
-  }
-
-  if (targets.includes("discount")) {
-    await resolveTargetValue({
-      answers,
-      manualQuestions,
-      group: choices.discounts,
-      field: "discountIds",
-      pickMessage: "Pick discounts to validate:",
-      emptyMessage: "No discounts selected. What now?",
-      manualMessage: "Discount IDs to validate (comma-separated, leave empty to skip):",
-      validate: optional("Discount ID"),
-    });
-  }
-
-  if (targets.includes("license-key")) {
-    await resolveTargetValue({
-      answers,
-      manualQuestions,
-      group: choices.licenseKeys,
-      field: "licenseKeyIds",
-      pickMessage: "Pick license keys to validate:",
-      emptyMessage: "No license keys selected. What now?",
-      manualMessage: "License key IDs to validate (comma-separated, leave empty to skip):",
-      validate: optional("License key ID"),
-    });
-  }
-
-  if (targets.includes("subscription-plan")) {
-    await resolveTargetValue({
-      answers,
-      manualQuestions,
-      group: choices.subscriptionPlans,
-      field: "variantIds",
-      pickMessage: "Pick subscription plans to validate:",
-      emptyMessage: "No subscription plans selected. What now?",
-      manualMessage:
-        "Subscription plan variant IDs to validate (comma-separated, leave empty to skip):",
-      validate: optional("Variant ID"),
+      group: choices[spec.group],
+      field: spec.field,
+      pickMessage: spec.pickMessage,
+      emptyMessage: spec.emptyMessage,
+      manualMessage: spec.manualMessage,
+      validate: spec.validate,
     });
   }
 
@@ -311,53 +362,6 @@ const askEmptyTargetAction = async (message: string): Promise<EmptyTargetAction>
       { name: "Skip this check", value: "skip" },
     ],
   });
-};
-
-const required = (label: string): ((value: string) => true | string) => {
-  return (value: string) => (value.trim().length > 0 ? true : `${label} is required.`);
-};
-
-const optional = (label: string): ((value: string) => true | string) => {
-  return (value: string) => {
-    const trimmed = value.trim();
-    if (trimmed.length === 0) return true;
-    return required(label)(trimmed);
-  };
-};
-
-const validateWebhookUrl = (value: string): true | string => {
-  const trimmed = value.trim();
-  if (trimmed.length === 0) return "Webhook URL is required.";
-
-  try {
-    const url = new URL(trimmed);
-    return url.protocol === "http:" || url.protocol === "https:"
-      ? true
-      : "Webhook URL must start with http:// or https://.";
-  } catch {
-    return "Enter a valid webhook URL.";
-  }
-};
-
-const optionalWebhookUrls = (value: string): true | string => {
-  const values = splitManualValues(value);
-  if (values.length === 0) return true;
-  return values.every((entry) => validateWebhookUrl(entry) === true)
-    ? true
-    : "Enter valid webhook URLs.";
-};
-
-const cleanList = (value: string[] | string | undefined): string[] | undefined => {
-  const values = Array.isArray(value) ? value : splitManualValues(value);
-  const cleanValues = Array.from(new Set(values.map((entry) => entry.trim()).filter(Boolean)));
-  return cleanValues.length > 0 ? cleanValues : undefined;
-};
-
-const splitManualValues = (value: string | undefined): string[] => {
-  return (value ?? "")
-    .split(",")
-    .map((entry) => entry.trim())
-    .filter(Boolean);
 };
 
 const formatPromptPath = (filePath: string): string => {

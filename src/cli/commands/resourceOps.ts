@@ -84,28 +84,28 @@ export const runResourceOpCommand = async (options: ResourceOpCommandOptions): P
 
     const config = resolveConfig({ mode: options.mode });
     const http = new HttpClient(config);
-    const data = await invokeOp(http, options.resource, options.verb, {
+    const opBody = await invokeOp(http, options.resource, options.verb, {
       id: options.id,
       storeId: options.storeIds?.[0],
       parentId: options.parentId,
       body,
     });
 
-    const payload = {
+    const envelope = {
       ok: true as const,
       mode: client.mode,
       resource: spec.resource,
       verb: spec.verb,
       docs: `https://docs.lemonsqueezy.com/api/${spec.docsPath}`,
-      data: data ?? null,
+      data: opBody ?? null,
     };
 
     if (options.json) {
-      process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
+      process.stdout.write(`${JSON.stringify(envelope, null, 2)}\n`);
     } else {
       process.stdout.write(
         `${spec.verb} ${spec.resource} — ok (mode=${client.mode})\n` +
-          `${JSON.stringify(data ?? null, null, 2)}\n`,
+          `${JSON.stringify(opBody ?? null, null, 2)}\n`,
       );
     }
     return 0;
@@ -185,16 +185,12 @@ const assertWriteSafety = async (
 };
 
 const readBody = (options: ResourceOpCommandOptions): unknown | undefined => {
+  // Bodies come from flags only — never auto-read stdin (would hang non-TTY pipes).
   if (options.bodyFile) {
-    const text = readFileSync(options.bodyFile, "utf8");
-    return JSON.parse(text) as unknown;
+    return JSON.parse(readFileSync(options.bodyFile, "utf8")) as unknown;
   }
   if (options.body !== undefined) {
     return JSON.parse(options.body) as unknown;
-  }
-  if (!process.stdin.isTTY && !options.isInteractive) {
-    // Non-TTY may supply body on stdin when flags didn't.
-    // Commander often consumes argv only; skip auto-stdin to avoid hangs.
   }
   return undefined;
 };

@@ -20,6 +20,7 @@ import {
 } from "../prompts.js";
 import { renderReport } from "../render.js";
 import {
+  EMPTY_INIT_RESOURCE_CHOICES,
   type InitResourceChoices,
   type ResourceChoiceGroup,
   discoverInitResourceChoices,
@@ -163,15 +164,7 @@ const discoverChoices = async (
   storeId: string,
   selectedTargets: InitDoctorTarget[],
 ): Promise<InitResourceChoices> => {
-  if (selectedTargets.length === 0)
-    return {
-      products: { choices: [] },
-      webhooks: { choices: [] },
-      discounts: { choices: [] },
-      licenseKeys: { choices: [] },
-      subscriptionPlans: { choices: [] },
-    };
-
+  if (selectedTargets.length === 0) return EMPTY_INIT_RESOURCE_CHOICES;
   return discoverInitResourceChoices(client, storeId, selectedTargets);
 };
 

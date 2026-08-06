@@ -23,17 +23,28 @@ import { renderCliError } from "./errors.js";
 
 dotenv.config();
 
+const OP_VERBS: OpVerb[] = [
+  "get",
+  "list",
+  "create",
+  "update",
+  "delete",
+  "cancel",
+  "refund",
+  "generate-invoice",
+  "current-usage",
+];
+
 const parseMode = (value: string): Mode => {
   if (value === "test" || value === "live") return value;
   throw new Error(`Mode must be "test" or "live", got "${value}"`);
 };
 
-const parseCsv = (value: string): string[] => {
-  return value
+const parseCsv = (value: string): string[] =>
+  value
     .split(",")
     .map((entry) => entry.trim())
     .filter((entry) => entry.length > 0);
-};
 
 const readPackageVersion = (): string => {
   const candidates = [
@@ -43,21 +54,23 @@ const readPackageVersion = (): string => {
 
   for (const candidate of candidates) {
     try {
-      const payload = JSON.parse(readFileSync(candidate, "utf8")) as { version?: unknown };
-      if (typeof payload.version === "string") return payload.version;
+      const pkg = JSON.parse(readFileSync(candidate, "utf8")) as { version?: unknown };
+      if (typeof pkg.version === "string") return pkg.version;
     } catch {
-      // Try the next path. Source runs from src/cli, the built binary runs from dist.
+      // Source runs from src/cli; the built binary runs from dist.
     }
   }
 
   return "0.0.0";
 };
 
-interface DoctorCliOpts {
+const isInteractive = Boolean(process.stdin.isTTY);
+const packageVersion = readPackageVersion();
+
+interface SharedCliOpts {
   mode?: Mode;
   storeIds?: string[];
   allStores?: boolean;
-  allResources?: boolean;
   productId?: string;
   webhookUrl?: string;
   discountId?: string;
@@ -66,16 +79,8 @@ interface DoctorCliOpts {
   json?: boolean;
 }
 
-interface ValidateCliOpts {
-  mode?: Mode;
-  storeIds?: string[];
-  allStores?: boolean;
-  productId?: string;
-  webhookUrl?: string;
-  discountId?: string;
-  licenseKeyId?: string;
-  variantId?: string;
-  json?: boolean;
+interface DoctorCliOpts extends SharedCliOpts {
+  allResources?: boolean;
 }
 
 interface ResourceOpCliOpts {
@@ -89,23 +94,105 @@ interface ResourceOpCliOpts {
   json?: boolean;
 }
 
-const isInteractive = Boolean(process.stdin.isTTY);
-const packageVersion = readPackageVersion();
+/** Store-flag shapes reused by validate targets. */
+type StoreFlagKind = "none" | "multi" | "ownership";
 
-const runValidate = async (target: ValidateTarget, opts: ValidateCliOpts): Promise<void> => {
-  const code = await runValidateCommand(target, {
-    mode: opts.mode,
-    storeIds: opts.storeIds,
-    allStores: Boolean(opts.allStores),
-    productId: opts.productId,
-    webhookUrl: opts.webhookUrl,
-    discountId: opts.discountId,
-    licenseKeyId: opts.licenseKeyId,
-    variantId: opts.variantId,
-    json: Boolean(opts.json),
-    isInteractive,
-  });
-  process.exit(code);
+interface ValidateCommandSpec {
+  name: ValidateTarget;
+  description: string;
+  stores: StoreFlagKind;
+  required?: [flag: string, description: string];
+  /** Extra store-ids help text when `stores` is multi/ownership. */
+  storeIdsHelp?: string;
+}
+
+const VALIDATE_COMMANDS: ValidateCommandSpec[] = [
+  {
+    name: "connection",
+    description: "Check that the API key authenticates",
+    stores: "none",
+  },
+  {
+    name: "store",
+    description: "Check one or more stores are reachable",
+    stores: "multi",
+    storeIdsHelp: "Comma-separated store IDs",
+  },
+  {
+    name: "product",
+    description: "Check a product is published with at least one variant",
+    stores: "ownership",
+    required: ["--product-id <id>", "Product ID to validate"],
+    storeIdsHelp: "Expected owning store IDs (first is used for cross-check)",
+  },
+  {
+    name: "webhook",
+    description: "Check a webhook is registered with the recommended events",
+    stores: "multi",
+    required: ["--webhook-url <url>", "Public webhook URL"],
+    storeIdsHelp: "Comma-separated store IDs",
+  },
+  {
+    name: "discount",
+    description: "Check a discount code is valid and redeemable",
+    stores: "ownership",
+    required: ["--discount-id <id>", "Discount ID to validate"],
+    storeIdsHelp: "Store ID for ownership check (first ID used)",
+  },
+  {
+    name: "license-key",
+    description: "Check a license key is active and not at its activation limit",
+    stores: "ownership",
+    required: ["--license-key-id <id>", "License key ID to validate"],
+    storeIdsHelp: "Store ID for ownership check (first ID used)",
+  },
+  {
+    name: "subscription-plan",
+    description: "Check a subscription plan variant has valid billing interval and trial config",
+    stores: "ownership",
+    required: ["--variant-id <id>", "Variant ID of the subscription plan"],
+    storeIdsHelp: "Store ID for ownership check (first ID used)",
+  },
+];
+
+const exitWith = async (code: Promise<number> | number): Promise<void> => {
+  process.exit(await code);
+};
+
+const toValidateOptions = (opts: SharedCliOpts) => ({
+  mode: opts.mode,
+  storeIds: opts.storeIds,
+  allStores: Boolean(opts.allStores),
+  productId: opts.productId,
+  webhookUrl: opts.webhookUrl,
+  discountId: opts.discountId,
+  licenseKeyId: opts.licenseKeyId,
+  variantId: opts.variantId,
+  json: Boolean(opts.json),
+  isInteractive,
+});
+
+const attachModeJson = (cmd: Command): Command =>
+  cmd
+    .option("-m, --mode <mode>", "test or live", parseMode)
+    .option("--json", "Emit machine-readable JSON");
+
+const attachValidateFlags = (cmd: Command, spec: ValidateCommandSpec): Command => {
+  if (spec.required) cmd.requiredOption(spec.required[0], spec.required[1]);
+
+  if (spec.stores === "multi") {
+    cmd
+      .option("--store-ids <ids>", spec.storeIdsHelp ?? "Comma-separated store IDs", parseCsv)
+      .option("--all-stores", "Run against every reachable store");
+  } else if (spec.stores === "ownership") {
+    cmd.option(
+      "--store-ids <ids>",
+      spec.storeIdsHelp ?? "Store ID for ownership check (first ID used)",
+      parseCsv,
+    );
+  }
+
+  return attachModeJson(cmd);
 };
 
 const program = new Command();
@@ -157,12 +244,13 @@ program.action(async (opts: { install?: boolean }) => {
     process.exit(2);
   }
 
-  const code = await runLauncherCommand({
-    isInteractive,
-    install: opts.install,
-    packageVersion,
-  });
-  process.exit(code);
+  await exitWith(
+    runLauncherCommand({
+      isInteractive,
+      install: opts.install,
+      packageVersion,
+    }),
+  );
 });
 
 const doctor = program
@@ -182,20 +270,12 @@ const doctor = program
   .option("--variant-id <id>", "Subscription plan variant to validate")
   .option("--json", "Emit machine-readable JSON")
   .action(async (opts: DoctorCliOpts) => {
-    const code = await runDoctorCommand({
-      mode: opts.mode,
-      storeIds: opts.storeIds,
-      allStores: Boolean(opts.allStores),
-      allResources: Boolean(opts.allResources),
-      productId: opts.productId,
-      webhookUrl: opts.webhookUrl,
-      discountId: opts.discountId,
-      licenseKeyId: opts.licenseKeyId,
-      variantId: opts.variantId,
-      json: Boolean(opts.json),
-      isInteractive,
-    });
-    process.exit(code);
+    await exitWith(
+      runDoctorCommand({
+        ...toValidateOptions(opts),
+        allResources: Boolean(opts.allResources),
+      }),
+    );
   });
 
 doctor.addHelpText(
@@ -225,79 +305,20 @@ Targets:
 `,
 );
 
-validate
-  .command("connection")
-  .description("Check that the API key authenticates")
-  .option("-m, --mode <mode>", "test or live", parseMode)
-  .option("--json", "Emit machine-readable JSON")
-  .action(async (opts: ValidateCliOpts) => runValidate("connection", opts));
-
-validate
-  .command("store")
-  .description("Check one or more stores are reachable")
-  .option("--store-ids <ids>", "Comma-separated store IDs", parseCsv)
-  .option("--all-stores", "Run against every reachable store")
-  .option("-m, --mode <mode>", "test or live", parseMode)
-  .option("--json", "Emit machine-readable JSON")
-  .action(async (opts: ValidateCliOpts) => runValidate("store", opts));
-
-validate
-  .command("product")
-  .description("Check a product is published with at least one variant")
-  .requiredOption("--product-id <id>", "Product ID to validate")
-  .option(
-    "--store-ids <ids>",
-    "Expected owning store IDs (first is used for cross-check)",
-    parseCsv,
-  )
-  .option("-m, --mode <mode>", "test or live", parseMode)
-  .option("--json", "Emit machine-readable JSON")
-  .action(async (opts: ValidateCliOpts) => runValidate("product", opts));
-
-validate
-  .command("webhook")
-  .description("Check a webhook is registered with the recommended events")
-  .requiredOption("--webhook-url <url>", "Public webhook URL")
-  .option("--store-ids <ids>", "Comma-separated store IDs", parseCsv)
-  .option("--all-stores", "Run against every reachable store")
-  .option("-m, --mode <mode>", "test or live", parseMode)
-  .option("--json", "Emit machine-readable JSON")
-  .action(async (opts: ValidateCliOpts) => runValidate("webhook", opts));
-
-validate
-  .command("discount")
-  .description("Check a discount code is valid and redeemable")
-  .requiredOption("--discount-id <id>", "Discount ID to validate")
-  .option("--store-ids <ids>", "Store ID for ownership check (first ID used)", parseCsv)
-  .option("-m, --mode <mode>", "test or live", parseMode)
-  .option("--json", "Emit machine-readable JSON")
-  .action(async (opts: ValidateCliOpts) => runValidate("discount", opts));
-
-validate
-  .command("license-key")
-  .description("Check a license key is active and not at its activation limit")
-  .requiredOption("--license-key-id <id>", "License key ID to validate")
-  .option("--store-ids <ids>", "Store ID for ownership check (first ID used)", parseCsv)
-  .option("-m, --mode <mode>", "test or live", parseMode)
-  .option("--json", "Emit machine-readable JSON")
-  .action(async (opts: ValidateCliOpts) => runValidate("license-key", opts));
-
-validate
-  .command("subscription-plan")
-  .description("Check a subscription plan variant has valid billing interval and trial config")
-  .requiredOption("--variant-id <id>", "Variant ID of the subscription plan")
-  .option("--store-ids <ids>", "Store ID for ownership check (first ID used)", parseCsv)
-  .option("-m, --mode <mode>", "test or live", parseMode)
-  .option("--json", "Emit machine-readable JSON")
-  .action(async (opts: ValidateCliOpts) => runValidate("subscription-plan", opts));
+for (const spec of VALIDATE_COMMANDS) {
+  attachValidateFlags(validate.command(spec.name).description(spec.description), spec).action(
+    async (opts: SharedCliOpts) => {
+      await exitWith(runValidateCommand(spec.name, toValidateOptions(opts)));
+    },
+  );
+}
 
 program
   .command("init")
   .description("Interactive setup: ask for credentials, pick a store, run doctor")
   .option("--env-file <path>", "Where to write credentials (default: .env)")
   .action(async (opts: { envFile?: string }) => {
-    const code = await runInitCommand({ envFile: opts.envFile, isInteractive });
-    process.exit(code);
+    await exitWith(runInitCommand({ envFile: opts.envFile, isInteractive }));
   });
 
 const types = program
@@ -314,8 +335,7 @@ types
   .option("--out <path>", "Output path (default: lemonsqueezy.augment.d.ts in CWD)")
   .option("--force", "Emit the generic file even when @lemonsqueezy/lemonsqueezy.js is detected")
   .action(async (opts: { out?: string; force?: boolean }) => {
-    const code = await runAugmentCommand({ out: opts.out, force: Boolean(opts.force) });
-    process.exit(code);
+    await exitWith(runAugmentCommand({ out: opts.out, force: Boolean(opts.force) }));
   });
 
 program
@@ -324,26 +344,15 @@ program
   .option("--list", "Print the full verb matrix", true)
   .option("--json", "Emit machine-readable JSON")
   .action(async (opts: { json?: boolean }) => {
-    const code = await runResourceOpCommand({
-      resource: "",
-      verb: "get",
-      listCatalog: true,
-      json: Boolean(opts.json),
-    });
-    process.exit(code);
+    await exitWith(
+      runResourceOpCommand({
+        resource: "",
+        verb: "get",
+        listCatalog: true,
+        json: Boolean(opts.json),
+      }),
+    );
   });
-
-const OP_VERBS: OpVerb[] = [
-  "get",
-  "list",
-  "create",
-  "update",
-  "delete",
-  "cancel",
-  "refund",
-  "generate-invoice",
-  "current-usage",
-];
 
 for (const verb of OP_VERBS) {
   program
@@ -365,20 +374,21 @@ for (const verb of OP_VERBS) {
     .option("--yes", "Skip confirm; required for live writes and destructive ops when non-TTY")
     .option("--json", "Emit machine-readable JSON")
     .action(async (resource: string, opts: ResourceOpCliOpts) => {
-      const code = await runResourceOpCommand({
-        verb,
-        resource,
-        mode: opts.mode,
-        id: opts.id,
-        storeIds: opts.storeIds,
-        parentId: opts.parentId,
-        body: opts.body,
-        bodyFile: opts.bodyFile,
-        yes: Boolean(opts.yes),
-        json: Boolean(opts.json),
-        isInteractive,
-      });
-      process.exit(code);
+      await exitWith(
+        runResourceOpCommand({
+          verb,
+          resource,
+          mode: opts.mode,
+          id: opts.id,
+          storeIds: opts.storeIds,
+          parentId: opts.parentId,
+          body: opts.body,
+          bodyFile: opts.bodyFile,
+          yes: Boolean(opts.yes),
+          json: Boolean(opts.json),
+          isInteractive,
+        }),
+      );
     });
 }
 
