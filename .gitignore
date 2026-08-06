@@ -17,6 +17,7 @@ yarn.lock
 node_modules/
 dist/
 coverage/
+.worktrees/
 *.log
 .env
 .env*.local

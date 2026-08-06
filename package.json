@@ -39,17 +39,14 @@
   "bin": {
     "fresh-squeezy": "./dist/cli.js"
   },
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
-  ],
+  "files": ["dist", "README.md", "LICENSE"],
   "engines": {
     "node": ">=20"
   },
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
+    "cli": "node dist/cli.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -58,7 +55,8 @@
     "format": "biome format --write .",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "verify": "biome ci . && tsc --noEmit && vitest run && pnpm build",
+    "check:ci": "biome ci .",
+    "verify": "pnpm check:ci && pnpm typecheck && pnpm test && pnpm build",
     "check:changelog": "node src/scripts/check-changelog.mjs",
     "generate:api-types": "node src/scripts/generate-api-types.mjs --update",
     "check:api-types": "node src/scripts/generate-api-types.mjs",

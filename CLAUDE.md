@@ -1,17 +1,12 @@
 # CLAUDE.md
 
-Project-level guidance for Claude Code working in this repo.
+Thin pointer for Claude Code. Do not maintain a parallel rulebook here.
 
-## Agent skills
+| Need | Source |
+|------|--------|
+| Conventions, layout, golden path | `AGENTS.md` (digest) |
+| Style SSOT (edit here) | `CODE-STYLE.md` |
+| Issue tracker / triage / domain | `docs/agents/` |
+| Ops skill | `skills/fresh-squeezy-ops/SKILL.md` |
 
-### Issue tracker
-
-Issues live in GitHub Issues at `YosefHayim/fresh-squeezy`, managed via the `gh` CLI. See `docs/agents/issue-tracker.md`.
-
-### Triage labels
-
-Canonical role names (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`) map 1:1 to GitHub label strings. See `docs/agents/triage-labels.md`.
-
-### Domain docs
-
-Single-context layout: one `CONTEXT.md` and `docs/adr/` at the repo root (created lazily by `/grill-with-docs`). See `docs/agents/domain.md`.
+Verify gate: `pnpm verify` (`check:ci` + `typecheck` + `test` + `build`).

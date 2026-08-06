@@ -27,8 +27,8 @@ Single-context layout: one `CONTEXT.md` and `docs/adr/` at the repo root (create
 - **Validators:** rich ones (`product`/`discount`/`licenseKey`/`subscriptionPlan`) split a pure `check*(attributes)` from the fetch; thin ones stay fused. Error → issue mapping goes through `probeFetch`/`probeCollection` — no hand-rolled mapping, no silent `catch {}`.
 - **Ops:** docs-backed only (`resourceRegistry` + `docsPath`). No inventing product/variant create. Nested client + CLI hybrid verbs via `invokeOp`.
 - **Docs:** TSDoc why + `@param` + `@returns` + `@example` (+ `@throws` on ops). Agent skill: `skills/fresh-squeezy-ops/SKILL.md`.
-- **Formatting:** Biome (`npm run format` / `npm run lint`) — double quotes, semicolons, width 100, trailing commas. See `biome.json` (ADR-0001).
-- **CLI:** bare + TTY → action menu; flags/non-TTY defer, never hang; both call the same command functions. Exit `0`/`1`/`2`/`130`. Live/destructive ops need `--yes` or TTY confirm.
+- **Formatting:** Biome (`pnpm format` / `pnpm lint` / `pnpm check:ci`) — double quotes, semicolons, width 100, trailing commas. See `biome.json` (ADR-0001). Gate: `pnpm verify`.
+- **CLI:** bare + TTY → action menu; flags/non-TTY defer, never hang; both call the same command functions. Exit `0`/`1`/`2`/`130`. Live/destructive ops need `--yes` or TTY confirm. After build: `pnpm cli` → `node dist/cli.js` (published bin).
 - **Golden path (resource verb):** docs confirm → `resources/*` helper → registry → `invokeOp` + nested client → tests → `pnpm verify`.
 
 Full guide with before/after: `CODE-STYLE.md`. Architecture decisions: `docs/adr/current/`.
