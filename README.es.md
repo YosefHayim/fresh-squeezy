@@ -158,7 +158,7 @@ result.mode;                 // "test" (declared)
 result.resource?.actualMode; // "live" — alarm bell
 ```
 
-El valor por defecto de la CLI es `--mode test`. Anúlalo con `--mode live`. La configuración guiada pide confirmación explícita antes de continuar con una clave de modo live detectada. Para verificaciones nocturnas de desviación de la plataforma en CI, ejecuta `npm run test:live` con `LEMON_SQUEEZY_LIVE_SMOKE=1` y una clave de modo test.
+El valor por defecto de la CLI es `--mode test`. Anúlalo con `--mode live`. La configuración guiada pide confirmación explícita antes de continuar con una clave de modo live detectada. Para verificaciones nocturnas de desviación de la plataforma en CI, ejecuta `pnpm test:live` con `LEMON_SQUEEZY_LIVE_SMOKE=1` y una clave de modo test.
 
 ## Variables de entorno
 
@@ -200,8 +200,8 @@ Validadores — cada uno devuelve un `ValidationResult` estable:
 La cobertura de recursos se genera a partir de la documentación de objetos de Lemon Squeezy, por lo que la mayoría de los campos recién documentados no necesitan una edición manual:
 
 ```bash
-npm run generate:api-types
-npm run check:api-types
+pnpm generate:api-types
+pnpm check:api-types
 ```
 
 ## FAQ
@@ -236,7 +236,7 @@ Conexión/autenticación, tiendas, productos (y variantes), webhooks, descuentos
 
 ## Contribuir
 
-Consulta [CONTRIBUTING.md](./CONTRIBUTING.md). Clona, `npm install`, `npm test`. El proyecto busca mantenerse pequeño y aburrido — con enfoque en validación, una sola capa HTTP y un contrato `issue.code` estable.
+Consulta [CONTRIBUTING.md](./CONTRIBUTING.md). Clona, `pnpm install`, `pnpm test`. El proyecto busca mantenerse pequeño y aburrido — con enfoque en validación, una sola capa HTTP y un contrato `issue.code` estable.
 
 ## Colaboradores
 

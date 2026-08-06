@@ -158,7 +158,7 @@ result.mode;                 // "test" (declared)
 result.resource?.actualMode; // "live" — alarm bell
 ```
 
-CLI のデフォルトは `--mode test` です。`--mode live` で上書きできます。ガイド付きセットアップは、ライブモードのキーが検出された場合、続行前に明示的な確認を求めます。CI での夜間プラットフォームドリフトチェックには、`LEMON_SQUEEZY_LIVE_SMOKE=1` とテストモードのキーを設定して `npm run test:live` を実行してください。
+CLI のデフォルトは `--mode test` です。`--mode live` で上書きできます。ガイド付きセットアップは、ライブモードのキーが検出された場合、続行前に明示的な確認を求めます。CI での夜間プラットフォームドリフトチェックには、`LEMON_SQUEEZY_LIVE_SMOKE=1` とテストモードのキーを設定して `pnpm test:live` を実行してください。
 
 ## 環境変数
 
@@ -200,8 +200,8 @@ CI では `issue.code` で分岐してください — すべてのコードは�
 リソースカバレッジは Lemon Squeezy のオブジェクトドキュメントから生成されるため、新たにドキュメント化されたフィールドのほとんどは手動編集を必要としません:
 
 ```bash
-npm run generate:api-types
-npm run check:api-types
+pnpm generate:api-types
+pnpm check:api-types
 ```
 
 ## FAQ
@@ -236,7 +236,7 @@ Lemon Squeezy は、クライアント SDK が採用するよりも速く API �
 
 ## コントリビューション
 
-[CONTRIBUTING.md](./CONTRIBUTING.md) を参照してください。クローンし、`npm install`、`npm test` を実行します。本プロジェクトは小さく退屈であり続けることを目指しています — バリデーター優先、単一の HTTP レイヤー、安定した `issue.code` 契約。
+[CONTRIBUTING.md](./CONTRIBUTING.md) を参照してください。クローンし、`pnpm install`、`pnpm test` を実行します。本プロジェクトは小さく退屈であり続けることを目指しています — バリデーター優先、単一の HTTP レイヤー、安定した `issue.code` 契約。
 
 ## コントリビューター
 

@@ -54,6 +54,3 @@ Near-term: honor the interactive front door (bare → action menu, ADR-0003); ti
 internal purity (layer direction + pure `check*()` extraction, ADR-0004); adopt Biome
 (ADR-0001) and the leaner dependency set (ADR-0002). Ongoing: keep coverage of the Lemon
 Squeezy surface current via the drift workflow and the generated API types.
-
-> Note: `CONTRIBUTING.md` references a `plan.md` and `docs/MANUAL_QA.md` that do not exist;
-> this file is the real home for the non-goals, and those stale references should be fixed.
