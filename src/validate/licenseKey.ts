@@ -20,7 +20,10 @@ export const validateLicenseKey = async (
   mode: Mode,
   options: LicenseKeyValidationOptions,
 ): Promise<ValidationResult<LicenseKeyAttributes>> => {
-  const issues: ValidationIssue[] = [];
+  const target = {
+    label: `license key ${options.licenseKeyId}`,
+    id: String(options.licenseKeyId),
+  };
 
   const fetched = await probeFetch(() => getLicenseKey(http, options.licenseKeyId), {
     notFoundCode: ISSUE_CODES.LICENSE_KEY_NOT_FOUND,
@@ -30,20 +33,23 @@ export const validateLicenseKey = async (
   });
 
   if (!fetched.ok) {
-    issues.push(fetched.issue);
-    return buildResult<LicenseKeyAttributes>("licenseKey", mode, issues, undefined, {
-      label: `license key ${options.licenseKeyId}`,
-      id: String(options.licenseKeyId),
-    });
+    return buildResult<LicenseKeyAttributes>(
+      "licenseKey",
+      mode,
+      [fetched.issue],
+      undefined,
+      target,
+    );
   }
 
   const attrs = fetched.resource.attributes;
-  issues.push(...checkLicenseKey(attrs, { storeId: options.storeId }));
-
-  return buildResult("licenseKey", mode, issues, attrs, {
-    label: attrs.key_short,
-    id: String(options.licenseKeyId),
-  });
+  return buildResult(
+    "licenseKey",
+    mode,
+    checkLicenseKey(attrs, { storeId: options.storeId }),
+    attrs,
+    { label: attrs.key_short, id: String(options.licenseKeyId) },
+  );
 };
 
 /**

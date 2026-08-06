@@ -26,7 +26,10 @@ export const validateDiscount = async (
   mode: Mode,
   options: DiscountValidationOptions,
 ): Promise<ValidationResult<DiscountAttributes>> => {
-  const issues: ValidationIssue[] = [];
+  const target = {
+    label: `discount ${options.discountId}`,
+    id: String(options.discountId),
+  };
 
   const fetched = await probeFetch(() => getDiscount(http, options.discountId), {
     notFoundCode: ISSUE_CODES.DISCOUNT_NOT_FOUND,
@@ -36,17 +39,11 @@ export const validateDiscount = async (
   });
 
   if (!fetched.ok) {
-    issues.push(fetched.issue);
-    return buildResult<DiscountAttributes>("discount", mode, issues, undefined, {
-      label: `discount ${options.discountId}`,
-      id: String(options.discountId),
-    });
+    return buildResult<DiscountAttributes>("discount", mode, [fetched.issue], undefined, target);
   }
 
   const attrs = fetched.resource.attributes;
-  issues.push(...checkDiscount(attrs, { storeId: options.storeId }));
-
-  return buildResult("discount", mode, issues, attrs, {
+  return buildResult("discount", mode, checkDiscount(attrs, { storeId: options.storeId }), attrs, {
     label: `${attrs.name} (${attrs.code})`,
     id: String(options.discountId),
   });

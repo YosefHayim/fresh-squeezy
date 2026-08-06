@@ -2,7 +2,7 @@ import type { HttpClient } from "../core/http.js";
 import type { Mode, ValidationIssue, ValidationResult } from "../core/types.js";
 import { type ProductAttributes, getProduct } from "../resources/products.js";
 import { listVariantsForProduct } from "../resources/variants.js";
-import { checkStoreOwnership, probeFetch } from "./probe.js";
+import { checkStoreOwnership, probeCollection, probeFetch } from "./probe.js";
 import { ISSUE_CODES, buildResult, issue } from "./rules.js";
 
 export interface ProductValidationOptions {
@@ -22,6 +22,10 @@ export const validateProduct = async (
   options: ProductValidationOptions,
 ): Promise<ValidationResult<ProductAttributes>> => {
   const issues: ValidationIssue[] = [];
+  const target = {
+    label: `product ${options.productId}`,
+    id: String(options.productId),
+  };
 
   const fetched = await probeFetch(() => getProduct(http, options.productId), {
     notFoundCode: ISSUE_CODES.PRODUCT_NOT_FOUND,
@@ -31,41 +35,39 @@ export const validateProduct = async (
   });
 
   if (!fetched.ok) {
-    issues.push(fetched.issue);
-    return buildResult<ProductAttributes>("product", mode, issues, undefined, {
-      label: `product ${options.productId}`,
-      id: String(options.productId),
-    });
+    return buildResult<ProductAttributes>("product", mode, [fetched.issue], undefined, target);
   }
 
   const attrs = fetched.resource.attributes;
   issues.push(...checkProduct(attrs, { expectedStoreId: options.expectedStoreId }));
 
   // Variant population needs a second fetch, so it stays out of the pure check.
-  try {
-    const variants = await listVariantsForProduct(http, options.productId);
-    if (variants.length === 0) {
-      issues.push(
-        issue(
-          ISSUE_CODES.VARIANT_MISSING,
-          "error",
-          "Product has no variants. Customers cannot purchase it.",
-          { suggestedFix: "Add at least one variant in the product configuration." },
-        ),
-      );
-    } else if (!variants.some((variant) => variant.attributes.status === "published")) {
-      issues.push(
-        issue(
-          ISSUE_CODES.VARIANT_UNPUBLISHED,
-          "error",
-          "Product has variants but none are published.",
-          { suggestedFix: "Publish at least one variant." },
-        ),
-      );
-    }
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error fetching variants";
-    issues.push(issue(ISSUE_CODES.UNKNOWN, "warning", message));
+  // Listing is best-effort: map via probeCollection, then soft-fail as warning.
+  const variantsProbed = await probeCollection(() =>
+    listVariantsForProduct(http, options.productId),
+  );
+  if (!variantsProbed.ok) {
+    issues.push({ ...variantsProbed.issue, severity: "warning" });
+  } else if (variantsProbed.resource.length === 0) {
+    issues.push(
+      issue(
+        ISSUE_CODES.VARIANT_MISSING,
+        "error",
+        "Product has no variants. Customers cannot purchase it.",
+        { suggestedFix: "Add at least one variant in the product configuration." },
+      ),
+    );
+  } else if (
+    !variantsProbed.resource.some((variant) => variant.attributes.status === "published")
+  ) {
+    issues.push(
+      issue(
+        ISSUE_CODES.VARIANT_UNPUBLISHED,
+        "error",
+        "Product has variants but none are published.",
+        { suggestedFix: "Publish at least one variant." },
+      ),
+    );
   }
 
   return buildResult("product", mode, issues, attrs, {

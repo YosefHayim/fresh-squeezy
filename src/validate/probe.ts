@@ -37,18 +37,14 @@ export const mapErrorToIssue = (err: unknown, mapping: IssueMapping = {}): Valid
   if (err instanceof FreshSqueezyError) {
     if (mapping.unauthorized && (err.status === 401 || err.code === "UNAUTHORIZED")) {
       return issue(mapping.unauthorized.code, "error", mapping.unauthorized.message, {
-        ...(mapping.unauthorized.suggestedFix !== undefined
-          ? { suggestedFix: mapping.unauthorized.suggestedFix }
-          : {}),
+        suggestedFix: mapping.unauthorized.suggestedFix,
         context: { status: err.status ?? null },
       });
     }
     if (mapping.notFound && err.status === 404) {
       return issue(mapping.notFound.code, "error", mapping.notFound.message, {
-        ...(mapping.notFound.suggestedFix !== undefined
-          ? { suggestedFix: mapping.notFound.suggestedFix }
-          : {}),
-        ...(mapping.notFound.context !== undefined ? { context: mapping.notFound.context } : {}),
+        suggestedFix: mapping.notFound.suggestedFix,
+        context: mapping.notFound.context,
       });
     }
     if (err.code === "NETWORK_ERROR") {
@@ -107,8 +103,8 @@ export const probeFetch = async <T>(
     notFound: {
       code: options.notFoundCode,
       message: options.notFoundMessage,
-      ...(options.notFoundFix !== undefined ? { suggestedFix: options.notFoundFix } : {}),
-      ...(options.notFoundContext !== undefined ? { context: options.notFoundContext } : {}),
+      suggestedFix: options.notFoundFix,
+      context: options.notFoundContext,
     },
   });
 };
@@ -170,19 +166,17 @@ export const checkStoreOwnership = (check: OwnershipCheck): ValidationIssue | nu
   const actual = String(check.actualStoreId);
   if (expected === actual) return null;
 
-  const context: ValidationIssue["context"] = {
-    expectedStoreId: expected,
-    actualStoreId: actual,
-    ...(check.extraContext ?? {}),
-  };
-
   return issue(
     check.code,
     "error",
     `${check.label} belongs to store ${actual}, expected ${expected}.`,
     {
-      ...(check.suggestedFix !== undefined ? { suggestedFix: check.suggestedFix } : {}),
-      context,
+      suggestedFix: check.suggestedFix,
+      context: {
+        expectedStoreId: expected,
+        actualStoreId: actual,
+        ...(check.extraContext ?? {}),
+      },
     },
   );
 };

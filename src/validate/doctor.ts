@@ -135,64 +135,30 @@ export const doctor = async (
     );
   }
 
+  // webhook / discount / licenseKey / subscriptionPlan all require storeId
+  // (assertOptionsCoherent rejects those options when storeId is absent).
   if (options.storeId !== undefined) {
-    for (const webhookUrl of webhookUrls) {
-      results.push(
-        await validators.webhook(http, mode, {
-          storeId: options.storeId,
-          url: webhookUrl,
-        }),
-      );
+    const storeId = options.storeId;
+    for (const url of webhookUrls) {
+      results.push(await validators.webhook(http, mode, { storeId, url }));
     }
-  }
-
-  if (options.storeId !== undefined) {
     for (const discountId of discountIds) {
-      results.push(
-        await validators.discount(http, mode, {
-          storeId: options.storeId,
-          discountId,
-        }),
-      );
+      results.push(await validators.discount(http, mode, { storeId, discountId }));
     }
-  }
-
-  if (options.storeId !== undefined) {
     for (const licenseKeyId of licenseKeyIds) {
-      results.push(
-        await validators.licenseKey(http, mode, {
-          storeId: options.storeId,
-          licenseKeyId,
-        }),
-      );
+      results.push(await validators.licenseKey(http, mode, { storeId, licenseKeyId }));
     }
-  }
-
-  if (options.storeId !== undefined) {
     for (const variantId of variantIds) {
-      results.push(
-        await validators.subscriptionPlan(http, mode, {
-          storeId: options.storeId,
-          variantId,
-        }),
-      );
+      results.push(await validators.subscriptionPlan(http, mode, { storeId, variantId }));
     }
   }
 
-  const ok = results.every((result) => result.ok);
-  return { ok, mode, results };
+  return { ok: results.every((entry) => entry.ok), mode, results };
 };
 
 /**
- * Validators downstream of `storeId` (webhook, discount, licenseKey,
- * subscriptionPlan) cannot run without one. Previously, passing e.g.
- * `discountId` without `storeId` silently skipped the discount validator —
- * the doctor report came back "ok" and the consumer assumed coverage that
- * never ran.
- *
- * Treat this as a programmer error and fail fast at the boundary so the
- * miscall is surfaced at construction time rather than masked as a passing
- * doctor run.
+ * Fail fast when store-scoped targets are set without `storeId`. Without this,
+ * doctor would silently skip those validators and report a false-positive ok.
  */
 const assertOptionsCoherent = (options: DoctorOptions): void => {
   if (options.storeId !== undefined) return;
