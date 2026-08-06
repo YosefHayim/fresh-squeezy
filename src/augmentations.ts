@@ -2,6 +2,7 @@ import type {
   GeneratedLemonSqueezyFieldMap,
   GeneratedLemonSqueezyResourceName,
 } from "./generated/lemonSqueezyApiTypes.js";
+
 export type {
   GeneratedLemonSqueezyFieldMap,
   GeneratedLemonSqueezyResourceName,
@@ -11,20 +12,17 @@ export type {
 /**
  * Type augmentation building blocks.
  *
- * The official `@lemonsqueezy/lemonsqueezy.js` SDK uses type aliases
- * (`type Subscription = Omit<...>`) — not interfaces — so its types cannot
- * be augmented via `declare module`. This module ships the bring-your-own
- * intersection pattern instead: the consumer combines their existing
- * resource type with the matching `Latest*Fields` type and gets the new
- * platform fields without hand-rolling the additions.
+ * Official `@lemonsqueezy/lemonsqueezy.js` types are aliases (`type X = Omit<…>`),
+ * not interfaces, so `declare module` cannot patch them. Consumers intersect
+ * their base type with `Latest*Fields` (or `WithLatestLemonSqueezyFields`)
+ * instead of hand-rolling changelog deltas.
  *
- * `fresh-squeezy types:augment` (CLI) writes a small `.d.ts` to the
- * consumer's project that wires this up against either the official SDK
- * or hand-rolled local types. Consumers can also use these types directly
- * when they prefer to control the wiring themselves.
+ * `fresh-squeezy types:augment` can emit a small `.d.ts` that wires this to
+ * the official SDK or local types; direct imports work the same way.
  *
- * Field provenance lives in `src/support/manifest.ts ::
- * ACKNOWLEDGED_CHANGELOG_ENTRIES` so the tables stay in lockstep.
+ * Hand-written `Latest*` maps stay aligned with
+ * `ACKNOWLEDGED_CHANGELOG_ENTRIES` in `src/support/manifest.ts`. Resources
+ * without a hand-written map fall through to generated docs fields.
  */
 
 /**
@@ -150,14 +148,13 @@ export interface LatestSubscriptionItemUpdateFields {
 }
 
 /**
- * Map a resource label to its `Latest*Fields` shape. Used by the
- * `WithLatestLemonSqueezyFields` helper so the consumer writes one line
- * per resource:
+ * Hand-written changelog field map. Prefer this over generated fields when
+ * both exist (SDK lag + explicit provenance dates).
  *
- *   type MySubscription = WithLatestLemonSqueezyFields<OfficialSub, "subscription">;
- *
- * Adding a new resource? Extend this mapping and the corresponding
- * `Latest*Fields` interface in lockstep.
+ * @example
+ * ```ts
+ * type MySubscription = WithLatestLemonSqueezyFields<OfficialSub, "subscription">;
+ * ```
  */
 export interface LatestLemonSqueezyFieldMap {
   subscription: LatestSubscriptionFields;
@@ -170,10 +167,15 @@ export interface LatestLemonSqueezyFieldMap {
   checkout: LatestCheckoutFields;
 }
 
+/** Resource labels accepted by `WithLatestLemonSqueezyFields` / `LatestFieldsFor`. */
 export type LatestLemonSqueezyResourceName =
   | keyof LatestLemonSqueezyFieldMap
   | GeneratedLemonSqueezyResourceName;
 
+/**
+ * Resolve latest fields for a resource label: hand-written map first, then
+ * generated docs attributes for the rest of the catalog.
+ */
 export type LatestFieldsFor<R extends LatestLemonSqueezyResourceName> =
   R extends keyof LatestLemonSqueezyFieldMap
     ? LatestLemonSqueezyFieldMap[R]
@@ -182,9 +184,8 @@ export type LatestFieldsFor<R extends LatestLemonSqueezyResourceName> =
       : never;
 
 /**
- * Intersect a base type with the latest known fields for the given
- * resource label. Convenience over `T & LatestSubscriptionFields` because
- * the resource string is easier to remember and lints cleanly.
+ * Intersect a base resource type with the latest known fields for label `R`.
+ * Prefer this over writing `T & LatestSubscriptionFields` by hand.
  */
 export type WithLatestLemonSqueezyFields<T, R extends LatestLemonSqueezyResourceName> = T &
   LatestFieldsFor<R>;
