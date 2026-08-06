@@ -76,12 +76,7 @@ export const runValidateCommand = async (
 
     return results.every((result) => result.ok) ? 0 : 1;
   } catch (err) {
-    const message =
-      err instanceof FreshSqueezyError
-        ? err.message
-        : err instanceof Error
-          ? err.message
-          : String(err);
+    const message = err instanceof Error ? err.message : String(err);
     process.stderr.write(renderCliError(message, getValidateHints(err, target)));
     return 2;
   }

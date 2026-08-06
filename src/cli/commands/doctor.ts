@@ -127,41 +127,28 @@ const resolveDoctorTargets = async (
   };
 };
 
-const formatDiscoveryCounts = (choices: InitResourceChoices): string => {
-  return [
-    countLabel("products", choices.products.choices.length),
-    countLabel("webhooks", choices.webhooks.choices.length),
-    countLabel("discounts", choices.discounts.choices.length),
-    countLabel("license keys", choices.licenseKeys.choices.length),
-    countLabel("subscription plans", choices.subscriptionPlans.choices.length),
-  ].join(", ");
-};
+const DISCOVERY_LABELS = [
+  ["products", "products"],
+  ["webhooks", "webhooks"],
+  ["discounts", "discounts"],
+  ["licenseKeys", "license keys"],
+  ["subscriptionPlans", "subscription plans"],
+] as const;
 
-const countLabel = (label: string, count: number): string => {
-  return `${label} ${count}`;
-};
+const formatDiscoveryCounts = (choices: InitResourceChoices): string =>
+  DISCOVERY_LABELS.map(([key, label]) => `${label} ${choices[key].choices.length}`).join(", ");
 
 const reportDiscoveryErrors = (choices: InitResourceChoices): void => {
-  const errors = [
-    choices.products.error && `products: ${choices.products.error}`,
-    choices.webhooks.error && `webhooks: ${choices.webhooks.error}`,
-    choices.discounts.error && `discounts: ${choices.discounts.error}`,
-    choices.licenseKeys.error && `license keys: ${choices.licenseKeys.error}`,
-    choices.subscriptionPlans.error && `subscription plans: ${choices.subscriptionPlans.error}`,
-  ].filter((entry): entry is string => Boolean(entry));
-
-  for (const error of errors) {
-    process.stderr.write(`fresh-squeezy: discovery skipped ${error}\n`);
+  for (const [key, label] of DISCOVERY_LABELS) {
+    const error = choices[key].error;
+    if (error) process.stderr.write(`fresh-squeezy: discovery skipped ${label}: ${error}\n`);
   }
 };
 
-const values = (group: { choices: Array<{ value: string }> }): string[] | undefined => {
-  return group.choices.length > 0 ? group.choices.map((choice) => choice.value) : undefined;
-};
+const values = (group: { choices: Array<{ value: string }> }): string[] | undefined =>
+  group.choices.length > 0 ? group.choices.map((choice) => choice.value) : undefined;
 
-const one = (value: string | undefined): string[] | undefined => {
-  return value ? [value] : undefined;
-};
+const one = (value: string | undefined): string[] | undefined => (value ? [value] : undefined);
 
 const mergeValues = (
   explicit: string[] | undefined,
@@ -171,15 +158,14 @@ const mergeValues = (
   return merged.length > 0 ? merged : undefined;
 };
 
-const hasExplicitResourceSelection = (options: DoctorCommandOptions): boolean => {
-  return Boolean(
+const hasExplicitResourceSelection = (options: DoctorCommandOptions): boolean =>
+  Boolean(
     options.productId ||
       options.webhookUrl ||
       options.discountId ||
       options.licenseKeyId ||
       options.variantId,
   );
-};
 
 /**
  * Fallback when no store could be resolved and we are not interactive.
@@ -211,14 +197,10 @@ const runConnectionOnly = async (
 
 const writeFatal = (err: unknown, asJson: boolean): void => {
   if (asJson) {
-    const payload =
-      err instanceof FreshSqueezyError
-        ? { ok: false, error: { code: err.code, message: err.message, status: err.status ?? null } }
-        : {
-            ok: false,
-            error: { code: "UNKNOWN", message: err instanceof Error ? err.message : String(err) },
-          };
-    process.stderr.write(`${JSON.stringify(payload)}\n`);
+    const code = err instanceof FreshSqueezyError ? err.code : "UNKNOWN";
+    const message = err instanceof Error ? err.message : String(err);
+    const status = err instanceof FreshSqueezyError ? (err.status ?? null) : null;
+    process.stderr.write(`${JSON.stringify({ ok: false, error: { code, message, status } })}\n`);
     return;
   }
   const message = err instanceof Error ? err.message : String(err);
