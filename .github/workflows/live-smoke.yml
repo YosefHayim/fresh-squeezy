@@ -1,5 +1,8 @@
 name: live-smoke
 
+# Opt-in live API smoke against a real Lemon Squeezy account.
+# Nightly runs require vars.LIVE_SMOKE_ENABLED=true; workflow_dispatch always runs.
+
 on:
   schedule:
     - cron: "0 6 * * *"
@@ -15,6 +18,8 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' || vars.LIVE_SMOKE_ENABLED == 'true' }}
     steps:
       - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v4
 
       - uses: actions/setup-node@v6
         with:

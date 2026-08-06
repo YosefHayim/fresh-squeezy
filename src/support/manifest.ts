@@ -5,10 +5,10 @@ import { GENERATED_LEMON_SQUEEZY_RESOURCES } from "../generated/lemonSqueezyApiT
  * fresh-squeezy explicitly understands on the Lemon Squeezy platform.
  *
  * Resource/type coverage is generated from Lemon Squeezy object docs with
- * `npm run generate:api-types`. Validator policy remains reviewed here:
+ * `pnpm generate:api-types`. Validator policy remains reviewed here:
  * when the platform adds new webhook events or behavior, bump the entries
  * below and re-snapshot the changelog page with
- * `npm run check:changelog -- --update`.
+ * `pnpm check:changelog -- --update`.
  *
  * Changelog source: https://docs.lemonsqueezy.com/api/getting-started/changelog
  * Last reviewed:    2026-05-07

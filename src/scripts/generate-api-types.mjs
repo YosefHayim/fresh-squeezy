@@ -88,7 +88,7 @@ export async function main() {
 
   process.exitCode = 1;
   console.error("Generated API types are stale.");
-  console.error("Refresh with: npm run generate:api-types");
+  console.error("Refresh with: pnpm generate:api-types");
 }
 
 async function fetchText(url) {

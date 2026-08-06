@@ -1,5 +1,8 @@
 name: ci
 
+# Merge gate for main. Mirrors `pnpm verify` (biome + typecheck + test + build)
+# and also checks docs-derived API types + coverage on Node 20.
+
 on:
   push:
     branches: [main]
@@ -29,6 +32,10 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+
+      - name: lint & format (biome ci)
+        if: matrix.node == '20'
+        run: pnpm exec biome ci .
 
       - name: docs-derived API types
         if: matrix.node == '20'
