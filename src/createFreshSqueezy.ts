@@ -2,9 +2,10 @@ import { resolveConfig } from "./core/config.js";
 import { HttpClient, type RequestOptions } from "./core/http.js";
 import type { DoctorReport, FreshSqueezyConfig, Mode, ValidationResult } from "./core/types.js";
 import type { DiscountAttributes } from "./resources/discounts.js";
-import { invokeOp } from "./resources/invokeOp.js";
+import { type InvokeOpArgs, invokeOp } from "./resources/invokeOp.js";
 import type { LicenseKeyAttributes } from "./resources/licenseKeys.js";
 import type { ProductAttributes } from "./resources/products.js";
+import type { OpVerb } from "./resources/registry.js";
 import type { StoreAttributes } from "./resources/stores.js";
 import type { WebhookAttributes } from "./resources/webhooks.js";
 import { type ConnectionSummary, validateConnection } from "./validate/connection.js";
@@ -22,7 +23,11 @@ import { type WebhookValidationOptions, validateWebhook } from "./validate/webho
 
 /**
  * Nested resource namespaces for docs-backed Lemon Squeezy ops.
- * Methods only exist when the official API documents them (no product.create).
+ *
+ * Every method routes through `invokeOp` + `resourceRegistry` (docsPath required).
+ * Methods exist only when the official API documents them — no product/variant create.
+ * Ops return JSON:API payloads as `unknown`; callers narrow or use resource helpers.
+ * Failures throw `FreshSqueezyError` (branch on `.code`).
  */
 export interface FreshSqueezyOps {
   users: {
@@ -126,7 +131,7 @@ export interface FreshSqueezyOps {
 
 /**
  * The public client. Validators stay flat; ops live under nested namespaces
- * that mirror docs-backed resources.
+ * that mirror docs-backed resources (see `resourceRegistry`).
  */
 export interface FreshSqueezyClient extends FreshSqueezyOps {
   /** Resolved mode (test or live). Surfaced so consumers can log it. */
@@ -148,6 +153,10 @@ export interface FreshSqueezyClient extends FreshSqueezyOps {
   validateSubscriptionPlan(
     options: SubscriptionPlanValidationOptions,
   ): Promise<ValidationResult<SubscriptionPlanSummary>>;
+  /**
+   * Compose configured validators into one report.
+   * Defaults `storeId` from client config when the call omits it.
+   */
   doctor(options?: DoctorOptions): Promise<DoctorReport>;
 }
 
@@ -173,7 +182,8 @@ export const createFreshSqueezy = (config: FreshSqueezyConfig = {}): FreshSqueez
   const resolved = resolveConfig(config);
   const http = new HttpClient(resolved);
 
-  const op = (resource: string, verb: string, args: Parameters<typeof invokeOp>[3] = {}) =>
+  /** Dispatch a registry-backed op; never invents endpoints outside `resourceRegistry`. */
+  const op = (resource: string, verb: OpVerb, args: InvokeOpArgs = {}) =>
     invokeOp(http, resource, verb, args);
 
   return {
@@ -188,17 +198,8 @@ export const createFreshSqueezy = (config: FreshSqueezyConfig = {}): FreshSqueez
     validateSubscriptionPlan: (options) => validateSubscriptionPlan(http, resolved.mode, options),
     doctor: (options) =>
       doctor(http, resolved.mode, {
+        ...options,
         storeId: options?.storeId ?? resolved.storeId,
-        productId: options?.productId,
-        productIds: options?.productIds,
-        webhookUrl: options?.webhookUrl,
-        webhookUrls: options?.webhookUrls,
-        discountId: options?.discountId,
-        discountIds: options?.discountIds,
-        licenseKeyId: options?.licenseKeyId,
-        licenseKeyIds: options?.licenseKeyIds,
-        variantId: options?.variantId,
-        variantIds: options?.variantIds,
       }),
 
     users: {

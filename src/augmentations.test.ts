@@ -14,11 +14,8 @@ import type {
 } from "./augmentations.js";
 
 /**
- * The augmentation module is type-level. There's nothing to call, so we
- * assert the intersections behave by constructing values that satisfy
- * both the base type and the latest fields, and verifying TypeScript
- * accepts them. A mistake in the helper would surface as a typecheck
- * failure when the suite is run.
+ * Type-level module: runtime checks only exercise the values we assign.
+ * Intersection mistakes fail `tsc` when the suite typechecks under vitest.
  */
 describe("WithLatestLemonSqueezyFields", () => {
   it("intersects a base subscription type with payment_processor and portal URLs", () => {

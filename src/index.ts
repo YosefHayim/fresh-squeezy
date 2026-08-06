@@ -1,40 +1,48 @@
-export * from "./augmentations.js";
-export * from "./createFreshSqueezy.js";
+// Pure wildcard barrel only — no named re-exports, no after-import shims.
+// Layer order: generated → core → resources → validate → support → public client.
+
 export * from "./generated/lemonSqueezyApiTypes.js";
+
+export * from "./core/config.js";
 export * from "./core/equality.js";
 export * from "./core/errors.js";
-export * from "./core/config.js";
 export * from "./core/mode.js";
 export * from "./core/types.js";
-export * from "./validate/rules.js";
-export * from "./validate/connection.js";
-export * from "./validate/store.js";
-export * from "./validate/product.js";
-export * from "./validate/webhook.js";
-export * from "./validate/discount.js";
-export * from "./validate/licenseKey.js";
-export * from "./validate/subscriptionPlan.js";
-export * from "./validate/doctor.js";
+
 export * from "./resources/affiliates.js";
 export * from "./resources/checkouts.js";
 export * from "./resources/customers.js";
 export * from "./resources/discountRedemptions.js";
 export * from "./resources/discounts.js";
 export * from "./resources/files.js";
+export * from "./resources/invokeOp.js";
 export * from "./resources/licenseKeyInstances.js";
 export * from "./resources/licenseKeys.js";
 export * from "./resources/orderItems.js";
 export * from "./resources/orders.js";
 export * from "./resources/prices.js";
-export * from "./resources/stores.js";
 export * from "./resources/products.js";
-export * from "./resources/subscriptions.js";
+export * from "./resources/registry.js";
+export * from "./resources/stores.js";
 export * from "./resources/subscriptionInvoices.js";
 export * from "./resources/subscriptionItems.js";
+export * from "./resources/subscriptions.js";
 export * from "./resources/usageRecords.js";
+export * from "./resources/users.js";
 export * from "./resources/variants.js";
 export * from "./resources/webhooks.js";
-export * from "./resources/users.js";
-export * from "./resources/registry.js";
-export * from "./resources/invokeOp.js";
+
+export * from "./validate/connection.js";
+export * from "./validate/discount.js";
+export * from "./validate/doctor.js";
+export * from "./validate/licenseKey.js";
+export * from "./validate/product.js";
+export * from "./validate/rules.js";
+export * from "./validate/store.js";
+export * from "./validate/subscriptionPlan.js";
+export * from "./validate/webhook.js";
+
 export * from "./support/manifest.js";
+
+export * from "./augmentations.js";
+export * from "./createFreshSqueezy.js";
