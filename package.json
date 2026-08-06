@@ -1,6 +1,6 @@
 {
   "name": "fresh-squeezy",
-  "version": "0.1.18",
+  "version": "0.1.19",
   "description": "Dual-mode Lemon Squeezy ops + doctor: validate billing setup, and run docs-backed API ops (webhooks, discounts, checkouts, subscriptions, refunds, …) from CLI or TypeScript.",
   "keywords": [
     "lemon-squeezy",
@@ -39,7 +39,11 @@
   "bin": {
     "fresh-squeezy": "./dist/cli.js"
   },
-  "files": ["dist", "README.md", "LICENSE"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "engines": {
     "node": ">=20"
   },
