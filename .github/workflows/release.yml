@@ -33,10 +33,12 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 22
+          # Align with engines (>=20) and the CI matrix; version bump is pure Node.
+          node-version: "20"
 
       - name: Configure Git
         run: |
@@ -127,9 +129,7 @@ jobs:
       - name: Commit version bump and create tag
         if: steps.skip_check.outputs.skip != 'true'
         run: |
-          # pnpm projects ship pnpm-lock.yaml; older history used package-lock.json.
           git add package.json
-          if [ -f package-lock.json ]; then git add package-lock.json; fi
           if [ -f pnpm-lock.yaml ]; then git add pnpm-lock.yaml; fi
           git commit -m "chore(release): ${{ steps.version.outputs.version }}"
           git tag -a "${{ steps.version.outputs.version }}" \

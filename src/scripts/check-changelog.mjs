@@ -86,7 +86,7 @@ async function main() {
     `Current seen:  ${fetchedAt}`,
     formattedDiff ? `\n## New entries since last snapshot\n\n${formattedDiff}\n` : "",
     "Refresh the snapshot with:",
-    "  npm run check:changelog -- --update",
+    "  pnpm check:changelog -- --update",
     "",
     "Then review the diff against src/support/manifest.ts and update",
     "RECOMMENDED_WEBHOOK_EVENTS / OPTIONAL_WEBHOOK_EVENTS /",

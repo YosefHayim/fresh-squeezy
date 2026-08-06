@@ -1,5 +1,13 @@
 name: changelog-drift
 
+# Weekly (and on-demand) drift check against the Lemon Squeezy docs:
+# 1) regenerate docs-derived API types and open a PR if they changed
+# 2) hash the API changelog against src/support/changelog-snapshot.json and
+#    open/comment a changelog-drift issue when new entries appear
+#
+# Scripts are pure Node (no package deps). pnpm is used only to invoke the
+# package.json script names so maintainers and CI share one command surface.
+
 on:
   schedule:
     - cron: "0 6 * * 1"
@@ -17,6 +25,8 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v4
 
       - uses: actions/setup-node@v6
         with:
@@ -67,7 +77,7 @@ jobs:
 
       - name: Run drift check
         id: drift
-        run: node src/scripts/check-changelog.mjs
+        run: pnpm check:changelog
 
       - name: Open drift issue
         if: failure() && steps.drift.outputs.drifted == 'true'
