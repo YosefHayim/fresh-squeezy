@@ -1,0 +1,76 @@
+{
+  "title": "Messy-repo land \u2014 fresh-squeezy",
+  "summary": [
+    {
+      "label": "Merged",
+      "value": "8/8"
+    },
+    {
+      "label": "HOLD left",
+      "value": "0"
+    },
+    {
+      "label": "Tip",
+      "value": "e28b489"
+    },
+    {
+      "label": "Unit",
+      "value": "216 pass"
+    },
+    {
+      "label": "E2E",
+      "value": "skip"
+    }
+  ],
+  "notes": [
+    {
+      "tone": "decision",
+      "title": "Land complete",
+      "body": "All MERGE PRs merged via gh in AUDIT order. No new feature PRs. No remote deletes."
+    },
+    {
+      "tone": "note",
+      "title": "Post-land gates",
+      "body": "typecheck + 216 tests + build green on tip. Bare biome ci . can still scan local .worktrees; tracked-file biome clean."
+    }
+  ],
+  "steps": [
+    {
+      "label": "Pre-flight AUDIT",
+      "status": "done",
+      "detail": "8 MERGE, 0 HOLD"
+    },
+    {
+      "label": "Merge wave",
+      "status": "done",
+      "detail": "#15\u2192#16\u2192#21\u2192#19\u2192#17\u2192#20\u2192#22\u2192#18"
+    },
+    {
+      "label": "Post-land prove",
+      "status": "done",
+      "detail": "216 unit + typecheck + build"
+    },
+    {
+      "label": "Optional close-wave",
+      "status": "todo",
+      "detail": "Local worktrees only"
+    }
+  ],
+  "risks": [
+    {
+      "risk": "Local .worktrees trip bare pnpm verify",
+      "severity": "low",
+      "mitigation": "close-wave or biome ignore; product tree is green"
+    }
+  ],
+  "details": [
+    {
+      "summary": "Merged PRs",
+      "detail": "#15 #16 #21 #19 #17 #20 #22 #18"
+    },
+    {
+      "summary": "HEALTH",
+      "detail": "docs/agent/messy-repo/HEALTH.md status post-land"
+    }
+  ]
+}
