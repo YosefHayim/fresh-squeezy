@@ -13,6 +13,14 @@ import {
 } from "../../resources/registry.js";
 import { renderCliError } from "../errors.js";
 import { confirmResourceOp } from "../prompts.js";
+import {
+  type BulkSelector,
+  collectBulkTargets,
+  executeBulk,
+  previewTargets,
+  renderBulkSummary,
+  supportsBulk,
+} from "./bulkOps.js";
 
 /**
  * Options for hybrid resource ops (get/list/create/…/refund).
@@ -30,6 +38,14 @@ export interface ResourceOpCommandOptions {
   json?: boolean;
   isInteractive?: boolean;
   listCatalog?: boolean;
+  /** Bulk: apply the verb to every listed item. */
+  all?: boolean;
+  /** Bulk: apply the verb to these ids. */
+  ids?: string[];
+  /** Bulk: with `all`, keep only items whose text attributes contain this. */
+  match?: string;
+  /** Bulk: show targets, send nothing. */
+  dryRun?: boolean;
 }
 
 /**
@@ -39,7 +55,7 @@ export interface ResourceOpCommandOptions {
  * `--yes` or TTY confirm.
  *
  * @param options - Verb, resource, flags, body sources.
- * @returns Process exit code (0 success, 2 fatal/usage).
+ * @returns Process exit code (0 success, 1 bulk partial failure, 2 fatal/usage).
  *
  * @example
  * ```ts
@@ -69,6 +85,15 @@ export const runResourceOpCommand = async (options: ResourceOpCommandOptions): P
     return 2;
   }
 
+  const bulkError = validateBulkFlags(spec, options);
+  if (bulkError) {
+    writeFatal(
+      new FreshSqueezyError({ code: "INVALID_ARGS", message: bulkError }),
+      options.json ?? false,
+    );
+    return 2;
+  }
+
   try {
     const body = readBody(options);
     if (spec.body === "required" && body === undefined) {
@@ -79,14 +104,21 @@ export const runResourceOpCommand = async (options: ResourceOpCommandOptions): P
     }
 
     const client = createFreshSqueezy({ mode: options.mode });
+    const config = resolveConfig({ mode: options.mode });
+    const http = new HttpClient(config);
+    // CLI flag wins; LEMON_SQUEEZY_STORE_ID (already in config) is the fallback.
+    const storeId = options.storeIds?.[0] ?? config.storeId;
+
+    if (options.all || options.ids) {
+      return await runBulk(http, spec, client.mode, options, { storeId, body });
+    }
+
     const allowed = await assertWriteSafety(spec, client.mode, options);
     if (!allowed) return 2;
 
-    const config = resolveConfig({ mode: options.mode });
-    const http = new HttpClient(config);
     const opBody = await invokeOp(http, options.resource, options.verb, {
       id: options.id,
-      storeId: options.storeIds?.[0],
+      storeId,
       parentId: options.parentId,
       body,
     });
@@ -151,10 +183,88 @@ const writeCatalog = (asJson: boolean): void => {
   );
 };
 
-const assertWriteSafety = async (
-  spec: NonNullable<ReturnType<typeof findResourceVerb>>,
+type VerbSpec = NonNullable<ReturnType<typeof findResourceVerb>>;
+
+/**
+ * Reject flag combinations that make no sense before any network call.
+ *
+ * @returns An error message, or undefined when the flags are consistent.
+ */
+const validateBulkFlags = (
+  spec: VerbSpec,
+  options: ResourceOpCommandOptions,
+): string | undefined => {
+  const bulk = Boolean(options.all || options.ids);
+  if (!bulk) {
+    if (options.match) return "--match needs --all.";
+    if (options.dryRun) return "--dry-run needs --all or --ids.";
+    return undefined;
+  }
+  if (!supportsBulk(spec)) {
+    return `--all/--ids only apply to delete, cancel, and refund ops (not ${spec.verb} ${spec.resource}).`;
+  }
+  if (options.all && options.ids) return "Use either --all or --ids, not both.";
+  if (options.id) return "--id targets one resource; drop it when using --all or --ids.";
+  if (options.match && !options.all) return "--match needs --all.";
+  return undefined;
+};
+
+/**
+ * Bulk path: resolve targets, confirm once, apply, report.
+ *
+ * @returns 0 when every item succeeded (or dry run), 1 on partial failure, 2 when declined.
+ */
+const runBulk = async (
+  http: HttpClient,
+  spec: VerbSpec,
   mode: Mode,
   options: ResourceOpCommandOptions,
+  scope: { storeId?: string; body?: unknown },
+): Promise<number> => {
+  const selector: BulkSelector = {
+    all: options.all,
+    ids: options.ids,
+    match: options.match,
+    storeId: scope.storeId,
+    parentId: options.parentId,
+  };
+  const targets = await collectBulkTargets(http, spec, selector);
+
+  if (!options.dryRun && targets.length > 0) {
+    const allowed = await assertWriteSafety(spec, mode, options, {
+      count: targets.length,
+      preview: previewTargets(targets),
+    });
+    if (!allowed) return 2;
+  }
+
+  const summary = await executeBulk(http, spec, targets, {
+    dryRun: options.dryRun,
+    body: scope.body,
+  });
+
+  if (options.json) {
+    const envelope = {
+      ok: summary.failed === 0,
+      mode,
+      resource: spec.resource,
+      verb: spec.verb,
+      docs: `https://docs.lemonsqueezy.com/api/${spec.docsPath}`,
+      ...summary,
+    };
+    process.stdout.write(`${JSON.stringify(envelope, null, 2)}\n`);
+  } else {
+    process.stdout.write(`${spec.verb} ${spec.resource} (mode=${mode})\n`);
+    process.stdout.write(renderBulkSummary(spec, summary));
+  }
+  return summary.failed > 0 ? 1 : 0;
+};
+
+const assertWriteSafety = async (
+  spec: VerbSpec,
+  mode: Mode,
+  options: ResourceOpCommandOptions,
+  bulk?: { count: number; preview: string },
 ): Promise<boolean> => {
   const isWrite = spec.verb !== "get" && spec.verb !== "list" && spec.verb !== "current-usage";
   if (!isWrite) return true;
@@ -165,18 +275,17 @@ const assertWriteSafety = async (
   if (options.yes) return true;
 
   if (options.isInteractive) {
-    return confirmResourceOp(
-      mode === "live"
-        ? `LIVE mode: allow ${spec.verb} ${spec.resource}?`
-        : `Confirm ${spec.verb} ${spec.resource}?`,
-    );
+    const what = bulk
+      ? `${spec.verb} ${bulk.count} ${spec.resource} item(s) (${bulk.preview})`
+      : `${spec.verb} ${spec.resource}`;
+    return confirmResourceOp(mode === "live" ? `LIVE mode: allow ${what}?` : `Confirm ${what}?`);
   }
 
   process.stderr.write(
     renderCliError(
       `${spec.verb} ${spec.resource} requires --yes in non-interactive ${mode} mode${spec.destructive ? " (destructive op)" : ""}`,
       [
-        `fresh-squeezy ${spec.verb} ${spec.resource} --yes …`,
+        `fresh-squeezy ${spec.verb} ${spec.resource}${bulk ? " --all" : ""} --yes …`,
         "Use test mode for safer experimentation: --mode test",
       ],
     ),
