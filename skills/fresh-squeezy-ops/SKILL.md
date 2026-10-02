@@ -73,6 +73,10 @@ fresh-squeezy create customer --body-file ./customer.json --mode test
 
 # Destructive / live — require --yes when non-TTY
 fresh-squeezy delete webhook --id 12 --yes
+# Bulk (delete/cancel/refund): preview with --dry-run, then confirm once or pass --yes
+fresh-squeezy delete discount --all --store-ids 1 --dry-run --json
+fresh-squeezy delete discount --all --store-ids 1 --match TEST --yes --json
+fresh-squeezy delete webhook --ids 12,13 --yes --json   # exit 1 if any item failed
 fresh-squeezy cancel subscription --id 9 --yes --mode live
 fresh-squeezy refund order --id 100 --yes --mode live
 fresh-squeezy generate-invoice order --id 100 --yes

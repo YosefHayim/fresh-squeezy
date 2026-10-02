@@ -50,6 +50,11 @@ npx fresh-squeezy list webhook --store-ids 12
 npx fresh-squeezy create webhook --body-file webhook.json --mode test
 npx fresh-squeezy cancel subscription --id 9 --yes
 npx fresh-squeezy refund order --id 100 --yes --mode live
+
+# Bulk delete / cancel / refund (lists every page first, confirms once)
+npx fresh-squeezy delete discount --all --store-ids 12 --dry-run
+npx fresh-squeezy delete discount --all --store-ids 12 --match TEST --yes
+npx fresh-squeezy delete webhook --ids 1,2,3 --yes --json
 ```
 
 `npx fresh-squeezy --no-install` runs the setup without editing `package.json`.
@@ -83,13 +88,24 @@ Flags and non-interactive shells never open the menu — they defer (`doctor` fa
 | Test-mode create/update | Free when args are complete |
 | Non-TTY missing args | Exit `2` — never hang |
 
+### Bulk flags (`delete` / `cancel` / `refund`)
+
+| Flag | Behavior |
+|------|----------|
+| `--all` | List every page for the resource, then apply the verb to each item. Needs list scope: `--store-ids` (or `LEMON_SQUEEZY_STORE_ID`) or `--parent-id` |
+| `--ids a,b,c` | Apply to exactly these ids (no list call) |
+| `--match <text>` | With `--all`, keep items whose string attributes (name, code, url, …) contain the text, case-insensitive. Filtering is client-side |
+| `--dry-run` | Print the targets and send nothing; needs no `--yes` |
+
+One confirm for the whole batch (shows the count and first labels); non-TTY needs `--yes`. The run continues past a failed item. `--json` adds `dryRun`, `total`, `succeeded`, `failed`, and `results[]` (`id`, `label`, `ok`, `error?`) to the usual envelope. Exit `0` all ok, `1` some items failed, `2` usage error or declined. `--all`/`--ids` are rejected on other verbs, and `--all`, `--ids`, and `--id` are mutually exclusive.
+
 Confirm the matrix with `fresh-squeezy ops --list` before assuming a write exists (products/variants/prices/files/stores are read-only on the official API).
 
 ## Store resolution order
 
 Used by every store-scoped command, in priority order:
 
-1. `--store-ids 1,2,3` (comma-separated, explicit)
+1. `--store-ids 1,2,3` (comma-separated, explicit). For `ops` verbs (`list`, `--all`), `LEMON_SQUEEZY_STORE_ID` is the fallback when this flag is omitted
 2. `--all-stores` (every store reachable with the key)
 3. TTY: interactive multi-select prompt (`@inquirer/prompts`)
 4. No TTY + no flag: connection-only run (useful as a CI smoke check)

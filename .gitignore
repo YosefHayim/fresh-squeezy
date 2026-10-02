@@ -33,3 +33,4 @@ DEDUP-REPORT.md
 # Kimi Code CLI local config + skills
 .kimi-code/
 downloads/
+.act-logs/

@@ -92,6 +92,10 @@ interface ResourceOpCliOpts {
   bodyFile?: string;
   yes?: boolean;
   json?: boolean;
+  all?: boolean;
+  ids?: string[];
+  match?: string;
+  dryRun?: boolean;
 }
 
 /** Store-flag shapes reused by validate targets. */
@@ -354,6 +358,28 @@ program
     );
   });
 
+const BULK_VERBS: readonly OpVerb[] = ["delete", "cancel", "refund"];
+
+/** Per-verb `--help` footer; bulk verbs get --all/--ids/--dry-run examples. */
+const opHelpText = (verb: OpVerb): string => {
+  if (!BULK_VERBS.includes(verb)) {
+    return `\nExample:\n  fresh-squeezy ${verb} <resource> --id 42 --json\n`;
+  }
+  const r = verb === "delete" ? "discount" : verb === "cancel" ? "subscription" : "order";
+  return `
+Examples:
+  fresh-squeezy ${verb} ${r} --id 42 --yes
+  fresh-squeezy ${verb} ${r} --ids 1,2,3 --yes
+  fresh-squeezy ${verb} ${r} --all --store-ids 12 --dry-run
+  fresh-squeezy ${verb} ${r} --all --store-ids 12 --match TEST --yes --json
+
+Bulk notes:
+  --all lists every page first, then asks once (TTY) or needs --yes (non-TTY).
+  Store falls back to LEMON_SQUEEZY_STORE_ID when --store-ids is omitted.
+  Exit codes: 0 ok, 1 some items failed, 2 usage error / declined.
+`;
+};
+
 for (const verb of OP_VERBS) {
   program
     .command(`${verb} <resource>`)
@@ -373,6 +399,11 @@ for (const verb of OP_VERBS) {
     .option("--body-file <path>", "Path to JSON:API body file")
     .option("--yes", "Skip confirm; required for live writes and destructive ops when non-TTY")
     .option("--json", "Emit machine-readable JSON")
+    .option("--all", "Bulk: apply to every item from `list` (delete, cancel, refund)")
+    .option("--ids <ids>", "Bulk: comma-separated ids (delete, cancel, refund)", parseCsv)
+    .option("--match <text>", "Bulk: with --all, only items whose name/code/url contain <text>")
+    .option("--dry-run", "Bulk: show what would be affected; send nothing")
+    .addHelpText("after", opHelpText(verb))
     .action(async (resource: string, opts: ResourceOpCliOpts) => {
       await exitWith(
         runResourceOpCommand({
@@ -387,6 +418,10 @@ for (const verb of OP_VERBS) {
           yes: Boolean(opts.yes),
           json: Boolean(opts.json),
           isInteractive,
+          all: Boolean(opts.all),
+          ids: opts.ids,
+          match: opts.match,
+          dryRun: Boolean(opts.dryRun),
         }),
       );
     });

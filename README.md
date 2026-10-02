@@ -137,6 +137,11 @@ npx fresh-squeezy create webhook --body-file webhook.json --mode test
 npx fresh-squeezy cancel subscription --id 9 --yes
 npx fresh-squeezy refund order --id 100 --yes --mode live
 npx fresh-squeezy generate-invoice order --id 100 --yes
+
+# Bulk delete / cancel / refund: --all, --ids, --match, --dry-run
+npx fresh-squeezy delete discount --all --store-ids 12 --dry-run
+npx fresh-squeezy delete discount --all --store-ids 12 --match TEST --yes
+npx fresh-squeezy delete webhook --ids 1,2,3 --yes
 ```
 
 **Safety:** `delete` / `cancel` / `refund` always require `--yes` or a TTY confirm. Live-mode writes need `--yes` or TTY confirm too. Bodies are JSON:API documents via `--body` or `--body-file` (not flat flags).
@@ -206,7 +211,7 @@ The CLI default is `--mode test`. Override with `--mode live`. Guided setup asks
 | `LEMON_SQUEEZY_MODE` | no | `test` (default) or `live` |
 | `LEMON_SQUEEZY_STORE_ID` | no | Convenience default for `client.doctor()` — library only |
 
-The CLI does not read `LEMON_SQUEEZY_STORE_ID`; use `--store-ids` or `--all-stores` so store selection stays explicit per command.
+`doctor` and `validate` do not read `LEMON_SQUEEZY_STORE_ID`; use `--store-ids` or `--all-stores` there. Only the `ops` verbs (`list`, `delete --all`, …) fall back to it when `--store-ids` is omitted.
 
 ## Issue codes
 
