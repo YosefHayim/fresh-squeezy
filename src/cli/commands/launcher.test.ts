@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ensureFreshSqueezyDevDependency } from "../projectInstall.js";
+import { pickLauncherAction } from "../prompts.js";
 import { runInitCommand } from "./init.js";
 import { runLauncherCommand } from "./launcher.js";
+import { runManageCommand } from "./manage.js";
 
 vi.mock("../projectInstall.js", () => ({
   ensureFreshSqueezyDevDependency: vi.fn(),
@@ -9,6 +11,15 @@ vi.mock("../projectInstall.js", () => ({
 
 vi.mock("./init.js", () => ({
   runInitCommand: vi.fn(),
+}));
+
+vi.mock("./manage.js", () => ({
+  runManageCommand: vi.fn(),
+}));
+
+vi.mock("../prompts.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../prompts.js")>()),
+  pickLauncherAction: vi.fn(),
 }));
 
 // No key configured → the launcher goes straight to guided setup, never the
@@ -84,6 +95,20 @@ describe("runLauncherCommand", () => {
 
     expect(code).toBe(2);
     expect(ensureFreshSqueezyDevDependency).not.toHaveBeenCalled();
+    expect(runInitCommand).not.toHaveBeenCalled();
+  });
+
+  it("routes the Manage resources menu choice to the bulk manager", async () => {
+    process.env[API_KEY_ENV] = "test-key";
+    vi.mocked(ensureFreshSqueezyDevDependency).mockResolvedValueOnce({ status: "skipped" });
+    vi.mocked(pickLauncherAction).mockResolvedValueOnce("manage");
+    vi.mocked(runManageCommand).mockResolvedValueOnce(1);
+    vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+    const code = await runLauncherCommand({ isInteractive: true, install: false });
+
+    expect(code).toBe(1);
+    expect(runManageCommand).toHaveBeenCalledTimes(1);
     expect(runInitCommand).not.toHaveBeenCalled();
   });
 });

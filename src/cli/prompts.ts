@@ -32,7 +32,7 @@ export type InitDoctorTarget =
   | "discount"
   | "license-key"
   | "subscription-plan";
-export type LauncherAction = "init" | "doctor" | "examples" | "exit";
+export type LauncherAction = "init" | "doctor" | "manage" | "examples" | "exit";
 
 type DoctorTargetField = keyof InitDoctorTargets;
 type ManualQuestion = {
@@ -61,6 +61,10 @@ export const pickLauncherAction = async (): Promise<LauncherAction> => {
       {
         name: "Run doctor now — pick stores interactively when needed",
         value: "doctor",
+      },
+      {
+        name: "Manage resources — bulk delete / cancel / refund",
+        value: "manage",
       },
       {
         name: "Show command examples — copy/paste friendly",
@@ -373,4 +377,60 @@ const formatPromptPath = (filePath: string): string => {
 export const isPromptCancel = (error: unknown): boolean => {
   if (!(error instanceof Error)) return false;
   return error.name === "ExitPromptError" || error.message.includes("User force closed");
+};
+
+/** One bulk-capable operation offered by the "Manage resources" menu. */
+export interface ManageOperationChoice {
+  resource: string;
+  verb: string;
+}
+
+/**
+ * Pick which destructive op to run (e.g. `delete discount`).
+ *
+ * @param ops - Registry-backed operations that can run in bulk.
+ * @returns The chosen operation.
+ */
+export const pickManageOperation = async (
+  ops: ManageOperationChoice[],
+): Promise<ManageOperationChoice> => {
+  return select<ManageOperationChoice>({
+    message: "Which operation?",
+    theme: PROMPT_THEME,
+    choices: ops.map((op) => ({ name: `${op.verb} ${op.resource}`, value: op })),
+  });
+};
+
+/**
+ * Ask for the parent resource id that scopes a nested list (order, subscription, …).
+ *
+ * @param resource - Resource being listed, used in the prompt text.
+ */
+export const askParentId = async (resource: string): Promise<string> => {
+  const value = await input({
+    message: `Parent id to list ${resource} items from:`,
+    theme: PROMPT_THEME,
+    validate: (entry: string) => (entry.trim().length > 0 ? true : "A parent id is required."),
+  });
+  return value.trim();
+};
+
+/**
+ * Multi-select the items to act on. Nothing is pre-checked so a stray Enter
+ * cannot select everything; `a` toggles all.
+ *
+ * @param verb - Verb shown in the prompt.
+ * @param items - Candidate items with a display label.
+ * @returns Ids of the picked items.
+ */
+export const pickBulkTargets = async (
+  verb: string,
+  items: { id: string; label: string }[],
+): Promise<string[]> => {
+  return checkbox<string>({
+    message: `Pick items to ${verb} (space toggles, a selects all, enter confirms):`,
+    theme: PROMPT_THEME,
+    choices: items.map((item) => ({ name: `${item.label} — id ${item.id}`, value: item.id })),
+    validate: (selected) => (selected.length > 0 ? true : "Pick at least one item."),
+  });
 };

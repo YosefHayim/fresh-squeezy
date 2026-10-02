@@ -11,6 +11,7 @@ import { type ProjectInstallResult, ensureFreshSqueezyDevDependency } from "../p
 import { type LauncherAction, isPromptCancel, pickLauncherAction } from "../prompts.js";
 import { runDoctorCommand } from "./doctor.js";
 import { runInitCommand } from "./init.js";
+import { runManageCommand } from "./manage.js";
 
 export interface LauncherCommandOptions {
   isInteractive: boolean;
@@ -57,7 +58,7 @@ export const runLauncherCommand = async (options: LauncherCommandOptions): Promi
 /**
  * Route a front-door menu choice to the same command handlers the flag-driven
  * CLI uses. `doctor` runs interactively so store selection falls through to the
- * TTY multi-select; `examples` prints the copy/paste cheatsheet; `exit` is a
+ * TTY multi-select; `manage` opens the bulk resource picker; `examples` prints the copy/paste cheatsheet; `exit` is a
  * clean no-op.
  */
 const routeLauncherAction = async (action: LauncherAction): Promise<number> => {
@@ -66,6 +67,8 @@ const routeLauncherAction = async (action: LauncherAction): Promise<number> => {
       return startGuidedSetup();
     case "doctor":
       return runDoctorCommand({ isInteractive: true });
+    case "manage":
+      return runManageCommand();
     case "examples":
       process.stdout.write(renderCommandExamples());
       return 0;
