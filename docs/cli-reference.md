@@ -64,7 +64,9 @@ npx fresh-squeezy delete webhook --ids 1,2,3 --yes --json
 A bare `fresh-squeezy` in a TTY first ensures the package is a dev dependency, then:
 
 - **No API key configured** → jumps straight to guided setup (`init`).
-- **API key present** → opens an action menu that routes to the same handlers as the flags: guided setup, `doctor` (with interactive store selection), copy/paste command examples, or exit.
+- **API key present** → opens an action menu that routes to the same handlers as the flags: guided setup, `doctor` (with interactive store selection), **Manage resources**, copy/paste command examples, or exit.
+
+**Manage resources** walks through: operation (`delete discount`, `delete webhook`, `cancel subscription`, `refund order`, …) → store (or parent id for nested lists) → multi-select of items (space toggles, `a` selects all) → one confirm with the count → results. It runs the same executor as `--all` / `--ids` and ends by printing the equivalent non-interactive command. Cancelling any prompt exits `130`; failed items exit `1`.
 
 Flags and non-interactive shells never open the menu — they defer (`doctor` falls back to a connection-only run) or exit `2`, so nothing hangs in CI.
 

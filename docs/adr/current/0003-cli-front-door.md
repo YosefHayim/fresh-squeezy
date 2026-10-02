@@ -37,3 +37,10 @@ fatal, `130` cancel.
 - `docs/cli-reference.md` updates to describe the menu (follow-on).
 - The dual-mode contract is honored end-to-end: bare + TTY → menu, flags/non-TTY defer and
   never hang, both routes call the same `run<Verb>Command`.
+
+## Amendment — Manage resources (2026-10)
+
+The menu gains a `manage` action (`src/cli/commands/manage.ts`): pick a destructive op →
+store/parent → multi-select items → confirm once → run the shared bulk executor from
+[ADR-0007](./0007-bulk-ops-flags.md), then print the equivalent flag-driven command. It is
+TTY-only like the rest of the menu; non-interactive use goes through `--all` / `--ids`.
