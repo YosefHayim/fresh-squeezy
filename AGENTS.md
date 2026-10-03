@@ -25,7 +25,7 @@ Single-context layout: one `CONTEXT.md` and `docs/adr/` at the repo root (create
 - **Types:** `interface` for shapes, `type` for unions, `as const` for lookup tables (positioned top-of-file, after imports). `unknown` never `any`. One `FreshSqueezyError` (`code`/`status`); callers branch on `.code`. Single named return — no multi-object bags.
 - **Layers:** strict `generated → core → resources → validate → cli`. `core/` imports only `core/` + `generated/` — never upward. `fetch` only in `core/http.ts`.
 - **Validators:** rich ones (`product`/`discount`/`licenseKey`/`subscriptionPlan`) split a pure `check*(attributes)` from the fetch; thin ones stay fused. Error → issue mapping goes through `probeFetch`/`probeCollection` — no hand-rolled mapping, no silent `catch {}`.
-- **Ops:** docs-backed only. `src/resources/registry.ts` holds one `RESOURCES` row per resource; `VERB_RULES` maps each verb to one HTTP call + `docsPath`. No inventing product/variant create. Nested client + CLI hybrid verbs via `invokeOp`.
+- **Ops:** docs-backed only. `src/resources/registry.ts` holds one `RESOURCES` row per resource; `VERB_RULES` maps each verb to one HTTP call and a docs slug, from which `docsPath` is built. No inventing product/variant create. Nested client + CLI hybrid verbs via `invokeOp`.
 - **Tables:** one table per repeated list (`RESOURCES`, `VALIDATE_SUBCOMMANDS`, `OPTIONAL_VALIDATORS`) — add a row, don't re-list in other files.
 - **Docs:** TSDoc why + `@param` + `@returns` + `@example` (+ `@throws` on ops). Agent skill: `skills/fresh-squeezy-ops/SKILL.md`.
 - **Formatting:** Biome (`pnpm format` / `pnpm lint` / `pnpm check:ci`) — double quotes, semicolons, width 100, trailing commas. See `biome.json` (ADR-0001). Gate: `pnpm verify`.
