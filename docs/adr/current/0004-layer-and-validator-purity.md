@@ -30,3 +30,10 @@ validators fuse I/O (`probeFetch`) with pure attribute assertions in one functio
 - Follow-on code work; the "add a validator" recipe in `CODE-STYLE.md` reflects the split.
 - Not adopted: splitting every validator (would add hollow `check*()` functions to `store`
   and `connection` for no gain).
+
+## Amendment — one-function files fold into their caller (2026-10)
+
+`core/mode.ts` (`resolveActualMode`) and `core/equality.ts` (`sameWebhookUrl`) each held one
+pure function with one caller. They now live in `validate/connection.ts` and
+`validate/webhook.ts`. Both stay public through `export *`, stay pure, and `core/` still
+imports nothing above it — the layer rule above is unchanged.

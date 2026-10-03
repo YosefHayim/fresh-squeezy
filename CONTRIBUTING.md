@@ -58,12 +58,12 @@ Read `PROJECT.md` first — it documents the non-goals as strongly as the goals.
 
 ## Adding a validator
 
-1. If the platform resource isn't in `src/resources/`, add a thin file there first — attributes type + a `getX` / `listX` helper.
-2. Add the validator in `src/validate/<name>.ts`. Use `rules.ts` helpers so the result shape stays identical.
-3. Add issue codes to `ISSUE_CODES` in `rules.ts`. Treat them as stable public API.
+1. If the platform resource has no `*Attributes` in `src/resources/attributes.ts`, add one there first.
+2. Add the validator in `src/validate/<name>.ts`. Use the `issues.ts` helpers so the result shape stays identical.
+3. Add issue codes to `ISSUE_CODES` in `issues.ts`. Treat them as stable public API.
 4. Add a colocated unit test `src/validate/<name>.test.ts` using fixtures from `tests/fixtures/sandbox/data.ts`.
 5. Wire it into `doctor()` if it belongs in the default health check.
-6. Mirror the validator as a `fresh-squeezy validate <name>` CLI subcommand in `src/cli/main.ts`.
+6. Add a `VALIDATE_SUBCOMMANDS` row in `src/cli/commands/validate.ts` so it runs as `fresh-squeezy validate <name>`.
 7. Update the README table.
 
 ## Responding to a changelog-drift issue

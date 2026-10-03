@@ -182,7 +182,7 @@ await lemon.subscriptions.cancel(9);
 
 For multi-store doctor runs at the library layer, call `doctor()` in a loop — the CLI does exactly this. Switch on `issue.code` in CI logic; codes are stable across minor versions. Validators return `ValidationResult` and never throw for findings; resource mutations throw `FreshSqueezyError` (`code` / `status`).
 
-Public types: [`FreshSqueezyClient`](src/createFreshSqueezy.ts), [`ValidationResult<T>`](src/core/types.ts), [`DoctorReport`](src/core/types.ts), resource attribute interfaces under [`src/resources`](src/resources), docs-generated Lemon Squeezy object types in [`src/generated/lemonSqueezyApiTypes.ts`](src/generated/lemonSqueezyApiTypes.ts), and changelog augmentation helpers in [`src/augmentations.ts`](src/augmentations.ts).
+Public types: [`FreshSqueezyClient`](src/createFreshSqueezy.ts), [`ValidationResult<T>`](src/core/types.ts), [`DoctorReport`](src/core/types.ts), resource attribute interfaces under [`src/resources/attributes.ts`](src/resources/attributes.ts), docs-generated Lemon Squeezy object types in [`src/generated/lemonSqueezyApiTypes.ts`](src/generated/lemonSqueezyApiTypes.ts), and changelog augmentation helpers in [`src/augmentations.ts`](src/augmentations.ts).
 
 For endpoints not yet wrapped, use the raw escape hatch:
 
@@ -280,6 +280,20 @@ Yes. `import { createFreshSqueezy } from "fresh-squeezy"` and call `doctor()`, i
 ### Which Lemon Squeezy resources can it validate?
 
 Connection/auth, stores, products (and variants), webhooks, discounts, license keys, and subscription plans. Add `--all-resources` to discover and validate every supported resource in the selected store(s). Full list in the [reference](#reference).
+
+## Project structure
+
+```
+src/index.ts                public barrel (export *)
+src/createFreshSqueezy.ts   the client: validators, doctor(), lemon.<resource>.<verb>()
+src/core/                   HttpClient (the only fetch), config, FreshSqueezyError, shared types
+src/resources/              registry.ts (one table of docs-backed ops + invokeOp), attributes.ts
+src/validate/               one file per validator, doctor composition, issues, probe
+src/cli/                    main.ts (commander), render, prompts, commands/ (one file per command)
+src/generated/              docs-generated Lemon Squeezy attribute types
+src/support/, src/scripts/  webhook policy + drift snapshot, CI scripts
+tests/                      fixtures, helpers, opt-in live smoke
+```
 
 ## Contributing
 

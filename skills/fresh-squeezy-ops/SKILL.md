@@ -130,14 +130,12 @@ HTTP failures throw `FreshSqueezyError` (`code` / `status`). Validators return `
 ## Extending — golden path (resource verb)
 
 1. Confirm the verb exists on official docs (`docsPath`).
-2. Add `const createX = async (…) =>` / `updateX` / … in `src/resources/<name>.ts` via `HttpClient` only (const arrows — never `async function`).
-3. Full TSDoc: why + `@param` + `@returns` + `@example` + `@throws` when applicable.
-4. Register in `src/resources/registry.ts`.
-5. Wire `invokeOp` switch + nested client in `createFreshSqueezy.ts`.
-6. CLI already routes all `OpVerb`s; no main.ts change unless new verb token.
-7. Tests: registry + invoke path; mockFetch / fake HttpClient.
-8. Single named return type — no `{ a, b }` multi-entity bags.
-9. Run `pnpm verify`.
+2. Add the verb to the resource's row in `RESOURCES` (`src/resources/registry.ts`). New resource → new row + its `*Attributes` in `src/resources/attributes.ts`. New kind of verb → new `VERB_RULES` entry (HTTP method, path suffix, body rule, docs slug).
+3. If the docs page breaks the naming pattern, add it to `DOCS_PATH_EXCEPTIONS`.
+4. Add the nested client method in `createFreshSqueezy.ts` (interface + `op(...)` line).
+5. CLI already routes all `OpVerb`s; no main.ts change unless new verb token.
+6. Tests: a row in `src/createFreshSqueezy.test.ts` asserting method + path.
+7. Run `pnpm verify`; `fresh-squeezy ops --list` should show the new verb.
 
 ### Adding a validator (separate recipe)
 
@@ -147,9 +145,8 @@ See `CODE-STYLE.md` → “How to add a validator”. Ops do not replace doctor.
 
 | Path | Role |
 |------|------|
-| `src/resources/registry.ts` | Implemented ops matrix + `docsPath` |
-| `src/resources/invokeOp.ts` | Dispatcher |
-| `src/resources/*.ts` | Thin HTTP helpers |
+| `src/resources/registry.ts` | `RESOURCES` × `VERB_RULES` ops table + `invokeOp` dispatcher |
+| `src/resources/attributes.ts` | Typed `*Attributes` for every resource |
 | `src/core/http.ts` | Only `fetch` |
 | `src/cli/commands/resourceOps.ts` | CLI safety + body + exit codes |
 | `src/cli/main.ts` | `get\|list\|create\|…` commands |

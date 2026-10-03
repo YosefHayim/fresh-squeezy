@@ -139,7 +139,7 @@ if (!report.ok) {
 
 如需在库层进行多店铺运行，请在循环中调用 `doctor()` —— CLI 正是这样做的。在 CI 逻辑中对 `issue.code` 进行分支判断；这些代码在次版本之间保持稳定。
 
-公共类型：[`FreshSqueezyClient`](src/createFreshSqueezy.ts)、[`ValidationResult<T>`](src/core/types.ts)、[`DoctorReport`](src/core/types.ts)、[`src/resources`](src/resources) 下的资源属性接口、[`src/generated/lemonSqueezyApiTypes.ts`](src/generated/lemonSqueezyApiTypes.ts) 中由文档生成的 Lemon Squeezy 对象类型，以及 [`src/augmentations.ts`](src/augmentations.ts) 中的更新日志增强辅助函数。
+公共类型：[`FreshSqueezyClient`](src/createFreshSqueezy.ts)、[`ValidationResult<T>`](src/core/types.ts)、[`DoctorReport`](src/core/types.ts)、[`src/resources/attributes.ts`](src/resources/attributes.ts) 下的资源属性接口、[`src/generated/lemonSqueezyApiTypes.ts`](src/generated/lemonSqueezyApiTypes.ts) 中由文档生成的 Lemon Squeezy 对象类型，以及 [`src/augmentations.ts`](src/augmentations.ts) 中的更新日志增强辅助函数。
 
 对于尚未封装的端点，可使用原始转义出口：
 

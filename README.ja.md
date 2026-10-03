@@ -139,7 +139,7 @@ if (!report.ok) {
 
 ライブラリ層でのマルチストア実行には、`doctor()` をループで呼び出してください — CLI はまさにこれを行っています。CI ロジックでは `issue.code` で分岐してください。コードはマイナーバージョン間で安定しています。
 
-公開型: [`FreshSqueezyClient`](src/createFreshSqueezy.ts)、[`ValidationResult<T>`](src/core/types.ts)、[`DoctorReport`](src/core/types.ts)、[`src/resources`](src/resources) 配下のリソース属性インターフェース、[`src/generated/lemonSqueezyApiTypes.ts`](src/generated/lemonSqueezyApiTypes.ts) のドキュメント生成された Lemon Squeezy オブジェクト型、[`src/augmentations.ts`](src/augmentations.ts) のチェンジログ拡張ヘルパー。
+公開型: [`FreshSqueezyClient`](src/createFreshSqueezy.ts)、[`ValidationResult<T>`](src/core/types.ts)、[`DoctorReport`](src/core/types.ts)、[`src/resources/attributes.ts`](src/resources/attributes.ts) 配下のリソース属性インターフェース、[`src/generated/lemonSqueezyApiTypes.ts`](src/generated/lemonSqueezyApiTypes.ts) のドキュメント生成された Lemon Squeezy オブジェクト型、[`src/augmentations.ts`](src/augmentations.ts) のチェンジログ拡張ヘルパー。
 
 まだラップされていないエンドポイントには、生のエスケープハッチを使用してください:
 
