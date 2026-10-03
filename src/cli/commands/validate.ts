@@ -1,8 +1,7 @@
 import { FreshSqueezyError } from "../../core/errors.js";
 import type { Mode, ValidationResult } from "../../core/types.js";
 import { type FreshSqueezyClient, createFreshSqueezy } from "../../createFreshSqueezy.js";
-import { getValidateHints, renderCliError } from "../errors.js";
-import { renderResult } from "../render.js";
+import { getValidateHints, renderCliError, renderResult } from "../render.js";
 import { resolveStores } from "../resolveStores.js";
 
 export interface ValidateCommandOptions {

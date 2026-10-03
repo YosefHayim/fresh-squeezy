@@ -9,7 +9,7 @@ import { runInitCommand } from "./commands/init.js";
 import { runLauncherCommand } from "./commands/launcher.js";
 import { runResourceOpCommand } from "./commands/resourceOps.js";
 import { type ValidateTarget, runValidateCommand } from "./commands/validate.js";
-import { renderCliError } from "./errors.js";
+import { renderCliError } from "./render.js";
 
 /**
  * CLI entry. Wires commander subcommands to their handlers. Each handler

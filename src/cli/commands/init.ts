@@ -5,8 +5,6 @@ import { ENV_KEYS } from "../../core/config.js";
 import type { Mode, ValidationResult } from "../../core/types.js";
 import { type FreshSqueezyClient, createFreshSqueezy } from "../../createFreshSqueezy.js";
 import type { ConnectionSummary } from "../../validate/connection.js";
-import { renderBrandHeader, renderCancelMessage, renderDetected, renderStep } from "../brand.js";
-import { renderCliError } from "../errors.js";
 import {
   type InitDoctorTarget,
   type InitDoctorTargets,
@@ -18,7 +16,14 @@ import {
   pickStore,
   selectDoctorTargets,
 } from "../prompts.js";
-import { renderReport } from "../render.js";
+import {
+  renderBrandHeader,
+  renderCancelMessage,
+  renderCliError,
+  renderDetected,
+  renderReport,
+  renderStep,
+} from "../render.js";
 import {
   EMPTY_INIT_RESOURCE_CHOICES,
   type InitResourceChoices,

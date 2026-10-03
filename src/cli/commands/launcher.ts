@@ -1,14 +1,14 @@
 import chalk from "chalk";
 import { ENV_KEYS } from "../../core/config.js";
+import { type ProjectInstallResult, ensureFreshSqueezyDevDependency } from "../projectInstall.js";
+import { type LauncherAction, isPromptCancel, pickLauncherAction } from "../prompts.js";
 import {
   renderBrandHeader,
   renderCancelMessage,
   renderCommandExamples,
   renderDetected,
   renderStep,
-} from "../brand.js";
-import { type ProjectInstallResult, ensureFreshSqueezyDevDependency } from "../projectInstall.js";
-import { type LauncherAction, isPromptCancel, pickLauncherAction } from "../prompts.js";
+} from "../render.js";
 import { runDoctorCommand } from "./doctor.js";
 import { runInitCommand } from "./init.js";
 import { runManageCommand } from "./manage.js";

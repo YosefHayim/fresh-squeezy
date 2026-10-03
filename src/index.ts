@@ -4,9 +4,7 @@
 export * from "./generated/lemonSqueezyApiTypes.js";
 
 export * from "./core/config.js";
-export * from "./core/equality.js";
 export * from "./core/errors.js";
-export * from "./core/mode.js";
 export * from "./core/types.js";
 
 export * from "./resources/affiliates.js";

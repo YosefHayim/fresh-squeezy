@@ -1,9 +1,8 @@
 import { FreshSqueezyError } from "../../core/errors.js";
 import type { DoctorReport, Mode } from "../../core/types.js";
 import { type FreshSqueezyClient, createFreshSqueezy } from "../../createFreshSqueezy.js";
-import { getDoctorHints, renderCliError } from "../errors.js";
 import type { InitDoctorTarget } from "../prompts.js";
-import { renderReport } from "../render.js";
+import { getDoctorHints, renderCliError, renderReport } from "../render.js";
 import { resolveStores } from "../resolveStores.js";
 import { type InitResourceChoices, discoverInitResourceChoices } from "../resourceDiscovery.js";
 

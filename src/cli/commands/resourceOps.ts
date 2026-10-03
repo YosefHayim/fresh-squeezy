@@ -11,8 +11,8 @@ import {
   listRegisteredResources,
   resourceRegistry,
 } from "../../resources/registry.js";
-import { renderCliError } from "../errors.js";
 import { confirmResourceOp } from "../prompts.js";
+import { renderCliError } from "../render.js";
 import {
   type BulkSelector,
   collectBulkTargets,

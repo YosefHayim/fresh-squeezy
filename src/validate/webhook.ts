@@ -1,4 +1,3 @@
-import { sameWebhookUrl } from "../core/equality.js";
 import type { HttpClient } from "../core/http.js";
 import type { Mode, ValidationIssue, ValidationResult } from "../core/types.js";
 import { type WebhookAttributes, listWebhooksForStore } from "../resources/webhooks.js";
@@ -11,6 +10,21 @@ export interface WebhookValidationOptions {
   /** The public URL your app exposes for Lemon Squeezy to POST to. */
   url: string;
 }
+
+/**
+ * Compare two webhook URLs ignoring trailing slashes and casing.
+ *
+ * Lemon Squeezy strips trailing slashes when persisting a webhook, but users
+ * often paste the trailing-slash form into their config. `validateWebhook`
+ * relies on this rule to match a configured URL against the registered list.
+ */
+export const sameWebhookUrl = (a: string, b: string): boolean => {
+  return normalizeWebhookUrl(a) === normalizeWebhookUrl(b);
+};
+
+const normalizeWebhookUrl = (raw: string): string => {
+  return raw.replace(/\/+$/, "").toLowerCase();
+};
 
 /**
  * Confirm a webhook matching `options.url` is registered against the given
