@@ -1,6 +1,6 @@
 import type { HttpClient } from "../core/http.js";
 import type { Mode, ValidationIssue, ValidationResult } from "../core/types.js";
-import { type DiscountAttributes, getDiscount } from "../resources/discounts.js";
+import type { DiscountAttributes } from "../resources/attributes.js";
 import { checkStoreOwnership, probeFetch } from "./probe.js";
 import { ISSUE_CODES, buildResult, issue } from "./rules.js";
 
@@ -31,12 +31,15 @@ export const validateDiscount = async (
     id: String(options.discountId),
   };
 
-  const fetched = await probeFetch(() => getDiscount(http, options.discountId), {
-    notFoundCode: ISSUE_CODES.DISCOUNT_NOT_FOUND,
-    notFoundMessage: `Discount ${options.discountId} not found.`,
-    notFoundFix: "Verify the discount ID in the Lemon Squeezy dashboard.",
-    notFoundContext: { discountId: String(options.discountId) },
-  });
+  const fetched = await probeFetch(
+    () => http.getResource<DiscountAttributes>(`/v1/discounts/${options.discountId}`),
+    {
+      notFoundCode: ISSUE_CODES.DISCOUNT_NOT_FOUND,
+      notFoundMessage: `Discount ${options.discountId} not found.`,
+      notFoundFix: "Verify the discount ID in the Lemon Squeezy dashboard.",
+      notFoundContext: { discountId: String(options.discountId) },
+    },
+  );
 
   if (!fetched.ok) {
     return buildResult<DiscountAttributes>("discount", mode, [fetched.issue], undefined, target);

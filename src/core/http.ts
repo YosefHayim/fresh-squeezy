@@ -48,15 +48,12 @@ interface JsonApiError {
  * but this is also exposed as the public escape hatch so consumers can reach
  * endpoints fresh-squeezy does not wrap yet.
  *
- * Responsibilities kept in this one place (per plan.md "one source of truth
- * for transport"):
+ * Responsibilities kept in this one place (the single transport chokepoint):
  *   - auth header injection
  *   - query string serialization (JSON:API bracket keys via URLSearchParams)
  *   - response parsing + error normalization
  *   - surfacing HTTP status in `FreshSqueezyError`
- *
- * Retries, pagination helpers, and rate-limit handling live in separate files
- * so this layer stays small and obvious.
+ *   - walking paginated collections
  */
 export class HttpClient {
   constructor(private readonly config: ResolvedConfig) {}
@@ -102,53 +99,6 @@ export class HttpClient {
    */
   async getResource<TAttr>(path: string): Promise<JsonApiResource<TAttr>> {
     const doc = await this.request<JsonApiDocument<TAttr>>({ path });
-    return doc.data;
-  }
-
-  /**
-   * POST a JSON:API document and return the created `data` resource.
-   *
-   * @param path - API path starting with `/v1/...`.
-   * @param body - JSON:API create document.
-   * @returns The created resource.
-   */
-  async postResource<TAttr>(path: string, body: unknown): Promise<JsonApiResource<TAttr>> {
-    const doc = await this.request<JsonApiDocument<TAttr>>({ method: "POST", path, body });
-    return doc.data;
-  }
-
-  /**
-   * PATCH a JSON:API document and return the updated `data` resource.
-   *
-   * @param path - API path starting with `/v1/...`.
-   * @param body - JSON:API update document.
-   * @returns The updated resource.
-   */
-  async patchResource<TAttr>(path: string, body: unknown): Promise<JsonApiResource<TAttr>> {
-    const doc = await this.request<JsonApiDocument<TAttr>>({ method: "PATCH", path, body });
-    return doc.data;
-  }
-
-  /**
-   * DELETE a resource. Lemon Squeezy often returns an empty body on success.
-   *
-   * @param path - API path starting with `/v1/...`.
-   * @returns Nothing — single void return, not a multi-field bag.
-   */
-  async deleteResource(path: string): Promise<void> {
-    await this.request({ method: "DELETE", path });
-  }
-
-  /**
-   * Fetch a single page of a JSON:API collection. Most callers want
-   * `paginate()` instead — this method is kept for one-shot lookups where
-   * the caller knows the result fits in a single page.
-   */
-  async getCollection<TAttr>(
-    path: string,
-    query?: RequestOptions["query"],
-  ): Promise<JsonApiResource<TAttr>[]> {
-    const doc = await this.request<JsonApiCollection<TAttr>>({ path, query });
     return doc.data;
   }
 

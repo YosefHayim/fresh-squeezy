@@ -4,10 +4,10 @@ import { FreshSqueezyError } from "../../core/errors.js";
 import { HttpClient } from "../../core/http.js";
 import type { Mode } from "../../core/types.js";
 import { createFreshSqueezy } from "../../createFreshSqueezy.js";
-import { invokeOp } from "../../resources/invokeOp.js";
 import {
   type OpVerb,
   findResourceVerb,
+  invokeOp,
   listRegisteredResources,
   resourceRegistry,
 } from "../../resources/registry.js";

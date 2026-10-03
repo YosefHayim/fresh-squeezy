@@ -1,11 +1,13 @@
 import type { RequestOptions } from "../core/http.js";
 import type { JsonApiCollection, JsonApiResource } from "../core/types.js";
 import type { FreshSqueezyClient } from "../createFreshSqueezy.js";
-import type { DiscountAttributes } from "../resources/discounts.js";
-import type { LicenseKeyAttributes } from "../resources/licenseKeys.js";
-import type { ProductAttributes } from "../resources/products.js";
-import type { SubscriptionVariantAttributes } from "../resources/variants.js";
-import type { WebhookAttributes } from "../resources/webhooks.js";
+import type {
+  DiscountAttributes,
+  LicenseKeyAttributes,
+  ProductAttributes,
+  SubscriptionVariantAttributes,
+  WebhookAttributes,
+} from "../resources/attributes.js";
 import type { InitDoctorTarget } from "./prompts.js";
 
 interface ResourceChoice {

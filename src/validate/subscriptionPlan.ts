@@ -1,7 +1,6 @@
 import type { HttpClient } from "../core/http.js";
 import type { Mode, ValidationIssue, ValidationResult } from "../core/types.js";
-import { getProduct } from "../resources/products.js";
-import { type SubscriptionVariantAttributes, getVariant } from "../resources/variants.js";
+import type { ProductAttributes, SubscriptionVariantAttributes } from "../resources/attributes.js";
 import { checkStoreOwnership, probeFetch } from "./probe.js";
 import { ISSUE_CODES, buildResult, issue } from "./rules.js";
 
@@ -44,7 +43,7 @@ export const validateSubscriptionPlan = async (
   };
 
   const fetched = await probeFetch(
-    () => getVariant<SubscriptionVariantAttributes>(http, options.variantId),
+    () => http.getResource<SubscriptionVariantAttributes>(`/v1/variants/${options.variantId}`),
     {
       notFoundCode: ISSUE_CODES.PLAN_VARIANT_NOT_FOUND,
       notFoundMessage: `Variant ${options.variantId} not found.`,
@@ -69,10 +68,13 @@ export const validateSubscriptionPlan = async (
 
   // Store cross-check needs a second fetch (parent product). Advisory only —
   // skip on failure rather than blocking the pure attribute checks above.
-  const productProbed = await probeFetch(() => getProduct(http, attrs.product_id), {
-    notFoundCode: ISSUE_CODES.PRODUCT_NOT_FOUND,
-    notFoundMessage: `Product ${attrs.product_id} not found.`,
-  });
+  const productProbed = await probeFetch(
+    () => http.getResource<ProductAttributes>(`/v1/products/${attrs.product_id}`),
+    {
+      notFoundCode: ISSUE_CODES.PRODUCT_NOT_FOUND,
+      notFoundMessage: `Product ${attrs.product_id} not found.`,
+    },
+  );
   if (productProbed.ok) {
     const mismatch = checkStoreOwnership({
       expectedStoreId: options.storeId,

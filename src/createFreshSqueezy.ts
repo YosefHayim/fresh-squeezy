@@ -1,13 +1,14 @@
 import { resolveConfig } from "./core/config.js";
 import { HttpClient, type RequestOptions } from "./core/http.js";
 import type { DoctorReport, FreshSqueezyConfig, Mode, ValidationResult } from "./core/types.js";
-import type { DiscountAttributes } from "./resources/discounts.js";
-import { type InvokeOpArgs, invokeOp } from "./resources/invokeOp.js";
-import type { LicenseKeyAttributes } from "./resources/licenseKeys.js";
-import type { ProductAttributes } from "./resources/products.js";
-import type { OpVerb } from "./resources/registry.js";
-import type { StoreAttributes } from "./resources/stores.js";
-import type { WebhookAttributes } from "./resources/webhooks.js";
+import type {
+  DiscountAttributes,
+  LicenseKeyAttributes,
+  ProductAttributes,
+  StoreAttributes,
+  WebhookAttributes,
+} from "./resources/attributes.js";
+import { type InvokeOpArgs, type OpVerb, invokeOp } from "./resources/registry.js";
 import { type ConnectionSummary, validateConnection } from "./validate/connection.js";
 import { type DiscountValidationOptions, validateDiscount } from "./validate/discount.js";
 import { type DoctorOptions, doctor } from "./validate/doctor.js";

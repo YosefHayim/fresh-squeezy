@@ -82,7 +82,7 @@ export const ACKNOWLEDGED_CHANGELOG_ENTRIES = [
     date: "2025-06-11",
     summary: "Added payment_processor attribute to Subscription objects.",
     handledBy:
-      "Surfaced as SubscriptionAttributes.payment_processor in src/resources/subscriptions.ts.",
+      "Surfaced as SubscriptionAttributes.payment_processor in src/resources/attributes.ts.",
   },
   {
     date: "2025-01-21",
@@ -92,12 +92,12 @@ export const ACKNOWLEDGED_CHANGELOG_ENTRIES = [
   {
     date: "2024-12-06",
     summary: "Added quantity parameter to OrderItem objects.",
-    handledBy: "OrderItemAttributes.quantity (src/resources/orderItems.ts).",
+    handledBy: "OrderItemAttributes.quantity (src/resources/attributes.ts).",
   },
   {
     date: "2024-09-10",
     summary: "Added fraudulent Order status.",
-    handledBy: "OrderAttributes.status union includes 'fraudulent' (src/resources/orders.ts).",
+    handledBy: "OrderAttributes.status union includes 'fraudulent' (src/resources/attributes.ts).",
   },
   {
     date: "2024-09-04",
@@ -114,7 +114,7 @@ export const ACKNOWLEDGED_CHANGELOG_ENTRIES = [
   {
     date: "2024-06-09",
     summary: "Added links property to Variant objects.",
-    handledBy: "VariantAttributes.links (src/resources/variants.ts).",
+    handledBy: "VariantAttributes.links (src/resources/attributes.ts).",
   },
   {
     date: "2024-05-20",
@@ -136,7 +136,7 @@ export const ACKNOWLEDGED_CHANGELOG_ENTRIES = [
   {
     date: "2024-02-20",
     summary: "Added urls.update_customer_portal to Subscription objects.",
-    handledBy: "SubscriptionUrls.update_customer_portal (src/resources/subscriptions.ts).",
+    handledBy: "SubscriptionUrls.update_customer_portal (src/resources/attributes.ts).",
   },
   {
     date: "2024-02-12",

@@ -1,7 +1,6 @@
 import type { HttpClient } from "../core/http.js";
 import type { Mode, ValidationIssue, ValidationResult } from "../core/types.js";
-import { type ProductAttributes, getProduct } from "../resources/products.js";
-import { listVariantsForProduct } from "../resources/variants.js";
+import type { ProductAttributes, VariantAttributes } from "../resources/attributes.js";
 import { checkStoreOwnership, probeCollection, probeFetch } from "./probe.js";
 import { ISSUE_CODES, buildResult, issue } from "./rules.js";
 
@@ -27,12 +26,15 @@ export const validateProduct = async (
     id: String(options.productId),
   };
 
-  const fetched = await probeFetch(() => getProduct(http, options.productId), {
-    notFoundCode: ISSUE_CODES.PRODUCT_NOT_FOUND,
-    notFoundMessage: `Product ${options.productId} not found.`,
-    notFoundFix: "Verify the product ID in the Lemon Squeezy dashboard.",
-    notFoundContext: { productId: String(options.productId) },
-  });
+  const fetched = await probeFetch(
+    () => http.getResource<ProductAttributes>(`/v1/products/${options.productId}`),
+    {
+      notFoundCode: ISSUE_CODES.PRODUCT_NOT_FOUND,
+      notFoundMessage: `Product ${options.productId} not found.`,
+      notFoundFix: "Verify the product ID in the Lemon Squeezy dashboard.",
+      notFoundContext: { productId: String(options.productId) },
+    },
+  );
 
   if (!fetched.ok) {
     return buildResult<ProductAttributes>("product", mode, [fetched.issue], undefined, target);
@@ -44,7 +46,9 @@ export const validateProduct = async (
   // Variant population needs a second fetch, so it stays out of the pure check.
   // Listing is best-effort: map via probeCollection, then soft-fail as warning.
   const variantsProbed = await probeCollection(() =>
-    listVariantsForProduct(http, options.productId),
+    http.paginate<VariantAttributes>("/v1/variants", {
+      "filter[product_id]": String(options.productId),
+    }),
   );
   if (!variantsProbed.ok) {
     issues.push({ ...variantsProbed.issue, severity: "warning" });

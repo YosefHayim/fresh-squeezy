@@ -1,7 +1,6 @@
 import { FreshSqueezyError } from "../../core/errors.js";
 import type { HttpClient } from "../../core/http.js";
-import { invokeOp } from "../../resources/invokeOp.js";
-import { type ResourceVerbSpec, findResourceVerb } from "../../resources/registry.js";
+import { type ResourceVerbSpec, findResourceVerb, invokeOp } from "../../resources/registry.js";
 
 /** One resource the bulk run will act on. */
 export interface BulkTarget {

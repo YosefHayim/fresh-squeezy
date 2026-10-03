@@ -1,7 +1,10 @@
 import type { HttpClient } from "../core/http.js";
 import type { Mode, ValidationIssue, ValidationResult } from "../core/types.js";
-import { listStores } from "../resources/stores.js";
-import { type UserAttributes, getAuthenticatedUser } from "../resources/users.js";
+import type {
+  AuthenticatedUserDocument,
+  StoreAttributes,
+  UserAttributes,
+} from "../resources/attributes.js";
 import { probeCollection } from "./probe.js";
 import { ISSUE_CODES, buildResult, issue } from "./rules.js";
 
@@ -43,6 +46,10 @@ export const resolveActualMode = (testMode: boolean | undefined): Mode | undefin
   return undefined;
 };
 
+const fetchUserDocument = (http: HttpClient): Promise<AuthenticatedUserDocument> => {
+  return http.request<AuthenticatedUserDocument>({ path: "/v1/users/me" });
+};
+
 /**
  * Verify that the API key works, surface the account identity + reachable
  * stores, and cross-check declared mode vs the key's true mode.
@@ -56,8 +63,8 @@ export const validateConnection = async (
 ): Promise<ValidationResult<ConnectionSummary>> => {
   const fetched = await probeCollection(
     async () => {
-      const userDoc = await getAuthenticatedUser(http);
-      const stores = await listStores(http);
+      const userDoc = await fetchUserDocument(http);
+      const stores = await http.paginate<StoreAttributes>("/v1/stores");
       return { userDoc, stores };
     },
     {
@@ -125,6 +132,6 @@ export const validateConnection = async (
  * structured non-throwing result should use `validateConnection` instead.
  */
 export const fetchActualMode = async (http: HttpClient): Promise<Mode | undefined> => {
-  const doc = await getAuthenticatedUser(http);
+  const doc = await fetchUserDocument(http);
   return resolveActualMode(doc.meta?.test_mode);
 };

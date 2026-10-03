@@ -1,6 +1,6 @@
 import type { HttpClient } from "../core/http.js";
 import type { Mode, ValidationIssue, ValidationResult } from "../core/types.js";
-import { type WebhookAttributes, listWebhooksForStore } from "../resources/webhooks.js";
+import type { WebhookAttributes } from "../resources/attributes.js";
 import { OPTIONAL_WEBHOOK_EVENTS, RECOMMENDED_WEBHOOK_EVENTS } from "../support/manifest.js";
 import { probeCollection } from "./probe.js";
 import { ISSUE_CODES, buildResult, issue } from "./rules.js";
@@ -41,7 +41,11 @@ export const validateWebhook = async (
 ): Promise<ValidationResult<WebhookAttributes>> => {
   const target = { label: options.url, url: options.url };
 
-  const fetched = await probeCollection(() => listWebhooksForStore(http, options.storeId));
+  const fetched = await probeCollection(() =>
+    http.paginate<WebhookAttributes>("/v1/webhooks", {
+      "filter[store_id]": String(options.storeId),
+    }),
+  );
   if (!fetched.ok) {
     return buildResult<WebhookAttributes>("webhook", mode, [fetched.issue], undefined, target);
   }

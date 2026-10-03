@@ -1,11 +1,13 @@
 import { FreshSqueezyError } from "../core/errors.js";
 import type { HttpClient } from "../core/http.js";
 import type { DoctorReport, Mode, ValidationResult } from "../core/types.js";
-import type { DiscountAttributes } from "../resources/discounts.js";
-import type { LicenseKeyAttributes } from "../resources/licenseKeys.js";
-import type { ProductAttributes } from "../resources/products.js";
-import type { StoreAttributes } from "../resources/stores.js";
-import type { WebhookAttributes } from "../resources/webhooks.js";
+import type {
+  DiscountAttributes,
+  LicenseKeyAttributes,
+  ProductAttributes,
+  StoreAttributes,
+  WebhookAttributes,
+} from "../resources/attributes.js";
 import { type ConnectionSummary, validateConnection } from "./connection.js";
 import { type DiscountValidationOptions, validateDiscount } from "./discount.js";
 import { type LicenseKeyValidationOptions, validateLicenseKey } from "./licenseKey.js";
