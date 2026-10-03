@@ -1,8 +1,8 @@
 import type { HttpClient } from "../core/http.js";
 import type { Mode, ValidationResult } from "../core/types.js";
 import type { StoreAttributes } from "../resources/attributes.js";
+import { ISSUE_CODES, buildResult } from "./issues.js";
 import { probeFetch } from "./probe.js";
-import { ISSUE_CODES, buildResult } from "./rules.js";
 
 /**
  * Verify a store exists and is reachable with the current API key. A 404

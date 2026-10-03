@@ -1,6 +1,6 @@
 import type { Mode, ValidationResult } from "../../src/core/types.js";
 import type { DoctorValidators } from "../../src/validate/doctor.js";
-import { buildResult } from "../../src/validate/rules.js";
+import { buildResult } from "../../src/validate/issues.js";
 
 /**
  * Build a `DoctorValidators` object with passing defaults. Override only the

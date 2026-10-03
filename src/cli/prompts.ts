@@ -1,14 +1,13 @@
 import path from "node:path";
 import { checkbox, confirm, input, password, select } from "@inquirer/prompts";
 import {
-  DOCTOR_TARGETS,
-  type DoctorChoices,
-  type DoctorTarget,
-  type DoctorTargetField,
-  type InitDoctorTarget,
-  type InitDoctorTargets,
+  type DiscoveredChoices,
+  OPTIONAL_VALIDATORS,
+  type OptionalValidator,
+  type OptionalValidatorIds,
+  type OptionalValidatorName,
   type ResourceChoiceGroup,
-} from "./resourceDiscovery.js";
+} from "./optionalValidators.js";
 
 /**
  * Interactive prompts used by `fresh-squeezy init`.
@@ -106,11 +105,11 @@ export const pickStores = async (
   });
 };
 
-export const selectDoctorTargets = async (): Promise<InitDoctorTarget[]> => {
-  return checkbox<InitDoctorTarget>({
+export const selectOptionalValidators = async (): Promise<OptionalValidatorName[]> => {
+  return checkbox<OptionalValidatorName>({
     message: "Add resource checks to this doctor run?",
     theme: PROMPT_THEME,
-    choices: DOCTOR_TARGETS.map((row) => ({ name: row.menuLabel, value: row.target })),
+    choices: OPTIONAL_VALIDATORS.map((row) => ({ name: row.menuLabel, value: row.name })),
   });
 };
 
@@ -126,9 +125,8 @@ const cleanList = (value: string[] | string | undefined): string[] | undefined =
   return cleaned.length > 0 ? cleaned : undefined;
 };
 
-/** Discovered values the user picked, or what to do when there was nothing (or nothing picked). */
-const pickTargetValues = async (
-  row: DoctorTarget,
+const pickDiscoveredIds = async (
+  row: OptionalValidator,
   group: ResourceChoiceGroup | undefined,
 ): Promise<string[] | EmptyTargetAction> => {
   const discovered = group?.choices ?? [];
@@ -154,18 +152,18 @@ const askEmptyTargetAction = async (message: string): Promise<EmptyTargetAction>
   });
 };
 
-export const askForDoctorTargetValues = async (
-  targets: InitDoctorTarget[],
-  choices: DoctorChoices = {},
-): Promise<InitDoctorTargets> => {
-  if (targets.length === 0) return {};
+export const askForValidatorIds = async (
+  names: OptionalValidatorName[],
+  choices: DiscoveredChoices = {},
+): Promise<OptionalValidatorIds> => {
+  if (names.length === 0) return {};
 
-  const answers: Partial<Record<DoctorTargetField, string[] | string>> = {};
-  const manualRows: DoctorTarget[] = [];
+  const answers: Partial<Record<keyof OptionalValidatorIds, string[] | string>> = {};
+  const manualRows: OptionalValidator[] = [];
 
-  for (const row of DOCTOR_TARGETS) {
-    if (!targets.includes(row.target)) continue;
-    const picked = await pickTargetValues(row, choices[row.target]);
+  for (const row of OPTIONAL_VALIDATORS) {
+    if (!names.includes(row.name)) continue;
+    const picked = await pickDiscoveredIds(row, choices[row.name]);
     if (picked === "manual") manualRows.push(row);
     else if (picked !== "skip") answers[row.field] = picked;
   }
@@ -178,8 +176,8 @@ export const askForDoctorTargetValues = async (
     });
   }
 
-  const targetValues: InitDoctorTargets = {};
-  for (const row of DOCTOR_TARGETS) targetValues[row.field] = cleanList(answers[row.field]);
+  const targetValues: OptionalValidatorIds = {};
+  for (const row of OPTIONAL_VALIDATORS) targetValues[row.field] = cleanList(answers[row.field]);
   return targetValues;
 };
 

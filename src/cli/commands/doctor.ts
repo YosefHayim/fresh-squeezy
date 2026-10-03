@@ -1,14 +1,14 @@
 import { FreshSqueezyError } from "../../core/errors.js";
 import type { DoctorReport, Mode } from "../../core/types.js";
 import { type FreshSqueezyClient, createFreshSqueezy } from "../../createFreshSqueezy.js";
+import {
+  OPTIONAL_VALIDATORS,
+  type OptionalValidatorIds,
+  type ResourceChoiceGroup,
+  discoverChoices,
+} from "../optionalValidators.js";
 import { getDoctorHints, renderCliError, renderReport } from "../render.js";
 import { resolveStores } from "../resolveStores.js";
-import {
-  DOCTOR_TARGETS,
-  type InitDoctorTargets,
-  type ResourceChoiceGroup,
-  discoverDoctorChoices,
-} from "../resourceDiscovery.js";
 
 export interface DoctorCommandOptions {
   mode?: Mode;
@@ -56,8 +56,8 @@ export const runDoctorCommand = async (options: DoctorCommandOptions): Promise<n
 
     const reports = await Promise.all(
       resolved.storeIds.map(async (storeId) => {
-        const targets = await resolveDoctorTargets(client, storeId, options);
-        return client.doctor({ storeId, ...targets });
+        const validatorIds = await resolveValidatorIds(client, storeId, options);
+        return client.doctor({ storeId, ...validatorIds });
       }),
     );
 
@@ -86,7 +86,7 @@ export const runDoctorCommand = async (options: DoctorCommandOptions): Promise<n
 
 const one = (value: string | undefined): string[] | undefined => (value ? [value] : undefined);
 
-const explicitTargets = (options: DoctorCommandOptions): InitDoctorTargets => ({
+const explicitValidatorIds = (options: DoctorCommandOptions): OptionalValidatorIds => ({
   productIds: one(options.productId),
   webhookUrls: one(options.webhookUrl),
   discountIds: one(options.discountId),
@@ -105,18 +105,18 @@ const mergeValues = (
   return merged.length > 0 ? merged : undefined;
 };
 
-const resolveDoctorTargets = async (
+const resolveValidatorIds = async (
   client: FreshSqueezyClient,
   storeId: string,
   options: DoctorCommandOptions,
-): Promise<InitDoctorTargets> => {
-  const explicit = explicitTargets(options);
+): Promise<OptionalValidatorIds> => {
+  const explicit = explicitValidatorIds(options);
   if (!options.allResources) return explicit;
 
-  const allTargets = DOCTOR_TARGETS.map((row) => row.target);
-  const discovered = await discoverDoctorChoices(client, storeId, allTargets);
-  for (const row of DOCTOR_TARGETS) {
-    const error = discovered[row.target]?.error;
+  const allNames = OPTIONAL_VALIDATORS.map((row) => row.name);
+  const discovered = await discoverChoices(client, storeId, allNames);
+  for (const row of OPTIONAL_VALIDATORS) {
+    const error = discovered[row.name]?.error;
     if (error) {
       process.stderr.write(
         `fresh-squeezy: discovery skipped ${row.label.toLowerCase()}: ${error}\n`,
@@ -124,21 +124,21 @@ const resolveDoctorTargets = async (
     }
   }
   if (!options.json) {
-    const counts = DOCTOR_TARGETS.map(
-      (row) => `${row.label.toLowerCase()} ${discovered[row.target]?.choices.length ?? 0}`,
+    const counts = OPTIONAL_VALIDATORS.map(
+      (row) => `${row.label.toLowerCase()} ${discovered[row.name]?.choices.length ?? 0}`,
     ).join(", ");
     process.stderr.write(`fresh-squeezy: discovered store ${storeId} resources: ${counts}.\n`);
   }
 
-  const merged: InitDoctorTargets = {};
-  for (const row of DOCTOR_TARGETS) {
-    merged[row.field] = mergeValues(explicit[row.field], values(discovered[row.target]));
+  const merged: OptionalValidatorIds = {};
+  for (const row of OPTIONAL_VALIDATORS) {
+    merged[row.field] = mergeValues(explicit[row.field], values(discovered[row.name]));
   }
   return merged;
 };
 
 const hasExplicitResourceSelection = (options: DoctorCommandOptions): boolean =>
-  Object.values(explicitTargets(options)).some((ids) => ids !== undefined);
+  Object.values(explicitValidatorIds(options)).some((ids) => ids !== undefined);
 
 /**
  * Fallback when no store could be resolved and we are not interactive.

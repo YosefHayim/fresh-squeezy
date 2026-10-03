@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createFakeValidators } from "../../tests/helpers/fakeValidators.js";
 import type { HttpClient } from "../core/http.js";
 import { doctor } from "./doctor.js";
-import { ISSUE_CODES, buildResult, issue } from "./rules.js";
+import { ISSUE_CODES, buildResult, issue } from "./issues.js";
 
 /**
  * Composition tests for `doctor`. These exercise ordering, short-circuiting

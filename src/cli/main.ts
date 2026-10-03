@@ -9,10 +9,10 @@ import { runInitCommand } from "./commands/init.js";
 import { runLauncherCommand } from "./commands/launcher.js";
 import { runResourceOpCommand } from "./commands/resourceOps.js";
 import {
-  VALIDATE_TARGETS,
+  VALIDATE_SUBCOMMANDS,
   type ValidateCommandOptions,
-  type ValidateTarget,
-  type ValidateTargetSpec,
+  type ValidateSubcommand,
+  type ValidateSubcommandSpec,
   runValidateCommand,
 } from "./commands/validate.js";
 import { renderCliError } from "./render.js";
@@ -97,7 +97,7 @@ const attachModeJson = (cmd: Command): Command =>
     .option("-m, --mode <mode>", "test or live", parseMode)
     .option("--json", "Emit machine-readable JSON");
 
-const attachValidateFlags = (cmd: Command, spec: ValidateTargetSpec): Command => {
+const attachValidateFlags = (cmd: Command, spec: ValidateSubcommandSpec): Command => {
   if (spec.required) cmd.requiredOption(spec.required[0], spec.required[1]);
 
   if (spec.stores === "multi") {
@@ -216,13 +216,13 @@ Examples:
   fresh-squeezy validate webhook --store-ids 12 --webhook-url https://app.example.com/api/webhooks/lemon-squeezy
 
 Targets:
-  ${Object.keys(VALIDATE_TARGETS).join(", ")}
+  ${Object.keys(VALIDATE_SUBCOMMANDS).join(", ")}
 `,
 );
 
-for (const [name, spec] of Object.entries(VALIDATE_TARGETS) as [
-  ValidateTarget,
-  ValidateTargetSpec,
+for (const [name, spec] of Object.entries(VALIDATE_SUBCOMMANDS) as [
+  ValidateSubcommand,
+  ValidateSubcommandSpec,
 ][]) {
   attachValidateFlags(validate.command(name).description(spec.description), spec).action(
     async (opts: ValidateCommandOptions) => {

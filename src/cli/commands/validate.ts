@@ -18,7 +18,7 @@ export interface ValidateCommandOptions {
 }
 
 /** Everything one `fresh-squeezy validate <target>` subcommand needs: flags, help, hints, and the run. */
-export interface ValidateTargetSpec {
+export interface ValidateSubcommandSpec {
   description: string;
   /** `multi`: `--store-ids` + `--all-stores`, one result per store. `ownership`: first `--store-ids` is cross-checked. */
   stores: "none" | "multi" | "ownership";
@@ -45,7 +45,7 @@ const requiredStoreId = (options: ValidateCommandOptions, target: string): strin
   required(options.storeIds?.[0], `--store-ids is required for \`validate ${target}\`.`);
 
 /** Flag → TTY pick; non-interactive runs without a store flag fail instead of guessing. */
-const resolveStoresForTarget = async (
+const resolveStoresForSubcommand = async (
   client: FreshSqueezyClient,
   target: string,
   options: ValidateCommandOptions,
@@ -65,7 +65,7 @@ const resolveStoresForTarget = async (
 };
 
 /** The `validate` subcommands, in the order `fresh-squeezy validate --help` lists them. */
-export const VALIDATE_TARGETS = {
+export const VALIDATE_SUBCOMMANDS = {
   connection: {
     description: "Check that the API key authenticates",
     stores: "none",
@@ -81,7 +81,7 @@ export const VALIDATE_TARGETS = {
       "fresh-squeezy validate store --all-stores",
     ],
     run: async (client, options) => {
-      const storeIds = await resolveStoresForTarget(client, "store", options);
+      const storeIds = await resolveStoresForSubcommand(client, "store", options);
       return Promise.all(storeIds.map((storeId) => client.validateStore(storeId)));
     },
   },
@@ -107,7 +107,7 @@ export const VALIDATE_TARGETS = {
       `fresh-squeezy validate webhook --all-stores --webhook-url ${EXAMPLE_WEBHOOK_URL}`,
     ],
     run: async (client, options) => {
-      const storeIds = await resolveStoresForTarget(client, "webhook", options);
+      const storeIds = await resolveStoresForSubcommand(client, "webhook", options);
       const url = required(options.webhookUrl, "--webhook-url is required for `validate webhook`.");
       return Promise.all(storeIds.map((storeId) => client.validateWebhook({ storeId, url })));
     },
@@ -157,11 +157,11 @@ export const VALIDATE_TARGETS = {
         storeId: requiredStoreId(options, "subscription-plan"),
       }),
   },
-} satisfies Record<string, ValidateTargetSpec>;
+} satisfies Record<string, ValidateSubcommandSpec>;
 
-export type ValidateTarget = keyof typeof VALIDATE_TARGETS;
+export type ValidateSubcommand = keyof typeof VALIDATE_SUBCOMMANDS;
 
-const errorHints = (err: unknown, target: ValidateTarget): string[] => {
+const errorHints = (err: unknown, target: ValidateSubcommand): string[] => {
   if (!(err instanceof FreshSqueezyError)) return [];
   if (err.code === "MISSING_API_KEY") return MISSING_API_KEY_HINTS;
   if (err.code === "INVALID_MODE") {
@@ -170,7 +170,7 @@ const errorHints = (err: unknown, target: ValidateTarget): string[] => {
       `fresh-squeezy validate ${target} --mode live`,
     ];
   }
-  if (err.code === "MISSING_ARG") return VALIDATE_TARGETS[target].examples;
+  if (err.code === "MISSING_ARG") return VALIDATE_SUBCOMMANDS[target].examples;
   return [];
 };
 
@@ -198,12 +198,12 @@ const writeResults = (
  * the `--store-ids` value (if any) is used for the cross-store ownership check.
  */
 export const runValidateCommand = async (
-  target: ValidateTarget,
+  target: ValidateSubcommand,
   options: ValidateCommandOptions,
 ): Promise<number> => {
   try {
     const client = createFreshSqueezy({ mode: options.mode });
-    return writeResults(await VALIDATE_TARGETS[target].run(client, options), options);
+    return writeResults(await VALIDATE_SUBCOMMANDS[target].run(client, options), options);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     process.stderr.write(renderCliError(message, errorHints(err, target)));

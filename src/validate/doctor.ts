@@ -93,7 +93,7 @@ export const DEFAULT_VALIDATORS: DoctorValidators = {
 
 /**
  * Compose every configured validator into a single report. This is the
- * primary entry point for CI health checks: one call, one structured result,
+ * primary entry point for CI pre-flight runs: one call, one structured result,
  * one exit code decision.
  *
  * Order is meaningful. Connection runs first because downstream validators

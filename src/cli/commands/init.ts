@@ -6,13 +6,20 @@ import type { Mode, ValidationResult } from "../../core/types.js";
 import { type FreshSqueezyClient, createFreshSqueezy } from "../../createFreshSqueezy.js";
 import type { ConnectionSummary } from "../../validate/connection.js";
 import {
+  type DiscoveredChoices,
+  OPTIONAL_VALIDATORS,
+  type OptionalValidatorIds,
+  type OptionalValidatorName,
+  discoverChoices,
+} from "../optionalValidators.js";
+import {
   askForApiKey,
-  askForDoctorTargetValues,
+  askForValidatorIds,
   confirmLiveModeRun,
   confirmWriteEnvFile,
   isPromptCancel,
   pickStore,
-  selectDoctorTargets,
+  selectOptionalValidators,
 } from "../prompts.js";
 import {
   renderBrandHeader,
@@ -23,13 +30,6 @@ import {
   renderStep,
 } from "../render.js";
 import { type StoreChoice, listStoreChoices } from "../resolveStores.js";
-import {
-  DOCTOR_TARGETS,
-  type DoctorChoices,
-  type InitDoctorTarget,
-  type InitDoctorTargets,
-  discoverDoctorChoices,
-} from "../resourceDiscovery.js";
 
 export interface InitCommandOptions {
   envFile?: string;
@@ -109,13 +109,13 @@ const runInitFlow = async (options: InitCommandOptions): Promise<number> => {
   const storeId = await resolveStoreSelection(stores);
 
   process.stdout.write(renderStep(4, 5, "Optional checks", "pick resources before manual IDs"));
-  const selectedTargets = await selectDoctorTargets();
-  const resourceChoices = await discoverDoctorChoices(client, storeId, selectedTargets);
-  process.stdout.write(renderDiscoverySummary(resourceChoices, selectedTargets));
-  const doctorTargets = await askForDoctorTargetValues(selectedTargets, resourceChoices);
+  const selectedValidators = await selectOptionalValidators();
+  const resourceChoices = await discoverChoices(client, storeId, selectedValidators);
+  process.stdout.write(renderDiscoverySummary(resourceChoices, selectedValidators));
+  const validatorIds = await askForValidatorIds(selectedValidators, resourceChoices);
 
   const envPath = path.resolve(process.cwd(), options.envFile ?? ".env");
-  const checkNames = getDoctorCheckNames(doctorTargets);
+  const checkNames = listValidatorNames(validatorIds);
   process.stdout.write(renderSetupSummary({ envPath, mode, storeId, checkNames }));
   const shouldWrite = await confirmWriteEnvFile(envPath);
   if (shouldWrite) {
@@ -124,7 +124,7 @@ const runInitFlow = async (options: InitCommandOptions): Promise<number> => {
   }
 
   process.stdout.write(chalk.dim(`\nRunning doctor (${checkNames.join(", ")})...\n\n`));
-  const report = await client.doctor({ storeId, ...doctorTargets });
+  const report = await client.doctor({ storeId, ...validatorIds });
   process.stdout.write(`${renderReport(report)}\n`);
 
   return report.ok ? 0 : 1;
@@ -204,11 +204,11 @@ const parseEnvMode = (): Mode | undefined => {
   return undefined;
 };
 
-const getDoctorCheckNames = (targets: InitDoctorTargets): string[] => {
+const listValidatorNames = (validatorIds: OptionalValidatorIds): string[] => {
   const names = ["connection", "store"];
-  for (const row of DOCTOR_TARGETS) {
-    const count = targets[row.field]?.length ?? 0;
-    if (count > 0) names.push(count === 1 ? row.checkName : `${row.checkName} x${count}`);
+  for (const row of OPTIONAL_VALIDATORS) {
+    const count = validatorIds[row.field]?.length ?? 0;
+    if (count > 0) names.push(count === 1 ? row.resultName : `${row.resultName} x${count}`);
   }
   return names;
 };
@@ -275,18 +275,21 @@ const readEnvFile = async (envPath: string): Promise<string> => {
 };
 
 const renderDiscoverySummary = (
-  choices: DoctorChoices,
-  selectedTargets: InitDoctorTarget[],
+  choices: DiscoveredChoices,
+  selectedValidators: OptionalValidatorName[],
 ): string => {
-  if (selectedTargets.length === 0) return chalk.dim("  No optional resource checks selected.\n");
+  if (selectedValidators.length === 0)
+    return chalk.dim("  No optional resource checks selected.\n");
 
-  const lines = DOCTOR_TARGETS.filter((row) => selectedTargets.includes(row.target)).map((row) => {
-    const group = choices[row.target];
-    if (group?.error) {
-      return chalk.yellow(`  ! ${row.label} discovery failed; manual entry is available.`);
-    }
-    const count = String(group?.choices.length ?? 0);
-    return renderDetected(row.label, count, "Lemon Squeezy API").trimEnd();
-  });
+  const lines = OPTIONAL_VALIDATORS.filter((row) => selectedValidators.includes(row.name)).map(
+    (row) => {
+      const group = choices[row.name];
+      if (group?.error) {
+        return chalk.yellow(`  ! ${row.label} discovery failed; manual entry is available.`);
+      }
+      const count = String(group?.choices.length ?? 0);
+      return renderDetected(row.label, count, "Lemon Squeezy API").trimEnd();
+    },
+  );
   return `${lines.join("\n")}\n`;
 };

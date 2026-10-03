@@ -1,8 +1,8 @@
 import type { HttpClient } from "../core/http.js";
 import type { Mode, ValidationIssue, ValidationResult } from "../core/types.js";
 import type { LicenseKeyAttributes } from "../resources/attributes.js";
+import { ISSUE_CODES, buildResult, issue } from "./issues.js";
 import { checkStoreOwnership, probeFetch } from "./probe.js";
-import { ISSUE_CODES, buildResult, issue } from "./rules.js";
 
 export interface LicenseKeyValidationOptions {
   storeId: string | number;

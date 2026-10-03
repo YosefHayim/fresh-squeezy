@@ -2,8 +2,8 @@ import type { HttpClient } from "../core/http.js";
 import type { Mode, ValidationIssue, ValidationResult } from "../core/types.js";
 import type { WebhookAttributes } from "../resources/attributes.js";
 import { OPTIONAL_WEBHOOK_EVENTS, RECOMMENDED_WEBHOOK_EVENTS } from "../support/manifest.js";
+import { ISSUE_CODES, buildResult, issue } from "./issues.js";
 import { probeCollection } from "./probe.js";
-import { ISSUE_CODES, buildResult, issue } from "./rules.js";
 
 export interface WebhookValidationOptions {
   storeId: string | number;

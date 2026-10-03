@@ -5,8 +5,8 @@ import type {
   StoreAttributes,
   UserAttributes,
 } from "../resources/attributes.js";
+import { ISSUE_CODES, buildResult, issue } from "./issues.js";
 import { probeCollection } from "./probe.js";
-import { ISSUE_CODES, buildResult, issue } from "./rules.js";
 
 /**
  * Connection validator summary attached to the `resource` field. Keeps the
@@ -54,7 +54,7 @@ const fetchUserDocument = (http: HttpClient): Promise<AuthenticatedUserDocument>
  * Verify that the API key works, surface the account identity + reachable
  * stores, and cross-check declared mode vs the key's true mode.
  *
- * This is the first check every `doctor()` run performs; if it fails,
+ * This is the first validator every `doctor()` run performs; if it fails,
  * no downstream validator has anything useful to report.
  */
 export const validateConnection = async (

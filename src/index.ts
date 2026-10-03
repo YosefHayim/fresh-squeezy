@@ -15,7 +15,7 @@ export * from "./validate/discount.js";
 export * from "./validate/doctor.js";
 export * from "./validate/licenseKey.js";
 export * from "./validate/product.js";
-export * from "./validate/rules.js";
+export * from "./validate/issues.js";
 export * from "./validate/store.js";
 export * from "./validate/subscriptionPlan.js";
 export * from "./validate/webhook.js";

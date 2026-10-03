@@ -8,23 +8,16 @@ import type {
   WebhookAttributes,
 } from "../resources/attributes.js";
 
-/** A resource check `init` and `doctor --all-resources` can add on top of connection + store. */
-export type InitDoctorTarget =
+/** An optional validator `init` and `doctor --all-resources` can add on top of connection + store. */
+export type OptionalValidatorName =
   | "product"
   | "webhook"
   | "discount"
   | "license-key"
   | "subscription-plan";
 
-/** The `doctor()` option a resource check fills. */
-export type DoctorTargetField =
-  | "productIds"
-  | "webhookUrls"
-  | "discountIds"
-  | "licenseKeyIds"
-  | "variantIds";
-
-export interface InitDoctorTargets {
+/** The `doctor()` options the optional validators fill. */
+export interface OptionalValidatorIds {
   productIds?: string[];
   webhookUrls?: string[];
   discountIds?: string[];
@@ -42,8 +35,8 @@ export interface ResourceChoiceGroup {
   error?: string;
 }
 
-/** Discovered candidates per selected check; unselected checks are absent. */
-export type DoctorChoices = Partial<Record<InitDoctorTarget, ResourceChoiceGroup>>;
+/** Discovered candidates per selected validator; unselected validators are absent. */
+export type DiscoveredChoices = Partial<Record<OptionalValidatorName, ResourceChoiceGroup>>;
 
 interface DiscoveryContext {
   client: FreshSqueezyClient;
@@ -52,12 +45,12 @@ interface DiscoveryContext {
   listProducts: () => Promise<JsonApiResource<ProductAttributes>[]>;
 }
 
-/** Everything the CLI needs to offer, discover, prompt for, and report one resource check. */
-export interface DoctorTarget {
-  target: InitDoctorTarget;
-  field: DoctorTargetField;
-  /** The validator's `ValidationResult.name`. */
-  checkName: string;
+/** Everything the CLI needs to offer, discover, prompt for, and report one optional validator. */
+export interface OptionalValidator {
+  name: OptionalValidatorName;
+  field: keyof OptionalValidatorIds;
+  /** `ValidationResult.name` of this validator's results. */
+  resultName: string;
   label: string;
   menuLabel: string;
   /** Plural noun in "Pick … to validate:" and "No … selected." */
@@ -124,12 +117,12 @@ const validateWebhookUrls = (value: string): true | string => {
   return urls.every(isHttpUrl) ? true : "Enter valid webhook URLs.";
 };
 
-/** The optional resource checks, in the order they are offered, discovered, and reported. */
-export const DOCTOR_TARGETS: DoctorTarget[] = [
+/** The optional validators, in the order they are offered, discovered, and reported. */
+export const OPTIONAL_VALIDATORS: OptionalValidator[] = [
   {
-    target: "product",
+    name: "product",
     field: "productIds",
-    checkName: "product",
+    resultName: "product",
     label: "Products",
     menuLabel: "Product checkout",
     noun: "products",
@@ -141,9 +134,9 @@ export const DOCTOR_TARGETS: DoctorTarget[] = [
       })),
   },
   {
-    target: "webhook",
+    name: "webhook",
     field: "webhookUrls",
-    checkName: "webhook",
+    resultName: "webhook",
     label: "Webhooks",
     menuLabel: "Webhook registration",
     noun: "webhook URLs",
@@ -159,9 +152,9 @@ export const DOCTOR_TARGETS: DoctorTarget[] = [
       ),
   },
   {
-    target: "discount",
+    name: "discount",
     field: "discountIds",
-    checkName: "discount",
+    resultName: "discount",
     label: "Discounts",
     menuLabel: "Discount code",
     noun: "discounts",
@@ -176,9 +169,9 @@ export const DOCTOR_TARGETS: DoctorTarget[] = [
       ),
   },
   {
-    target: "license-key",
+    name: "license-key",
     field: "licenseKeyIds",
-    checkName: "licenseKey",
+    resultName: "licenseKey",
     label: "License keys",
     menuLabel: "License key",
     noun: "license keys",
@@ -193,9 +186,9 @@ export const DOCTOR_TARGETS: DoctorTarget[] = [
       ),
   },
   {
-    target: "subscription-plan",
+    name: "subscription-plan",
     field: "variantIds",
-    checkName: "subscriptionPlan",
+    resultName: "subscriptionPlan",
     label: "Subscription plans",
     menuLabel: "Subscription plan",
     noun: "subscription plans",
@@ -205,14 +198,14 @@ export const DOCTOR_TARGETS: DoctorTarget[] = [
 ];
 
 /**
- * List candidates for each selected check in one store. A failed listing
+ * List candidates for each selected validator in one store. A failed listing
  * becomes that group's `error` instead of failing the run.
  */
-export const discoverDoctorChoices = async (
+export const discoverChoices = async (
   client: FreshSqueezyClient,
   storeId: string,
-  targets: InitDoctorTarget[],
-): Promise<DoctorChoices> => {
+  names: OptionalValidatorName[],
+): Promise<DiscoveredChoices> => {
   let products: Promise<JsonApiResource<ProductAttributes>[]> | undefined;
   const context: DiscoveryContext = {
     client,
@@ -223,9 +216,9 @@ export const discoverDoctorChoices = async (
     },
   };
 
-  const choices: DoctorChoices = {};
-  for (const row of DOCTOR_TARGETS) {
-    if (targets.includes(row.target)) choices[row.target] = await row.discover(context);
+  const choices: DiscoveredChoices = {};
+  for (const row of OPTIONAL_VALIDATORS) {
+    if (names.includes(row.name)) choices[row.name] = await row.discover(context);
   }
   return choices;
 };
