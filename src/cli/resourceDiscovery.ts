@@ -8,7 +8,7 @@ import type { SubscriptionVariantAttributes } from "../resources/variants.js";
 import type { WebhookAttributes } from "../resources/webhooks.js";
 import type { InitDoctorTarget } from "./prompts.js";
 
-export interface ResourceChoice {
+interface ResourceChoice {
   label: string;
   value: string;
 }

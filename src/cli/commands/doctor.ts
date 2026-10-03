@@ -26,7 +26,7 @@ export interface DoctorCommandOptions {
  * resolved, `reports` still contains one entry — consumers always see an
  * array so JSON parsers don't need two code paths.
  */
-export interface DoctorJsonOutput {
+interface DoctorJsonOutput {
   ok: boolean;
   mode: Mode;
   reports: DoctorReport[];

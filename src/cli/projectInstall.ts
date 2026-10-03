@@ -4,9 +4,9 @@ import path from "node:path";
 
 const PACKAGE_NAME = "fresh-squeezy";
 
-export type PackageManager = "npm" | "pnpm" | "yarn" | "bun";
+type PackageManager = "npm" | "pnpm" | "yarn" | "bun";
 
-export type ProjectInstallStatus =
+type ProjectInstallStatus =
   | "already-present"
   | "installed"
   | "no-package-json"
@@ -82,7 +82,7 @@ export const ensureFreshSqueezyDevDependency = async (
   return { status: "installed", projectDir, packageJsonPath, packageManager, command };
 };
 
-export const findPackageJson = async (cwd: string): Promise<string | undefined> => {
+const findPackageJson = async (cwd: string): Promise<string | undefined> => {
   let current = path.resolve(cwd);
 
   while (true) {
