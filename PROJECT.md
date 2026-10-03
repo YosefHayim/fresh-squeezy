@@ -1,4 +1,4 @@
-# PROJECT.md
+# PROJECT.md — fresh-squeezy
 
 Purpose and direction for fresh-squeezy. What it is and how it's built live in
 `CONTEXT.md` / `CODE-STYLE.md`; this file is the _why_ and the _where next_.

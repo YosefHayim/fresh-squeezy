@@ -18,6 +18,7 @@ node_modules/
 dist/
 coverage/
 .worktrees/
+docs/agent/messy-repo/.lane-issue-nums.txt
 *.log
 .env
 .env*.local

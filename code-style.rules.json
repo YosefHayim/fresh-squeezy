@@ -1,0 +1,81 @@
+{
+  "version": 3,
+  "guide": "CODE-STYLE.md",
+  "rules": [
+    {
+      "id": "local.only-tooling-gitignored",
+      "statement": "Scripts for local debugging, one-off experiments, or personal dev utilities go in `scripts/dev/`.",
+      "verify": "judgment"
+    },
+    {
+      "id": "const.arrow-functions-only-no-declarations",
+      "statement": "Every module-scope callable is a **`const` arrow** \u2014 sync or async.",
+      "verify": "judgment"
+    },
+    {
+      "id": "named.exports-only-pure-wildcard-barrels",
+      "statement": "Zero `export default`.",
+      "verify": "judgment"
+    },
+    {
+      "id": "no.backward-compatibility-shims",
+      "statement": "When style or API shape changes, **rewrite callers** \u2014 do not leave dual forms, deprecated aliases, `// kept for BC`, or parallel `function` + arrow exports.",
+      "verify": "judgment"
+    },
+    {
+      "id": "guard.clause-early-returns-imperative",
+      "statement": "Fail-path first; accumulate with `push`; end in `buildResult`.",
+      "verify": "judgment"
+    },
+    {
+      "id": "interface.for-shapes-type-for-unions",
+      "statement": "Object shapes are `interface`; unions/discriminated shapes are `type`; literal lookup tables are `as const` and sit at the top of the file, directly after imports \u2014 never below a function.",
+      "verify": "judgment"
+    },
+    {
+      "id": "unknown.never-any-one-freshsqueezyerror",
+      "statement": "Boundaries take `unknown` and narrow with a cast.",
+      "verify": "judgment"
+    },
+    {
+      "id": "layers.are-one-directional-core-is",
+      "statement": "Import direction is strictly `generated \u2192 core \u2192 resources \u2192 validate \u2192 cli`.",
+      "verify": "judgment"
+    },
+    {
+      "id": "validators.pure-check-thin-fetch-rich",
+      "statement": "Validators with real assertion logic (`product`, `discount`, `licenseKey`, `subscriptionPlan`) extract a pure `check<Resource>(attributes): ValidationIssue[]`; the async validator does the fetch and delegates.",
+      "verify": "judgment"
+    },
+    {
+      "id": "error.issue-conversion-goes-through-a",
+      "statement": "Single-resource fetches use `probeFetch`; collection/composite fetches use `probeCollection` (sibling).",
+      "verify": "judgment"
+    },
+    {
+      "id": "tsdoc.why-param-returns-example",
+      "statement": "Every exported function gets a docblock with a why-summary, @param for each parameter, @returns for the single return type, and an @example with a real call.",
+      "verify": "judgment"
+    },
+    {
+      "id": "single.named-return-no-multi-object",
+      "statement": "A function returns one value of one named type and never an ad-hoc multi-entity bag.",
+      "verify": "judgment"
+    },
+    {
+      "id": "docs.backed-resource-verbs-only",
+      "statement": "Resource ops exist only when the Lemon Squeezy docs define them in the registry.",
+      "verify": "judgment"
+    },
+    {
+      "id": "naming",
+      "statement": "Files use camelCase even when the CLI verb is kebab-case.",
+      "verify": "judgment"
+    },
+    {
+      "id": "formatting",
+      "statement": "Biome owns formatting with double quotes, semicolons, width 100, trailing commas, and organized imports.",
+      "verify": "judgment"
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-# CONTEXT.md
+# CONTEXT.md — fresh-squeezy
 
 Orientation for fresh-squeezy — what it is, who touches it, and the shape of the code. Not
 a glossary (that's `LANGUAGE.md`) and not the rules (that's `CODE-STYLE.md`).
