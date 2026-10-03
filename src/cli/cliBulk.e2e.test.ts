@@ -106,4 +106,11 @@ describe("CLI bulk ops e2e (built binary, fake API)", () => {
     expect(code).toBe(2);
     expect(stderr).toContain("either --all or --ids");
   });
+
+  it("writes --json output larger than a 64 KB pipe buffer in full", () => {
+    const { code, stdout } = run(["list", "product", "--store-ids", "1", "--json"]);
+    expect(code).toBe(0);
+    expect(stdout.length).toBeGreaterThan(65_536);
+    expect(JSON.parse(stdout).data).toHaveLength(3000);
+  });
 });

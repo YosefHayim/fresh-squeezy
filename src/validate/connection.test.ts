@@ -8,7 +8,7 @@ import {
 import { createMockFetch, pathIs } from "../../tests/helpers/mockFetch.js";
 import { resolveConfig } from "../core/config.js";
 import { HttpClient } from "../core/http.js";
-import { fetchActualMode, validateConnection } from "./connection.js";
+import { fetchActualMode, resolveActualMode, validateConnection } from "./connection.js";
 
 const makeClient = (routes: Parameters<typeof createMockFetch>[0]) => {
   const { fetch } = createMockFetch(routes);
@@ -135,5 +135,19 @@ describe("fetchActualMode", () => {
     });
 
     expect(await fetchActualMode(http)).toBeUndefined();
+  });
+});
+
+describe("resolveActualMode", () => {
+  it("returns 'test' when test_mode is true", () => {
+    expect(resolveActualMode(true)).toBe("test");
+  });
+
+  it("returns 'live' when test_mode is false", () => {
+    expect(resolveActualMode(false)).toBe("live");
+  });
+
+  it("returns undefined when test_mode is missing", () => {
+    expect(resolveActualMode(undefined)).toBeUndefined();
   });
 });

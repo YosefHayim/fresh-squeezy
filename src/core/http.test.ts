@@ -60,7 +60,7 @@ describe("HttpClient", () => {
     ]);
     const http = new HttpClient(resolveConfig({ apiKey: "k", fetch }));
 
-    await expect(http.getCollection("/v1/products")).rejects.toMatchObject({
+    await expect(http.request({ path: "/v1/products" })).rejects.toMatchObject({
       code: "RATE_LIMITED",
       status: 429,
       message: "Too Many Requests",
@@ -90,7 +90,7 @@ describe("HttpClient", () => {
     expect((err as FreshSqueezyError).code).toBe("NETWORK_ERROR");
   });
 
-  it("postResource sends POST with JSON:API content-type and returns data", async () => {
+  it("request sends a POST body as JSON and returns the parsed document", async () => {
     const createDoc = {
       data: {
         type: "customers",
@@ -103,37 +103,18 @@ describe("HttpClient", () => {
     ]);
     const http = new HttpClient(resolveConfig({ apiKey: "k", fetch }));
 
-    const resource = await http.postResource("/v1/customers", {
-      data: { type: "customers", attributes: { name: "Ada", email: "ada@example.com" } },
+    const doc = await http.request<typeof createDoc>({
+      method: "POST",
+      path: "/v1/customers",
+      body: { data: { type: "customers", attributes: { name: "Ada", email: "ada@example.com" } } },
     });
 
-    expect(resource.id).toBe("9");
+    expect(doc.data.id).toBe("9");
     expect(calls[0]?.method).toBe("POST");
     expect(calls[0]?.body).toContain("ada@example.com");
   });
 
-  it("patchResource sends PATCH and returns updated data", async () => {
-    const updateDoc = {
-      data: {
-        type: "license-keys",
-        id: "3",
-        attributes: { status: "disabled" },
-      },
-    };
-    const { fetch, calls } = createMockFetch([
-      { match: pathIs("/v1/license-keys/3", "PATCH"), status: 200, body: updateDoc },
-    ]);
-    const http = new HttpClient(resolveConfig({ apiKey: "k", fetch }));
-
-    const resource = await http.patchResource("/v1/license-keys/3", {
-      data: { type: "license-keys", id: "3", attributes: { status: "disabled" } },
-    });
-
-    expect(resource.attributes).toMatchObject({ status: "disabled" });
-    expect(calls[0]?.method).toBe("PATCH");
-  });
-
-  it("deleteResource accepts empty success bodies", async () => {
+  it("request accepts empty success bodies", async () => {
     const fetchImpl: typeof fetch = async (input, init) => {
       const url = typeof input === "string" ? input : (input as URL).toString();
       expect(new URL(url).pathname).toBe("/v1/webhooks/7");
@@ -143,7 +124,9 @@ describe("HttpClient", () => {
     };
     const http = new HttpClient(resolveConfig({ apiKey: "k", fetch: fetchImpl }));
 
-    await expect(http.deleteResource("/v1/webhooks/7")).resolves.toBeUndefined();
+    await expect(
+      http.request({ method: "DELETE", path: "/v1/webhooks/7" }),
+    ).resolves.toBeUndefined();
   });
 
   it("paginate() walks every page until lastPage and concatenates results", async () => {
@@ -216,7 +199,7 @@ describe("HttpClient", () => {
     ]);
     const http = new HttpClient(resolveConfig({ apiKey: "k", fetch }));
 
-    await http.getCollection("/v1/products", { "filter[store_id]": "42" });
+    await http.request({ path: "/v1/products", query: { "filter[store_id]": "42" } });
 
     // URLSearchParams percent-encodes brackets; searchParams.get still decodes them.
     expect(calls[0]?.url).toContain("filter%5Bstore_id%5D=42");
@@ -228,9 +211,9 @@ describe("HttpClient", () => {
     ]);
     const http = new HttpClient(resolveConfig({ apiKey: "k", fetch }));
 
-    await http.getCollection("/v1/products", {
-      "filter[store_id]": "1",
-      "filter[status]": undefined,
+    await http.request({
+      path: "/v1/products",
+      query: { "filter[store_id]": "1", "filter[status]": undefined },
     });
 
     const url = new URL(calls[0]?.url ?? "");

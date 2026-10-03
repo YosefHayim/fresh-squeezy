@@ -31,9 +31,9 @@ cli`):
 ```
 generated/        auto-generated Lemon Squeezy attribute types
 core/             HttpClient (the one I/O chokepoint), config, FreshSqueezyError, shared types
-resources/        JSON:API helpers + registry + invokeOp (docs-backed verbs only)
+resources/        registry.ts (one table of docs-backed ops + invokeOp) + attributes.ts
 support/          static manifest (webhook policy, acknowledged changelog) + drift snapshot
-validate/         doctor validators — check*/validate* + composition + rules/probe
+validate/         doctor validators — check*/validate* + composition + issues/probe
 skills/           agent SKILL.md for ops+doctor usage
 augmentations.ts  isolated .d.ts helpers for SDK users (imports only generated/)
 cli/              commander + @inquirer/prompts shell over the library

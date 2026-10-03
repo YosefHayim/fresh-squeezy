@@ -139,7 +139,7 @@ if (!report.ok) {
 
 Para execuções multi-loja na camada de biblioteca, chame `doctor()` em um loop — a CLI faz exatamente isso. Faça o branch com base em `issue.code` na lógica de CI; os códigos são estáveis entre versões menores.
 
-Tipos públicos: [`FreshSqueezyClient`](src/createFreshSqueezy.ts), [`ValidationResult<T>`](src/core/types.ts), [`DoctorReport`](src/core/types.ts), interfaces de atributos de recurso em [`src/resources`](src/resources), tipos de objeto do Lemon Squeezy gerados a partir da documentação em [`src/generated/lemonSqueezyApiTypes.ts`](src/generated/lemonSqueezyApiTypes.ts) e helpers de augmentação do changelog em [`src/augmentations.ts`](src/augmentations.ts).
+Tipos públicos: [`FreshSqueezyClient`](src/createFreshSqueezy.ts), [`ValidationResult<T>`](src/core/types.ts), [`DoctorReport`](src/core/types.ts), interfaces de atributos de recurso em [`src/resources/attributes.ts`](src/resources/attributes.ts), tipos de objeto do Lemon Squeezy gerados a partir da documentação em [`src/generated/lemonSqueezyApiTypes.ts`](src/generated/lemonSqueezyApiTypes.ts) e helpers de augmentação do changelog em [`src/augmentations.ts`](src/augmentations.ts).
 
 Para endpoints ainda não encapsulados, use a saída de emergência bruta:
 

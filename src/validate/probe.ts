@@ -1,6 +1,6 @@
 import { FreshSqueezyError } from "../core/errors.js";
 import type { ValidationIssue } from "../core/types.js";
-import { ISSUE_CODES, issue } from "./rules.js";
+import { ISSUE_CODES, issue } from "./issues.js";
 
 /**
  * How a caller wants the error mapper to translate specific failure modes.

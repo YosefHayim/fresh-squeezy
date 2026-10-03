@@ -29,3 +29,15 @@ refunds, usage records, and similar.
 - CLI: `get|list|create|update|delete|cancel|refund|generate-invoice|current-usage` + `ops --list`.
 - PROJECT.md non-goal #1 evolved (validators not the only landing for endpoints).
 - Agent skill at `skills/fresh-squeezy-ops/SKILL.md`.
+
+## Amendment — one table drives every op (2026-10)
+
+Decision 3 used to mean four edits per verb: a helper in `resources/<x>.ts`, a registry row,
+an `invokeOp` switch case, and a nested-client method. Every helper was one HTTP call whose
+shape followed from its verb, so `src/resources/registry.ts` now holds `VERB_RULES` (verb →
+method, path suffix, body rule, docs slug) and `RESOURCES` (one row per resource: its verbs
+and what scopes `list`); `resourceRegistry` is built from them and `invokeOp` is generic.
+Attribute types moved to `src/resources/attributes.ts`. The 57 flat helpers
+(`getWebhook(http, …)` etc.) are no longer exported — they needed an `HttpClient`, which the
+package never exported — so this ships as a minor bump (0.3.0). `ops --list`/`--json` and
+every op's HTTP call are unchanged.

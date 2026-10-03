@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { DoctorReport, ValidationResult } from "../core/types.js";
-import { renderReport, renderResult } from "./render.js";
+import { renderReport, renderResult, renderStep } from "./render.js";
 
 // biome-ignore lint/suspicious/noControlCharactersInRegex: strip ANSI SGR escape sequences from CLI output
 const stripAnsi = (value: string): string => value.replace(/\[[0-9;]*m/g, "");
@@ -68,5 +68,12 @@ describe("renderReport", () => {
     expect(text).toContain("1/2 checks failed");
     expect(text).toContain("PASS [test] connection");
     expect(text).toContain("FAIL [test] store");
+  });
+});
+
+describe("renderStep", () => {
+  it("keeps the first step tight and separates later steps with a blank line", () => {
+    expect(stripAnsi(renderStep(1, 5, "Credentials"))).toBe("● 1/5 Credentials\n");
+    expect(stripAnsi(renderStep(2, 5, "Account probe"))).toBe("\n● 2/5 Account probe\n");
   });
 });

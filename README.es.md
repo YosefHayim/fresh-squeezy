@@ -139,7 +139,7 @@ if (!report.ok) {
 
 Para ejecuciones multitienda en la capa de biblioteca, llama a `doctor()` en un bucle — la CLI hace exactamente esto. Decide según `issue.code` en la lógica de CI; los códigos son estables entre versiones menores.
 
-Tipos públicos: [`FreshSqueezyClient`](src/createFreshSqueezy.ts), [`ValidationResult<T>`](src/core/types.ts), [`DoctorReport`](src/core/types.ts), interfaces de atributos de recursos bajo [`src/resources`](src/resources), tipos de objetos de Lemon Squeezy generados a partir de la documentación en [`src/generated/lemonSqueezyApiTypes.ts`](src/generated/lemonSqueezyApiTypes.ts), y helpers de aumento del registro de cambios en [`src/augmentations.ts`](src/augmentations.ts).
+Tipos públicos: [`FreshSqueezyClient`](src/createFreshSqueezy.ts), [`ValidationResult<T>`](src/core/types.ts), [`DoctorReport`](src/core/types.ts), interfaces de atributos de recursos bajo [`src/resources/attributes.ts`](src/resources/attributes.ts), tipos de objetos de Lemon Squeezy generados a partir de la documentación en [`src/generated/lemonSqueezyApiTypes.ts`](src/generated/lemonSqueezyApiTypes.ts), y helpers de aumento del registro de cambios en [`src/augmentations.ts`](src/augmentations.ts).
 
 Para endpoints que aún no están envueltos, usa la vía de escape sin procesar:
 

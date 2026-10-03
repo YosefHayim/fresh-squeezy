@@ -5,26 +5,31 @@ import { ENV_KEYS } from "../../core/config.js";
 import type { Mode, ValidationResult } from "../../core/types.js";
 import { type FreshSqueezyClient, createFreshSqueezy } from "../../createFreshSqueezy.js";
 import type { ConnectionSummary } from "../../validate/connection.js";
-import { renderBrandHeader, renderCancelMessage, renderDetected, renderStep } from "../brand.js";
-import { renderCliError } from "../errors.js";
 import {
-  type InitDoctorTarget,
-  type InitDoctorTargets,
+  type DiscoveredChoices,
+  OPTIONAL_VALIDATORS,
+  type OptionalValidatorIds,
+  type OptionalValidatorName,
+  discoverChoices,
+} from "../optionalValidators.js";
+import {
   askForApiKey,
-  askForDoctorTargetValues,
+  askForValidatorIds,
   confirmLiveModeRun,
   confirmWriteEnvFile,
   isPromptCancel,
   pickStore,
-  selectDoctorTargets,
+  selectOptionalValidators,
 } from "../prompts.js";
-import { renderReport } from "../render.js";
 import {
-  EMPTY_INIT_RESOURCE_CHOICES,
-  type InitResourceChoices,
-  type ResourceChoiceGroup,
-  discoverInitResourceChoices,
-} from "../resourceDiscovery.js";
+  renderBrandHeader,
+  renderCancelMessage,
+  renderCliError,
+  renderDetected,
+  renderReport,
+  renderStep,
+} from "../render.js";
+import { type StoreChoice, listStoreChoices } from "../resolveStores.js";
 
 export interface InitCommandOptions {
   envFile?: string;
@@ -41,7 +46,7 @@ export interface InitCommandOptions {
  *  4. Optionally persist credentials to `.env`.
  *  5. Run `doctor()` against the chosen config and print the report.
  *
- * Returns an exit code so the CLI wrapper can forward it to `process.exit`.
+ * Returns an exit code so the CLI wrapper can set it as `process.exitCode`.
  */
 export const runInitCommand = async (options: InitCommandOptions = {}): Promise<number> => {
   try {
@@ -77,7 +82,8 @@ const runInitFlow = async (options: InitCommandOptions): Promise<number> => {
   const apiKey = await resolveApiKey();
 
   process.stdout.write(renderStep(2, 5, "Account probe", "detect mode and reachable stores"));
-  const { client, mode, connection } = await createDetectedClient(apiKey);
+  const { client, connection } = await connectWithDetectedMode(apiKey);
+  const mode = client.mode;
 
   if (!connection.ok) {
     process.stdout.write(`${renderReport({ ok: false, mode, results: [connection] })}\n`);
@@ -89,8 +95,8 @@ const runInitFlow = async (options: InitCommandOptions): Promise<number> => {
     return 130;
   }
 
-  const storeIds = connection.resource?.storeIds ?? [];
-  if (storeIds.length === 0) {
+  const stores = await listStoreChoices(client);
+  if (stores.length === 0) {
     process.stdout.write(
       chalk.yellow(
         "No stores reachable with this key. Create a store in Lemon Squeezy and retry.\n",
@@ -99,37 +105,18 @@ const runInitFlow = async (options: InitCommandOptions): Promise<number> => {
     return 1;
   }
 
-  process.stdout.write(renderDetected("Stores", String(storeIds.length), "Lemon Squeezy API"));
-  const stores = await Promise.all(storeIds.map((id) => client.validateStore(id)));
-  const pickable = stores
-    .filter((entry) => entry.ok && entry.resource)
-    .map((entry, index) => ({
-      id: storeIds[index] ?? "",
-      name: entry.resource?.name ?? "(unnamed)",
-      slug: entry.resource?.slug ?? "",
-    }))
-    .filter((entry) => entry.id !== "");
-
-  if (pickable.length === 0) {
-    process.stdout.write(
-      chalk.yellow(
-        "Stores were discovered, but none could be validated. Check account access and retry.\n",
-      ),
-    );
-    return 1;
-  }
-
+  process.stdout.write(renderDetected("Stores", String(stores.length), "Lemon Squeezy API"));
   process.stdout.write(renderStep(3, 5, "Store selection", "auto-select when unambiguous"));
-  const storeId = await resolveStoreSelection(pickable);
+  const storeId = await resolveStoreSelection(stores);
 
   process.stdout.write(renderStep(4, 5, "Optional checks", "pick resources before manual IDs"));
-  const selectedTargets = await selectDoctorTargets();
-  const resourceChoices = await discoverChoices(client, storeId, selectedTargets);
-  process.stdout.write(renderDiscoverySummary(resourceChoices, selectedTargets));
-  const doctorTargets = await askForDoctorTargetValues(selectedTargets, resourceChoices);
+  const selectedValidators = await selectOptionalValidators();
+  const resourceChoices = await discoverChoices(client, storeId, selectedValidators);
+  process.stdout.write(renderDiscoverySummary(resourceChoices, selectedValidators));
+  const validatorIds = await askForValidatorIds(selectedValidators, resourceChoices);
 
   const envPath = path.resolve(process.cwd(), options.envFile ?? ".env");
-  const checkNames = getDoctorCheckNames(doctorTargets);
+  const checkNames = listValidatorNames(validatorIds);
   process.stdout.write(renderSetupSummary({ envPath, mode, storeId, checkNames }));
   const shouldWrite = await confirmWriteEnvFile(envPath);
   if (shouldWrite) {
@@ -138,34 +125,20 @@ const runInitFlow = async (options: InitCommandOptions): Promise<number> => {
   }
 
   process.stdout.write(chalk.dim(`\nRunning doctor (${checkNames.join(", ")})...\n\n`));
-  const report = await client.doctor({ storeId, ...doctorTargets });
+  const report = await client.doctor({ storeId, ...validatorIds });
   process.stdout.write(`${renderReport(report)}\n`);
 
   return report.ok ? 0 : 1;
 };
 
-const resolveStoreSelection = async (
-  pickable: Array<{ id: string; name: string; slug: string }>,
-): Promise<string> => {
-  if (pickable.length === 1) {
-    const store = pickable[0];
-    if (!store) throw new Error("Expected one reachable store.");
-    process.stdout.write(
-      renderDetected("Store", `${store.name} (${store.slug})`, `id ${store.id}`),
-    );
-    return store.id;
+const resolveStoreSelection = async (stores: StoreChoice[]): Promise<string> => {
+  const [only, ...others] = stores;
+  if (only && others.length === 0) {
+    process.stdout.write(renderDetected("Store", `${only.name} (${only.slug})`, `id ${only.id}`));
+    return only.id;
   }
 
-  return pickStore(pickable);
-};
-
-const discoverChoices = async (
-  client: FreshSqueezyClient,
-  storeId: string,
-  selectedTargets: InitDoctorTarget[],
-): Promise<InitResourceChoices> => {
-  if (selectedTargets.length === 0) return EMPTY_INIT_RESOURCE_CHOICES;
-  return discoverInitResourceChoices(client, storeId, selectedTargets);
+  return pickStore(stores);
 };
 
 const resolveApiKey = async (): Promise<string> => {
@@ -179,13 +152,13 @@ const resolveApiKey = async (): Promise<string> => {
   return answers.apiKey;
 };
 
-const createDetectedClient = async (
-  apiKey: string,
-): Promise<{
+/** A client built for the key's real mode, plus the connection result that detected it. */
+interface DetectedConnection {
   client: FreshSqueezyClient;
-  mode: Mode;
   connection: ValidationResult<ConnectionSummary>;
-}> => {
+}
+
+const connectWithDetectedMode = async (apiKey: string): Promise<DetectedConnection> => {
   const envMode = parseEnvMode();
   const initialMode = envMode ?? "test";
   let client = createFreshSqueezy({ apiKey, mode: initialMode });
@@ -199,23 +172,23 @@ const createDetectedClient = async (
     process.stdout.write(chalk.yellow(`${message}\n`));
     client = createFreshSqueezy({ apiKey, mode: actualMode });
     connection = await client.validateConnection();
-    return { client, mode: actualMode, connection };
+    return { client, connection };
   }
 
   if (actualMode) {
     process.stdout.write(chalk.dim(`Detected ${actualMode}-mode API key.\n`));
-    return { client, mode: actualMode, connection };
+    return { client, connection };
   }
 
   if (envMode) {
     process.stdout.write(
       chalk.dim(`Using ${ENV_KEYS.mode}=${envMode}; API mode was not exposed.\n`),
     );
-    return { client, mode: envMode, connection };
+    return { client, connection };
   }
 
   process.stdout.write(chalk.dim("Could not auto-detect key mode; using test mode.\n"));
-  return { client, mode: initialMode, connection };
+  return { client, connection };
 };
 
 const parseEnvMode = (): Mode | undefined => {
@@ -229,19 +202,13 @@ const parseEnvMode = (): Mode | undefined => {
   return undefined;
 };
 
-const getDoctorCheckNames = (targets: InitDoctorTargets): string[] => {
+const listValidatorNames = (validatorIds: OptionalValidatorIds): string[] => {
   const names = ["connection", "store"];
-  pushCheckName(names, "product", targets.productIds);
-  pushCheckName(names, "webhook", targets.webhookUrls);
-  pushCheckName(names, "discount", targets.discountIds);
-  pushCheckName(names, "licenseKey", targets.licenseKeyIds);
-  pushCheckName(names, "subscriptionPlan", targets.variantIds);
+  for (const row of OPTIONAL_VALIDATORS) {
+    const count = validatorIds[row.field]?.length ?? 0;
+    if (count > 0) names.push(count === 1 ? row.resultName : `${row.resultName} x${count}`);
+  }
   return names;
-};
-
-const pushCheckName = (names: string[], name: string, values: string[] | undefined): void => {
-  if (!values || values.length === 0) return;
-  names.push(values.length === 1 ? name : `${name} x${values.length}`);
 };
 
 const renderSetupSummary = (input: {
@@ -306,30 +273,21 @@ const readEnvFile = async (envPath: string): Promise<string> => {
 };
 
 const renderDiscoverySummary = (
-  choices: InitResourceChoices,
-  selectedTargets: InitDoctorTarget[],
+  choices: DiscoveredChoices,
+  selectedValidators: OptionalValidatorName[],
 ): string => {
-  if (selectedTargets.length === 0) return chalk.dim("  No optional resource checks selected.\n");
+  if (selectedValidators.length === 0)
+    return chalk.dim("  No optional resource checks selected.\n");
 
-  const groups: Array<[InitDoctorTarget, string, ResourceChoiceGroup]> = [
-    ["product", "Products", choices.products],
-    ["webhook", "Webhooks", choices.webhooks],
-    ["discount", "Discounts", choices.discounts],
-    ["license-key", "License keys", choices.licenseKeys],
-    ["subscription-plan", "Subscription plans", choices.subscriptionPlans],
-  ];
-
-  const lines: string[] = [];
-  for (const [target, label, group] of groups) {
-    if (!selectedTargets.includes(target)) continue;
-    if (group.error) {
-      lines.push(chalk.yellow(`  ! ${label} discovery failed; manual entry is available.`));
-    } else {
-      lines.push(
-        renderDetected(label, String(group.choices.length), "Lemon Squeezy API").trimEnd(),
-      );
-    }
-  }
-
+  const lines = OPTIONAL_VALIDATORS.filter((row) => selectedValidators.includes(row.name)).map(
+    (row) => {
+      const group = choices[row.name];
+      if (group?.error) {
+        return chalk.yellow(`  ! ${row.label} discovery failed; manual entry is available.`);
+      }
+      const count = String(group?.choices.length ?? 0);
+      return renderDetected(row.label, count, "Lemon Squeezy API").trimEnd();
+    },
+  );
   return `${lines.join("\n")}\n`;
 };

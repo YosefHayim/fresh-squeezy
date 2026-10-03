@@ -190,6 +190,7 @@ export interface GeneratedFileAttributes {
 }
 
 export interface GeneratedOrderAttributes {
+  affiliate_id?: number | null;
   created_at?: string | null;
   currency?: string | null;
   currency_rate?: string | number | null;
@@ -200,6 +201,7 @@ export interface GeneratedOrderAttributes {
   first_order_item?: { created_at?: string | null; id?: number | null; order_id?: number | null; price?: number | null; product_id?: number | null; product_name?: string | null; test_mode?: boolean | null; updated_at?: string | null; variant_id?: number | null; variant_name?: string | null; } | null;
   identifier?: string | null;
   order_number?: number | null;
+  referral_amount?: number | null;
   refunded?: boolean | null;
   refunded_at?: string | null;
   setup_fee?: number | null;
@@ -269,6 +271,7 @@ export interface GeneratedSubscriptionAttributes {
 }
 
 export interface GeneratedSubscriptionInvoiceAttributes {
+  affiliate_id?: number | null;
   billing_reason?: string | null;
   card_brand?: string | null;
   card_last_four?: string | null;
@@ -279,6 +282,7 @@ export interface GeneratedSubscriptionInvoiceAttributes {
   discount_total?: number | null;
   discount_total_formatted?: string | null;
   discount_total_usd?: number | null;
+  referral_amount?: number | null;
   refunded?: boolean | null;
   refunded_amount?: boolean | number | null;
   refunded_amount_formatted?: string | null;

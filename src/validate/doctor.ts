@@ -1,11 +1,13 @@
 import { FreshSqueezyError } from "../core/errors.js";
 import type { HttpClient } from "../core/http.js";
 import type { DoctorReport, Mode, ValidationResult } from "../core/types.js";
-import type { DiscountAttributes } from "../resources/discounts.js";
-import type { LicenseKeyAttributes } from "../resources/licenseKeys.js";
-import type { ProductAttributes } from "../resources/products.js";
-import type { StoreAttributes } from "../resources/stores.js";
-import type { WebhookAttributes } from "../resources/webhooks.js";
+import type {
+  DiscountAttributes,
+  LicenseKeyAttributes,
+  ProductAttributes,
+  StoreAttributes,
+  WebhookAttributes,
+} from "../resources/attributes.js";
 import { type ConnectionSummary, validateConnection } from "./connection.js";
 import { type DiscountValidationOptions, validateDiscount } from "./discount.js";
 import { type LicenseKeyValidationOptions, validateLicenseKey } from "./licenseKey.js";
@@ -91,7 +93,7 @@ export const DEFAULT_VALIDATORS: DoctorValidators = {
 
 /**
  * Compose every configured validator into a single report. This is the
- * primary entry point for CI health checks: one call, one structured result,
+ * primary entry point for CI pre-flight runs: one call, one structured result,
  * one exit code decision.
  *
  * Order is meaningful. Connection runs first because downstream validators

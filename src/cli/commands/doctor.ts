@@ -1,11 +1,14 @@
 import { FreshSqueezyError } from "../../core/errors.js";
 import type { DoctorReport, Mode } from "../../core/types.js";
 import { type FreshSqueezyClient, createFreshSqueezy } from "../../createFreshSqueezy.js";
-import { getDoctorHints, renderCliError } from "../errors.js";
-import type { InitDoctorTarget } from "../prompts.js";
-import { renderReport } from "../render.js";
+import {
+  OPTIONAL_VALIDATORS,
+  type OptionalValidatorIds,
+  type ResourceChoiceGroup,
+  discoverChoices,
+} from "../optionalValidators.js";
+import { getDoctorHints, renderCliError, renderReport } from "../render.js";
 import { resolveStores } from "../resolveStores.js";
-import { type InitResourceChoices, discoverInitResourceChoices } from "../resourceDiscovery.js";
 
 export interface DoctorCommandOptions {
   mode?: Mode;
@@ -26,19 +29,11 @@ export interface DoctorCommandOptions {
  * resolved, `reports` still contains one entry — consumers always see an
  * array so JSON parsers don't need two code paths.
  */
-export interface DoctorJsonOutput {
+interface DoctorJsonOutput {
   ok: boolean;
   mode: Mode;
   reports: DoctorReport[];
 }
-
-const ALL_RESOURCE_TARGETS: InitDoctorTarget[] = [
-  "product",
-  "webhook",
-  "discount",
-  "license-key",
-  "subscription-plan",
-];
 
 /**
  * `fresh-squeezy doctor` — run every validator across each resolved store and
@@ -61,8 +56,8 @@ export const runDoctorCommand = async (options: DoctorCommandOptions): Promise<n
 
     const reports = await Promise.all(
       resolved.storeIds.map(async (storeId) => {
-        const targets = await resolveDoctorTargets(client, storeId, options);
-        return client.doctor({ storeId, ...targets });
+        const validatorIds = await resolveValidatorIds(client, storeId, options);
+        return client.doctor({ storeId, ...validatorIds });
       }),
     );
 
@@ -89,66 +84,18 @@ export const runDoctorCommand = async (options: DoctorCommandOptions): Promise<n
   }
 };
 
-const resolveDoctorTargets = async (
-  client: FreshSqueezyClient,
-  storeId: string,
-  options: DoctorCommandOptions,
-): Promise<{
-  productIds?: string[];
-  webhookUrls?: string[];
-  discountIds?: string[];
-  licenseKeyIds?: string[];
-  variantIds?: string[];
-}> => {
-  const explicit = {
-    productIds: one(options.productId),
-    webhookUrls: one(options.webhookUrl),
-    discountIds: one(options.discountId),
-    licenseKeyIds: one(options.licenseKeyId),
-    variantIds: one(options.variantId),
-  };
-
-  if (!options.allResources) return explicit;
-
-  const discovered = await discoverInitResourceChoices(client, storeId, ALL_RESOURCE_TARGETS);
-  reportDiscoveryErrors(discovered);
-  if (!options.json) {
-    process.stderr.write(
-      `fresh-squeezy: discovered store ${storeId} resources: ${formatDiscoveryCounts(discovered)}.\n`,
-    );
-  }
-
-  return {
-    productIds: mergeValues(explicit.productIds, values(discovered.products)),
-    webhookUrls: mergeValues(explicit.webhookUrls, values(discovered.webhooks)),
-    discountIds: mergeValues(explicit.discountIds, values(discovered.discounts)),
-    licenseKeyIds: mergeValues(explicit.licenseKeyIds, values(discovered.licenseKeys)),
-    variantIds: mergeValues(explicit.variantIds, values(discovered.subscriptionPlans)),
-  };
-};
-
-const DISCOVERY_LABELS = [
-  ["products", "products"],
-  ["webhooks", "webhooks"],
-  ["discounts", "discounts"],
-  ["licenseKeys", "license keys"],
-  ["subscriptionPlans", "subscription plans"],
-] as const;
-
-const formatDiscoveryCounts = (choices: InitResourceChoices): string =>
-  DISCOVERY_LABELS.map(([key, label]) => `${label} ${choices[key].choices.length}`).join(", ");
-
-const reportDiscoveryErrors = (choices: InitResourceChoices): void => {
-  for (const [key, label] of DISCOVERY_LABELS) {
-    const error = choices[key].error;
-    if (error) process.stderr.write(`fresh-squeezy: discovery skipped ${label}: ${error}\n`);
-  }
-};
-
-const values = (group: { choices: Array<{ value: string }> }): string[] | undefined =>
-  group.choices.length > 0 ? group.choices.map((choice) => choice.value) : undefined;
-
 const one = (value: string | undefined): string[] | undefined => (value ? [value] : undefined);
+
+const explicitValidatorIds = (options: DoctorCommandOptions): OptionalValidatorIds => ({
+  productIds: one(options.productId),
+  webhookUrls: one(options.webhookUrl),
+  discountIds: one(options.discountId),
+  licenseKeyIds: one(options.licenseKeyId),
+  variantIds: one(options.variantId),
+});
+
+const values = (group: ResourceChoiceGroup | undefined): string[] | undefined =>
+  group?.choices.length ? group.choices.map((choice) => choice.value) : undefined;
 
 const mergeValues = (
   explicit: string[] | undefined,
@@ -158,14 +105,40 @@ const mergeValues = (
   return merged.length > 0 ? merged : undefined;
 };
 
+const resolveValidatorIds = async (
+  client: FreshSqueezyClient,
+  storeId: string,
+  options: DoctorCommandOptions,
+): Promise<OptionalValidatorIds> => {
+  const explicit = explicitValidatorIds(options);
+  if (!options.allResources) return explicit;
+
+  const allNames = OPTIONAL_VALIDATORS.map((row) => row.name);
+  const discovered = await discoverChoices(client, storeId, allNames);
+  for (const row of OPTIONAL_VALIDATORS) {
+    const error = discovered[row.name]?.error;
+    if (error) {
+      process.stderr.write(
+        `fresh-squeezy: discovery skipped ${row.label.toLowerCase()}: ${error}\n`,
+      );
+    }
+  }
+  if (!options.json) {
+    const counts = OPTIONAL_VALIDATORS.map(
+      (row) => `${row.label.toLowerCase()} ${discovered[row.name]?.choices.length ?? 0}`,
+    ).join(", ");
+    process.stderr.write(`fresh-squeezy: discovered store ${storeId} resources: ${counts}.\n`);
+  }
+
+  const merged: OptionalValidatorIds = {};
+  for (const row of OPTIONAL_VALIDATORS) {
+    merged[row.field] = mergeValues(explicit[row.field], values(discovered[row.name]));
+  }
+  return merged;
+};
+
 const hasExplicitResourceSelection = (options: DoctorCommandOptions): boolean =>
-  Boolean(
-    options.productId ||
-      options.webhookUrl ||
-      options.discountId ||
-      options.licenseKeyId ||
-      options.variantId,
-  );
+  Object.values(explicitValidatorIds(options)).some((ids) => ids !== undefined);
 
 /**
  * Fallback when no store could be resolved and we are not interactive.

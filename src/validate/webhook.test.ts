@@ -7,7 +7,7 @@ import {
 import { createMockFetch, pathIsWithQuery } from "../../tests/helpers/mockFetch.js";
 import { resolveConfig } from "../core/config.js";
 import { HttpClient } from "../core/http.js";
-import { validateWebhook } from "./webhook.js";
+import { sameWebhookUrl, validateWebhook } from "./webhook.js";
 
 const makeClient = (routes: Parameters<typeof createMockFetch>[0]) => {
   const { fetch } = createMockFetch(routes);
@@ -77,5 +77,46 @@ describe("validateWebhook", () => {
     });
 
     expect(result.ok).toBe(true);
+  });
+});
+
+describe("sameWebhookUrl", () => {
+  it("matches identical URLs", () => {
+    expect(sameWebhookUrl("https://app.example.com/hooks", "https://app.example.com/hooks")).toBe(
+      true,
+    );
+  });
+
+  it("ignores trailing slashes", () => {
+    expect(sameWebhookUrl("https://app.example.com/hooks/", "https://app.example.com/hooks")).toBe(
+      true,
+    );
+    expect(sameWebhookUrl("https://app.example.com/hooks", "https://app.example.com/hooks/")).toBe(
+      true,
+    );
+  });
+
+  it("collapses multiple trailing slashes", () => {
+    expect(
+      sameWebhookUrl("https://app.example.com/hooks///", "https://app.example.com/hooks"),
+    ).toBe(true);
+  });
+
+  it("is case-insensitive", () => {
+    expect(sameWebhookUrl("HTTPS://APP.EXAMPLE.COM/hooks", "https://app.example.com/hooks")).toBe(
+      true,
+    );
+  });
+
+  it("rejects different paths", () => {
+    expect(sameWebhookUrl("https://app.example.com/hooks", "https://app.example.com/other")).toBe(
+      false,
+    );
+  });
+
+  it("rejects different hosts", () => {
+    expect(sameWebhookUrl("https://app.example.com/hooks", "https://other.example.com/hooks")).toBe(
+      false,
+    );
   });
 });

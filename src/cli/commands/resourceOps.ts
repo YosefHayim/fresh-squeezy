@@ -3,16 +3,15 @@ import { resolveConfig } from "../../core/config.js";
 import { FreshSqueezyError } from "../../core/errors.js";
 import { HttpClient } from "../../core/http.js";
 import type { Mode } from "../../core/types.js";
-import { createFreshSqueezy } from "../../createFreshSqueezy.js";
-import { invokeOp } from "../../resources/invokeOp.js";
 import {
   type OpVerb,
   findResourceVerb,
+  invokeOp,
   listRegisteredResources,
   resourceRegistry,
 } from "../../resources/registry.js";
-import { renderCliError } from "../errors.js";
 import { confirmResourceOp } from "../prompts.js";
+import { renderCliError } from "../render.js";
 import {
   type BulkSelector,
   collectBulkTargets,
@@ -103,17 +102,16 @@ export const runResourceOpCommand = async (options: ResourceOpCommandOptions): P
       });
     }
 
-    const client = createFreshSqueezy({ mode: options.mode });
     const config = resolveConfig({ mode: options.mode });
     const http = new HttpClient(config);
     // CLI flag wins; LEMON_SQUEEZY_STORE_ID (already in config) is the fallback.
     const storeId = options.storeIds?.[0] ?? config.storeId;
 
     if (options.all || options.ids) {
-      return await runBulk(http, spec, client.mode, options, { storeId, body });
+      return await runBulk(http, spec, config.mode, options, { storeId, body });
     }
 
-    const allowed = await assertWriteSafety(spec, client.mode, options);
+    const allowed = await assertWriteSafety(spec, config.mode, options);
     if (!allowed) return 2;
 
     const opBody = await invokeOp(http, options.resource, options.verb, {
@@ -125,7 +123,7 @@ export const runResourceOpCommand = async (options: ResourceOpCommandOptions): P
 
     const envelope = {
       ok: true as const,
-      mode: client.mode,
+      mode: config.mode,
       resource: spec.resource,
       verb: spec.verb,
       docs: `https://docs.lemonsqueezy.com/api/${spec.docsPath}`,
@@ -136,7 +134,7 @@ export const runResourceOpCommand = async (options: ResourceOpCommandOptions): P
       process.stdout.write(`${JSON.stringify(envelope, null, 2)}\n`);
     } else {
       process.stdout.write(
-        `${spec.verb} ${spec.resource} — ok (mode=${client.mode})\n` +
+        `${spec.verb} ${spec.resource} — ok (mode=${config.mode})\n` +
           `${JSON.stringify(opBody ?? null, null, 2)}\n`,
       );
     }

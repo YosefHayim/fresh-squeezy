@@ -69,11 +69,11 @@ no `export { foo } from`, no import-then-re-export after the import block.
 ```ts
 // ✓ src/index.ts — pure wildcard barrel
 export * from "./validate/store.js";
-export * from "./resources/webhooks.js";
+export * from "./resources/registry.js";
 
 // ✗ not this — after-imports re-export / named barrel
-import { getProduct } from "./resources/products.js";
-export { getProduct };
+import { validateStore } from "./validate/store.js";
+export { validateStore };
 export { createFreshSqueezy } from "./createFreshSqueezy.js";
 export type { Mode } from "./core/types.js"; // use export * (types ride along)
 ```
@@ -123,19 +123,17 @@ imports only from `core/` and `generated/` — never up into `resources/`, `vali
 `cli/`. Pure helpers live in `core/`; anything doing I/O against a resource lives at
 `resources/` or above.
 ```ts
-// avoid — src/core/mode.ts reaching up into resources/ (fetchActualMode)
-import { getAuthenticatedUser } from "../resources/users.js";
-// after — the pure half stays in core/, the I/O half moves out of core/
-export const resolveActualMode = (
-  testMode: boolean | undefined,
-): Mode | undefined => { /* … */ };
+// avoid — a core/ module reaching up into resources/
+import { invokeOp } from "../resources/registry.js";
+// after — core/ exposes the transport; the caller one layer up does the resource I/O
+const store = await http.getResource<StoreAttributes>(`/v1/stores/${storeId}`); // in validate/
 ```
 
 ### Validators: pure check*() + thin fetch (rich validators)
 Validators with real assertion logic (`product`, `discount`, `licenseKey`,
 `subscriptionPlan`) extract a pure `check<Resource>(attributes): ValidationIssue[]`; the
 async validator does the fetch and delegates. Thin validators (`store`, `connection`) stay
-fused. Mirrors the existing `mode.ts`/`probe.ts` pure-vs-I/O split.
+fused. Mirrors the pure-vs-I/O split in `probe.ts` (`checkStoreOwnership` vs `probeFetch`).
 ```ts
 // after — src/validate/product.ts
 export const checkProduct = (
@@ -144,7 +142,7 @@ export const checkProduct = (
 ): ValidationIssue[] => { /* … */ };
 
 export const validateProduct = async (http, mode, id, storeId?) => {
-  const f = await probeFetch(() => getProduct(http, id), { /* … */ });
+  const f = await probeFetch(() => http.getResource<ProductAttributes>(`/v1/products/${id}`), { /* … */ });
   if (!f.ok) return buildResult("product", mode, [f.issue], undefined, target);
   return buildResult("product", mode, checkProduct(f.resource.attributes, storeId), f.resource.attributes, target);
 };
@@ -157,9 +155,9 @@ Single-resource fetches use `probeFetch`; collection/composite fetches use
 a silent `catch {}` — a best-effort skip carries a one-line comment or emits an info issue.
 ```ts
 // after — src/validate/webhook.ts
-const probed = await probeCollection(() => listWebhooksForStore(http, storeId), {
-  notFoundCode: ISSUE_CODES.WEBHOOK_NOT_FOUND,
-});
+const probed = await probeCollection(() =>
+  http.paginate<WebhookAttributes>("/v1/webhooks", { "filter[store_id]": String(storeId) }),
+);
 if (!probed.ok) { issues.push(probed.issue); return buildResult(/* … */); }
 ```
 
@@ -174,22 +172,22 @@ Every exported function gets a `/** … */` block with:
 Interfaces/types/consts still get a why-summary. Agents rely on this contract.
 ```ts
 /**
- * Retrieve a product (GET /v1/products/:id). Catalog is read-only in the API.
+ * Run a docs-backed resource verb: look it up in `resourceRegistry`, then make
+ * the one HTTP call its verb rule describes.
  *
  * @param http - Shared API client.
- * @param productId - Product id.
- * @returns The product JSON:API resource.
- * @throws {FreshSqueezyError} On HTTP/network failure.
+ * @param resource - CLI resource token (`webhook`, `product`, …).
+ * @param verb - Op verb (`get`, `create`, `refund`, …).
+ * @param args - Ids / body for the call.
+ * @returns The JSON:API `data`, the whole document for meta-only endpoints, or undefined after a delete.
+ * @throws {FreshSqueezyError} When the verb is unknown, an argument is missing, or HTTP fails.
  *
  * @example
  * ```ts
- * const product = await getProduct(http, 42);
+ * const product = await invokeOp(http, "product", "get", { id: 42 });
  * ```
  */
-export const getProduct = async (
-  http: HttpClient,
-  productId: string | number,
-): Promise<JsonApiResource<ProductAttributes>> => { /* … */ };
+export const invokeOp = async (http, resource, verb, args = {}): Promise<unknown> => { /* … */ };
 ```
 
 ### Single named return — no multi-object bags
@@ -199,15 +197,29 @@ or bare tuples of independent entities. Discriminated results (`ValidationResult
 If two entities are needed, use two functions or a named composite with a job.
 
 ### Docs-backed resource verbs only
-`resources/` may expose create/update/delete/cancel/refund/… **only** when
-docs.lemonsqueezy.com/api documents them. Register every verb in
-`src/resources/registry.ts` with a `docsPath`. Never invent catalog writes
-(product/variant/price create). CLI hybrid verbs and nested `createFreshSqueezy()`
-namespaces call `invokeOp` / the same helpers.
+A resource gets create/update/delete/cancel/refund/… **only** when
+docs.lemonsqueezy.com/api documents them. Every verb is a word in its resource's row of
+`RESOURCES` in `src/resources/registry.ts`; `VERB_RULES` turns it into one HTTP call and a
+`docsPath` (`DOCS_PATH_EXCEPTIONS` lists the pages that break the naming pattern). Never
+invent catalog writes (product/variant/price create). CLI hybrid verbs and nested
+`createFreshSqueezy()` namespaces all call `invokeOp`.
+
+### One table per repeated list
+When the same set of things (resources, `validate` subcommands, optional validators) would
+be listed in several files, keep **one** table and derive the rest from it. Adding an item
+means adding a row, not editing four files.
+```ts
+// src/resources/registry.ts — one row per resource
+["webhook", ["get", "list", "create", "update", "delete"], "store"],
+// src/cli/commands/validate.ts — one row per `validate` subcommand
+discount: { description, stores: "ownership", required: ["--discount-id <id>", "…"], examples, run },
+// src/cli/optionalValidators.ts — one row per optional validator init/doctor can add
+{ name: "discount", field: "discountIds", label: "Discounts", discover, /* … */ },
+```
 
 ### Naming
 Files `camelCase` (even when the CLI verb is kebab: `subscriptionPlan.ts` ↔
-`subscription-plan`). Functions `verbNoun` (`validateStore`, `getStore`, `listStores`,
+`subscription-plan`). Functions `verbNoun` (`validateStore`, `findResourceVerb`,
 `runDoctorCommand`). Constants `SCREAMING_SNAKE_CASE`; types `PascalCase`; generated types
 `Generated*`; augmentations `Latest*Fields`.
 
@@ -219,13 +231,13 @@ commas everywhere, `node:` → third-party → local import order. Run `npm run 
 ## Recipes
 
 ### How to add a validator
-1. If the resource isn't in `src/resources/`, add a thin file: `*Attributes extends Generated*Attributes` + `getX`/`listX`.
-2. Add issue codes to `ISSUE_CODES` in `rules.ts` (stable public API).
-3. Add `src/validate/<name>.ts`. Rich logic → extract a pure `check<Name>(attributes): ValidationIssue[]`; fetch via `probeFetch`/`probeCollection`; build with `buildResult`.
+1. If the resource has no `*Attributes` in `src/resources/attributes.ts`, add one (`extends Generated*Attributes`).
+2. Add issue codes to `ISSUE_CODES` in `src/validate/issues.ts` (stable public API).
+3. Add `src/validate/<name>.ts`. Rich logic → extract a pure `check<Name>(attributes): ValidationIssue[]`; fetch with `http.getResource`/`http.paginate` inside `probeFetch`/`probeCollection`; build with `buildResult`.
 4. Export it from `src/index.ts` (`export * from "./validate/<name>.js"`).
 5. Unit-test the pure `check<Name>` with plain fixtures; test the async validator via `makeClient` + `createMockFetch`.
 6. Wire into `doctor()` if it belongs in the default sweep.
-7. Mirror as `fresh-squeezy validate <name>` in `src/cli/main.ts`; add it to the interactive menu.
+7. Add a `VALIDATE_SUBCOMMANDS` row in `src/cli/commands/validate.ts` (`fresh-squeezy validate <name>`); if `init`/`doctor --all-resources` should discover it, add an `OPTIONAL_VALIDATORS` row in `src/cli/optionalValidators.ts`.
 8. Update the README table.
 
 ### How to add a CLI command
@@ -238,19 +250,17 @@ commas everywhere, `node:` → third-party → local import order. Run `npm run 
 
 ### How to add a resource verb (docs-backed ops)
 1. Confirm the endpoint on docs.lemonsqueezy.com/api (or the proposed scrape snapshot).
-2. Implement in `src/resources/<x>.ts` via `HttpClient` (`getResource` / `postResource` / `patchResource` / `deleteResource` / `paginate`).
-3. Full TSDoc (`@param` / `@returns` / `@example` / `@throws`).
-4. Register in `resourceRegistry` (`docsPath`, body, destructive?, idRole).
-5. Wire `invokeOp` + nested client method on `createFreshSqueezy()`.
-6. Tests for path/method; safety covered by CLI (`--yes`, live gate).
-7. Definition of done: `pnpm verify`, registry entry present, no raw `fetch`, single return type.
+2. Add the verb to the resource's row in `RESOURCES` (`src/resources/registry.ts`). A new resource is a new row (plus its `*Attributes` in `attributes.ts`); a new kind of verb is a new `VERB_RULES` entry.
+3. If the docs page breaks the `VERB_RULES` naming pattern, add it to `DOCS_PATH_EXCEPTIONS`.
+4. Add the nested client method on `createFreshSqueezy()` (interface + `op(...)` line).
+5. Tests: a row in `createFreshSqueezy.test.ts` (method + path); safety is covered by the CLI (`--yes`, live gate).
+6. Definition of done: `pnpm verify`, `fresh-squeezy ops --list` shows it, no raw `fetch`.
 
 ## Exemplars
 
 Write new code like these:
-- `src/resources/products.ts` — thin read helpers; catalog honesty.
-- `src/resources/webhooks.ts` — full docs-backed write verbs + TSDoc.
-- `src/resources/registry.ts` / `invokeOp.ts` — matrix + dispatch.
+- `src/resources/registry.ts` — one table of docs-backed ops + generic `invokeOp`.
+- `src/cli/commands/validate.ts` — one row per subcommand drives flags, help, hints, run.
 - `src/validate/product.ts` — rich check*/validate* + probe + buildResult.
 - `src/cli/commands/doctor.ts` — dual-mode command exit codes.
 - `src/cli/commands/resourceOps.ts` — ops safety + body + JSON.

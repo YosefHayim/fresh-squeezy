@@ -1,10 +1,12 @@
 import type { HttpClient } from "../core/http.js";
-import { resolveActualMode } from "../core/mode.js";
 import type { Mode, ValidationIssue, ValidationResult } from "../core/types.js";
-import { listStores } from "../resources/stores.js";
-import { type UserAttributes, getAuthenticatedUser } from "../resources/users.js";
+import type {
+  AuthenticatedUserDocument,
+  StoreAttributes,
+  UserAttributes,
+} from "../resources/attributes.js";
+import { ISSUE_CODES, buildResult, issue } from "./issues.js";
 import { probeCollection } from "./probe.js";
-import { ISSUE_CODES, buildResult, issue } from "./rules.js";
 
 /**
  * Connection validator summary attached to the `resource` field. Keeps the
@@ -27,10 +29,32 @@ export interface ConnectionSummary {
 }
 
 /**
+ * Map the boolean `meta.test_mode` flag from `/v1/users/me` to our `Mode` type.
+ *
+ * Returns `undefined` when the field is absent so older accounts and proxies
+ * that don't surface the flag don't produce spurious mode mismatches. Lemon
+ * Squeezy added `meta.test_mode` to the endpoint on 2024-01-05 (see API
+ * changelog: https://docs.lemonsqueezy.com/api/getting-started/changelog).
+ *
+ * Pure function — exposed publicly so consumers can resolve a key's true mode
+ * from a `/v1/users/me` document they already have, without re-running the
+ * full connection validator.
+ */
+export const resolveActualMode = (testMode: boolean | undefined): Mode | undefined => {
+  if (testMode === true) return "test";
+  if (testMode === false) return "live";
+  return undefined;
+};
+
+const fetchUserDocument = (http: HttpClient): Promise<AuthenticatedUserDocument> => {
+  return http.request<AuthenticatedUserDocument>({ path: "/v1/users/me" });
+};
+
+/**
  * Verify that the API key works, surface the account identity + reachable
  * stores, and cross-check declared mode vs the key's true mode.
  *
- * This is the first check every `doctor()` run performs; if it fails,
+ * This is the first validator every `doctor()` run performs; if it fails,
  * no downstream validator has anything useful to report.
  */
 export const validateConnection = async (
@@ -39,8 +63,8 @@ export const validateConnection = async (
 ): Promise<ValidationResult<ConnectionSummary>> => {
   const fetched = await probeCollection(
     async () => {
-      const userDoc = await getAuthenticatedUser(http);
-      const stores = await listStores(http);
+      const userDoc = await fetchUserDocument(http);
+      const stores = await http.paginate<StoreAttributes>("/v1/stores");
       return { userDoc, stores };
     },
     {
@@ -104,13 +128,10 @@ export const validateConnection = async (
  * Returns `undefined` if the API doesn't surface `meta.test_mode` (older
  * proxies, partial responses).
  *
- * Lives here rather than in `core/mode.ts` so the foundational `core/` layer
- * never imports from `resources/`; the pure `resolveActualMode` it delegates to
- * still lives in `core/`. Throws `FreshSqueezyError` on auth or network
- * failure; callers that want a structured non-throwing result should use
- * `validateConnection` instead.
+ * Throws `FreshSqueezyError` on auth or network failure; callers that want a
+ * structured non-throwing result should use `validateConnection` instead.
  */
 export const fetchActualMode = async (http: HttpClient): Promise<Mode | undefined> => {
-  const doc = await getAuthenticatedUser(http);
+  const doc = await fetchUserDocument(http);
   return resolveActualMode(doc.meta?.test_mode);
 };

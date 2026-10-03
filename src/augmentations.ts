@@ -3,12 +3,6 @@ import type {
   GeneratedLemonSqueezyResourceName,
 } from "./generated/lemonSqueezyApiTypes.js";
 
-export type {
-  GeneratedLemonSqueezyFieldMap,
-  GeneratedLemonSqueezyResourceName,
-  GeneratedLemonSqueezyResourceType,
-} from "./generated/lemonSqueezyApiTypes.js";
-
 /**
  * Type augmentation building blocks.
  *

@@ -4,7 +4,6 @@ import { HttpClient } from "../../core/http.js";
 import type { Mode } from "../../core/types.js";
 import { createFreshSqueezy } from "../../createFreshSqueezy.js";
 import { findResourceVerb, resourceRegistry } from "../../resources/registry.js";
-import { renderCliError } from "../errors.js";
 import {
   type ManageOperationChoice,
   askParentId,
@@ -13,6 +12,7 @@ import {
   pickBulkTargets,
   pickManageOperation,
 } from "../prompts.js";
+import { renderCliError } from "../render.js";
 import { resolveStores } from "../resolveStores.js";
 import {
   type BulkTarget,

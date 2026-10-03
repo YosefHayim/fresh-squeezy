@@ -1,7 +1,6 @@
 import { FreshSqueezyError } from "../../core/errors.js";
 import type { HttpClient } from "../../core/http.js";
-import { invokeOp } from "../../resources/invokeOp.js";
-import { type ResourceVerbSpec, findResourceVerb } from "../../resources/registry.js";
+import { type ResourceVerbSpec, findResourceVerb, invokeOp } from "../../resources/registry.js";
 
 /** One resource the bulk run will act on. */
 export interface BulkTarget {
@@ -11,7 +10,7 @@ export interface BulkTarget {
 }
 
 /** Per-item outcome of a bulk run. */
-export interface BulkResult extends BulkTarget {
+interface BulkResult extends BulkTarget {
   ok: boolean;
   error?: string;
 }
@@ -50,7 +49,7 @@ export const supportsBulk = (spec: ResourceVerbSpec): boolean =>
  * @param item - Resource returned by `list`.
  * @returns The best label, falling back to the id.
  */
-export const describeBulkTarget = (item: {
+const describeBulkTarget = (item: {
   id: string | number;
   attributes?: Record<string, unknown>;
 }): BulkTarget => {

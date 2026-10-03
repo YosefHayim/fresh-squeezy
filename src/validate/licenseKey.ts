@@ -1,8 +1,8 @@
 import type { HttpClient } from "../core/http.js";
 import type { Mode, ValidationIssue, ValidationResult } from "../core/types.js";
-import { type LicenseKeyAttributes, getLicenseKey } from "../resources/licenseKeys.js";
+import type { LicenseKeyAttributes } from "../resources/attributes.js";
+import { ISSUE_CODES, buildResult, issue } from "./issues.js";
 import { checkStoreOwnership, probeFetch } from "./probe.js";
-import { ISSUE_CODES, buildResult, issue } from "./rules.js";
 
 export interface LicenseKeyValidationOptions {
   storeId: string | number;
@@ -25,12 +25,15 @@ export const validateLicenseKey = async (
     id: String(options.licenseKeyId),
   };
 
-  const fetched = await probeFetch(() => getLicenseKey(http, options.licenseKeyId), {
-    notFoundCode: ISSUE_CODES.LICENSE_KEY_NOT_FOUND,
-    notFoundMessage: `License key ${options.licenseKeyId} not found.`,
-    notFoundFix: "Verify the license key ID in the Lemon Squeezy dashboard.",
-    notFoundContext: { licenseKeyId: String(options.licenseKeyId) },
-  });
+  const fetched = await probeFetch(
+    () => http.getResource<LicenseKeyAttributes>(`/v1/license-keys/${options.licenseKeyId}`),
+    {
+      notFoundCode: ISSUE_CODES.LICENSE_KEY_NOT_FOUND,
+      notFoundMessage: `License key ${options.licenseKeyId} not found.`,
+      notFoundFix: "Verify the license key ID in the Lemon Squeezy dashboard.",
+      notFoundContext: { licenseKeyId: String(options.licenseKeyId) },
+    },
+  );
 
   if (!fetched.ok) {
     return buildResult<LicenseKeyAttributes>(
