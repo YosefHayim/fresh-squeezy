@@ -15,7 +15,7 @@ export interface MockFetchResult {
   calls: Array<{ method: string; url: string; body?: string }>;
 }
 
-export function createMockFetch(routes: MockRoute[]): MockFetchResult {
+export const createMockFetch = (routes: MockRoute[]): MockFetchResult => {
   const calls: MockFetchResult["calls"] = [];
 
   const mock: typeof fetch = async (input, init) => {
@@ -45,21 +45,21 @@ export function createMockFetch(routes: MockRoute[]): MockFetchResult {
   };
 
   return { fetch: mock, calls };
-}
+};
 
-export function pathIs(expected: string, method = "GET"): MockRoute["match"] {
+export const pathIs = (expected: string, method = "GET"): MockRoute["match"] => {
   return ({ method: m, url }) => m === method && new URL(url).pathname === expected;
-}
+};
 
-export function pathIsWithQuery(
+export const pathIsWithQuery = (
   expected: string,
   query: Record<string, string>,
   method = "GET",
-): MockRoute["match"] {
+): MockRoute["match"] => {
   return ({ method: m, url }) => {
     if (m !== method) return false;
     const parsed = new URL(url);
     if (parsed.pathname !== expected) return false;
     return Object.entries(query).every(([key, value]) => parsed.searchParams.get(key) === value);
   };
-}
+};

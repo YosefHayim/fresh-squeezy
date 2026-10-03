@@ -224,7 +224,7 @@ const formatPromptPath = (filePath: string): string => {
 
 export const isPromptCancel = (error: unknown): boolean => {
   if (!(error instanceof Error)) return false;
-  return error.name === "ExitPromptError" || error.message.includes("User force closed");
+  return error.name === "ExitPromptError";
 };
 
 /** One bulk-capable operation offered by the "Manage resources" menu. */

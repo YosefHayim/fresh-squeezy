@@ -46,7 +46,7 @@ export interface InitCommandOptions {
  *  4. Optionally persist credentials to `.env`.
  *  5. Run `doctor()` against the chosen config and print the report.
  *
- * Returns an exit code so the CLI wrapper can forward it to `process.exit`.
+ * Returns an exit code so the CLI wrapper can set it as `process.exitCode`.
  */
 export const runInitCommand = async (options: InitCommandOptions = {}): Promise<number> => {
   try {
@@ -82,7 +82,8 @@ const runInitFlow = async (options: InitCommandOptions): Promise<number> => {
   const apiKey = await resolveApiKey();
 
   process.stdout.write(renderStep(2, 5, "Account probe", "detect mode and reachable stores"));
-  const { client, mode, connection } = await createDetectedClient(apiKey);
+  const { client, connection } = await connectWithDetectedMode(apiKey);
+  const mode = client.mode;
 
   if (!connection.ok) {
     process.stdout.write(`${renderReport({ ok: false, mode, results: [connection] })}\n`);
@@ -131,13 +132,10 @@ const runInitFlow = async (options: InitCommandOptions): Promise<number> => {
 };
 
 const resolveStoreSelection = async (stores: StoreChoice[]): Promise<string> => {
-  if (stores.length === 1) {
-    const store = stores[0];
-    if (!store) throw new Error("Expected one reachable store.");
-    process.stdout.write(
-      renderDetected("Store", `${store.name} (${store.slug})`, `id ${store.id}`),
-    );
-    return store.id;
+  const [only, ...others] = stores;
+  if (only && others.length === 0) {
+    process.stdout.write(renderDetected("Store", `${only.name} (${only.slug})`, `id ${only.id}`));
+    return only.id;
   }
 
   return pickStore(stores);
@@ -154,13 +152,13 @@ const resolveApiKey = async (): Promise<string> => {
   return answers.apiKey;
 };
 
-const createDetectedClient = async (
-  apiKey: string,
-): Promise<{
+/** A client built for the key's real mode, plus the connection result that detected it. */
+interface DetectedConnection {
   client: FreshSqueezyClient;
-  mode: Mode;
   connection: ValidationResult<ConnectionSummary>;
-}> => {
+}
+
+const connectWithDetectedMode = async (apiKey: string): Promise<DetectedConnection> => {
   const envMode = parseEnvMode();
   const initialMode = envMode ?? "test";
   let client = createFreshSqueezy({ apiKey, mode: initialMode });
@@ -174,23 +172,23 @@ const createDetectedClient = async (
     process.stdout.write(chalk.yellow(`${message}\n`));
     client = createFreshSqueezy({ apiKey, mode: actualMode });
     connection = await client.validateConnection();
-    return { client, mode: actualMode, connection };
+    return { client, connection };
   }
 
   if (actualMode) {
     process.stdout.write(chalk.dim(`Detected ${actualMode}-mode API key.\n`));
-    return { client, mode: actualMode, connection };
+    return { client, connection };
   }
 
   if (envMode) {
     process.stdout.write(
       chalk.dim(`Using ${ENV_KEYS.mode}=${envMode}; API mode was not exposed.\n`),
     );
-    return { client, mode: envMode, connection };
+    return { client, connection };
   }
 
   process.stdout.write(chalk.dim("Could not auto-detect key mode; using test mode.\n"));
-  return { client, mode: initialMode, connection };
+  return { client, connection };
 };
 
 const parseEnvMode = (): Mode | undefined => {

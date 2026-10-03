@@ -1,5 +1,6 @@
 // Preloaded into the spawned CLI (`node --import`) so the real binary runs end to end
-// without network. Serves a tiny in-memory discount API and logs DELETEs to stderr.
+// without network. Serves a tiny in-memory discount API (logs DELETEs to stderr) and a
+// 3,000-product list large enough to overflow a 64 KB stdout pipe buffer.
 const discounts = new Map([
   ["1", { code: "KEEPME", name: "Keep" }],
   ["2", { code: "NSAHTEST", name: "Test A" }],
@@ -20,6 +21,15 @@ globalThis.fetch = async (input, init) => {
       type: "discounts",
       id,
       attributes: { store_id: 1, ...attributes },
+    }));
+    return json(200, { data, meta: { page: { currentPage: 1, lastPage: 1 } } });
+  }
+
+  if (method === "GET" && url.pathname === "/v1/products") {
+    const data = Array.from({ length: 3000 }, (_, index) => ({
+      type: "products",
+      id: String(index),
+      attributes: { store_id: 1, name: `Product ${index} ${"x".repeat(60)}`, status: "published" },
     }));
     return json(200, { data, meta: { page: { currentPage: 1, lastPage: 1 } } });
   }

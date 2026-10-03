@@ -12,7 +12,9 @@ import { buildResult } from "../../src/validate/issues.js";
  * inspect it; tests that need a populated resource can supply their own
  * override.
  */
-export function createFakeValidators(overrides: Partial<DoctorValidators> = {}): DoctorValidators {
+export const createFakeValidators = (
+  overrides: Partial<DoctorValidators> = {},
+): DoctorValidators => {
   const ok = <T>(name: string, mode: Mode): ValidationResult<T> => buildResult<T>(name, mode, []);
 
   const defaults: DoctorValidators = {
@@ -26,4 +28,4 @@ export function createFakeValidators(overrides: Partial<DoctorValidators> = {}):
   };
 
   return { ...defaults, ...overrides };
-}
+};

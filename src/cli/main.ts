@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { Command } from "commander";
 import dotenv from "dotenv";
+import { FreshSqueezyError } from "../core/errors.js";
 import type { Mode } from "../core/types.js";
 import type { OpVerb } from "../resources/registry.js";
 import { runAugmentCommand } from "./commands/augment.js";
@@ -19,7 +20,7 @@ import { renderCliError } from "./render.js";
 
 /**
  * CLI entry. Wires commander subcommands to their handlers. Each handler
- * returns an exit code; the wrapper below forwards it to `process.exit`.
+ * returns an exit code; the wrapper below sets it as `process.exitCode`.
  *
  * Store resolution is a CLI concern: `--store-ids 1,2,3` (CSV) for scripts,
  * `--all-stores` for "run against every reachable store", or interactive
@@ -43,7 +44,10 @@ const OP_VERBS: OpVerb[] = [
 
 const parseMode = (value: string): Mode => {
   if (value === "test" || value === "live") return value;
-  throw new Error(`Mode must be "test" or "live", got "${value}"`);
+  throw new FreshSqueezyError({
+    code: "INVALID_MODE",
+    message: `Mode must be "test" or "live", got "${value}"`,
+  });
 };
 
 const parseCsv = (value: string): string[] =>
@@ -88,8 +92,9 @@ interface ResourceOpCliOpts {
   dryRun?: boolean;
 }
 
+/** `process.exitCode`, not `process.exit()`: exiting early cuts off stdout piped past 64 KB. */
 const exitWith = async (code: Promise<number> | number): Promise<void> => {
-  process.exit(await code);
+  process.exitCode = await code;
 };
 
 const attachModeJson = (cmd: Command): Command =>
@@ -161,7 +166,8 @@ program.action(async (opts: { install?: boolean }) => {
         "fresh-squeezy validate connection",
       ]),
     );
-    process.exit(2);
+    process.exitCode = 2;
+    return;
   }
 
   await exitWith(
@@ -347,5 +353,5 @@ program.parseAsync(process.argv).catch((err: unknown) => {
     ? ["fresh-squeezy doctor --mode test", "fresh-squeezy doctor --mode live"]
     : ["fresh-squeezy --help"];
   process.stderr.write(renderCliError(message, hints));
-  process.exit(2);
+  process.exitCode = 2;
 });
