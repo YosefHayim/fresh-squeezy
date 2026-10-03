@@ -6,8 +6,6 @@ import type { Mode, ValidationResult } from "../../core/types.js";
 import { type FreshSqueezyClient, createFreshSqueezy } from "../../createFreshSqueezy.js";
 import type { ConnectionSummary } from "../../validate/connection.js";
 import {
-  type InitDoctorTarget,
-  type InitDoctorTargets,
   askForApiKey,
   askForDoctorTargetValues,
   confirmLiveModeRun,
@@ -24,11 +22,13 @@ import {
   renderReport,
   renderStep,
 } from "../render.js";
+import { type StoreChoice, listStoreChoices } from "../resolveStores.js";
 import {
-  EMPTY_INIT_RESOURCE_CHOICES,
-  type InitResourceChoices,
-  type ResourceChoiceGroup,
-  discoverInitResourceChoices,
+  DOCTOR_TARGETS,
+  type DoctorChoices,
+  type InitDoctorTarget,
+  type InitDoctorTargets,
+  discoverDoctorChoices,
 } from "../resourceDiscovery.js";
 
 export interface InitCommandOptions {
@@ -94,8 +94,8 @@ const runInitFlow = async (options: InitCommandOptions): Promise<number> => {
     return 130;
   }
 
-  const storeIds = connection.resource?.storeIds ?? [];
-  if (storeIds.length === 0) {
+  const stores = await listStoreChoices(client);
+  if (stores.length === 0) {
     process.stdout.write(
       chalk.yellow(
         "No stores reachable with this key. Create a store in Lemon Squeezy and retry.\n",
@@ -104,32 +104,13 @@ const runInitFlow = async (options: InitCommandOptions): Promise<number> => {
     return 1;
   }
 
-  process.stdout.write(renderDetected("Stores", String(storeIds.length), "Lemon Squeezy API"));
-  const stores = await Promise.all(storeIds.map((id) => client.validateStore(id)));
-  const pickable = stores
-    .filter((entry) => entry.ok && entry.resource)
-    .map((entry, index) => ({
-      id: storeIds[index] ?? "",
-      name: entry.resource?.name ?? "(unnamed)",
-      slug: entry.resource?.slug ?? "",
-    }))
-    .filter((entry) => entry.id !== "");
-
-  if (pickable.length === 0) {
-    process.stdout.write(
-      chalk.yellow(
-        "Stores were discovered, but none could be validated. Check account access and retry.\n",
-      ),
-    );
-    return 1;
-  }
-
+  process.stdout.write(renderDetected("Stores", String(stores.length), "Lemon Squeezy API"));
   process.stdout.write(renderStep(3, 5, "Store selection", "auto-select when unambiguous"));
-  const storeId = await resolveStoreSelection(pickable);
+  const storeId = await resolveStoreSelection(stores);
 
   process.stdout.write(renderStep(4, 5, "Optional checks", "pick resources before manual IDs"));
   const selectedTargets = await selectDoctorTargets();
-  const resourceChoices = await discoverChoices(client, storeId, selectedTargets);
+  const resourceChoices = await discoverDoctorChoices(client, storeId, selectedTargets);
   process.stdout.write(renderDiscoverySummary(resourceChoices, selectedTargets));
   const doctorTargets = await askForDoctorTargetValues(selectedTargets, resourceChoices);
 
@@ -149,11 +130,9 @@ const runInitFlow = async (options: InitCommandOptions): Promise<number> => {
   return report.ok ? 0 : 1;
 };
 
-const resolveStoreSelection = async (
-  pickable: Array<{ id: string; name: string; slug: string }>,
-): Promise<string> => {
-  if (pickable.length === 1) {
-    const store = pickable[0];
+const resolveStoreSelection = async (stores: StoreChoice[]): Promise<string> => {
+  if (stores.length === 1) {
+    const store = stores[0];
     if (!store) throw new Error("Expected one reachable store.");
     process.stdout.write(
       renderDetected("Store", `${store.name} (${store.slug})`, `id ${store.id}`),
@@ -161,16 +140,7 @@ const resolveStoreSelection = async (
     return store.id;
   }
 
-  return pickStore(pickable);
-};
-
-const discoverChoices = async (
-  client: FreshSqueezyClient,
-  storeId: string,
-  selectedTargets: InitDoctorTarget[],
-): Promise<InitResourceChoices> => {
-  if (selectedTargets.length === 0) return EMPTY_INIT_RESOURCE_CHOICES;
-  return discoverInitResourceChoices(client, storeId, selectedTargets);
+  return pickStore(stores);
 };
 
 const resolveApiKey = async (): Promise<string> => {
@@ -236,17 +206,11 @@ const parseEnvMode = (): Mode | undefined => {
 
 const getDoctorCheckNames = (targets: InitDoctorTargets): string[] => {
   const names = ["connection", "store"];
-  pushCheckName(names, "product", targets.productIds);
-  pushCheckName(names, "webhook", targets.webhookUrls);
-  pushCheckName(names, "discount", targets.discountIds);
-  pushCheckName(names, "licenseKey", targets.licenseKeyIds);
-  pushCheckName(names, "subscriptionPlan", targets.variantIds);
+  for (const row of DOCTOR_TARGETS) {
+    const count = targets[row.field]?.length ?? 0;
+    if (count > 0) names.push(count === 1 ? row.checkName : `${row.checkName} x${count}`);
+  }
   return names;
-};
-
-const pushCheckName = (names: string[], name: string, values: string[] | undefined): void => {
-  if (!values || values.length === 0) return;
-  names.push(values.length === 1 ? name : `${name} x${values.length}`);
 };
 
 const renderSetupSummary = (input: {
@@ -311,30 +275,18 @@ const readEnvFile = async (envPath: string): Promise<string> => {
 };
 
 const renderDiscoverySummary = (
-  choices: InitResourceChoices,
+  choices: DoctorChoices,
   selectedTargets: InitDoctorTarget[],
 ): string => {
   if (selectedTargets.length === 0) return chalk.dim("  No optional resource checks selected.\n");
 
-  const groups: Array<[InitDoctorTarget, string, ResourceChoiceGroup]> = [
-    ["product", "Products", choices.products],
-    ["webhook", "Webhooks", choices.webhooks],
-    ["discount", "Discounts", choices.discounts],
-    ["license-key", "License keys", choices.licenseKeys],
-    ["subscription-plan", "Subscription plans", choices.subscriptionPlans],
-  ];
-
-  const lines: string[] = [];
-  for (const [target, label, group] of groups) {
-    if (!selectedTargets.includes(target)) continue;
-    if (group.error) {
-      lines.push(chalk.yellow(`  ! ${label} discovery failed; manual entry is available.`));
-    } else {
-      lines.push(
-        renderDetected(label, String(group.choices.length), "Lemon Squeezy API").trimEnd(),
-      );
+  const lines = DOCTOR_TARGETS.filter((row) => selectedTargets.includes(row.target)).map((row) => {
+    const group = choices[row.target];
+    if (group?.error) {
+      return chalk.yellow(`  ! ${row.label} discovery failed; manual entry is available.`);
     }
-  }
-
+    const count = String(group?.choices.length ?? 0);
+    return renderDetected(row.label, count, "Lemon Squeezy API").trimEnd();
+  });
   return `${lines.join("\n")}\n`;
 };

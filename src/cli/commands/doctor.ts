@@ -1,10 +1,14 @@
 import { FreshSqueezyError } from "../../core/errors.js";
 import type { DoctorReport, Mode } from "../../core/types.js";
 import { type FreshSqueezyClient, createFreshSqueezy } from "../../createFreshSqueezy.js";
-import type { InitDoctorTarget } from "../prompts.js";
 import { getDoctorHints, renderCliError, renderReport } from "../render.js";
 import { resolveStores } from "../resolveStores.js";
-import { type InitResourceChoices, discoverInitResourceChoices } from "../resourceDiscovery.js";
+import {
+  DOCTOR_TARGETS,
+  type InitDoctorTargets,
+  type ResourceChoiceGroup,
+  discoverDoctorChoices,
+} from "../resourceDiscovery.js";
 
 export interface DoctorCommandOptions {
   mode?: Mode;
@@ -30,14 +34,6 @@ interface DoctorJsonOutput {
   mode: Mode;
   reports: DoctorReport[];
 }
-
-const ALL_RESOURCE_TARGETS: InitDoctorTarget[] = [
-  "product",
-  "webhook",
-  "discount",
-  "license-key",
-  "subscription-plan",
-];
 
 /**
  * `fresh-squeezy doctor` — run every validator across each resolved store and
@@ -88,66 +84,18 @@ export const runDoctorCommand = async (options: DoctorCommandOptions): Promise<n
   }
 };
 
-const resolveDoctorTargets = async (
-  client: FreshSqueezyClient,
-  storeId: string,
-  options: DoctorCommandOptions,
-): Promise<{
-  productIds?: string[];
-  webhookUrls?: string[];
-  discountIds?: string[];
-  licenseKeyIds?: string[];
-  variantIds?: string[];
-}> => {
-  const explicit = {
-    productIds: one(options.productId),
-    webhookUrls: one(options.webhookUrl),
-    discountIds: one(options.discountId),
-    licenseKeyIds: one(options.licenseKeyId),
-    variantIds: one(options.variantId),
-  };
-
-  if (!options.allResources) return explicit;
-
-  const discovered = await discoverInitResourceChoices(client, storeId, ALL_RESOURCE_TARGETS);
-  reportDiscoveryErrors(discovered);
-  if (!options.json) {
-    process.stderr.write(
-      `fresh-squeezy: discovered store ${storeId} resources: ${formatDiscoveryCounts(discovered)}.\n`,
-    );
-  }
-
-  return {
-    productIds: mergeValues(explicit.productIds, values(discovered.products)),
-    webhookUrls: mergeValues(explicit.webhookUrls, values(discovered.webhooks)),
-    discountIds: mergeValues(explicit.discountIds, values(discovered.discounts)),
-    licenseKeyIds: mergeValues(explicit.licenseKeyIds, values(discovered.licenseKeys)),
-    variantIds: mergeValues(explicit.variantIds, values(discovered.subscriptionPlans)),
-  };
-};
-
-const DISCOVERY_LABELS = [
-  ["products", "products"],
-  ["webhooks", "webhooks"],
-  ["discounts", "discounts"],
-  ["licenseKeys", "license keys"],
-  ["subscriptionPlans", "subscription plans"],
-] as const;
-
-const formatDiscoveryCounts = (choices: InitResourceChoices): string =>
-  DISCOVERY_LABELS.map(([key, label]) => `${label} ${choices[key].choices.length}`).join(", ");
-
-const reportDiscoveryErrors = (choices: InitResourceChoices): void => {
-  for (const [key, label] of DISCOVERY_LABELS) {
-    const error = choices[key].error;
-    if (error) process.stderr.write(`fresh-squeezy: discovery skipped ${label}: ${error}\n`);
-  }
-};
-
-const values = (group: { choices: Array<{ value: string }> }): string[] | undefined =>
-  group.choices.length > 0 ? group.choices.map((choice) => choice.value) : undefined;
-
 const one = (value: string | undefined): string[] | undefined => (value ? [value] : undefined);
+
+const explicitTargets = (options: DoctorCommandOptions): InitDoctorTargets => ({
+  productIds: one(options.productId),
+  webhookUrls: one(options.webhookUrl),
+  discountIds: one(options.discountId),
+  licenseKeyIds: one(options.licenseKeyId),
+  variantIds: one(options.variantId),
+});
+
+const values = (group: ResourceChoiceGroup | undefined): string[] | undefined =>
+  group?.choices.length ? group.choices.map((choice) => choice.value) : undefined;
 
 const mergeValues = (
   explicit: string[] | undefined,
@@ -157,14 +105,40 @@ const mergeValues = (
   return merged.length > 0 ? merged : undefined;
 };
 
+const resolveDoctorTargets = async (
+  client: FreshSqueezyClient,
+  storeId: string,
+  options: DoctorCommandOptions,
+): Promise<InitDoctorTargets> => {
+  const explicit = explicitTargets(options);
+  if (!options.allResources) return explicit;
+
+  const allTargets = DOCTOR_TARGETS.map((row) => row.target);
+  const discovered = await discoverDoctorChoices(client, storeId, allTargets);
+  for (const row of DOCTOR_TARGETS) {
+    const error = discovered[row.target]?.error;
+    if (error) {
+      process.stderr.write(
+        `fresh-squeezy: discovery skipped ${row.label.toLowerCase()}: ${error}\n`,
+      );
+    }
+  }
+  if (!options.json) {
+    const counts = DOCTOR_TARGETS.map(
+      (row) => `${row.label.toLowerCase()} ${discovered[row.target]?.choices.length ?? 0}`,
+    ).join(", ");
+    process.stderr.write(`fresh-squeezy: discovered store ${storeId} resources: ${counts}.\n`);
+  }
+
+  const merged: InitDoctorTargets = {};
+  for (const row of DOCTOR_TARGETS) {
+    merged[row.field] = mergeValues(explicit[row.field], values(discovered[row.target]));
+  }
+  return merged;
+};
+
 const hasExplicitResourceSelection = (options: DoctorCommandOptions): boolean =>
-  Boolean(
-    options.productId ||
-      options.webhookUrl ||
-      options.discountId ||
-      options.licenseKeyId ||
-      options.variantId,
-  );
+  Object.values(explicitTargets(options)).some((ids) => ids !== undefined);
 
 /**
  * Fallback when no store could be resolved and we are not interactive.

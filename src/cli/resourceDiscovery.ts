@@ -1,5 +1,4 @@
-import type { RequestOptions } from "../core/http.js";
-import type { JsonApiCollection, JsonApiResource } from "../core/types.js";
+import type { JsonApiResource } from "../core/types.js";
 import type { FreshSqueezyClient } from "../createFreshSqueezy.js";
 import type {
   DiscountAttributes,
@@ -8,7 +7,30 @@ import type {
   SubscriptionVariantAttributes,
   WebhookAttributes,
 } from "../resources/attributes.js";
-import type { InitDoctorTarget } from "./prompts.js";
+
+/** A resource check `init` and `doctor --all-resources` can add on top of connection + store. */
+export type InitDoctorTarget =
+  | "product"
+  | "webhook"
+  | "discount"
+  | "license-key"
+  | "subscription-plan";
+
+/** The `doctor()` option a resource check fills. */
+export type DoctorTargetField =
+  | "productIds"
+  | "webhookUrls"
+  | "discountIds"
+  | "licenseKeyIds"
+  | "variantIds";
+
+export interface InitDoctorTargets {
+  productIds?: string[];
+  webhookUrls?: string[];
+  discountIds?: string[];
+  licenseKeyIds?: string[];
+  variantIds?: string[];
+}
 
 interface ResourceChoice {
   label: string;
@@ -20,181 +42,190 @@ export interface ResourceChoiceGroup {
   error?: string;
 }
 
-export interface InitResourceChoices {
-  products: ResourceChoiceGroup;
-  webhooks: ResourceChoiceGroup;
-  discounts: ResourceChoiceGroup;
-  licenseKeys: ResourceChoiceGroup;
-  subscriptionPlans: ResourceChoiceGroup;
+/** Discovered candidates per selected check; unselected checks are absent. */
+export type DoctorChoices = Partial<Record<InitDoctorTarget, ResourceChoiceGroup>>;
+
+interface DiscoveryContext {
+  client: FreshSqueezyClient;
+  storeId: string;
+  /** Shared so product and subscription-plan discovery list products once. */
+  listProducts: () => Promise<JsonApiResource<ProductAttributes>[]>;
 }
 
-export const EMPTY_INIT_RESOURCE_CHOICES: InitResourceChoices = {
-  products: { choices: [] },
-  webhooks: { choices: [] },
-  discounts: { choices: [] },
-  licenseKeys: { choices: [] },
-  subscriptionPlans: { choices: [] },
+/** Everything the CLI needs to offer, discover, prompt for, and report one resource check. */
+export interface DoctorTarget {
+  target: InitDoctorTarget;
+  field: DoctorTargetField;
+  /** The validator's `ValidationResult.name`. */
+  checkName: string;
+  label: string;
+  menuLabel: string;
+  /** Plural noun in "Pick … to validate:" and "No … selected." */
+  noun: string;
+  manualNoun: string;
+  validate?: (value: string) => true | string;
+  discover: (context: DiscoveryContext) => Promise<ResourceChoiceGroup>;
+}
+
+const errorMessage = (err: unknown): string => (err instanceof Error ? err.message : String(err));
+
+const listChoices = async <TAttributes>(
+  load: () => Promise<unknown>,
+  toChoice: (item: JsonApiResource<TAttributes>) => ResourceChoice,
+): Promise<ResourceChoiceGroup> => {
+  try {
+    const items = (await load()) as JsonApiResource<TAttributes>[];
+    return { choices: items.map(toChoice) };
+  } catch (err) {
+    return { choices: [], error: errorMessage(err) };
+  }
 };
 
-export const discoverInitResourceChoices = async (
+/** Keeps the plans found before a variant listing fails, alongside the error. */
+const discoverSubscriptionPlans = async ({
+  client,
+  listProducts,
+}: DiscoveryContext): Promise<ResourceChoiceGroup> => {
+  const choices: ResourceChoice[] = [];
+  try {
+    for (const product of await listProducts()) {
+      const variants = (await client.variants.list(
+        product.id,
+      )) as JsonApiResource<SubscriptionVariantAttributes>[];
+      for (const variant of variants) {
+        if (!variant.attributes.is_subscription) continue;
+        const { name, interval, interval_count } = variant.attributes;
+        const cadence = interval ? `${interval_count ?? 1}/${interval}` : "no interval";
+        choices.push({
+          value: variant.id,
+          label: `${product.attributes.name} / ${name} (${cadence}) - id ${variant.id}`,
+        });
+      }
+    }
+    return { choices };
+  } catch (err) {
+    return { choices, error: errorMessage(err) };
+  }
+};
+
+const isHttpUrl = (value: string): boolean => {
+  try {
+    return ["http:", "https:"].includes(new URL(value).protocol);
+  } catch {
+    return false;
+  }
+};
+
+const validateWebhookUrls = (value: string): true | string => {
+  const urls = value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  return urls.every(isHttpUrl) ? true : "Enter valid webhook URLs.";
+};
+
+/** The optional resource checks, in the order they are offered, discovered, and reported. */
+export const DOCTOR_TARGETS: DoctorTarget[] = [
+  {
+    target: "product",
+    field: "productIds",
+    checkName: "product",
+    label: "Products",
+    menuLabel: "Product checkout",
+    noun: "products",
+    manualNoun: "Product IDs",
+    discover: ({ listProducts }) =>
+      listChoices<ProductAttributes>(listProducts, (product) => ({
+        value: product.id,
+        label: `${product.attributes.name} (${product.attributes.status}) - id ${product.id}`,
+      })),
+  },
+  {
+    target: "webhook",
+    field: "webhookUrls",
+    checkName: "webhook",
+    label: "Webhooks",
+    menuLabel: "Webhook registration",
+    noun: "webhook URLs",
+    manualNoun: "Webhook URLs",
+    validate: validateWebhookUrls,
+    discover: ({ client, storeId }) =>
+      listChoices<WebhookAttributes>(
+        () => client.webhooks.list(storeId),
+        (webhook) => ({
+          value: webhook.attributes.url,
+          label: `${webhook.attributes.url} - id ${webhook.id}`,
+        }),
+      ),
+  },
+  {
+    target: "discount",
+    field: "discountIds",
+    checkName: "discount",
+    label: "Discounts",
+    menuLabel: "Discount code",
+    noun: "discounts",
+    manualNoun: "Discount IDs",
+    discover: ({ client, storeId }) =>
+      listChoices<DiscountAttributes>(
+        () => client.discounts.list(storeId),
+        (discount) => ({
+          value: discount.id,
+          label: `${discount.attributes.name} (${discount.attributes.code}) - id ${discount.id}`,
+        }),
+      ),
+  },
+  {
+    target: "license-key",
+    field: "licenseKeyIds",
+    checkName: "licenseKey",
+    label: "License keys",
+    menuLabel: "License key",
+    noun: "license keys",
+    manualNoun: "License key IDs",
+    discover: ({ client, storeId }) =>
+      listChoices<LicenseKeyAttributes>(
+        () => client.licenseKeys.list(storeId),
+        (key) => ({
+          value: key.id,
+          label: `${key.attributes.key_short} (${key.attributes.status}) - id ${key.id}`,
+        }),
+      ),
+  },
+  {
+    target: "subscription-plan",
+    field: "variantIds",
+    checkName: "subscriptionPlan",
+    label: "Subscription plans",
+    menuLabel: "Subscription plan",
+    noun: "subscription plans",
+    manualNoun: "Subscription plan variant IDs",
+    discover: discoverSubscriptionPlans,
+  },
+];
+
+/**
+ * List candidates for each selected check in one store. A failed listing
+ * becomes that group's `error` instead of failing the run.
+ */
+export const discoverDoctorChoices = async (
   client: FreshSqueezyClient,
   storeId: string,
   targets: InitDoctorTarget[],
-): Promise<InitResourceChoices> => {
-  const choices: InitResourceChoices = {
-    products: { choices: [] },
-    webhooks: { choices: [] },
-    discounts: { choices: [] },
-    licenseKeys: { choices: [] },
-    subscriptionPlans: { choices: [] },
+): Promise<DoctorChoices> => {
+  let products: Promise<JsonApiResource<ProductAttributes>[]> | undefined;
+  const context: DiscoveryContext = {
+    client,
+    storeId,
+    listProducts: () => {
+      products ??= client.products.list(storeId) as Promise<JsonApiResource<ProductAttributes>[]>;
+      return products;
+    },
   };
-  let products: JsonApiResource<ProductAttributes>[] | undefined;
 
-  if (targets.includes("product") || targets.includes("subscription-plan")) {
-    const result = await discover(() =>
-      paginate<ProductAttributes>(client, "/v1/products", { "filter[store_id]": storeId }),
-    );
-    if (result.ok) {
-      products = result.value;
-      choices.products = { choices: result.value.map(toProductChoice) };
-    } else {
-      choices.products = { choices: [], error: result.error };
-    }
+  const choices: DoctorChoices = {};
+  for (const row of DOCTOR_TARGETS) {
+    if (targets.includes(row.target)) choices[row.target] = await row.discover(context);
   }
-
-  if (targets.includes("webhook")) {
-    const result = await discover(() =>
-      paginate<WebhookAttributes>(client, "/v1/webhooks", { "filter[store_id]": storeId }),
-    );
-    choices.webhooks = result.ok
-      ? { choices: result.value.map(toWebhookChoice) }
-      : { choices: [], error: result.error };
-  }
-
-  if (targets.includes("discount")) {
-    const result = await discover(() =>
-      paginate<DiscountAttributes>(client, "/v1/discounts", { "filter[store_id]": storeId }),
-    );
-    choices.discounts = result.ok
-      ? { choices: result.value.map(toDiscountChoice) }
-      : { choices: [], error: result.error };
-  }
-
-  if (targets.includes("license-key")) {
-    const result = await discover(() =>
-      paginate<LicenseKeyAttributes>(client, "/v1/license-keys", { "filter[store_id]": storeId }),
-    );
-    choices.licenseKeys = result.ok
-      ? { choices: result.value.map(toLicenseKeyChoice) }
-      : { choices: [], error: result.error };
-  }
-
-  if (targets.includes("subscription-plan")) {
-    const listedProducts = products ?? [];
-    if (choices.products.error) {
-      choices.subscriptionPlans = { choices: [], error: choices.products.error };
-    } else {
-      choices.subscriptionPlans = await discoverSubscriptionPlans(client, listedProducts);
-    }
-  }
-
   return choices;
-};
-
-const discoverSubscriptionPlans = async (
-  client: FreshSqueezyClient,
-  products: JsonApiResource<ProductAttributes>[],
-): Promise<ResourceChoiceGroup> => {
-  const discovered: ResourceChoice[] = [];
-
-  for (const product of products) {
-    const result = await discover(() =>
-      paginate<SubscriptionVariantAttributes>(client, "/v1/variants", {
-        "filter[product_id]": product.id,
-      }),
-    );
-    if (!result.ok) {
-      return { choices: discovered, error: result.error };
-    }
-
-    for (const variant of result.value) {
-      if (variant.attributes.is_subscription) {
-        discovered.push(toSubscriptionPlanChoice(variant, product.attributes.name));
-      }
-    }
-  }
-
-  return { choices: discovered };
-};
-
-const paginate = async <TAttributes>(
-  client: FreshSqueezyClient,
-  path: string,
-  query: RequestOptions["query"],
-): Promise<JsonApiResource<TAttributes>[]> => {
-  const all: JsonApiResource<TAttributes>[] = [];
-  let pageNumber = Number(query?.["page[number]"] ?? 1);
-
-  while (true) {
-    const doc = await client.request<JsonApiCollection<TAttributes>>({
-      path,
-      query: { ...(query ?? {}), "page[number]": pageNumber },
-    });
-    all.push(...doc.data);
-
-    const lastPage = doc.meta?.page?.lastPage;
-    if (lastPage === undefined || pageNumber >= lastPage) return all;
-    pageNumber += 1;
-  }
-};
-
-const discover = async <T>(
-  load: () => Promise<T>,
-): Promise<{ ok: true; value: T } | { ok: false; error: string }> => {
-  try {
-    return { ok: true, value: await load() };
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : String(err) };
-  }
-};
-
-const toProductChoice = (product: JsonApiResource<ProductAttributes>): ResourceChoice => {
-  return {
-    value: product.id,
-    label: `${product.attributes.name} (${product.attributes.status}) - id ${product.id}`,
-  };
-};
-
-const toWebhookChoice = (webhook: JsonApiResource<WebhookAttributes>): ResourceChoice => {
-  return {
-    value: webhook.attributes.url,
-    label: `${webhook.attributes.url} - id ${webhook.id}`,
-  };
-};
-
-const toDiscountChoice = (discount: JsonApiResource<DiscountAttributes>): ResourceChoice => {
-  return {
-    value: discount.id,
-    label: `${discount.attributes.name} (${discount.attributes.code}) - id ${discount.id}`,
-  };
-};
-
-const toLicenseKeyChoice = (licenseKey: JsonApiResource<LicenseKeyAttributes>): ResourceChoice => {
-  return {
-    value: licenseKey.id,
-    label: `${licenseKey.attributes.key_short} (${licenseKey.attributes.status}) - id ${licenseKey.id}`,
-  };
-};
-
-const toSubscriptionPlanChoice = (
-  variant: JsonApiResource<SubscriptionVariantAttributes>,
-  productName: string,
-): ResourceChoice => {
-  const interval = variant.attributes.interval
-    ? `${variant.attributes.interval_count ?? 1}/${variant.attributes.interval}`
-    : "no interval";
-  return {
-    value: variant.id,
-    label: `${productName} / ${variant.attributes.name} (${interval}) - id ${variant.id}`,
-  };
 };

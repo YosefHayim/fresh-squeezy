@@ -1,5 +1,7 @@
 import { FreshSqueezyError } from "../core/errors.js";
+import type { JsonApiResource } from "../core/types.js";
 import type { FreshSqueezyClient } from "../createFreshSqueezy.js";
+import type { StoreAttributes } from "../resources/attributes.js";
 import { pickStores } from "./prompts.js";
 
 /**
@@ -22,6 +24,26 @@ export interface ResolveStoresOutput {
    */
   skipped: boolean;
 }
+
+/** A store as the store pickers show it. */
+export interface StoreChoice {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+/**
+ * List every reachable store with the name and slug the pickers display, in
+ * one request no matter how many stores the account has.
+ */
+export const listStoreChoices = async (client: FreshSqueezyClient): Promise<StoreChoice[]> => {
+  const stores = (await client.stores.list()) as JsonApiResource<StoreAttributes>[];
+  return stores.map((store) => ({
+    id: store.id,
+    name: store.attributes.name,
+    slug: store.attributes.slug,
+  }));
+};
 
 /**
  * Decide which store IDs a doctor/validate run should cover.
@@ -69,18 +91,7 @@ export const resolveStores = async (
     return { storeIds: ids, skipped: false };
   }
 
-  const detailed = await Promise.all(
-    ids.map(async (id) => {
-      const result = await client.validateStore(id);
-      return {
-        id,
-        name: result.resource?.name ?? "(unnamed)",
-        slug: result.resource?.slug ?? "",
-      };
-    }),
-  );
-
-  const picked = await pickStores(detailed);
+  const picked = await pickStores(await listStoreChoices(client));
   if (picked.length === 0) {
     throw new FreshSqueezyError({
       code: "NO_SELECTION",
