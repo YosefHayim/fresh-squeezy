@@ -224,7 +224,7 @@ Files `camelCase` (even when the CLI verb is kebab: `subscriptionPlan.ts` ↔
 `Generated*`; augmentations `Latest*Fields`.
 
 ### Formatting
-Biome owns it (`biome.json`, ADR-0001): double quotes, semicolons, width 100, trailing
+Biome owns it (`biome.json`): double quotes, semicolons, width 100, trailing
 commas everywhere, `node:` → third-party → local import order. Run `npm run format` /
 `npm run lint`. Don't hand-format against it.
 

@@ -112,8 +112,6 @@ npx fresh-squeezy validate webhook \
 
 Las tiendas se resuelven en este orden para cada comando con alcance de tienda: `--store-ids` explícito, luego `--all-stores`, luego una multiselección interactiva en una TTY, y por último una ejecución solo de conexión cuando no hay TTY ni flag (útil como verificación rápida en CI). `doctor` valida la conexión y el acceso a la tienda, además de cualquier flag de recurso explícito; agrega `--all-resources` para descubrir y validar todos los recursos compatibles en la(s) tienda(s) seleccionada(s).
 
-**→ Referencia completa de comandos, flags y resolución de tiendas: [docs/cli-reference.md](./docs/cli-reference.md)**
-
 ## Biblioteca
 
 ```ts
@@ -181,8 +179,6 @@ Decide según `issue.code` en CI — todos los códigos son estables entre versi
 | `STORE_NOT_FOUND` / `STORE_NOT_OWNED` | ID de tienda inválido o propiedad de otra cuenta |
 | `PRODUCT_UNPUBLISHED` / `PRODUCT_WRONG_STORE` / `PRODUCT_NO_BUY_URL` | El producto no puede aceptar checkout |
 | `WEBHOOK_NOT_FOUND` / `WEBHOOK_EVENTS_MISSING` | URL de webhook no registrada o con suscripción insuficiente |
-
-**→ Referencia completa de códigos de incidencia (descuentos, claves de licencia, planes, variantes, red) con ejemplos de vía de escape: [docs/issue-codes.md](./docs/issue-codes.md)**
 
 ## Referencia
 

@@ -148,7 +148,6 @@ npx fresh-squeezy delete webhook --ids 1,2,3 --yes
 
 **Read-only in the real API (never invent create/update/delete):** products, variants, prices, files, stores, affiliates, order-items, discount-redemptions, license-key-instances.
 
-**→ Full command, flag, and store-resolution reference: [docs/cli-reference.md](./docs/cli-reference.md)**  
 **→ Agent skill for ops + doctor: [skills/fresh-squeezy-ops/SKILL.md](./skills/fresh-squeezy-ops/SKILL.md)**
 
 ## Library
@@ -224,8 +223,6 @@ Switch on `issue.code` in CI — all codes are stable across minor versions. The
 | `STORE_NOT_FOUND` / `STORE_NOT_OWNED` | Store ID invalid or owned by another account |
 | `PRODUCT_UNPUBLISHED` / `PRODUCT_WRONG_STORE` / `PRODUCT_NO_BUY_URL` | Product can't accept checkout |
 | `WEBHOOK_NOT_FOUND` / `WEBHOOK_EVENTS_MISSING` | Webhook URL not registered or under-subscribed |
-
-**→ Full issue-code reference (discounts, license keys, plans, variants, network) with escape-hatch examples: [docs/issue-codes.md](./docs/issue-codes.md)**
 
 ## Reference
 

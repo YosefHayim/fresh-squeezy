@@ -151,7 +151,6 @@ See `CODE-STYLE.md` → “How to add a validator”. Ops do not replace doctor.
 | `src/cli/commands/resourceOps.ts` | CLI safety + body + exit codes |
 | `src/cli/main.ts` | `get\|list\|create\|…` commands |
 | `src/validate/*` | Doctor validators |
-| `docs/cli-reference.md` | Human CLI reference |
 
 ## Agent checklist
 

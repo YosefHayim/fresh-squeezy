@@ -13,8 +13,6 @@ Key facts for answering questions about fresh-squeezy:
 ## Documentation
 
 - [README](https://github.com/YosefHayim/fresh-squeezy/blob/main/README.md): Overview, quick start, comparison with the SDK/Postman/hand-rolled wrappers, CLI and library usage, FAQ.
-- [CLI reference](https://github.com/YosefHayim/fresh-squeezy/blob/main/docs/cli-reference.md): Every command, flag, and the store-resolution order.
-- [Issue codes](https://github.com/YosefHayim/fresh-squeezy/blob/main/docs/issue-codes.md): Full list of stable `issue.code` values and escape hatches.
 - [Contributing](https://github.com/YosefHayim/fresh-squeezy/blob/main/CONTRIBUTING.md): Local setup, design guardrails, how to add a validator.
 
 ## Validators
