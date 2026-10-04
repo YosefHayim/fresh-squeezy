@@ -56,4 +56,4 @@ index.ts          flat public barrel (export * — the whole graph is public)
 Validator-first (no passthroughs that hide HTTP calls); one HTTP layer; stable
 `ValidationResult` / `issue.code` shape (breaking = major bump); mode-awareness on every
 result; static support manifest + drift snapshot (no live changelog scraping at runtime).
-See `PROJECT.md` for direction and `docs/adr/current/` for the why.
+See `PROJECT.md` for direction.

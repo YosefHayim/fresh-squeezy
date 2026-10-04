@@ -89,7 +89,7 @@ The drift workflow is advisory — it never modifies code automatically. The sna
 - **Unit tests** run against recorded fixtures. Fast, deterministic, run on every push. Coverage threshold is 80% lines / 80% functions / 75% branches.
 - **Live smoke tests** run nightly in CI against a secret test-mode key. If you add a validator that talks to a new endpoint, extend `tests/live/smoke.test.ts` so drift is caught before the next release.
 - **Changelog drift** runs weekly (Monday 06:00 UTC). See above.
-- Before a release, smoke the CLI by hand against a test-mode key: `npx fresh-squeezy` (guided setup) and `fresh-squeezy doctor --all-stores`. See `docs/cli-reference.md`.
+- Before a release, smoke the CLI by hand against a test-mode key: `npx fresh-squeezy` (guided setup) and `fresh-squeezy doctor --all-stores`.
 
 ## Commit style
 

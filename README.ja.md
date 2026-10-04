@@ -112,8 +112,6 @@ npx fresh-squeezy validate webhook \
 
 ストアスコープのすべてのコマンドにおいて、ストアは次の順序で解決されます: 明示的な `--store-ids`、次に `--all-stores`、次に TTY 上での対話的なマルチセレクト、最後にフラグも TTY もない場合の接続のみの実行（CI のスモークチェックとして有用）。`doctor` は接続とストアアクセスに加え、明示的なリソースフラグを検証します。選択したストア内のサポートされるすべてのリソースを検出・検証するには `--all-resources` を追加してください。
 
-**→ 完全なコマンド、フラグ、ストア解決のリファレンス: [docs/cli-reference.md](./docs/cli-reference.md)**
-
 ## ライブラリ
 
 ```ts
@@ -181,8 +179,6 @@ CI では `issue.code` で分岐してください — すべてのコードは�
 | `STORE_NOT_FOUND` / `STORE_NOT_OWNED` | ストア ID が無効、または別のアカウントが所有 |
 | `PRODUCT_UNPUBLISHED` / `PRODUCT_WRONG_STORE` / `PRODUCT_NO_BUY_URL` | 製品がチェックアウトを受け付けられない |
 | `WEBHOOK_NOT_FOUND` / `WEBHOOK_EVENTS_MISSING` | Webhook URL が未登録、または購読が不足 |
-
-**→ 完全なイシューコードリファレンス（割引、ライセンスキー、プラン、バリアント、ネットワーク）とエスケープハッチの例: [docs/issue-codes.md](./docs/issue-codes.md)**
 
 ## リファレンス
 

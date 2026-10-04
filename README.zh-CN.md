@@ -112,8 +112,6 @@ npx fresh-squeezy validate webhook \
 
 对于每个以店铺为作用域的命令，店铺按以下顺序解析：显式的 `--store-ids`，然后是 `--all-stores`，然后是在 TTY 上的交互式多选，最后是在没有 TTY 且没有标志时仅做连接的运行（可作为 CI 冒烟检查）。`doctor` 会验证连接、店铺访问权限以及任何显式的资源标志；加上 `--all-resources` 可在所选店铺中发现并验证每一种受支持的资源。
 
-**→ 完整的命令、标志和店铺解析参考：[docs/cli-reference.md](./docs/cli-reference.md)**
-
 ## 库
 
 ```ts
@@ -181,8 +179,6 @@ CLI 不会读取 `LEMON_SQUEEZY_STORE_ID`；请使用 `--store-ids` 或 `--all-s
 | `STORE_NOT_FOUND` / `STORE_NOT_OWNED` | 店铺 ID 无效或归属于其他账户 |
 | `PRODUCT_UNPUBLISHED` / `PRODUCT_WRONG_STORE` / `PRODUCT_NO_BUY_URL` | 产品无法接受结账 |
 | `WEBHOOK_NOT_FOUND` / `WEBHOOK_EVENTS_MISSING` | Webhook URL 未注册或订阅不足 |
-
-**→ 完整的问题代码参考（折扣、许可证密钥、计划、变体、网络）及转义出口示例：[docs/issue-codes.md](./docs/issue-codes.md)**
 
 ## 参考
 

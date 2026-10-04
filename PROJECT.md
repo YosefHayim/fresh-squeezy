@@ -50,7 +50,7 @@ These are held as firmly as the goals:
 
 ## Direction
 
-Near-term: honor the interactive front door (bare → action menu, ADR-0003); tighten
-internal purity (layer direction + pure `check*()` extraction, ADR-0004); adopt Biome
-(ADR-0001) and the leaner dependency set (ADR-0002). Ongoing: keep coverage of the Lemon
+Near-term: honor the interactive front door (bare → action menu); tighten
+internal purity (layer direction + pure `check*()` extraction); adopt Biome
+and the leaner dependency set. Ongoing: keep coverage of the Lemon
 Squeezy surface current via the drift workflow and the generated API types.

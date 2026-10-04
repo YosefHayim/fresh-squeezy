@@ -1,36 +1,27 @@
-.ai-guard/
-.cursor/
-.claude/
-.codex/
-.gemini/
-GEMINI.md
-.opencode/
-opencode.json
-.kilo/
-kilo.jsonc
-.clinerules/
-
-# Foreign lockfiles — repo uses pnpm; pnpm-lock.yaml is the single source of truth
-package-lock.json
-yarn.lock
-
+# dependencies
 node_modules/
+
+# build
 dist/
-coverage/
-.worktrees/
-*.log
-.env
-.env*.local
-.DS_Store
-.vscode/
-.idea/
 *.tsbuildinfo
-DEDUP-REPORT.md
 
-# Kiro CLI agent config (local)
-.kiro
+# env
+.env
+.env.*
+!.env.example
 
-# Kimi Code CLI local config + skills
-.kimi-code/
-downloads/
-.act-logs/
+# logs
+*.log
+
+# testing
+coverage/
+
+# editor and OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# local
+.worktrees/
