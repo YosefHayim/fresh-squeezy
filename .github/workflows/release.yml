@@ -37,8 +37,12 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          # Align with engines (>=20) and the CI matrix; version bump is pure Node.
+          # Align with engines (>=20) and the CI matrix.
           node-version: "20"
+          cache: pnpm
+
+      # Biome reformats the package.json that `npm version` rewrites, so main stays lint-clean.
+      - run: pnpm install --frozen-lockfile
 
       - name: Configure Git
         run: |
@@ -90,6 +94,7 @@ jobs:
             npm pkg set version=0.1.0
           fi
           NEW_VERSION=$(npm version ${{ steps.bump.outputs.type }} --no-git-tag-version)
+          pnpm exec biome format --write package.json
           echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
           echo "Bumped to $NEW_VERSION (${{ steps.bump.outputs.type }})"
 
