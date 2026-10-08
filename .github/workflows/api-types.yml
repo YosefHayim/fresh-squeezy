@@ -1,0 +1,14 @@
+name: Api-Types
+'on':
+  workflow_call: null
+permissions:
+  contents: read
+jobs:
+  api-types:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+    - uses: actions/checkout@v6
+    - name: Setup workspace
+      uses: ./.github/actions/setup
+    - run: pnpm check:api-types

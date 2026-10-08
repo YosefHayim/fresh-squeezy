@@ -1,141 +1,71 @@
 name: changelog-drift
-
-# Weekly (and on-demand) drift check against the Lemon Squeezy docs:
-# 1) regenerate docs-derived API types and open a PR if they changed
-# 2) hash the API changelog against src/support/changelog-snapshot.json and
-#    open/comment a changelog-drift issue when new entries appear
-#
-# Scripts are pure Node (no package deps). pnpm is used only to invoke the
-# package.json script names so maintainers and CI share one command surface.
-
-on:
-  schedule:
-    - cron: "0 6 * * 1"
-  workflow_dispatch:
-
+'on':
+  workflow_dispatch: null
 permissions:
   contents: write
   issues: write
   pull-requests: write
-
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   check:
     name: Detect Lemon Squeezy changelog drift
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v6
-
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "20"
-
-      - name: Refresh docs-derived API types
-        run: pnpm generate:api-types
-
-      - name: Open API type refresh PR
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          set -euo pipefail
-
-          if git diff --quiet -- src/generated/lemonSqueezyApiTypes.ts; then
-            echo "Generated API types are current."
-            exit 0
-          fi
-
-          branch="automation/lemon-squeezy-api-types"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/generated/lemonSqueezyApiTypes.ts
-          git commit -m "chore: refresh Lemon Squeezy API types"
-          git push origin "HEAD:$branch" --force
-
-          body=$(cat <<EOF_BODY
-          Refreshes \`src/generated/lemonSqueezyApiTypes.ts\` from the Lemon Squeezy object docs.
-
-          - Source index: https://docs.lemonsqueezy.com/api/getting-started/requests
-          - Workflow run: $RUN_URL
-
-          Validator policy still needs human review when the changelog introduces new webhook events or behavior changes.
-          EOF_BODY
-          )
-
-          existing=$(gh pr list --repo "$REPO" --state open --head "$branch" --json number --jq '.[0].number' || true)
-          if [ -n "$existing" ]; then
-            gh pr comment "$existing" --repo "$REPO" --body "$body"
-          else
-            gh pr create --repo "$REPO" \
-              --head "$branch" \
-              --title "Refresh Lemon Squeezy generated API types" \
-              --body "$body"
-          fi
-
-      - name: Run drift check
-        id: drift
-        run: pnpm check:changelog
-
-      - name: Open drift issue
-        if: failure() && steps.drift.outputs.drifted == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PREVIOUS_HASH: ${{ steps.drift.outputs.previous_hash }}
-          CURRENT_HASH: ${{ steps.drift.outputs.current_hash }}
-          PREVIOUS_SEEN: ${{ steps.drift.outputs.previous_seen }}
-          CURRENT_SEEN: ${{ steps.drift.outputs.current_seen }}
-          DIFF_B64: ${{ steps.drift.outputs.diff_b64 }}
-          REPO: ${{ github.repository }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          set -euo pipefail
-
-          # Decode the structured diff if present
-          if [ -n "$DIFF_B64" ]; then
-            DIFF=$(printf '%s' "$DIFF_B64" | base64 -d)
-            DIFF_SECTION="## New entries since last snapshot
-
-          $DIFF"
-          else
-            DIFF_SECTION="## New entries since last snapshot
-
-          No structured diff available — review the changelog page manually or re-run after updating the snapshot once."
-          fi
-
-          existing=$(gh issue list --repo "$REPO" --state open --label changelog-drift --json number --jq '.[0].number' || true)
-          body=$(cat <<EOF_BODY
-          The Lemon Squeezy API changelog has changed since the last committed snapshot.
-
-          - URL: https://docs.lemonsqueezy.com/api/getting-started/changelog
-          - Previous hash: \`$PREVIOUS_HASH\` (seen $PREVIOUS_SEEN)
-          - Current hash:  \`$CURRENT_HASH\` (seen $CURRENT_SEEN)
-          - Workflow run:  $RUN_URL
-
-          $DIFF_SECTION
-
-          ## What to do
-
-          1. Open the changelog URL above and review the new entries.
-          2. Run \`pnpm generate:api-types\` if the scheduled type refresh PR did not already cover object-field changes.
-          3. Update \`src/support/manifest.ts\` for policy-level changes:
-             - Add new webhook events to \`RECOMMENDED_WEBHOOK_EVENTS\` or \`OPTIONAL_WEBHOOK_EVENTS\`.
-             - Add a row to \`ACKNOWLEDGED_CHANGELOG_ENTRIES\` with the date + how it's handled.
-          4. Refresh the snapshot:
-             \`\`\`
-             pnpm check:changelog -- --update
-             \`\`\`
-          5. Commit the manifest change, generated types if changed, and \`src/support/changelog-snapshot.json\`.
-          EOF_BODY
-          )
-
-          if [ -n "$existing" ]; then
-            gh issue comment "$existing" --repo "$REPO" --body "$body"
-          else
-            gh issue create --repo "$REPO" \
-              --title "Lemon Squeezy changelog drift detected ($CURRENT_SEEN)" \
-              --label changelog-drift \
-              --body "$body"
-          fi
+    - uses: actions/checkout@v6
+    - uses: actions/setup-node@v6
+      with:
+        node-version: 24
+        package-manager-cache: false
+    - uses: pnpm/action-setup@v4
+    - name: Refresh docs-derived API types
+      run: pnpm generate:api-types
+    - name: Open API type refresh PR
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        REPO: ${{ github.repository }}
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      run: "set -euo pipefail\n\nif git diff --quiet -- src/generated/lemonSqueezyApiTypes.ts; then\n  echo \"Generated\
+        \ API types are current.\"\n  exit 0\nfi\n\nbranch=\"automation/lemon-squeezy-api-types\"\ngit config user.name\
+        \ \"github-actions[bot]\"\ngit config user.email \"41898282+github-actions[bot]@users.noreply.github.com\"\
+        \ngit add src/generated/lemonSqueezyApiTypes.ts\ngit commit -m \"chore: refresh Lemon Squeezy API types\"\
+        \ngit push origin \"HEAD:$branch\" --force\n\nbody=$(cat <<EOF_BODY\nRefreshes \\`src/generated/lemonSqueezyApiTypes.ts\\\
+        ` from the Lemon Squeezy object docs.\n\n- Source index: https://docs.lemonsqueezy.com/api/getting-started/requests\n\
+        - Workflow run: $RUN_URL\n\nValidator policy still needs human review when the changelog introduces new\
+        \ webhook events or behavior changes.\nEOF_BODY\n)\n\nexisting=$(gh pr list --repo \"$REPO\" --state open\
+        \ --head \"$branch\" --json number --jq '.[0].number' || true)\nif [ -n \"$existing\" ]; then\n  gh pr comment\
+        \ \"$existing\" --repo \"$REPO\" --body \"$body\"\nelse\n  gh pr create --repo \"$REPO\" \\\n    --head\
+        \ \"$branch\" \\\n    --title \"Refresh Lemon Squeezy generated API types\" \\\n    --body \"$body\"\nfi\n"
+    - name: Run drift check
+      id: drift
+      run: pnpm check:changelog
+    - name: Open drift issue
+      if: failure() && steps.drift.outputs.drifted == 'true'
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        PREVIOUS_HASH: ${{ steps.drift.outputs.previous_hash }}
+        CURRENT_HASH: ${{ steps.drift.outputs.current_hash }}
+        PREVIOUS_SEEN: ${{ steps.drift.outputs.previous_seen }}
+        CURRENT_SEEN: ${{ steps.drift.outputs.current_seen }}
+        DIFF_B64: ${{ steps.drift.outputs.diff_b64 }}
+        REPO: ${{ github.repository }}
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      run: "set -euo pipefail\n\n# Decode the structured diff if present\nif [ -n \"$DIFF_B64\" ]; then\n  DIFF=$(printf\
+        \ '%s' \"$DIFF_B64\" | base64 -d)\n  DIFF_SECTION=\"## New entries since last snapshot\n\n$DIFF\"\nelse\n\
+        \  DIFF_SECTION=\"## New entries since last snapshot\n\nNo structured diff available \u2014 review the changelog\
+        \ page manually or re-run after updating the snapshot once.\"\nfi\n\nexisting=$(gh issue list --repo \"\
+        $REPO\" --state open --label changelog-drift --json number --jq '.[0].number' || true)\nbody=$(cat <<EOF_BODY\n\
+        The Lemon Squeezy API changelog has changed since the last committed snapshot.\n\n- URL: https://docs.lemonsqueezy.com/api/getting-started/changelog\n\
+        - Previous hash: \\`$PREVIOUS_HASH\\` (seen $PREVIOUS_SEEN)\n- Current hash:  \\`$CURRENT_HASH\\` (seen\
+        \ $CURRENT_SEEN)\n- Workflow run:  $RUN_URL\n\n$DIFF_SECTION\n\n## What to do\n\n1. Open the changelog URL\
+        \ above and review the new entries.\n2. Run \\`pnpm generate:api-types\\` if the scheduled type refresh\
+        \ PR did not already cover object-field changes.\n3. Update \\`src/support/manifest.ts\\` for policy-level\
+        \ changes:\n   - Add new webhook events to \\`RECOMMENDED_WEBHOOK_EVENTS\\` or \\`OPTIONAL_WEBHOOK_EVENTS\\\
+        `.\n   - Add a row to \\`ACKNOWLEDGED_CHANGELOG_ENTRIES\\` with the date + how it's handled.\n4. Refresh\
+        \ the snapshot:\n   \\`\\`\\`\n   pnpm check:changelog -- --update\n   \\`\\`\\`\n5. Commit the manifest\
+        \ change, generated types if changed, and \\`src/support/changelog-snapshot.json\\`.\nEOF_BODY\n)\n\nif\
+        \ [ -n \"$existing\" ]; then\n  gh issue comment \"$existing\" --repo \"$REPO\" --body \"$body\"\nelse\n\
+        \  gh issue create --repo \"$REPO\" \\\n    --title \"Lemon Squeezy changelog drift detected ($CURRENT_SEEN)\"\
+        \ \\\n    --label changelog-drift \\\n    --body \"$body\"\nfi\n"
