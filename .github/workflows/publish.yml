@@ -1,31 +1,23 @@
-# Publish to npm
-# ──────────────
-# Manual fallback publish workflow.
-# Uses npm trusted publishing (OIDC), no NPM token required.
-# Keep node@24 to ensure npm >= 11.5.1.
-
 name: Publish Package
-
-on:
+'on':
   push:
     tags:
-      - "v*.*.*"
-  # GITHUB_TOKEN-triggered tag pushes do not fire the `push` event in downstream workflows.
-  # workflow_run fires after Release completes, letting this job publish the bumped version.
+      - v*.*.*
   workflow_run:
-    workflows: ["Release"]
-    types: [completed]
-
+    workflows:
+      - Release
+    types:
+      - completed
 permissions:
   id-token: write
   contents: read
-
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   publish:
-    # Run on direct tag pushes (manual/external) OR after a successful Release workflow run.
-    if: >
-      github.event_name == 'push' ||
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    if: |
+      github.event_name == 'push' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -33,17 +25,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
+      - name: Setup workspace
+        uses: ./.github/actions/setup
         with:
-          # Node 24 ships npm >= 11.5.1 required for OIDC trusted publishing.
-          node-version: "24"
-          registry-url: "https://registry.npmjs.org"
-
+          registry-url: https://registry.npmjs.org
       - name: Verify Node/npm
         run: |
           node -v
@@ -52,9 +37,6 @@ jobs:
             echo "::error::npm $(npm -v) is below 11.5.1; publishing is not supported"
             exit 1
           }
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
       - name: Publish to npm (trusted publishing)
         run: npm publish --access public --provenance
+    timeout-minutes: 15

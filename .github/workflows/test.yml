@@ -1,0 +1,22 @@
+name: Test
+'on':
+  workflow_call: null
+permissions:
+  contents: read
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+    - name: Setup workspace
+      uses: ./.github/actions/setup
+    - name: unit tests
+      run: pnpm test -- --coverage
+    - name: upload coverage
+      uses: actions/upload-artifact@v7
+      with:
+        name: coverage
+        path: coverage
+        if-no-files-found: ignore
+    timeout-minutes: 20

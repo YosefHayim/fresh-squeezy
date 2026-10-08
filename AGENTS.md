@@ -41,3 +41,8 @@ Full guide with before/after: `CODE-STYLE.md`. Decisions go in the PR descriptio
 - **`public/`** — README/GitHub assets; **not** published to npm (`files` omits it).
 - **Env** — one gitignored `.env`; `.env.example` carries only real secrets (the API key). Mode defaults to `test`; stores come from `--store-ids`.
 - **No `bin/`** — the published binary is `dist/cli.js` (shebang added by tsup); `package.json` `bin` points straight at it.
+
+## Local CI
+
+Run `act workflow_dispatch -W .github/workflows/ci.yml` before opening a PR.
+The root `.actrc` selects the local Docker runner and keeps the pnpm store outside the workspace.
