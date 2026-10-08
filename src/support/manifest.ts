@@ -87,7 +87,7 @@ export const ACKNOWLEDGED_CHANGELOG_ENTRIES = [
   {
     date: "2025-01-21",
     summary: "Added Affiliates endpoints and affiliate_activated webhook.",
-    handledBy: "OPTIONAL_WEBHOOK_EVENTS (event only; resource stays v2 scope)",
+    handledBy: "client.affiliates (get, list) plus affiliate_activated in OPTIONAL_WEBHOOK_EVENTS.",
   },
   {
     date: "2024-12-06",
@@ -103,7 +103,7 @@ export const ACKNOWLEDGED_CHANGELOG_ENTRIES = [
     date: "2024-09-04",
     summary: "Added Issue an Order refund and Issue a Subscription Invoice refund endpoints.",
     handledBy:
-      "Not wrapped — reachable via client.request('/v1/orders/:id/refund'). Refund-amount fields surfaced on OrderAttributes.",
+      "client.orders.refund and client.subscriptionInvoices.refund. Refund-amount fields surfaced on OrderAttributes.",
   },
   {
     date: "2024-08-07",
@@ -119,19 +119,19 @@ export const ACKNOWLEDGED_CHANGELOG_ENTRIES = [
   {
     date: "2024-05-20",
     summary: "Added Generate order invoice endpoint.",
-    handledBy: "Not wrapped — reachable via client.request('/v1/orders/:id/generate-invoice').",
+    handledBy: "client.orders.generateInvoice.",
   },
   {
     date: "2024-04-09",
     summary: "License Key expires_at is now mutable via the update endpoint.",
     handledBy:
-      "Type unchanged (LicenseKeyAttributes.expires_at already nullable string). Mutation reachable via client.request('PATCH /v1/license-keys/:id').",
+      "Type unchanged (LicenseKeyAttributes.expires_at already nullable string). Mutation via client.licenseKeys.update.",
   },
   {
     date: "2024-03-28",
     summary: "Subscription trial_ends_at is now mutable via the update endpoint.",
     handledBy:
-      "SubscriptionAttributes.trial_ends_at plus CheckoutOptions.skip_trial. Mutations remain reachable via client.request().",
+      "SubscriptionAttributes.trial_ends_at plus CheckoutOptions.skip_trial. Mutation via client.subscriptions.update.",
   },
   {
     date: "2024-02-20",
@@ -143,7 +143,7 @@ export const ACKNOWLEDGED_CHANGELOG_ENTRIES = [
     summary:
       "Added Generate subscription invoice endpoint and invoice_immediately / disable_prorations parameters.",
     handledBy:
-      "SubscriptionItemUpdateAttributes.invoice_immediately / disable_prorations; invoice endpoint reachable via client.request().",
+      "SubscriptionItemUpdateAttributes.invoice_immediately / disable_prorations; invoice endpoint via client.subscriptionInvoices.generateInvoice.",
   },
   {
     date: "2024-02-05",

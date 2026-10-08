@@ -249,7 +249,7 @@ const requireBody = (args: InvokeOpArgs): unknown => {
   if (args.body === undefined) {
     throw new FreshSqueezyError({
       code: "MISSING_ARG",
-      message: "A JSON body is required (--body, --body-file, or stdin).",
+      message: "A JSON body is required (--body or --body-file).",
     });
   }
   return args.body;
