@@ -14,8 +14,30 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: changes
+    runs-on: ubuntu-latest
+    outputs:
+      since: ${{ steps.filter.outputs.everything != 'true' && github.event.pull_request.base.sha || '' }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        id: filter
+        if: github.event_name == 'pull_request'
+        with:
+          token: ''
+          filters: |
+            everything:
+              - pnpm-lock.yaml
+              - biome.json
+              - 'tsconfig*.json'
+              - '*.config.ts'
+              - '.github/**'
+              - package.json
+
   test:
     name: test (node ${{ matrix.node }})
+    needs: changes
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -23,6 +45,8 @@ jobs:
         node: ["20", "22"]
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
 
@@ -34,8 +58,14 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: lint & format (biome ci)
-        if: matrix.node == '20'
+        if: matrix.node == '20' && needs.changes.outputs.since == ''
         run: pnpm exec biome ci .
+
+      - name: lint & format (biome ci, changed files)
+        if: matrix.node == '20' && needs.changes.outputs.since != ''
+        env:
+          SINCE: ${{ needs.changes.outputs.since }}
+        run: pnpm exec biome ci --changed --since="$SINCE" --no-errors-on-unmatched
 
       - name: docs-derived API types
         if: matrix.node == '20'
@@ -45,7 +75,14 @@ jobs:
         run: pnpm typecheck
 
       - name: unit tests
+        if: needs.changes.outputs.since == ''
         run: pnpm test -- --coverage
+
+      - name: unit tests (changed files)
+        if: needs.changes.outputs.since != ''
+        env:
+          SINCE: ${{ needs.changes.outputs.since }}
+        run: pnpm exec vitest run --changed "$SINCE"
 
       - name: build
         run: pnpm build
