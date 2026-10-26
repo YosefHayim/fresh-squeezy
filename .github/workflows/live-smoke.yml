@@ -17,16 +17,10 @@ jobs:
     # Manual workflow_dispatch still runs so maintainers can opt in explicitly.
     if: ${{ github.event_name == 'workflow_dispatch' || vars.LIVE_SMOKE_ENABLED == 'true' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "20"
-          cache: pnpm
-
-      - run: pnpm install --frozen-lockfile
+      - name: Setup workspace
+        uses: ./.github/actions/setup
 
       - name: Build
         run: pnpm build
