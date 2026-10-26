@@ -7,7 +7,15 @@
     "defaultBranch": "main"
   },
   "files": {
-    "ignore": ["dist", "coverage", "node_modules", "src/generated", ".kiro", "downloads", "package.json"]
+    "ignore": [
+      "dist",
+      "coverage",
+      "node_modules",
+      "src/generated",
+      ".kiro",
+      "downloads",
+      "package.json"
+    ]
   },
   "organizeImports": {
     "enabled": true
