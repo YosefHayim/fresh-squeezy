@@ -1,8 +1,6 @@
 name: Release
 
 on:
-  push:
-    branches: [main]
   pull_request:
     types: [closed]
     branches: [main]
@@ -17,9 +15,8 @@ permissions:
 jobs:
   release:
     if: >
-      (github.event_name == 'push' && !startsWith(github.event.head_commit.message, 'chore(release):')) ||
-      (github.event_name == 'pull_request' && github.event.pull_request.merged == true &&
-       !contains(github.event.pull_request.labels.*.name, 'no-release'))
+      github.event.pull_request.merged == true &&
+      !contains(github.event.pull_request.labels.*.name, 'no-release')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -60,11 +57,7 @@ jobs:
         if: steps.skip_check.outputs.skip != 'true'
         id: desc
         run: |
-          if [ "${{ github.event_name }}" = "push" ]; then
-            echo "title=$(git log -1 --pretty=format:'%s')" >> "$GITHUB_OUTPUT"
-          else
-            echo "title=${{ github.event.pull_request.title }}" >> "$GITHUB_OUTPUT"
-          fi
+          echo "title=${{ github.event.pull_request.title }}" >> "$GITHUB_OUTPUT"
 
       - name: Determine version bump
         if: steps.skip_check.outputs.skip != 'true'
@@ -72,9 +65,7 @@ jobs:
         env:
           LABELS: ${{ toJson(github.event.pull_request.labels.*.name) }}
         run: |
-          if [ "${{ github.event_name }}" = "push" ]; then
-            echo "type=patch" >> "$GITHUB_OUTPUT"
-          elif echo "$LABELS" | grep -q '"major"'; then
+          if echo "$LABELS" | grep -q '"major"'; then
             echo "type=major" >> "$GITHUB_OUTPUT"
           elif echo "$LABELS" | grep -q '"minor"'; then
             echo "type=minor" >> "$GITHUB_OUTPUT"
@@ -113,11 +104,7 @@ jobs:
             echo "body<<RELEASE_EOF"
             echo "## What Changed"
             echo ""
-            if [ "${{ github.event_name }}" = "push" ]; then
-              echo "**Direct push to ${GITHUB_REF_NAME}**"
-            else
-              echo "**PR:** [#${PR_NUMBER} - ${PR_TITLE}](${PR_URL})"
-            fi
+            echo "**PR:** [#${PR_NUMBER} - ${PR_TITLE}](${PR_URL})"
             echo "**Bump:** \`${BUMP_TYPE}\`"
             echo ""
             echo "### Commits"
