@@ -93,6 +93,9 @@ jobs:
         run: |
           set -euo pipefail
 
+          gh label create changelog-drift --repo "$REPO" --force \
+            --description "Lemon Squeezy API changelog changed since the last snapshot"
+
           # Decode the structured diff if present
           if [ -n "$DIFF_B64" ]; then
             DIFF=$(printf '%s' "$DIFF_B64" | base64 -d)

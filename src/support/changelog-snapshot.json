@@ -1,9 +1,21 @@
 {
   "url": "https://docs.lemonsqueezy.com/api/getting-started/changelog",
-  "fetchedAt": "2026-05-07T10:27:15.354Z",
-  "hash": "5df755442ac4341805ba3e37987bc9aeefe7efbecdd9527d722297cc12c7727c",
-  "entryCount": 43,
+  "fetchedAt": "2026-10-26T17:29:22.868Z",
+  "hash": "40ec784ed61afe6899c234524c84c81c45b3a05fb69cd0331beb37eefd8243dc",
+  "entryCount": 45,
   "entries": [
+    {
+      "date": "July 29th, 2026",
+      "isoDate": "2026-07-29",
+      "heading": "July 29th, 2026",
+      "excerpt": "Added referral_amount to Order and Subscription invoice objects."
+    },
+    {
+      "date": "July 22nd, 2026",
+      "isoDate": "2026-07-22",
+      "heading": "July 22nd, 2026",
+      "excerpt": "Added affiliate_id and an affiliate relationship to Order and Subscription invoice objects. Added an affiliates relationship to Customer objects."
+    },
     {
       "date": "February 25th, 2026",
       "isoDate": "2026-02-25",
