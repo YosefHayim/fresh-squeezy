@@ -104,9 +104,11 @@ chore(manifest): add customer_updated event (changelog 2026-02-25)
 
 ## Releasing
 
-1. Bump `version` in `package.json` following semver.
-2. If `src/support/manifest.ts` changed, refresh the snapshot with `pnpm check:changelog -- --update`.
-3. Tag the release: `git tag vX.Y.Z && git push --tags`. The `release` workflow publishes to the npm registry using `NPM_TOKEN`.
+Releases are automatic. When a PR merges into `main`, the `Release` workflow bumps `package.json`, tags the commit and creates the GitHub release, then `Publish Package` publishes to npm.
+
+- The bump is a patch by default. Add the `minor` or `major` label to the PR to change it.
+- Add the `no-release` label to skip the release.
+- If `src/support/manifest.ts` changed, refresh the snapshot with `pnpm check:changelog -- --update` in the same PR.
 
 ## Filing issues
 
