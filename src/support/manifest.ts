@@ -74,6 +74,17 @@ export const OPTIONAL_WEBHOOK_EVENTS = [
  */
 export const ACKNOWLEDGED_CHANGELOG_ENTRIES = [
   {
+    date: "2026-07-29",
+    summary: "Added referral_amount to Order and Subscription invoice objects.",
+    handledBy: "Generated API types (src/generated/lemonSqueezyApiTypes.ts).",
+  },
+  {
+    date: "2026-07-22",
+    summary:
+      "Added affiliate_id and an affiliate relationship to Order and Subscription invoice objects. Added an affiliates relationship to Customer objects.",
+    handledBy: "Generated API types (src/generated/lemonSqueezyApiTypes.ts).",
+  },
+  {
     date: "2026-02-25",
     summary: "Added customer_updated webhook event.",
     handledBy: "OPTIONAL_WEBHOOK_EVENTS",
