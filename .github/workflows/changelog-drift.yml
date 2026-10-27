@@ -77,7 +77,7 @@ jobs:
 
       - name: Run drift check
         id: drift
-        run: pnpm check:changelog
+        run: pnpm check:changelog -- --github-output "$GITHUB_OUTPUT"
 
       - name: Open drift issue
         if: failure() && steps.drift.outputs.drifted == 'true'
