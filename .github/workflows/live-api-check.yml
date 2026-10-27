@@ -35,7 +35,6 @@ jobs:
         id: compare
         env:
           LEMON_SQUEEZY_TEST_API_KEY: ${{ secrets.LEMON_SQUEEZY_TEST_API_KEY }}
-          LEMON_SQUEEZY_LIVE_API_KEY: ${{ secrets.LEMON_SQUEEZY_LIVE_API_KEY }}
         run: pnpm test:live
 
       - name: Open an issue when the live API no longer matches the types
