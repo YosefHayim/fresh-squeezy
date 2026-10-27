@@ -11,6 +11,7 @@ export default defineConfig({
 	test: {
 		globals: false,
 		environment: "node",
+		unstubEnvs: true,
 		include: ["e2e/live-smoke.test.ts"],
 		exclude: ["node_modules/**", "dist/**"],
 	},

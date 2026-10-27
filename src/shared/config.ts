@@ -13,6 +13,10 @@ export const ENV_KEYS = {
 	mode: "LEMON_SQUEEZY_MODE",
 } as const;
 
+export const readEnvApiKey = () => process.env[ENV_KEYS.apiKey]?.trim();
+
+export const readEnvMode = () => process.env[ENV_KEYS.mode]?.trim();
+
 export const resolveConfig = (
 	input: FreshSqueezyConfig = {},
 ): ResolvedConfig => {
