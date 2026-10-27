@@ -20,12 +20,12 @@ afterEach(() => {
 test("ensureFreshSqueezyDevDependency returns no-package-json when no project manifest is found", async () => {
 	const runCommand = vi.fn<RunPackageCommand>();
 
-	const result = await ensureFreshSqueezyDevDependency({
+	const installation = await ensureFreshSqueezyDevDependency({
 		cwd: workdir,
 		runCommand,
 	});
 
-	expect(result.status).toBe("no-package-json");
+	expect(installation.status).toBe("no-package-json");
 	expect(runCommand).not.toHaveBeenCalled();
 });
 
@@ -33,12 +33,12 @@ test("ensureFreshSqueezyDevDependency skips installation inside the fresh-squeez
 	writePackageJson({ name: "fresh-squeezy" });
 	const runCommand = vi.fn<RunPackageCommand>();
 
-	const result = await ensureFreshSqueezyDevDependency({
+	const installation = await ensureFreshSqueezyDevDependency({
 		cwd: workdir,
 		runCommand,
 	});
 
-	expect(result.status).toBe("self-package");
+	expect(installation.status).toBe("self-package");
 	expect(runCommand).not.toHaveBeenCalled();
 });
 
@@ -49,13 +49,13 @@ test("ensureFreshSqueezyDevDependency skips installation when the dependency is 
 	});
 	const runCommand = vi.fn<RunPackageCommand>();
 
-	const result = await ensureFreshSqueezyDevDependency({
+	const installation = await ensureFreshSqueezyDevDependency({
 		cwd: workdir,
 		runCommand,
 	});
 
-	expect(result.status).toBe("already-present");
-	expect(result.packageManager).toBe("npm");
+	expect(installation.status).toBe("already-present");
+	expect(installation.packageManager).toBe("npm");
 	expect(runCommand).not.toHaveBeenCalled();
 });
 
@@ -63,14 +63,14 @@ test("ensureFreshSqueezyDevDependency uses npm by default and installs the curre
 	writePackageJson({ name: "app" });
 	const runCommand = vi.fn<RunPackageCommand>().mockResolvedValue(0);
 
-	const result = await ensureFreshSqueezyDevDependency({
+	const installation = await ensureFreshSqueezyDevDependency({
 		cwd: workdir,
 		packageVersion: "0.1.8",
 		runCommand,
 	});
 
-	expect(result.status).toBe("installed");
-	expect(result.command).toEqual([
+	expect(installation.status).toBe("installed");
+	expect(installation.command).toEqual([
 		"npm",
 		"install",
 		"--save-dev",
@@ -90,13 +90,13 @@ test("ensureFreshSqueezyDevDependency uses pnpm when pnpm-lock.yaml exists", asy
 	writeFileSync(join(workdir, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
 	const runCommand = vi.fn<RunPackageCommand>().mockResolvedValue(0);
 
-	const result = await ensureFreshSqueezyDevDependency({
+	const installation = await ensureFreshSqueezyDevDependency({
 		cwd: workdir,
 		runCommand,
 	});
 
-	expect(result.status).toBe("installed");
-	expect(result.command).toEqual(["pnpm", "add", "-D", "fresh-squeezy"]);
+	expect(installation.status).toBe("installed");
+	expect(installation.command).toEqual(["pnpm", "add", "-D", "fresh-squeezy"]);
 });
 
 test("ensureFreshSqueezyDevDependency surfaces a failed package manager command", async () => {

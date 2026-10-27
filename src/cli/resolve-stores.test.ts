@@ -19,11 +19,11 @@ const stubClient = (
 
 test("resolveStores prefers --store-ids over anything else", async () => {
 	const client = stubClient({});
-	const result = await resolveStores(client, {
+	const resolvedStores = await resolveStores(client, {
 		storeIds: ["1", "2", "1"],
 		isInteractive: true,
 	});
-	expect(result).toEqual({ storeIds: ["1", "2"], skipped: false });
+	expect(resolvedStores).toEqual({ storeIds: ["1", "2"], skipped: false });
 });
 
 test("resolveStores fetches every reachable store when --all-stores is set", async () => {
@@ -36,18 +36,18 @@ test("resolveStores fetches every reachable store when --all-stores is set", asy
 			resource: { user: {}, storeCount: 2, storeIds: ["10", "11"] },
 		}),
 	});
-	const result = await resolveStores(client, {
+	const resolvedStores = await resolveStores(client, {
 		allStores: true,
 		isInteractive: false,
 	});
-	expect(result.storeIds).toEqual(["10", "11"]);
-	expect(result.skipped).toBe(false);
+	expect(resolvedStores.storeIds).toEqual(["10", "11"]);
+	expect(resolvedStores.skipped).toBe(false);
 });
 
 test("resolveStores returns skipped=true when non-interactive and no flags", async () => {
 	const client = stubClient({});
-	const result = await resolveStores(client, { isInteractive: false });
-	expect(result).toEqual({ storeIds: [], skipped: true });
+	const resolvedStores = await resolveStores(client, { isInteractive: false });
+	expect(resolvedStores).toEqual({ storeIds: [], skipped: true });
 });
 
 test("resolveStores throws NO_STORES when --all-stores is set but account has none", async () => {

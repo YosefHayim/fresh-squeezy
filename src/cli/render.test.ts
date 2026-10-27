@@ -5,31 +5,33 @@ import { renderReport, renderResult, renderStep } from "./render.js";
 // biome-ignore lint/suspicious/noControlCharactersInRegex: strip ANSI SGR escape sequences from CLI output
 const stripAnsi = (value: string): string => value.replace(/\[[0-9;]*m/g, "");
 
-test("renderResult marks a clean result as PASS", () => {
-	const result: ValidationResult = {
+test("renderResult marks a clean validation as PASS", () => {
+	const validation: ValidationResult = {
 		name: "connection",
 		ok: true,
 		mode: "test",
 		issues: [],
 	};
-	expect(stripAnsi(renderResult(result))).toContain("PASS [test] connection");
+	expect(stripAnsi(renderResult(validation))).toContain(
+		"PASS [test] connection",
+	);
 });
 
 test("renderResult prints the checked resource target when one is available", () => {
-	const result: ValidationResult = {
+	const validation: ValidationResult = {
 		name: "product",
 		ok: true,
 		mode: "test",
 		target: { label: "Pro Plan", id: "100" },
 		issues: [],
 	};
-	expect(stripAnsi(renderResult(result))).toContain(
+	expect(stripAnsi(renderResult(validation))).toContain(
 		"PASS [test] product Pro Plan - id 100",
 	);
 });
 
-test("renderResult marks a failing result as FAIL and lists issues with codes", () => {
-	const result: ValidationResult = {
+test("renderResult marks a failing validation as FAIL and lists issues with codes", () => {
+	const validation: ValidationResult = {
 		name: "store",
 		ok: false,
 		mode: "live",
@@ -42,7 +44,7 @@ test("renderResult marks a failing result as FAIL and lists issues with codes", 
 			},
 		],
 	};
-	const text = stripAnsi(renderResult(result));
+	const text = stripAnsi(renderResult(validation));
 	expect(text).toContain("FAIL [live] store");
 	expect(text).toContain("[STORE_NOT_FOUND]");
 	expect(text).toContain("fix: double-check the id");
