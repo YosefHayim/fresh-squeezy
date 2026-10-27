@@ -44,35 +44,38 @@ export const runDoctorCommand = async (
 			isInteractive: options.isInteractive ?? false,
 		});
 
-		if (resolved.skipped) {
+		const wereStoresSkipped = resolved.skipped;
+		if (wereStoresSkipped) {
 			return await runConnectionOnly(client, options);
 		}
 
-		const reports = await Promise.all(
-			resolved.storeIds.map(async (storeId) => {
-				const validatorIds = await resolveValidatorIds(
-					client,
-					storeId,
-					options,
-				);
-				return client.doctor({ storeId, ...validatorIds });
-			}),
-		);
+		const runStoreDoctor = async (storeId: string): Promise<DoctorReport> => {
+			const validatorIds = await resolveValidatorIds(client, storeId, options);
+			return client.doctor({ storeId, ...validatorIds });
+		};
+		const reportJobs = resolved.storeIds.map(runStoreDoctor);
+		const reports = await Promise.all(reportJobs);
 
 		const ok = reports.every((report) => report.ok);
 		const payload: DoctorJsonOutput = { ok, mode: client.mode, reports };
 
 		if (options.json) {
-			process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
-		} else {
-			for (const report of reports) {
-				process.stdout.write(`${renderReport(report)}\n\n`);
-			}
-			if (!options.allResources && !hasExplicitResourceSelection(options)) {
-				process.stderr.write(
-					"fresh-squeezy: resource checks were skipped; pass --all-resources or explicit resource flags to validate products, webhooks, discounts, license keys, and subscription plans.\n",
-				);
-			}
+			const payloadText = JSON.stringify(payload, null, 2);
+			process.stdout.write(`${payloadText}\n`);
+			return ok ? 0 : 1;
+		}
+
+		for (const report of reports) {
+			const reportText = renderReport(report);
+			process.stdout.write(`${reportText}\n\n`);
+		}
+		const hasExplicitSelection = hasExplicitResourceSelection(options);
+		const wereResourceChecksSkipped =
+			!options.allResources && !hasExplicitSelection;
+		if (wereResourceChecksSkipped) {
+			process.stderr.write(
+				"fresh-squeezy: resource checks were skipped; pass --all-resources or explicit resource flags to validate products, webhooks, discounts, license keys, and subscription plans.\n",
+			);
 		}
 
 		return ok ? 0 : 1;
@@ -97,19 +100,22 @@ const explicitValidatorIds = (
 
 const values = (
 	group: ResourceChoiceGroup | undefined,
-): string[] | undefined =>
-	group?.choices.length
-		? group.choices.map((choice) => choice.value)
-		: undefined;
+): string[] | undefined => {
+	const hasNoChoices = !group?.choices.length;
+	if (hasNoChoices) return undefined;
+	return group?.choices.map((choice) => choice.value);
+};
 
 const mergeValues = (
 	explicit: string[] | undefined,
 	discovered: string[] | undefined,
 ): string[] | undefined => {
-	const merged = Array.from(
-		new Set([...(explicit ?? []), ...(discovered ?? [])]),
-	);
-	return merged.length > 0 ? merged : undefined;
+	const allValues = [...(explicit ?? []), ...(discovered ?? [])];
+	const uniqueValues = new Set(allValues);
+	const merged = Array.from(uniqueValues);
+	const isThereNothingMerged = merged.length === 0;
+	if (isThereNothingMerged) return undefined;
+	return merged;
 };
 
 const resolveValidatorIds = async (
@@ -118,40 +124,50 @@ const resolveValidatorIds = async (
 	options: DoctorCommandOptions,
 ): Promise<OptionalValidatorIds> => {
 	const explicit = explicitValidatorIds(options);
-	if (!options.allResources) return explicit;
+	const isDiscoveryOff = !options.allResources;
+	if (isDiscoveryOff) return explicit;
 
-	const allNames = OPTIONAL_VALIDATORS.map((row) => row.name);
+	const allNames = OPTIONAL_VALIDATORS.map((validator) => validator.name);
 	const discovered = await discoverChoices(client, storeId, allNames);
-	for (const row of OPTIONAL_VALIDATORS) {
-		const error = discovered[row.name]?.error;
-		if (error) {
+	for (const validator of OPTIONAL_VALIDATORS) {
+		const discoveryError = discovered[validator.name]?.error;
+		const labelText = validator.label.toLowerCase();
+		if (discoveryError) {
 			process.stderr.write(
-				`fresh-squeezy: discovery skipped ${row.label.toLowerCase()}: ${error}\n`,
+				`fresh-squeezy: discovery skipped ${labelText}: ${discoveryError}\n`,
 			);
 		}
 	}
-	if (!options.json) {
-		const counts = OPTIONAL_VALIDATORS.map(
-			(row) =>
-				`${row.label.toLowerCase()} ${discovered[row.name]?.choices.length ?? 0}`,
-		).join(", ");
+	const shouldPrintCounts = !options.json;
+	if (shouldPrintCounts) {
+		const countTexts = OPTIONAL_VALIDATORS.map((validator) => {
+			const labelText = validator.label.toLowerCase();
+			const choiceCount = discovered[validator.name]?.choices.length ?? 0;
+			return `${labelText} ${choiceCount}`;
+		});
+		const counts = countTexts.join(", ");
 		process.stderr.write(
 			`fresh-squeezy: discovered store ${storeId} resources: ${counts}.\n`,
 		);
 	}
 
-	const merged: OptionalValidatorIds = {};
-	for (const row of OPTIONAL_VALIDATORS) {
-		merged[row.field] = mergeValues(
-			explicit[row.field],
-			values(discovered[row.name]),
+	const mergedIds: OptionalValidatorIds = {};
+	for (const validator of OPTIONAL_VALIDATORS) {
+		const discoveredValues = values(discovered[validator.name]);
+		mergedIds[validator.field] = mergeValues(
+			explicit[validator.field],
+			discoveredValues,
 		);
 	}
-	return merged;
+	return mergedIds;
 };
 
-const hasExplicitResourceSelection = (options: DoctorCommandOptions): boolean =>
-	Object.values(explicitValidatorIds(options)).some((ids) => ids !== undefined);
+const hasExplicitResourceSelection = (
+	options: DoctorCommandOptions,
+): boolean => {
+	const explicitIds = explicitValidatorIds(options);
+	return Object.values(explicitIds).some((ids) => ids !== undefined);
+};
 
 const runConnectionOnly = async (
 	client: FreshSqueezyClient,
@@ -169,27 +185,35 @@ const runConnectionOnly = async (
 		reports: [report],
 	};
 
+	const exitCode = connection.ok ? 0 : 1;
 	if (options.json) {
-		process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
-	} else {
-		process.stderr.write(
-			"fresh-squeezy: no --store-ids or --all-stores and stdin is not a TTY; running connection-only.\n",
-		);
-		process.stdout.write(`${renderReport(report)}\n`);
+		const payloadText = JSON.stringify(payload, null, 2);
+		process.stdout.write(`${payloadText}\n`);
+		return exitCode;
 	}
-	return connection.ok ? 0 : 1;
+	process.stderr.write(
+		"fresh-squeezy: no --store-ids or --all-stores and stdin is not a TTY; running connection-only.\n",
+	);
+	const reportText = renderReport(report);
+	process.stdout.write(`${reportText}\n`);
+	return exitCode;
 };
 
 const writeFatal = (err: unknown, asJson: boolean): void => {
+	const isKnownError = isFreshSqueezyError(err);
+	const isNativeError = err instanceof Error;
+	const message = isNativeError ? err.message : String(err);
 	if (asJson) {
-		const code = isFreshSqueezyError(err) ? err.code : "UNKNOWN";
-		const message = err instanceof Error ? err.message : String(err);
-		const status = isFreshSqueezyError(err) ? (err.status ?? null) : null;
-		process.stderr.write(
-			`${JSON.stringify({ ok: false, error: { code, message, status } })}\n`,
-		);
+		const code = isKnownError ? err.code : "UNKNOWN";
+		const status = isKnownError ? (err.status ?? null) : null;
+		const errorText = JSON.stringify({
+			ok: false,
+			error: { code, message, status },
+		});
+		process.stderr.write(`${errorText}\n`);
 		return;
 	}
-	const message = err instanceof Error ? err.message : String(err);
-	process.stderr.write(renderCliError(message, getDoctorHints(err)));
+	const hints = getDoctorHints(err);
+	const errorScreen = renderCliError(message, hints);
+	process.stderr.write(errorScreen);
 };
