@@ -98,7 +98,7 @@ export const runResourceOpCommand = async (options: ResourceOpCommandOptions): P
     if (spec.body === "required" && body === undefined) {
       throw new FreshSqueezyError({
         code: "MISSING_ARG",
-        message: "This op requires a JSON body (--body, --body-file, or stdin).",
+        message: "This op requires a JSON body (--body or --body-file).",
       });
     }
 
