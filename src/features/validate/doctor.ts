@@ -157,7 +157,15 @@ const assertStoreGivenForDependents = (
 };
 
 export const listStoreIds = async (http: Http) => {
-	const stores = await http.getAll<StoreAttributes>("/v1/stores");
+	const fetched = await fetchCollection<StoreAttributes>(http, {
+		path: "/v1/stores",
+	});
+	const isFetchFailed = fetched.kind === "failed";
+	if (isFetchFailed) {
+		const { code, message } = fetched.finding;
+		throw freshSqueezyErrorOf({ code, message });
+	}
+	const stores = fetched.payload;
 	const hasNoStores = stores.length === 0;
 	if (hasNoStores) {
 		throw freshSqueezyErrorOf({

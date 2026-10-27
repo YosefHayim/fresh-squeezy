@@ -195,3 +195,12 @@ test("listStoreIds throws NO_STORES when the key reaches no store", async () => 
 
 	await expect(listStoreIds(http)).rejects.toMatchObject({ code: "NO_STORES" });
 });
+
+test("listStoreIds throws AUTH_FAILED when the key is rejected", async () => {
+	const http = makeHttp([route("/v1/stores", unauthorizedError, 401)]);
+
+	await expect(listStoreIds(http)).rejects.toMatchObject({
+		code: "AUTH_FAILED",
+		message: "API key rejected by Lemon Squeezy.",
+	});
+});
