@@ -36,7 +36,10 @@ test("doctor runs discount validator when discountId is provided", async () => {
 		},
 	]);
 
-	const report = await doctor(http, "test", { storeId: 42, discountId: 600 });
+	const report = await doctor(http, "test", {
+		storeId: 42,
+		discountIds: [600],
+	});
 
 	expect(report.ok).toBe(true);
 	expect(report.results.some((r) => r.name === "discount")).toBe(true);
@@ -54,7 +57,10 @@ test("doctor runs license key validator when licenseKeyId is provided", async ()
 		},
 	]);
 
-	const report = await doctor(http, "test", { storeId: 42, licenseKeyId: 700 });
+	const report = await doctor(http, "test", {
+		storeId: 42,
+		licenseKeyIds: [700],
+	});
 
 	expect(report.ok).toBe(true);
 	expect(report.results.some((r) => r.name === "licenseKey")).toBe(true);
@@ -77,7 +83,7 @@ test("doctor runs subscription plan validator when variantId is provided", async
 		},
 	]);
 
-	const report = await doctor(http, "test", { storeId: 42, variantId: 800 });
+	const report = await doctor(http, "test", { storeId: 42, variantIds: [800] });
 
 	expect(report.ok).toBe(true);
 	expect(report.results.some((r) => r.name === "subscriptionPlan")).toBe(true);
@@ -95,7 +101,10 @@ test("doctor includes discount failure in overall ok", async () => {
 		},
 	]);
 
-	const report = await doctor(http, "test", { storeId: 42, discountId: 9999 });
+	const report = await doctor(http, "test", {
+		storeId: 42,
+		discountIds: [9999],
+	});
 
 	expect(report.ok).toBe(false);
 	expect(report.results.some((r) => r.name === "discount" && !r.ok)).toBe(true);

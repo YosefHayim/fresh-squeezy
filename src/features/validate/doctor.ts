@@ -16,15 +16,10 @@ import { validateWebhook } from "./webhook.js";
 
 export interface DoctorOptions {
 	storeId?: ResourceId;
-	productId?: ResourceId;
 	productIds?: ResourceId[];
-	webhookUrl?: string;
 	webhookUrls?: string[];
-	discountId?: ResourceId;
 	discountIds?: ResourceId[];
-	licenseKeyId?: ResourceId;
 	licenseKeyIds?: ResourceId[];
-	variantId?: ResourceId;
 	variantIds?: ResourceId[];
 }
 
@@ -55,19 +50,13 @@ export const doctor = async (
 	validators: DoctorValidators = DEFAULT_VALIDATORS,
 ): Promise<DoctorReport> => {
 	const { storeId } = options;
-	const productIds = collectValues(options.productId, options.productIds);
-	const webhookUrls = collectValues(options.webhookUrl, options.webhookUrls);
-	const discountIds = collectValues(options.discountId, options.discountIds);
-	const licenseKeyIds = collectValues(
-		options.licenseKeyId,
-		options.licenseKeyIds,
-	);
-	const variantIds = collectValues(options.variantId, options.variantIds);
+	const { productIds = [], webhookUrls = [], discountIds = [] } = options;
+	const { licenseKeyIds = [], variantIds = [] } = options;
 	assertStoreGivenForDependents(storeId, {
-		webhookUrl: webhookUrls,
-		discountId: discountIds,
-		licenseKeyId: licenseKeyIds,
-		variantId: variantIds,
+		webhookUrls,
+		discountIds,
+		licenseKeyIds,
+		variantIds,
 	});
 
 	const connection = await validators.connection(http, mode);
@@ -133,11 +122,4 @@ const assertStoreGivenForDependents = (
 		code: "DOCTOR_OPTIONS_INVALID",
 		message: `doctor() received ${dependent.join(", ")} without storeId. These validators cannot run without a store; pass \`storeId\` or remove the dependent options.`,
 	});
-};
-
-const collectValues = <T>(single: T | undefined, many: T[] = []): T[] => {
-	const givenValues = [single, ...many].filter(
-		(value): value is T => value !== undefined,
-	);
-	return [...new Set(givenValues)];
 };

@@ -160,8 +160,8 @@ const lemon = createFreshSqueezy(); // reads LEMON_SQUEEZY_API_KEY, LEMON_SQUEEZ
 // Doctor
 const report = await lemon.doctor({
 	storeId: 12, // library is single-store per call
-	productId: 987,
-	webhookUrl: "https://app.example.com/api/webhooks/lemon-squeezy",
+	productIds: [987],
+	webhookUrls: ["https://app.example.com/api/webhooks/lemon-squeezy"],
 });
 
 if (!report.ok) {
