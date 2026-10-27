@@ -341,7 +341,7 @@ gh workflow enable lemon-squeezy-changelog
 | `STORE_NOT_FOUND`                                                    | 此密钥下找不到该店铺 ID                    |
 | `PRODUCT_UNPUBLISHED` / `PRODUCT_WRONG_STORE` / `PRODUCT_NO_BUY_URL` | 产品无法结账                               |
 | `PLAN_INVALID_INTERVAL` / `PLAN_FREE_PRICE`                          | 订阅方案的周期有误或没有价格               |
-| `WEBHOOK_NOT_FOUND` / `WEBHOOK_EVENTS_MISSING`                       | webhook URL 未注册或缺少事件               |
+| `WEBHOOK_NOT_FOUND` / `WEBHOOK_EVENTS_MISSING`                       | webhook URL 未注册或缺少订单事件           |
 | `DISCOUNT_EXPIRED` / `DISCOUNT_REDEMPTIONS_EXHAUSTED`                | 折扣无法使用                               |
 | `LICENSE_KEY_DISABLED` / `LICENSE_KEY_EXPIRED`                       | 许可证密钥无法激活                         |
 

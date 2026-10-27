@@ -341,7 +341,7 @@ Ramifica según `finding.code` en CI. Los códigos son estables entre versiones 
 | `STORE_NOT_FOUND`                                                    | No se encontró el ID de tienda para esta clave                       |
 | `PRODUCT_UNPUBLISHED` / `PRODUCT_WRONG_STORE` / `PRODUCT_NO_BUY_URL` | El producto no puede aceptar un checkout                             |
 | `PLAN_INVALID_INTERVAL` / `PLAN_FREE_PRICE`                          | El plan de suscripción tiene un intervalo inválido o no tiene precio |
-| `WEBHOOK_NOT_FOUND` / `WEBHOOK_EVENTS_MISSING`                       | La URL del webhook no está registrada o faltan eventos               |
+| `WEBHOOK_NOT_FOUND` / `WEBHOOK_EVENTS_MISSING`                       | La URL del webhook no está registrada o faltan eventos de pedido     |
 | `DISCOUNT_EXPIRED` / `DISCOUNT_REDEMPTIONS_EXHAUSTED`                | El descuento no se puede usar                                        |
 | `LICENSE_KEY_DISABLED` / `LICENSE_KEY_EXPIRED`                       | La clave de licencia no se puede activar                             |
 

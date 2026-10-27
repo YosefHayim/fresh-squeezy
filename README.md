@@ -341,7 +341,7 @@ Switch on `finding.code` in CI. Codes are stable across minor versions.
 | `STORE_NOT_FOUND`                                                    | Store ID not found for this key                         |
 | `PRODUCT_UNPUBLISHED` / `PRODUCT_WRONG_STORE` / `PRODUCT_NO_BUY_URL` | Product cannot take a checkout                          |
 | `PLAN_INVALID_INTERVAL` / `PLAN_FREE_PRICE`                          | Subscription plan has a bad interval or no price        |
-| `WEBHOOK_NOT_FOUND` / `WEBHOOK_EVENTS_MISSING`                       | Webhook URL not registered or missing events            |
+| `WEBHOOK_NOT_FOUND` / `WEBHOOK_EVENTS_MISSING`                       | Webhook URL not registered or missing order events      |
 | `DISCOUNT_EXPIRED` / `DISCOUNT_REDEMPTIONS_EXHAUSTED`                | Discount cannot be used                                 |
 | `LICENSE_KEY_DISABLED` / `LICENSE_KEY_EXPIRED`                       | License key cannot activate                             |
 

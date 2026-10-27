@@ -341,7 +341,7 @@ CI では `finding.code` で分岐します。コードはマイナーバージ�
 | `STORE_NOT_FOUND`                                                    | このキーでストア ID が見つからない                     |
 | `PRODUCT_UNPUBLISHED` / `PRODUCT_WRONG_STORE` / `PRODUCT_NO_BUY_URL` | 商品でチェックアウトできない                           |
 | `PLAN_INVALID_INTERVAL` / `PLAN_FREE_PRICE`                          | サブスクリプションプランの期間が不正、または価格がない |
-| `WEBHOOK_NOT_FOUND` / `WEBHOOK_EVENTS_MISSING`                       | webhook URL が未登録、またはイベントが不足             |
+| `WEBHOOK_NOT_FOUND` / `WEBHOOK_EVENTS_MISSING`                       | webhook URL が未登録、または注文イベントが不足         |
 | `DISCOUNT_EXPIRED` / `DISCOUNT_REDEMPTIONS_EXHAUSTED`                | 割引が使えない                                         |
 | `LICENSE_KEY_DISABLED` / `LICENSE_KEY_EXPIRED`                       | ライセンスキーを有効化できない                         |
 

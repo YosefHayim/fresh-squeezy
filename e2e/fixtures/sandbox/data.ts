@@ -223,6 +223,21 @@ export const WEBHOOKS_COLLECTION_MISSING_EVENTS = {
 	],
 };
 
+export const WEBHOOKS_COLLECTION_ORDER_EVENTS_ONLY = {
+	data: [
+		{
+			type: "webhooks",
+			id: "902",
+			attributes: {
+				store_id: 42,
+				url: "https://app.example.com/api/webhooks/lemon-squeezy",
+				events: ["order_created", "order_refunded"],
+				last_sent_at: null,
+			},
+		},
+	],
+};
+
 export const WEBHOOKS_COLLECTION_EMPTY = { data: [] };
 
 // --- Discount fixtures ---
