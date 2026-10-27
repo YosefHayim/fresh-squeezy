@@ -1,202 +1,286 @@
-import { makeHttp, pathIs, route } from "@e2e/mock-fetch.js";
+import { makeHttp, route } from "@e2e/mock-fetch.js";
 import {
-	draftSubscriptionVariantDoc,
-	freePriceSubscriptionVariantDoc,
-	invalidIntervalVariantDoc,
-	missingIntervalCountVariantDoc,
+	draftSubscriptionVariantDocument,
+	freePriceSubscriptionVariantDocument,
+	invalidIntervalVariantDocument,
+	missingIntervalCountVariantDocument,
 	NOT_FOUND_ERROR,
-	nonSubscriptionVariantDoc,
-	PRODUCT_ON_WRONG_STORE_DOC,
-	PUBLISHED_PRODUCT_DOC,
-	subscriptionVariantDoc,
-	trialInconsistentVariantDoc,
-	wrongStoreSubscriptionVariantDoc,
+	nonSubscriptionVariantDocument,
+	PRODUCT_ON_WRONG_STORE_DOCUMENT,
+	PUBLISHED_PRODUCT_DOCUMENT,
+	subscriptionVariantDocument,
+	trialInconsistentVariantDocument,
+	UNAUTHORIZED_ERROR,
+	wrongStoreSubscriptionVariantDocument,
 } from "@e2e/sandbox-store.js";
-import { expect, test } from "vitest";
+import { describe, expect, test } from "vitest";
 import { validateSubscriptionPlan } from "./subscription-plan.js";
 
-test("validateSubscriptionPlan returns ok for a valid subscription variant", async () => {
-	const http = makeHttp([
-		{
-			match: pathIs("/v1/variants/800"),
-			status: 200,
-			replyDocument: subscriptionVariantDoc,
+const VARIANT_ID = "800";
+const PRODUCT_ROUTE = route("/v1/products/100", PUBLISHED_PRODUCT_DOCUMENT);
+
+const createVariantReply = (overrides: Record<string, unknown>) => ({
+	data: {
+		...subscriptionVariantDocument.data,
+		attributes: {
+			...subscriptionVariantDocument.data.attributes,
+			...overrides,
 		},
-		{
-			match: pathIs("/v1/products/100"),
-			status: 200,
-			replyDocument: PUBLISHED_PRODUCT_DOC,
-		},
-	]);
-	const planValidation = await validateSubscriptionPlan(http, "test", {
-		storeId: "42",
-		variantId: "800",
-	});
-	expect(planValidation.ok).toBe(true);
-	expect(planValidation.resource?.interval).toBe("month");
-	expect(planValidation.findings).toHaveLength(0);
+	},
 });
 
-test("validateSubscriptionPlan returns PLAN_VARIANT_NOT_FOUND on 404", async () => {
+const checkVariantReply = (reply: unknown, productRoutes = [PRODUCT_ROUTE]) => {
 	const http = makeHttp([
-		{
-			match: pathIs("/v1/variants/9999"),
-			status: 404,
-			replyDocument: NOT_FOUND_ERROR,
-		},
+		route(`/v1/variants/${VARIANT_ID}`, reply),
+		...productRoutes,
 	]);
-	const planValidation = await validateSubscriptionPlan(http, "test", {
+	return validateSubscriptionPlan(http, "test", {
 		storeId: "42",
-		variantId: "9999",
+		variantId: VARIANT_ID,
 	});
-	expect(planValidation.ok).toBe(false);
-	expect(planValidation.findings[0]?.code).toBe("PLAN_VARIANT_NOT_FOUND");
-});
+};
 
-test("validateSubscriptionPlan returns PLAN_NOT_SUBSCRIPTION for non-subscription variant", async () => {
-	const http = makeHttp([
-		{
-			match: pathIs("/v1/variants/801"),
-			status: 200,
-			replyDocument: nonSubscriptionVariantDoc,
-		},
-		{
-			match: pathIs("/v1/products/100"),
-			status: 200,
-			replyDocument: PUBLISHED_PRODUCT_DOC,
-		},
-	]);
-	const planValidation = await validateSubscriptionPlan(http, "test", {
-		storeId: "42",
-		variantId: "801",
-	});
-	expect(planValidation.ok).toBe(false);
-	expect(planValidation.findings[0]?.code).toBe("PLAN_NOT_SUBSCRIPTION");
-});
+const listCodes = (findings: { code: string }[]) =>
+	findings.map((finding) => finding.code);
 
-test("validateSubscriptionPlan returns PLAN_INVALID_INTERVAL for missing/invalid interval and count", async () => {
-	const http = makeHttp([
-		{
-			match: pathIs("/v1/variants/802"),
-			status: 200,
-			replyDocument: invalidIntervalVariantDoc,
-		},
-		{
-			match: pathIs("/v1/products/100"),
-			status: 200,
-			replyDocument: PUBLISHED_PRODUCT_DOC,
-		},
-	]);
-	const planValidation = await validateSubscriptionPlan(http, "test", {
-		storeId: "42",
-		variantId: "802",
-	});
-	expect(planValidation.ok).toBe(false);
-	const intervalFindings = planValidation.findings.filter(
-		(i) => i.code === "PLAN_INVALID_INTERVAL",
-	);
-	expect(intervalFindings.length).toBe(2);
-});
+describe("validateSubscriptionPlan", () => {
+	test("passes a valid subscription variant and describes its plan", async () => {
+		const reply = subscriptionVariantDocument;
 
-test("validateSubscriptionPlan returns PLAN_FREE_PRICE for zero-price subscription", async () => {
-	const http = makeHttp([
-		{
-			match: pathIs("/v1/variants/803"),
-			status: 200,
-			replyDocument: freePriceSubscriptionVariantDoc,
-		},
-		{
-			match: pathIs("/v1/products/100"),
-			status: 200,
-			replyDocument: PUBLISHED_PRODUCT_DOC,
-		},
-	]);
-	const planValidation = await validateSubscriptionPlan(http, "test", {
-		storeId: "42",
-		variantId: "803",
-	});
-	expect(planValidation.ok).toBe(true);
-	expect(planValidation.findings[0]?.code).toBe("PLAN_FREE_PRICE");
-	expect(planValidation.findings[0]?.severity).toBe("warning");
-});
+		const report = await checkVariantReply(reply);
 
-test("validateSubscriptionPlan returns PLAN_TRIAL_INCONSISTENT for misconfigured trial", async () => {
-	const http = makeHttp([
-		{
-			match: pathIs("/v1/variants/804"),
-			status: 200,
-			replyDocument: trialInconsistentVariantDoc,
-		},
-		{
-			match: pathIs("/v1/products/100"),
-			status: 200,
-			replyDocument: PUBLISHED_PRODUCT_DOC,
-		},
-	]);
-	const planValidation = await validateSubscriptionPlan(http, "test", {
-		storeId: "42",
-		variantId: "804",
+		expect(report.ok).toBe(true);
+		expect(report.findings).toHaveLength(0);
+		expect(report.resource).toEqual({
+			variantId: VARIANT_ID,
+			interval: "month",
+			intervalCount: 1,
+			price: 1900,
+			hasFreeTrial: false,
+			status: "published",
+		});
+		expect(report.target).toEqual({ label: "Pro Monthly", id: VARIANT_ID });
 	});
-	expect(planValidation.ok).toBe(true);
-	expect(planValidation.findings[0]?.code).toBe("PLAN_TRIAL_INCONSISTENT");
-	expect(planValidation.findings[0]?.severity).toBe("warning");
-});
 
-test("validateSubscriptionPlan returns PLAN_DRAFT for draft subscription variant", async () => {
-	const http = makeHttp([
-		{
-			match: pathIs("/v1/variants/805"),
-			status: 200,
-			replyDocument: draftSubscriptionVariantDoc,
-		},
-		{
-			match: pathIs("/v1/products/100"),
-			status: 200,
-			replyDocument: PUBLISHED_PRODUCT_DOC,
-		},
-	]);
-	const planValidation = await validateSubscriptionPlan(http, "test", {
-		storeId: "42",
-		variantId: "805",
-	});
-	expect(planValidation.ok).toBe(true);
-	expect(planValidation.findings[0]?.code).toBe("PLAN_DRAFT");
-	expect(planValidation.findings[0]?.severity).toBe("warning");
-});
+	test("reports PLAN_VARIANT_NOT_FOUND when the variant does not exist", async () => {
+		const http = makeHttp([
+			route(`/v1/variants/${VARIANT_ID}`, NOT_FOUND_ERROR, 404),
+		]);
 
-test("validateSubscriptionPlan returns PLAN_STORE_MISMATCH when variant belongs to different store", async () => {
-	const http = makeHttp([
-		{
-			match: pathIs("/v1/variants/806"),
-			status: 200,
-			replyDocument: wrongStoreSubscriptionVariantDoc,
-		},
-		{
-			match: pathIs("/v1/products/102"),
-			status: 200,
-			replyDocument: PRODUCT_ON_WRONG_STORE_DOC,
-		},
-	]);
-	const planValidation = await validateSubscriptionPlan(http, "test", {
-		storeId: "42",
-		variantId: "806",
-	});
-	expect(planValidation.ok).toBe(false);
-	expect(planValidation.findings[0]?.code).toBe("PLAN_STORE_MISMATCH");
-});
+		const report = await validateSubscriptionPlan(http, "test", {
+			storeId: "42",
+			variantId: VARIANT_ID,
+		});
 
-test("validateSubscriptionPlan flags a subscription variant with no interval_count", async () => {
-	const http = makeHttp([
-		route("/v1/variants/810", missingIntervalCountVariantDoc),
-		route("/v1/products/100", PUBLISHED_PRODUCT_DOC),
-	]);
-	const planValidation = await validateSubscriptionPlan(http, "test", {
-		storeId: "42",
-		variantId: "810",
+		expect(report.ok).toBe(false);
+		expect(listCodes(report.findings)).toEqual(["PLAN_VARIANT_NOT_FOUND"]);
+		expect(report.target).toEqual({
+			label: `variant ${VARIANT_ID}`,
+			id: VARIANT_ID,
+		});
 	});
-	expect(planValidation.ok).toBe(false);
-	const intervalFinding = planValidation.findings.find(
-		(finding) => finding.code === "PLAN_INVALID_INTERVAL",
-	);
-	expect(intervalFinding?.message).toContain("interval_count: missing");
+
+	test("reports AUTH_FAILED when the key is rejected", async () => {
+		const http = makeHttp([
+			route(`/v1/variants/${VARIANT_ID}`, UNAUTHORIZED_ERROR, 401),
+		]);
+
+		const report = await validateSubscriptionPlan(http, "test", {
+			storeId: "42",
+			variantId: VARIANT_ID,
+		});
+
+		expect(listCodes(report.findings)).toEqual(["AUTH_FAILED"]);
+	});
+
+	test("flags a variant that is not a subscription as an error", async () => {
+		const reply = nonSubscriptionVariantDocument;
+
+		const report = await checkVariantReply(reply);
+
+		expect(report.ok).toBe(false);
+		expect(report.findings[0]).toMatchObject({
+			code: "PLAN_NOT_SUBSCRIPTION",
+			severity: "error",
+		});
+	});
+
+	test("flags a missing interval and a zero interval count as errors", async () => {
+		const reply = invalidIntervalVariantDocument;
+
+		const report = await checkVariantReply(reply);
+
+		expect(report.ok).toBe(false);
+		expect(listCodes(report.findings)).toEqual([
+			"PLAN_INVALID_INTERVAL",
+			"PLAN_INVALID_INTERVAL",
+		]);
+		expect(report.findings[0]?.message).toContain('"missing"');
+		expect(report.findings[1]?.message).toContain("interval_count: 0");
+	});
+
+	test("flags an interval that is not day, week, month or year", async () => {
+		const reply = createVariantReply({ interval: "fortnight" });
+
+		const report = await checkVariantReply(reply);
+
+		expect(report.ok).toBe(false);
+		expect(report.findings).toMatchObject([
+			{
+				code: "PLAN_INVALID_INTERVAL",
+				message: expect.stringContaining("fortnight"),
+			},
+		]);
+	});
+
+	test("flags a subscription variant with no interval_count", async () => {
+		const reply = missingIntervalCountVariantDocument;
+
+		const report = await checkVariantReply(reply);
+
+		expect(report.ok).toBe(false);
+		expect(report.findings[0]?.message).toContain("interval_count: missing");
+	});
+
+	test("flags a negative interval count and accepts a positive one", async () => {
+		const negativeReply = createVariantReply({ interval_count: -1 });
+		const biweeklyReply = createVariantReply({
+			interval: "week",
+			interval_count: 2,
+		});
+
+		const negativeReport = await checkVariantReply(negativeReply);
+		const biweeklyReport = await checkVariantReply(biweeklyReply);
+
+		expect(listCodes(negativeReport.findings)).toEqual([
+			"PLAN_INVALID_INTERVAL",
+		]);
+		expect(biweeklyReport.findings).toHaveLength(0);
+	});
+
+	test("warns about a free subscription price", async () => {
+		const reply = freePriceSubscriptionVariantDocument;
+
+		const report = await checkVariantReply(reply);
+
+		expect(report.ok).toBe(true);
+		expect(report.findings).toMatchObject([
+			{ code: "PLAN_FREE_PRICE", severity: "warning" },
+		]);
+	});
+
+	test("does not warn about a free price on a variant that is not a subscription", async () => {
+		const reply = createVariantReply({ is_subscription: false, price: 0 });
+
+		const report = await checkVariantReply(reply);
+
+		expect(listCodes(report.findings)).toEqual(["PLAN_NOT_SUBSCRIPTION"]);
+	});
+
+	test("warns about a free trial with a zero trial count", async () => {
+		const reply = trialInconsistentVariantDocument;
+
+		const report = await checkVariantReply(reply);
+
+		expect(report.ok).toBe(true);
+		expect(report.findings).toMatchObject([
+			{ code: "PLAN_TRIAL_INCONSISTENT", severity: "warning" },
+		]);
+	});
+
+	test("warns about a free trial with no trial interval and no trial count", async () => {
+		const reply = createVariantReply({
+			has_free_trial: true,
+			trial_interval: null,
+			trial_interval_count: null,
+		});
+
+		const report = await checkVariantReply(reply);
+
+		expect(report.findings).toMatchObject([
+			{
+				code: "PLAN_TRIAL_INCONSISTENT",
+				message: expect.stringContaining('interval: "missing", count: 0'),
+			},
+		]);
+	});
+
+	test("warns about a free trial with a count but no trial interval", async () => {
+		const reply = createVariantReply({
+			has_free_trial: true,
+			trial_interval: null,
+			trial_interval_count: 7,
+		});
+
+		const report = await checkVariantReply(reply);
+
+		expect(listCodes(report.findings)).toEqual(["PLAN_TRIAL_INCONSISTENT"]);
+	});
+
+	test("warns about a free trial with a trial interval but no trial count", async () => {
+		const reply = createVariantReply({
+			has_free_trial: true,
+			trial_interval: "day",
+			trial_interval_count: 0,
+		});
+
+		const report = await checkVariantReply(reply);
+
+		expect(report.findings).toMatchObject([
+			{
+				code: "PLAN_TRIAL_INCONSISTENT",
+				message: expect.stringContaining('interval: "day", count: 0'),
+			},
+		]);
+	});
+
+	test("accepts a complete free trial", async () => {
+		const completeTrialReply = createVariantReply({
+			has_free_trial: true,
+			trial_interval: "day",
+			trial_interval_count: 14,
+		});
+
+		const completeTrialReport = await checkVariantReply(completeTrialReply);
+
+		expect(completeTrialReport.findings).toHaveLength(0);
+	});
+
+	test("warns about a draft subscription variant", async () => {
+		const reply = draftSubscriptionVariantDocument;
+
+		const report = await checkVariantReply(reply);
+
+		expect(report.ok).toBe(true);
+		expect(report.findings).toMatchObject([
+			{ code: "PLAN_DRAFT", severity: "warning" },
+		]);
+	});
+
+	test("flags a variant whose product belongs to another store", async () => {
+		const reply = wrongStoreSubscriptionVariantDocument;
+		const productRoute = route(
+			"/v1/products/102",
+			PRODUCT_ON_WRONG_STORE_DOCUMENT,
+		);
+
+		const report = await checkVariantReply(reply, [productRoute]);
+
+		expect(report.ok).toBe(false);
+		expect(report.findings).toMatchObject([
+			{
+				code: "PLAN_STORE_MISMATCH",
+				severity: "error",
+				context: { productId: "102", actualStoreId: "99" },
+			},
+		]);
+	});
+
+	test("skips the store check when the product cannot be loaded", async () => {
+		const reply = createVariantReply({ status: "draft" });
+
+		const report = await checkVariantReply(reply, []);
+
+		expect(listCodes(report.findings)).toEqual(["PLAN_DRAFT"]);
+	});
 });

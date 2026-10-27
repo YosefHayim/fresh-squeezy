@@ -53,16 +53,14 @@ Node 22 or newer.
 pnpm add fresh-squeezy
 ```
 
-Set one API key per mode. `LEMON_SQUEEZY_MODE` picks the key and defaults to `test`.
+Set one API key per mode. The `--mode` flag or the `mode` option picks the key and defaults to `test`.
 
 ```bash
 LEMON_SQUEEZY_TEST_API_KEY=your-test-key
 LEMON_SQUEEZY_LIVE_API_KEY=your-live-key
-LEMON_SQUEEZY_MODE=test
-LEMON_SQUEEZY_STORE_ID=12
 ```
 
-Only the key of the mode you run is needed, and `LEMON_SQUEEZY_STORE_ID` is optional. The same settings work as `createFreshSqueezy({ apiKey, mode, storeId, baseUrl })` options.
+Only the key of the mode you run is needed. The store, mode and base URL are not secrets, so they are not environment variables: pass `createFreshSqueezy({ apiKey, mode, storeId, baseUrl })` options or the `--mode` and `--store-id` flags.
 
 ## Client
 
@@ -132,18 +130,18 @@ npx fresh-squeezy doctor --store-id 12 --store-id 34 \
   --webhook-url https://app.example.com/api/webhooks/lemon-squeezy --json
 ```
 
-| Flag                    | Meaning                                                                              |
-| ----------------------- | ------------------------------------------------------------------------------------ |
-| `--mode <test\|live>`   | Mode to check. Default: `LEMON_SQUEEZY_MODE`, else `test`                            |
-| `--store-id <id>`       | Store to check, repeat for more. Default: `LEMON_SQUEEZY_STORE_ID`, else every store |
-| `--all-resources`       | Also check every product, plan, webhook, discount and license key in each store      |
-| `--product-id <id>`     | Product to check, repeat for more                                                    |
-| `--variant-id <id>`     | Subscription plan to check, repeat for more                                          |
-| `--webhook-url <url>`   | Webhook to check, repeat for more                                                    |
-| `--discount-id <id>`    | Discount to check, repeat for more                                                   |
-| `--license-key-id <id>` | License key to check, repeat for more                                                |
-| `--json`                | Print the reports as JSON                                                            |
-| `--help`, `--version`   | Show the help or the version                                                         |
+| Flag                    | Meaning                                                                         |
+| ----------------------- | ------------------------------------------------------------------------------- |
+| `--mode <test\|live>`   | Mode to check. Default: `test`                                                  |
+| `--store-id <id>`       | Store to check, repeat for more. Default: every store                           |
+| `--all-resources`       | Also check every product, plan, webhook, discount and license key in each store |
+| `--product-id <id>`     | Product to check, repeat for more                                               |
+| `--variant-id <id>`     | Subscription plan to check, repeat for more                                     |
+| `--webhook-url <url>`   | Webhook to check, repeat for more                                               |
+| `--discount-id <id>`    | Discount to check, repeat for more                                              |
+| `--license-key-id <id>` | License key to check, repeat for more                                           |
+| `--json`                | Print the reports as JSON                                                       |
+| `--help`, `--version`   | Show the help or the version                                                    |
 
 The doctor reads the key of its mode (`LEMON_SQUEEZY_TEST_API_KEY` or `LEMON_SQUEEZY_LIVE_API_KEY`) from the environment or from a `.env` file in the working directory. It never prompts and never hangs.
 
@@ -190,10 +188,9 @@ The doctor reads the key of its mode (`LEMON_SQUEEZY_TEST_API_KEY` or `LEMON_SQU
 
 ```yaml
 - name: Check Lemon Squeezy
-  run: npx fresh-squeezy doctor --all-resources --json
+  run: npx fresh-squeezy doctor --mode live --all-resources --json
   env:
     LEMON_SQUEEZY_LIVE_API_KEY: ${{ secrets.LEMON_SQUEEZY_LIVE_API_KEY }}
-    LEMON_SQUEEZY_MODE: live
 ```
 
 The step fails on exit `1` or `2`. A live key pointed at a test store (or the reverse) raises `MODE_MISMATCH`: the doctor compares the declared mode with `meta.test_mode` from `/v1/users/me`.
@@ -296,6 +293,11 @@ Every function the SDK exports, and the fresh-squeezy call that replaces it. Dif
 | `validateLicense`                 | `validateLicense({ licenseKey, instanceId })` from `fresh-squeezy/license`            |
 
 The 60 rows are every function exported by `@lemonsqueezy/lemonsqueezy.js` 4.0.0.
+
+## Upgrading from 0.4
+
+- Renames: `fresh-squeezy/config` is `fresh-squeezy/environment`, `readConfig` is `readClientSettings`, `Config` is `ClientSettings`, `FreshSqueezyConfig` is `FreshSqueezySettings`, `readEnvApiKey` is `readApiKeyFromEnvironment`, `buildCheckReport` is `createCheckReport`, `buildFreshSqueezyError` is `createFreshSqueezyError`, `CreateInput` is `NewResources`, `UpdateInput` is `UpdateAttributes`. `RelationshipName` is removed.
+- `LEMON_SQUEEZY_MODE` and `LEMON_SQUEEZY_STORE_ID` are removed: use the `mode` and `storeId` options or the `--mode` and `--store-id` flags.
 
 ## Upgrading from 0.3
 

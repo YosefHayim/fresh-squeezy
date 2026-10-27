@@ -6,201 +6,343 @@ import {
 	variantListRoute,
 } from "@e2e/mock-fetch.js";
 import {
-	activeLicenseKeyDoc,
+	activeLicenseKeyDocument,
 	NOT_FOUND_ERROR,
-	PUBLISHED_PRODUCT_DOC,
-	publishedDiscountDoc,
-	STORE_DOC,
-	subscriptionVariantDoc,
+	nonSubscriptionVariantDocument,
+	PUBLISHED_PRODUCT_DOCUMENT,
+	publishedDiscountDocument,
+	STORE_DOCUMENT,
+	subscriptionVariantDocument,
 	UNAUTHORIZED_ERROR,
 	WEBHOOKS_COLLECTION_COMPLETE,
 } from "@e2e/sandbox-store.js";
-import { expect, test } from "vitest";
+import { describe, expect, test } from "vitest";
 import { doctor, listStoreIds } from "./doctor.js";
+import type { DoctorReport } from "./findings.js";
 
-test("doctor skips validators for targets that are not configured", async () => {
-	const http = makeHttp(SIGNED_IN_ROUTES);
-
-	const report = await doctor(http, "test");
-
-	expect(report.checks).toHaveLength(1);
-	expect(report.checks[0]?.name).toBe("connection");
-});
+const WEBHOOK_URL = "https://app.example.com/api/webhooks/lemon-squeezy";
 
 const STORE_SCOPED_ROUTES = [
 	...SIGNED_IN_ROUTES,
-	route("/v1/stores/42", STORE_DOC),
+	route("/v1/stores/42", STORE_DOCUMENT),
 ];
+
+const DISCOVERY_ROUTES = [
+	...STORE_SCOPED_ROUTES,
+	storeListRoute("products", { data: [PUBLISHED_PRODUCT_DOCUMENT.data] }),
+	storeListRoute("webhooks", WEBHOOKS_COLLECTION_COMPLETE),
+	storeListRoute("discounts", { data: [publishedDiscountDocument.data] }),
+	storeListRoute("license-keys", { data: [activeLicenseKeyDocument.data] }),
+	variantListRoute("100", { data: [subscriptionVariantDocument.data] }),
+	route("/v1/products/100", PUBLISHED_PRODUCT_DOCUMENT),
+	route("/v1/variants/800", subscriptionVariantDocument),
+	route("/v1/discounts/600", publishedDiscountDocument),
+	route("/v1/license-keys/700", activeLicenseKeyDocument),
+];
+
+const listCheckNames = (report: DoctorReport) =>
+	report.checks.map((check) => check.name);
 
 const TARGET_CASES = [
 	{
-		title: "discount validator when discountId is provided",
-		routes: [route("/v1/discounts/600", publishedDiscountDoc)],
+		title: "a product check when productIds is given",
+		routes: [route("/v1/products/100", PUBLISHED_PRODUCT_DOCUMENT)],
+		targets: { productIds: ["100"] },
+		name: "product",
+	},
+	{
+		title: "a webhook check when webhookUrls is given",
+		routes: [storeListRoute("webhooks", WEBHOOKS_COLLECTION_COMPLETE)],
+		targets: { webhookUrls: [WEBHOOK_URL] },
+		name: "webhook",
+	},
+	{
+		title: "a discount check when discountIds is given",
+		routes: [route("/v1/discounts/600", publishedDiscountDocument)],
 		targets: { discountIds: ["600"] },
 		name: "discount",
 	},
 	{
-		title: "license key validator when licenseKeyId is provided",
-		routes: [route("/v1/license-keys/700", activeLicenseKeyDoc)],
+		title: "a license key check when licenseKeyIds is given",
+		routes: [route("/v1/license-keys/700", activeLicenseKeyDocument)],
 		targets: { licenseKeyIds: ["700"] },
 		name: "licenseKey",
 	},
 	{
-		title: "subscription plan validator when variantId is provided",
+		title: "a subscription plan check when variantIds is given",
 		routes: [
-			route("/v1/variants/800", subscriptionVariantDoc),
-			route("/v1/products/100", PUBLISHED_PRODUCT_DOC),
+			route("/v1/variants/800", subscriptionVariantDocument),
+			route("/v1/products/100", PUBLISHED_PRODUCT_DOCUMENT),
 		],
 		targets: { variantIds: ["800"] },
 		name: "subscriptionPlan",
 	},
 ];
 
-test.each(TARGET_CASES)(
-	"doctor runs $title",
-	async ({ routes, targets, name }) => {
+const DEPENDENT_TARGET_CASES = [
+	{ targetName: "allResources", targets: { allResources: true } },
+	{ targetName: "productIds", targets: { productIds: ["100"] } },
+	{ targetName: "variantIds", targets: { variantIds: ["800"] } },
+	{ targetName: "webhookUrls", targets: { webhookUrls: [WEBHOOK_URL] } },
+	{ targetName: "discountIds", targets: { discountIds: ["600"] } },
+	{ targetName: "licenseKeyIds", targets: { licenseKeyIds: ["700"] } },
+];
+
+const LISTING_CASES = [
+	{
+		collection: "products",
+		label: "products of store 42",
+		name: "product",
+	},
+	{
+		collection: "webhooks",
+		label: "webhooks of store 42",
+		name: "webhook",
+	},
+	{
+		collection: "discounts",
+		label: "discounts of store 42",
+		name: "discount",
+	},
+	{
+		collection: "license-keys",
+		label: "license keys of store 42",
+		name: "licenseKey",
+	},
+] as const;
+
+describe("doctor", () => {
+	test("runs only the connection check when no store is given", async () => {
+		const http = makeHttp(SIGNED_IN_ROUTES);
+
+		const report = await doctor(http, "test");
+
+		expect(report.ok).toBe(true);
+		expect(listCheckNames(report)).toEqual(["connection"]);
+	});
+
+	test("runs the connection and store checks when only a store is given", async () => {
+		const http = makeHttp(STORE_SCOPED_ROUTES);
+
+		const report = await doctor(http, "test", { storeId: "42" });
+
+		expect(report.ok).toBe(true);
+		expect(listCheckNames(report)).toEqual(["connection", "store"]);
+	});
+
+	test.each(TARGET_CASES)("runs $title", async ({ routes, targets, name }) => {
 		const http = makeHttp([...STORE_SCOPED_ROUTES, ...routes]);
 
 		const report = await doctor(http, "test", { storeId: "42", ...targets });
 
 		expect(report.ok).toBe(true);
-		expect(report.checks.some((check) => check.name === name)).toBe(true);
-	},
-);
-
-test("doctor includes discount failure in overall ok", async () => {
-	const http = makeHttp([
-		...STORE_SCOPED_ROUTES,
-		route("/v1/discounts/9999", UNAUTHORIZED_ERROR, 404),
-	]);
-
-	const report = await doctor(http, "test", {
-		storeId: "42",
-		discountIds: ["9999"],
+		expect(listCheckNames(report)).toContain(name);
 	});
 
-	expect(report.ok).toBe(false);
-	expect(
-		report.checks.some((check) => check.name === "discount" && !check.ok),
-	).toBe(true);
-});
+	test("fails the report when a target check fails", async () => {
+		const http = makeHttp([
+			...STORE_SCOPED_ROUTES,
+			route("/v1/discounts/9999", NOT_FOUND_ERROR, 404),
+		]);
 
-test("doctor stops after a failed connection", async () => {
-	const http = makeHttp([route("/v1/users/me", UNAUTHORIZED_ERROR, 401)]);
+		const report = await doctor(http, "test", {
+			storeId: "42",
+			discountIds: ["9999"],
+		});
 
-	const report = await doctor(http, "test", {
-		storeId: "42",
-		discountIds: ["600"],
+		const discountCheck = report.checks.find(
+			(check) => check.name === "discount",
+		);
+		expect(report.ok).toBe(false);
+		expect(discountCheck?.ok).toBe(false);
 	});
 
-	expect(report.ok).toBe(false);
-	expect(report.checks.map((check) => check.name)).toEqual(["connection"]);
-});
+	test("stops after a failed connection even when targets are given", async () => {
+		const http = makeHttp([route("/v1/users/me", UNAUTHORIZED_ERROR, 401)]);
 
-test("doctor throws DOCTOR_TARGETS_INVALID when dependent options come without a store", async () => {
-	const http = makeHttp(SIGNED_IN_ROUTES);
+		const report = await doctor(http, "test", {
+			storeId: "42",
+			discountIds: ["600"],
+		});
 
-	await expect(
-		doctor(http, "test", { discountIds: ["600"] }),
-	).rejects.toMatchObject({
-		code: "DOCTOR_TARGETS_INVALID",
-	});
-	await expect(
-		doctor(http, "test", { allResources: true }),
-	).rejects.toMatchObject({
-		code: "DOCTOR_TARGETS_INVALID",
-	});
-});
-
-test("doctor runs each explicit id once", async () => {
-	const http = makeHttp([
-		...STORE_SCOPED_ROUTES,
-		route("/v1/discounts/600", publishedDiscountDoc),
-	]);
-
-	const report = await doctor(http, "test", {
-		storeId: "42",
-		discountIds: ["600", "600"],
+		expect(report.ok).toBe(false);
+		expect(listCheckNames(report)).toEqual(["connection"]);
 	});
 
-	const discountChecks = report.checks.filter(
-		(check) => check.name === "discount",
+	test("fails the report when the connection fails and no store is given", async () => {
+		const http = makeHttp([route("/v1/users/me", UNAUTHORIZED_ERROR, 401)]);
+
+		const report = await doctor(http, "test");
+
+		expect(report.ok).toBe(false);
+		expect(listCheckNames(report)).toEqual(["connection"]);
+	});
+
+	test.each(DEPENDENT_TARGET_CASES)(
+		"throws DOCTOR_TARGETS_INVALID when $targetName comes without a store",
+		async ({ targetName, targets }) => {
+			const http = makeHttp(SIGNED_IN_ROUTES);
+
+			const failedDoctor = doctor(http, "test", targets);
+
+			await expect(failedDoctor).rejects.toMatchObject({
+				code: "DOCTOR_TARGETS_INVALID",
+				message: expect.stringContaining(targetName),
+			});
+		},
 	);
-	expect(discountChecks).toHaveLength(1);
-});
 
-const DISCOVERY_ROUTES = [
-	...STORE_SCOPED_ROUTES,
-	storeListRoute("products", { data: [PUBLISHED_PRODUCT_DOC.data] }),
-	storeListRoute("webhooks", WEBHOOKS_COLLECTION_COMPLETE),
-	storeListRoute("discounts", { data: [publishedDiscountDoc.data] }),
-	storeListRoute("license-keys", { data: [activeLicenseKeyDoc.data] }),
-	variantListRoute("100", { data: [subscriptionVariantDoc.data] }),
-	route("/v1/products/100", PUBLISHED_PRODUCT_DOC),
-	route("/v1/variants/800", subscriptionVariantDoc),
-	route("/v1/discounts/600", publishedDiscountDoc),
-	route("/v1/license-keys/700", activeLicenseKeyDoc),
-];
+	test("accepts empty target lists without a store", async () => {
+		const http = makeHttp(SIGNED_IN_ROUTES);
 
-test("doctor with allResources checks everything it finds in the store", async () => {
-	const http = makeHttp(DISCOVERY_ROUTES);
+		const report = await doctor(http, "test", {
+			allResources: false,
+			productIds: [],
+			discountIds: [],
+		});
 
-	const report = await doctor(http, "test", {
-		storeId: "42",
-		allResources: true,
+		expect(listCheckNames(report)).toEqual(["connection"]);
 	});
 
-	const names = report.checks.map((check) => check.name);
-	expect(report.ok).toBe(true);
-	expect(names).toEqual([
-		"connection",
-		"store",
-		"product",
-		"webhook",
-		"discount",
-		"licenseKey",
-		"subscriptionPlan",
-	]);
-});
+	test("runs each explicit id once", async () => {
+		const http = makeHttp([
+			...STORE_SCOPED_ROUTES,
+			route("/v1/discounts/600", publishedDiscountDocument),
+		]);
 
-test("doctor with allResources reports a failed listing as a failed check", async () => {
-	const http = makeHttp([
-		{ ...storeListRoute("products", NOT_FOUND_ERROR), status: 500 },
-		...DISCOVERY_ROUTES,
-	]);
+		const report = await doctor(http, "test", {
+			storeId: "42",
+			discountIds: ["600", "600"],
+		});
 
-	const report = await doctor(http, "test", {
-		storeId: "42",
-		allResources: true,
+		const discountChecks = report.checks.filter(
+			(check) => check.name === "discount",
+		);
+		expect(discountChecks).toHaveLength(1);
 	});
 
-	const listingFailure = report.checks.find(
-		(check) => check.target?.label === "products of store 42",
+	test("checks everything it finds in the store with allResources", async () => {
+		const http = makeHttp(DISCOVERY_ROUTES);
+
+		const report = await doctor(http, "test", {
+			storeId: "42",
+			allResources: true,
+		});
+
+		expect(report.ok).toBe(true);
+		expect(listCheckNames(report)).toEqual([
+			"connection",
+			"store",
+			"product",
+			"webhook",
+			"discount",
+			"licenseKey",
+			"subscriptionPlan",
+		]);
+	});
+
+	test("runs a discovered id once when it is also given explicitly", async () => {
+		const http = makeHttp(DISCOVERY_ROUTES);
+
+		const report = await doctor(http, "test", {
+			storeId: "42",
+			allResources: true,
+			discountIds: ["600"],
+			webhookUrls: [WEBHOOK_URL],
+		});
+
+		const discountChecks = report.checks.filter(
+			(check) => check.name === "discount",
+		);
+		const webhookChecks = report.checks.filter(
+			(check) => check.name === "webhook",
+		);
+		expect(discountChecks).toHaveLength(1);
+		expect(webhookChecks).toHaveLength(1);
+	});
+
+	test("skips discovered variants that are not subscriptions", async () => {
+		const http = makeHttp([
+			variantListRoute("100", { data: [nonSubscriptionVariantDocument.data] }),
+			...DISCOVERY_ROUTES,
+		]);
+
+		const report = await doctor(http, "test", {
+			storeId: "42",
+			allResources: true,
+		});
+
+		expect(listCheckNames(report)).not.toContain("subscriptionPlan");
+	});
+
+	test.each(LISTING_CASES)(
+		"reports a failed $collection listing as a failed check",
+		async ({ collection, label, name }) => {
+			const http = makeHttp([
+				{ ...storeListRoute(collection, NOT_FOUND_ERROR), status: 500 },
+				...DISCOVERY_ROUTES,
+			]);
+
+			const report = await doctor(http, "test", {
+				storeId: "42",
+				allResources: true,
+			});
+
+			const listingFailure = report.checks.find(
+				(check) => check.target?.label === label,
+			);
+			expect(report.ok).toBe(false);
+			expect(listingFailure?.name).toBe(name);
+			expect(listingFailure?.ok).toBe(false);
+		},
 	);
-	expect(report.ok).toBe(false);
-	expect(listingFailure?.name).toBe("product");
-	expect(listingFailure?.ok).toBe(false);
+
+	test("reports a failed variant listing and still checks the rest", async () => {
+		const http = makeHttp([
+			{ ...variantListRoute("100", NOT_FOUND_ERROR), status: 500 },
+			...DISCOVERY_ROUTES,
+		]);
+
+		const report = await doctor(http, "test", {
+			storeId: "42",
+			allResources: true,
+		});
+
+		const listingFailure = report.checks.find(
+			(check) =>
+				check.target?.label === "plans of product 100, listed for of store 42",
+		);
+		expect(report.ok).toBe(false);
+		expect(listingFailure?.name).toBe("subscriptionPlan");
+		expect(listCheckNames(report)).toContain("discount");
+	});
 });
 
-test("listStoreIds returns every store id", async () => {
-	const http = makeHttp(SIGNED_IN_ROUTES);
+describe("listStoreIds", () => {
+	test("lists every store id", async () => {
+		const http = makeHttp(SIGNED_IN_ROUTES);
 
-	const storeIds = await listStoreIds(http);
+		const storeIds = await listStoreIds(http);
 
-	expect(storeIds).toEqual(["42"]);
-});
+		expect(storeIds).toEqual(["42"]);
+	});
 
-test("listStoreIds throws NO_STORES when the key reaches no store", async () => {
-	const http = makeHttp([route("/v1/stores", { data: [] })]);
+	test("throws NO_STORES when the key reaches no store", async () => {
+		const http = makeHttp([route("/v1/stores", { data: [] })]);
 
-	await expect(listStoreIds(http)).rejects.toMatchObject({ code: "NO_STORES" });
-});
+		const failedListing = listStoreIds(http);
 
-test("listStoreIds throws AUTH_FAILED when the key is rejected", async () => {
-	const http = makeHttp([route("/v1/stores", UNAUTHORIZED_ERROR, 401)]);
+		await expect(failedListing).rejects.toMatchObject({ code: "NO_STORES" });
+	});
 
-	await expect(listStoreIds(http)).rejects.toMatchObject({
-		code: "AUTH_FAILED",
-		message: "API key rejected by Lemon Squeezy.",
+	test("throws AUTH_FAILED when the key is rejected", async () => {
+		const http = makeHttp([route("/v1/stores", UNAUTHORIZED_ERROR, 401)]);
+
+		const failedListing = listStoreIds(http);
+
+		await expect(failedListing).rejects.toMatchObject({
+			code: "AUTH_FAILED",
+			message: "API key rejected by Lemon Squeezy.",
+		});
 	});
 });

@@ -1,164 +1,200 @@
-import { makeHttp, pathIs } from "@e2e/mock-fetch.js";
+import { makeHttp, route } from "@e2e/mock-fetch.js";
 import {
-	draftDiscountDoc,
-	exhaustedDiscountDoc,
-	expiredDiscountDoc,
-	futureDiscountDoc,
-	invalidPercentDiscountDoc,
+	draftDiscountDocument,
+	exhaustedDiscountDocument,
+	expiredDiscountDocument,
+	futureDiscountDocument,
+	invalidPercentDiscountDocument,
 	NOT_FOUND_ERROR,
-	publishedDiscountDoc,
-	wrongStoreDiscountDoc,
-	zeroAmountDiscountDoc,
+	publishedDiscountDocument,
+	UNAUTHORIZED_ERROR,
+	wrongStoreDiscountDocument,
+	zeroAmountDiscountDocument,
 } from "@e2e/sandbox-store.js";
-import { expect, test } from "vitest";
+import { describe, expect, test } from "vitest";
 import { validateDiscount } from "./discount.js";
 
-test("validateDiscount returns ok for a valid published discount", async () => {
-	const http = makeHttp([
-		{
-			match: pathIs("/v1/discounts/600"),
-			status: 200,
-			replyDocument: publishedDiscountDoc,
-		},
-	]);
-	const discountValidation = await validateDiscount(http, "test", {
-		storeId: "42",
-		discountId: "600",
-	});
-	expect(discountValidation.ok).toBe(true);
-	expect(discountValidation.resource?.code).toBe("SUMMER20");
-	expect(discountValidation.findings).toHaveLength(0);
+const DISCOUNT_ID = "600";
+const PAST_DATE = "2020-01-01T00:00:00Z";
+const FUTURE_DATE = "2099-12-31T23:59:59Z";
+
+type DiscountReply = typeof publishedDiscountDocument;
+
+const createDiscountReply = (
+	overrides: Partial<DiscountReply["data"]["attributes"]>,
+): DiscountReply => ({
+	data: {
+		...publishedDiscountDocument.data,
+		attributes: { ...publishedDiscountDocument.data.attributes, ...overrides },
+	},
 });
 
-test("validateDiscount returns DISCOUNT_NOT_FOUND on 404", async () => {
-	const http = makeHttp([
-		{
-			match: pathIs("/v1/discounts/9999"),
-			status: 404,
-			replyDocument: NOT_FOUND_ERROR,
-		},
-	]);
-	const discountValidation = await validateDiscount(http, "test", {
+const checkDiscountReply = (reply: unknown, status = 200) => {
+	const http = makeHttp([route(`/v1/discounts/${DISCOUNT_ID}`, reply, status)]);
+	return validateDiscount(http, "test", {
 		storeId: "42",
-		discountId: "9999",
+		discountId: DISCOUNT_ID,
 	});
-	expect(discountValidation.ok).toBe(false);
-	expect(discountValidation.findings[0]?.code).toBe("DISCOUNT_NOT_FOUND");
-});
+};
 
-test("validateDiscount returns DISCOUNT_DRAFT for draft status", async () => {
-	const http = makeHttp([
-		{
-			match: pathIs("/v1/discounts/601"),
-			status: 200,
-			replyDocument: draftDiscountDoc,
-		},
-	]);
-	const discountValidation = await validateDiscount(http, "test", {
-		storeId: "42",
-		discountId: "601",
-	});
-	expect(discountValidation.ok).toBe(true);
-	expect(discountValidation.findings[0]?.code).toBe("DISCOUNT_DRAFT");
-	expect(discountValidation.findings[0]?.severity).toBe("warning");
-});
+const listCodes = (findings: { code: string }[]) =>
+	findings.map((finding) => finding.code);
 
-test("validateDiscount returns DISCOUNT_EXPIRED for past expires_at", async () => {
-	const http = makeHttp([
-		{
-			match: pathIs("/v1/discounts/602"),
-			status: 200,
-			replyDocument: expiredDiscountDoc,
-		},
-	]);
-	const discountValidation = await validateDiscount(http, "test", {
-		storeId: "42",
-		discountId: "602",
-	});
-	expect(discountValidation.ok).toBe(false);
-	expect(discountValidation.findings[0]?.code).toBe("DISCOUNT_EXPIRED");
-});
+describe("validateDiscount", () => {
+	test("passes a valid published discount and describes its target", async () => {
+		const reply = publishedDiscountDocument;
 
-test("validateDiscount returns DISCOUNT_NOT_STARTED for future starts_at", async () => {
-	const http = makeHttp([
-		{
-			match: pathIs("/v1/discounts/603"),
-			status: 200,
-			replyDocument: futureDiscountDoc,
-		},
-	]);
-	const discountValidation = await validateDiscount(http, "test", {
-		storeId: "42",
-		discountId: "603",
-	});
-	expect(discountValidation.ok).toBe(true);
-	expect(discountValidation.findings[0]?.code).toBe("DISCOUNT_NOT_STARTED");
-	expect(discountValidation.findings[0]?.severity).toBe("warning");
-});
+		const report = await checkDiscountReply(reply);
 
-test("validateDiscount returns DISCOUNT_REDEMPTIONS_EXHAUSTED when limited and max ≤ 0", async () => {
-	const http = makeHttp([
-		{
-			match: pathIs("/v1/discounts/604"),
-			status: 200,
-			replyDocument: exhaustedDiscountDoc,
-		},
-	]);
-	const discountValidation = await validateDiscount(http, "test", {
-		storeId: "42",
-		discountId: "604",
+		expect(report.ok).toBe(true);
+		expect(report.findings).toHaveLength(0);
+		expect(report.resource?.code).toBe("SUMMER20");
+		expect(report.target).toEqual({
+			label: "Summer Sale (SUMMER20)",
+			id: DISCOUNT_ID,
+		});
 	});
-	expect(discountValidation.ok).toBe(true);
-	expect(discountValidation.findings[0]?.code).toBe(
-		"DISCOUNT_REDEMPTIONS_EXHAUSTED",
-	);
-	expect(discountValidation.findings[0]?.severity).toBe("warning");
-});
 
-test("validateDiscount returns DISCOUNT_INVALID_AMOUNT for percent > 100", async () => {
-	const http = makeHttp([
-		{
-			match: pathIs("/v1/discounts/605"),
-			status: 200,
-			replyDocument: invalidPercentDiscountDoc,
-		},
-	]);
-	const discountValidation = await validateDiscount(http, "test", {
-		storeId: "42",
-		discountId: "605",
-	});
-	expect(discountValidation.ok).toBe(false);
-	expect(discountValidation.findings[0]?.code).toBe("DISCOUNT_INVALID_AMOUNT");
-});
+	test("reports DISCOUNT_NOT_FOUND when the discount does not exist", async () => {
+		const reply = NOT_FOUND_ERROR;
 
-test("validateDiscount returns DISCOUNT_INVALID_AMOUNT for amount ≤ 0", async () => {
-	const http = makeHttp([
-		{
-			match: pathIs("/v1/discounts/606"),
-			status: 200,
-			replyDocument: zeroAmountDiscountDoc,
-		},
-	]);
-	const discountValidation = await validateDiscount(http, "test", {
-		storeId: "42",
-		discountId: "606",
-	});
-	expect(discountValidation.ok).toBe(false);
-	expect(discountValidation.findings[0]?.code).toBe("DISCOUNT_INVALID_AMOUNT");
-});
+		const report = await checkDiscountReply(reply, 404);
 
-test("validateDiscount returns DISCOUNT_STORE_MISMATCH for wrong store", async () => {
-	const http = makeHttp([
-		{
-			match: pathIs("/v1/discounts/607"),
-			status: 200,
-			replyDocument: wrongStoreDiscountDoc,
-		},
-	]);
-	const discountValidation = await validateDiscount(http, "test", {
-		storeId: "42",
-		discountId: "607",
+		expect(report.ok).toBe(false);
+		expect(listCodes(report.findings)).toEqual(["DISCOUNT_NOT_FOUND"]);
+		expect(report.target).toEqual({
+			label: `discount ${DISCOUNT_ID}`,
+			id: DISCOUNT_ID,
+		});
 	});
-	expect(discountValidation.ok).toBe(false);
-	expect(discountValidation.findings[0]?.code).toBe("DISCOUNT_STORE_MISMATCH");
+
+	test("reports AUTH_FAILED when the key is rejected", async () => {
+		const reply = UNAUTHORIZED_ERROR;
+
+		const report = await checkDiscountReply(reply, 401);
+
+		expect(report.ok).toBe(false);
+		expect(listCodes(report.findings)).toEqual(["AUTH_FAILED"]);
+	});
+
+	test("warns about a draft discount", async () => {
+		const reply = draftDiscountDocument;
+
+		const report = await checkDiscountReply(reply);
+
+		expect(report.ok).toBe(true);
+		expect(report.findings).toMatchObject([
+			{ code: "DISCOUNT_DRAFT", severity: "warning" },
+		]);
+	});
+
+	test("flags an expired discount as an error", async () => {
+		const reply = expiredDiscountDocument;
+
+		const report = await checkDiscountReply(reply);
+
+		expect(report.ok).toBe(false);
+		expect(report.findings).toMatchObject([
+			{ code: "DISCOUNT_EXPIRED", severity: "error" },
+		]);
+	});
+
+	test("accepts a discount that expires in the future or never", async () => {
+		const neverExpiresReply = createDiscountReply({ expires_at: null });
+		const futureExpiryReply = createDiscountReply({ expires_at: FUTURE_DATE });
+
+		const neverExpiresReport = await checkDiscountReply(neverExpiresReply);
+		const futureExpiryReport = await checkDiscountReply(futureExpiryReply);
+
+		expect(neverExpiresReport.findings).toHaveLength(0);
+		expect(futureExpiryReport.findings).toHaveLength(0);
+	});
+
+	test("warns about a discount that has not started yet", async () => {
+		const reply = futureDiscountDocument;
+
+		const report = await checkDiscountReply(reply);
+
+		expect(report.ok).toBe(true);
+		expect(report.findings).toMatchObject([
+			{ code: "DISCOUNT_NOT_STARTED", severity: "warning" },
+		]);
+	});
+
+	test("accepts a discount that already started", async () => {
+		const reply = createDiscountReply({ starts_at: PAST_DATE });
+
+		const report = await checkDiscountReply(reply);
+
+		expect(report.findings).toHaveLength(0);
+	});
+
+	test("warns when limited redemptions are used up", async () => {
+		const reply = exhaustedDiscountDocument;
+
+		const report = await checkDiscountReply(reply);
+
+		expect(report.ok).toBe(true);
+		expect(report.findings).toMatchObject([
+			{ code: "DISCOUNT_REDEMPTIONS_EXHAUSTED", severity: "warning" },
+		]);
+	});
+
+	test("accepts limited redemptions that are still available", async () => {
+		const reply = createDiscountReply({
+			is_limited_redemptions: true,
+			max_redemptions: 10,
+		});
+
+		const report = await checkDiscountReply(reply);
+
+		expect(report.findings).toHaveLength(0);
+	});
+
+	test("flags a percent discount over 100 as an error", async () => {
+		const reply = invalidPercentDiscountDocument;
+
+		const report = await checkDiscountReply(reply);
+
+		expect(report.ok).toBe(false);
+		expect(report.findings).toMatchObject([
+			{ code: "DISCOUNT_INVALID_AMOUNT", severity: "error" },
+		]);
+	});
+
+	test("accepts a 100 percent discount and a large fixed discount", async () => {
+		const fullPercentReply = createDiscountReply({ amount: 100 });
+		const largeFixedReply = createDiscountReply({
+			amount: 500,
+			amount_type: "fixed",
+		});
+
+		const fullPercentReport = await checkDiscountReply(fullPercentReply);
+		const largeFixedReport = await checkDiscountReply(largeFixedReply);
+
+		expect(fullPercentReport.findings).toHaveLength(0);
+		expect(largeFixedReport.findings).toHaveLength(0);
+	});
+
+	test("flags an amount of zero or less as an error", async () => {
+		const reply = zeroAmountDiscountDocument;
+
+		const report = await checkDiscountReply(reply);
+
+		expect(report.ok).toBe(false);
+		expect(report.findings).toMatchObject([
+			{ code: "DISCOUNT_INVALID_AMOUNT", severity: "error" },
+		]);
+	});
+
+	test("flags a discount from another store as an error", async () => {
+		const reply = wrongStoreDiscountDocument;
+
+		const report = await checkDiscountReply(reply);
+
+		expect(report.ok).toBe(false);
+		expect(report.findings).toMatchObject([
+			{ code: "DISCOUNT_STORE_MISMATCH", severity: "error" },
+		]);
+	});
 });

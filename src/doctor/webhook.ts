@@ -1,10 +1,10 @@
-import type { Mode } from "@/client/config.js";
+import type { Mode } from "@/client/environment.js";
 import type { Http } from "@/client/http.js";
 import type { WebhookAttributes } from "@/client/lemon-squeezy-types.js";
 import { fetchCollection } from "./fetch-resource.js";
 import {
-	buildCheckReport,
 	type CheckReport,
+	createCheckReport,
 	FINDING_CODES,
 	type FindingRule,
 	raiseFindings,
@@ -40,10 +40,11 @@ const OPTIONAL_WEBHOOK_EVENTS = [
 	"license_key_updated",
 ] as const;
 
-const normalizeUrl = (url: string) => url.replace(/\/+$/, "").toLowerCase();
+const createComparableUrl = (url: string) =>
+	url.replace(/\/+$/, "").toLowerCase();
 
 const isSameUrl = (left: string, right: string) =>
-	normalizeUrl(left) === normalizeUrl(right);
+	createComparableUrl(left) === createComparableUrl(right);
 
 const findEventGaps = (webhook: WebhookAttributes): WebhookEventGaps => {
 	const subscribed = new Set(webhook.events);
@@ -111,7 +112,7 @@ export const validateWebhook = async (
 
 	const isFetchFailed = webhooksLookup.kind === "failed";
 	if (isFetchFailed) {
-		return buildCheckReport({
+		return createCheckReport({
 			name: "webhook",
 			mode,
 			findings: [webhooksLookup.finding],
@@ -124,7 +125,7 @@ export const validateWebhook = async (
 	);
 	const isWebhookMissing = webhook === undefined;
 	if (isWebhookMissing) {
-		return buildCheckReport({
+		return createCheckReport({
 			name: "webhook",
 			mode,
 			findings: [
@@ -142,7 +143,7 @@ export const validateWebhook = async (
 	}
 
 	const eventGaps = findEventGaps(webhook.attributes);
-	return buildCheckReport({
+	return createCheckReport({
 		name: "webhook",
 		mode,
 		findings: raiseFindings(WEBHOOK_RULES, eventGaps),

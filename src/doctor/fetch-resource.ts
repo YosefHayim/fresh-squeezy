@@ -11,7 +11,12 @@ const AUTH_FAILED_FINDING: Finding = {
 	context: { status: 401 },
 };
 
-export type NotFoundFinding = Omit<Finding, "severity">;
+export interface NotFoundFinding {
+	code: FindingCode;
+	message: string;
+	suggestedFix?: string;
+	context?: Record<string, unknown>;
+}
 
 export interface ResourceFetch {
 	path: string;
@@ -33,10 +38,10 @@ export interface StoreOwnership {
 	expectedStoreId: string;
 	actualStoreId: number;
 	suggestedFix: string;
-	extraContext?: Record<string, unknown>;
+	extraDetails?: Record<string, unknown>;
 }
 
-const findingOfError = (
+const pickFindingForError = (
 	error: unknown,
 	notFound?: NotFoundFinding,
 ): Finding => {
@@ -75,7 +80,7 @@ export const fetchSafely = async <Resource>(
 		const resource = await load();
 		return { kind: "found", resource };
 	} catch (error) {
-		const finding = findingOfError(error, notFound);
+		const finding = pickFindingForError(error, notFound);
 		return { kind: "failed", finding };
 	}
 };
@@ -109,7 +114,7 @@ export const storeMismatchFindings = (ownership: StoreOwnership): Finding[] => {
 			context: {
 				expectedStoreId,
 				actualStoreId,
-				...ownership.extraContext,
+				...ownership.extraDetails,
 			},
 		},
 	];

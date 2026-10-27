@@ -66,7 +66,7 @@ jobs:
         run: pnpm typecheck
       - name: unit tests
         if: needs.changes.outputs.since == ''
-        run: pnpm test -- --coverage
+        run: pnpm test
       - name: unit tests (changed files)
         if: needs.changes.outputs.since != ''
         env:

@@ -1,4 +1,4 @@
-import type { Mode } from "@/client/config.js";
+import type { Mode } from "@/client/environment.js";
 import type { Http } from "@/client/http.js";
 import type {
 	ProductAttributes,
@@ -6,8 +6,8 @@ import type {
 } from "@/client/lemon-squeezy-types.js";
 import { fetchResource, storeMismatchFindings } from "./fetch-resource.js";
 import {
-	buildCheckReport,
 	type CheckReport,
+	createCheckReport,
 	FINDING_CODES,
 	type Finding,
 	type FindingRule,
@@ -28,7 +28,9 @@ export interface SubscriptionPlanSummary {
 	status: string;
 }
 
-type PlanSubject = VariantAttributes & { variantId: string };
+interface PlanSubject extends VariantAttributes {
+	variantId: string;
+}
 
 const VALID_INTERVALS = new Set(["day", "week", "month", "year"]);
 
@@ -116,7 +118,7 @@ const PLAN_RULES: FindingRule<PlanSubject>[] = [
 	},
 ];
 
-const buildPlanSummary = (
+const createPlanSummary = (
 	variantId: string,
 	plan: VariantAttributes,
 ): SubscriptionPlanSummary => ({
@@ -128,7 +130,7 @@ const buildPlanSummary = (
 	status: plan.status,
 });
 
-const checkStoreMatch = async (
+const checkStoreOwnership = async (
 	http: Http,
 	storeId: string,
 	productId: number,
@@ -150,7 +152,7 @@ const checkStoreMatch = async (
 		actualStoreId: productLookup.resource.store_id,
 		suggestedFix:
 			"Use the correct store ID or variant ID — plans should not cross stores.",
-		extraContext: { productId: String(productId) },
+		extraDetails: { productId: String(productId) },
 	});
 };
 
@@ -171,7 +173,7 @@ export const validateSubscriptionPlan = async (
 
 	const isFetchFailed = planLookup.kind === "failed";
 	if (isFetchFailed) {
-		return buildCheckReport({
+		return createCheckReport({
 			name: "subscriptionPlan",
 			mode,
 			findings: [planLookup.finding],
@@ -181,12 +183,16 @@ export const validateSubscriptionPlan = async (
 
 	const plan = planLookup.resource;
 	const planFindings = raiseFindings(PLAN_RULES, { ...plan, variantId });
-	const storeFindings = await checkStoreMatch(http, storeId, plan.product_id);
-	return buildCheckReport({
+	const storeFindings = await checkStoreOwnership(
+		http,
+		storeId,
+		plan.product_id,
+	);
+	return createCheckReport({
 		name: "subscriptionPlan",
 		mode,
 		findings: [...planFindings, ...storeFindings],
-		resource: buildPlanSummary(variantId, plan),
+		resource: createPlanSummary(variantId, plan),
 		target: { label: plan.name, id: variantId },
 	});
 };

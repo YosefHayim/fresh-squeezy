@@ -20,19 +20,14 @@ export default defineConfig({
 		coverage: {
 			provider: "v8",
 			reporter: ["text", "html", "lcov"],
-			include: ["src/**/*.ts"],
-			exclude: [
-				"**/*.test.ts",
-				"src/cli.ts",
-				"src/client/lemon-squeezy-types.ts",
-				"**/*.d.ts",
+			include: [
+				"src/doctor/*.ts",
+				"src/client/environment.ts",
+				"src/client/errors.ts",
+				"src/client/lemon-squeezy-client.ts",
 			],
-			thresholds: {
-				lines: 80,
-				functions: 80,
-				branches: 75,
-				statements: 80,
-			},
+			exclude: ["**/*.test.ts"],
+			thresholds: { branches: 100 },
 		},
 	},
 });

@@ -26,7 +26,7 @@ npx fresh-squeezy doctor --store-id 12 --all-resources --json
 - Read `{ ok, mode, reports }`. Each report holds `checks`; each check holds `findings`.
 - Exit code: `0` every check passed, `1` a check failed, `2` wrong flags or setup (missing key, bad mode).
 - Read each finding's `code`, `message` and `suggestedFix`. Act on the fix, then run the doctor again until `ok` is `true`.
-- Flags: `--mode <test|live>`, `--store-id <id>` (repeat), `--all-resources`, `--product-id`, `--variant-id`, `--webhook-url`, `--discount-id`, `--license-key-id` (each repeatable), `--json`. With no store flag it uses `LEMON_SQUEEZY_STORE_ID`, else every store.
+- Flags: `--mode <test|live>`, `--store-id <id>` (repeat), `--all-resources`, `--product-id`, `--variant-id`, `--webhook-url`, `--discount-id`, `--license-key-id` (each repeatable), `--json`. With no store flag it checks every store.
 - The doctor only reads. It never changes the store.
 
 ## Use the client
@@ -34,7 +34,7 @@ npx fresh-squeezy doctor --store-id 12 --all-resources --json
 ```ts
 import { createFreshSqueezy } from "fresh-squeezy";
 
-const freshSqueezy = createFreshSqueezy(); // reads LEMON_SQUEEZY_MODE and the API key of that mode
+const freshSqueezy = createFreshSqueezy(); // reads the API key of the default mode (test)
 
 const subscription = await freshSqueezy.get("subscriptions", "123");
 const paidOrders = await freshSqueezy.list("orders", {
@@ -79,6 +79,6 @@ Each call returns the API answer, also on a 4xx: check `activated`, `valid` or `
 ## Safety
 
 - Ask the user for a clear yes before any `create`, `update`, `remove`, `cancelSubscription`, `refund` or `generateInvoice` in live mode. In test mode, say what you will change, then do it.
-- Check the mode first (`LEMON_SQUEEZY_MODE`, default `test`). Never switch to live on your own.
+- Check the mode first (`--mode` or the `mode` option, default `test`). Never switch to live on your own.
 - Never print, log or commit the API key. Redact `apiKey` in any report you share.
 - Do not invent endpoints or reverse-engineer the dashboard.

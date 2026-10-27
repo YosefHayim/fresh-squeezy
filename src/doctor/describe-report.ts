@@ -18,19 +18,18 @@ const SEVERITY_COLORS = {
 	info: "blue",
 } as const;
 
-const formatTarget = (target?: CheckTarget) => {
+const describeTarget = (target?: CheckTarget) => {
 	const isTargetMissing = !target;
 	if (isTargetMissing) return "";
 	const parts = [target.label];
 	const isIdGiven = Boolean(target.id);
 	if (isIdGiven) parts.push(`id ${target.id}`);
 	const isUrlNew = Boolean(target.url) && target.url !== target.label;
-	const urlText = String(target.url);
-	if (isUrlNew) parts.push(urlText);
+	if (isUrlNew) parts.push(String(target.url));
 	return parts.join(" - ");
 };
 
-const formatFinding = (finding: Finding) => {
+const describeFinding = (finding: Finding) => {
 	const label = SEVERITY_LABELS[finding.severity];
 	const color = SEVERITY_COLORS[finding.severity];
 	const severity = styleText(color, label);
@@ -42,21 +41,21 @@ const formatFinding = (finding: Finding) => {
 	return lines;
 };
 
-const formatCheck = (check: CheckReport) => {
+const describeCheck = (check: CheckReport) => {
 	const isCheckOk = check.ok;
 	const badge = isCheckOk
 		? styleText("green", "PASS")
 		: styleText("red", "FAIL");
 	const mode = styleText("dim", `[${check.mode}]`);
 	const name = styleText("bold", check.name);
-	const target = formatTarget(check.target);
+	const target = describeTarget(check.target);
 	const isTargetShown = target !== "";
 	const suffix = isTargetShown ? ` ${styleText("dim", target)}` : "";
-	const findingLines = check.findings.flatMap(formatFinding);
+	const findingLines = check.findings.flatMap(describeFinding);
 	return [`${badge} ${mode} ${name}${suffix}`, ...findingLines].join("\n");
 };
 
-export const formatReport = (report: DoctorReport) => {
+export const describeReport = (report: DoctorReport) => {
 	const isReportOk = report.ok;
 	const header = isReportOk
 		? styleText(["green", "bold"], "fresh-squeezy doctor: OK")
@@ -67,8 +66,8 @@ export const formatReport = (report: DoctorReport) => {
 	const summary = isEveryCheckPassing
 		? `${total} checks passed`
 		: `${failedCount}/${total} checks failed`;
-	const checksText = report.checks.map(formatCheck).join("\n\n");
-	const modeText = styleText("dim", `(mode: ${report.mode})`);
-	const summaryText = styleText("dim", summary);
-	return `${header} ${modeText}\n${summaryText}\n\n${checksText}`;
+	const checkLines = report.checks.map(describeCheck).join("\n\n");
+	const modeLabel = styleText("dim", `(mode: ${report.mode})`);
+	const summaryLabel = styleText("dim", summary);
+	return `${header} ${modeLabel}\n${summaryLabel}\n\n${checkLines}`;
 };

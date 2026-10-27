@@ -53,16 +53,14 @@ Node 22 或更高版本。
 pnpm add fresh-squeezy
 ```
 
-每种模式设置一个 API 密钥。`LEMON_SQUEEZY_MODE` 决定使用哪个密钥,默认为 `test`。
+每种模式设置一个 API 密钥。`--mode` 标志或 `mode` 选项决定使用哪个密钥,默认为 `test`。
 
 ```bash
 LEMON_SQUEEZY_TEST_API_KEY=your-test-key
 LEMON_SQUEEZY_LIVE_API_KEY=your-live-key
-LEMON_SQUEEZY_MODE=test
-LEMON_SQUEEZY_STORE_ID=12
 ```
 
-只需设置所运行模式的密钥,`LEMON_SQUEEZY_STORE_ID` 是可选的。同样的设置也可作为 `createFreshSqueezy({ apiKey, mode, storeId, baseUrl })` 的选项。
+只需设置所运行模式的密钥。店铺、模式和基础 URL 不是机密,所以不是环境变量:请使用 `createFreshSqueezy({ apiKey, mode, storeId, baseUrl })` 的选项,或 `--mode` 和 `--store-id` 标志。
 
 ## 客户端
 
@@ -132,18 +130,18 @@ npx fresh-squeezy doctor --store-id 12 --store-id 34 \
   --webhook-url https://app.example.com/api/webhooks/lemon-squeezy --json
 ```
 
-| 参数                    | 含义                                                            |
-| ----------------------- | --------------------------------------------------------------- |
-| `--mode <test\|live>`   | 要检查的模式。默认:`LEMON_SQUEEZY_MODE`,否则 `test`             |
-| `--store-id <id>`       | 要检查的店铺,可重复。默认:`LEMON_SQUEEZY_STORE_ID`,否则所有店铺 |
-| `--all-resources`       | 同时检查每个店铺中的所有产品、方案、webhook、折扣和许可证密钥   |
-| `--product-id <id>`     | 要检查的产品,可重复                                             |
-| `--variant-id <id>`     | 要检查的订阅方案,可重复                                         |
-| `--webhook-url <url>`   | 要检查的 webhook,可重复                                         |
-| `--discount-id <id>`    | 要检查的折扣,可重复                                             |
-| `--license-key-id <id>` | 要检查的许可证密钥,可重复                                       |
-| `--json`                | 以 JSON 输出报告                                                |
-| `--help`, `--version`   | 显示帮助或版本                                                  |
+| 参数                    | 含义                                                          |
+| ----------------------- | ------------------------------------------------------------- |
+| `--mode <test\|live>`   | 要检查的模式。默认:`test`                                     |
+| `--store-id <id>`       | 要检查的店铺,可重复。默认:所有店铺                            |
+| `--all-resources`       | 同时检查每个店铺中的所有产品、方案、webhook、折扣和许可证密钥 |
+| `--product-id <id>`     | 要检查的产品,可重复                                           |
+| `--variant-id <id>`     | 要检查的订阅方案,可重复                                       |
+| `--webhook-url <url>`   | 要检查的 webhook,可重复                                       |
+| `--discount-id <id>`    | 要检查的折扣,可重复                                           |
+| `--license-key-id <id>` | 要检查的许可证密钥,可重复                                     |
+| `--json`                | 以 JSON 输出报告                                              |
+| `--help`, `--version`   | 显示帮助或版本                                                |
 
 doctor 从环境变量或工作目录中的 `.env` 文件读取其模式的密钥 (`LEMON_SQUEEZY_TEST_API_KEY` 或 `LEMON_SQUEEZY_LIVE_API_KEY`)。它从不提问,也不会卡住。
 
@@ -190,10 +188,9 @@ doctor 从环境变量或工作目录中的 `.env` 文件读取其模式的密�
 
 ```yaml
 - name: Check Lemon Squeezy
-  run: npx fresh-squeezy doctor --all-resources --json
+  run: npx fresh-squeezy doctor --mode live --all-resources --json
   env:
     LEMON_SQUEEZY_LIVE_API_KEY: ${{ secrets.LEMON_SQUEEZY_LIVE_API_KEY }}
-    LEMON_SQUEEZY_MODE: live
 ```
 
 退出码为 `1` 或 `2` 时该步骤失败。线上密钥指向测试店铺(或相反)会触发 `MODE_MISMATCH`:doctor 会把声明的模式与 `/v1/users/me` 返回的 `meta.test_mode` 比较。
@@ -296,6 +293,11 @@ SDK 导出的每个函数,以及替换它的 fresh-squeezy 调用。以下差异
 | `validateLicense`                 | `validateLicense({ licenseKey, instanceId })` from `fresh-squeezy/license`            |
 
 这 60 行就是 `@lemonsqueezy/lemonsqueezy.js` 4.0.0 导出的全部函数。
+
+## 从 0.4 升级
+
+- 名称变更:`fresh-squeezy/config` 变为 `fresh-squeezy/environment`,`readConfig` 变为 `readClientSettings`,`Config` 变为 `ClientSettings`,`FreshSqueezyConfig` 变为 `FreshSqueezySettings`,`readEnvApiKey` 变为 `readApiKeyFromEnvironment`,`buildCheckReport` 变为 `createCheckReport`,`buildFreshSqueezyError` 变为 `createFreshSqueezyError`,`CreateInput` 变为 `NewResources`,`UpdateInput` 变为 `UpdateAttributes`。`RelationshipName` 已移除。
+- `LEMON_SQUEEZY_MODE` 和 `LEMON_SQUEEZY_STORE_ID` 已删除:请使用 `mode` 和 `storeId` 选项,或 `--mode` 和 `--store-id` 标志。
 
 ## 从 0.3 升级
 

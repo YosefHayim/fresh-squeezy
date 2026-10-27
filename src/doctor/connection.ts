@@ -1,5 +1,5 @@
-import type { Mode } from "@/client/config.js";
-import type { Http, JsonApiDocument } from "@/client/http.js";
+import type { Mode } from "@/client/environment.js";
+import type { Http, JsonApiResource } from "@/client/http.js";
 import type {
 	StoreAttributes,
 	UserAttributes,
@@ -7,8 +7,8 @@ import type {
 } from "@/client/lemon-squeezy-types.js";
 import { fetchSafely } from "./fetch-resource.js";
 import {
-	buildCheckReport,
 	type CheckReport,
+	createCheckReport,
 	FINDING_CODES,
 	type FindingRule,
 	raiseFindings,
@@ -22,9 +22,12 @@ export interface ConnectionSummary {
 	declaredMode: Mode;
 }
 
-type UserDocument = JsonApiDocument<UserAttributes> & { meta?: UserMeta };
+interface UserDocument {
+	data: JsonApiResource<UserAttributes>;
+	meta?: UserMeta;
+}
 
-const modeOfTestFlag = (testMode: boolean | undefined) => {
+const pickModeForTestFlag = (testMode: boolean | undefined) => {
 	const isTestKey = testMode === true;
 	const isLiveKey = testMode === false;
 	if (isTestKey) return "test";
@@ -48,7 +51,7 @@ const CONNECTION_RULES: FindingRule<ConnectionSummary>[] = [
 			`Either pass --mode ${actualMode} or use a ${declaredMode}-mode key from https://app.lemonsqueezy.com/settings/api.`,
 		context: ({ actualMode, declaredMode }) => ({
 			declared: declaredMode,
-			actual: actualMode ?? null,
+			actual: actualMode,
 		}),
 	},
 	{
@@ -75,7 +78,7 @@ export const validateConnection = async (
 
 	const isFetchFailed = accountLookup.kind === "failed";
 	if (isFetchFailed) {
-		return buildCheckReport({
+		return createCheckReport({
 			name: "connection",
 			mode,
 			findings: [accountLookup.finding],
@@ -83,7 +86,7 @@ export const validateConnection = async (
 	}
 
 	const { userDocument, stores } = accountLookup.resource;
-	const actualMode = modeOfTestFlag(userDocument.meta?.test_mode);
+	const actualMode = pickModeForTestFlag(userDocument.meta?.test_mode);
 	const summary: ConnectionSummary = {
 		user: userDocument.data.attributes,
 		storeCount: stores.length,
@@ -92,7 +95,7 @@ export const validateConnection = async (
 		...(actualMode ? { actualMode } : {}),
 	};
 	const findings = raiseFindings(CONNECTION_RULES, summary);
-	return buildCheckReport({
+	return createCheckReport({
 		name: "connection",
 		mode,
 		findings,

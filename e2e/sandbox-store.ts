@@ -1,4 +1,4 @@
-export const USER_DOC = {
+export const USER_DOCUMENT = {
 	data: {
 		type: "users",
 		id: "1",
@@ -13,7 +13,7 @@ export const USER_DOC = {
 	},
 };
 
-export const LIVE_USER_DOC = {
+export const LIVE_USER_DOCUMENT = {
 	data: {
 		type: "users",
 		id: "2",
@@ -44,7 +44,7 @@ export const STORES_COLLECTION = {
 	],
 };
 
-export const STORE_DOC = {
+export const STORE_DOCUMENT = {
 	data: {
 		type: "stores",
 		id: "42",
@@ -58,7 +58,7 @@ export const STORE_DOC = {
 	},
 };
 
-export const PUBLISHED_PRODUCT_DOC = {
+export const PUBLISHED_PRODUCT_DOCUMENT = {
 	data: {
 		type: "products",
 		id: "100",
@@ -75,7 +75,7 @@ export const PUBLISHED_PRODUCT_DOC = {
 	},
 };
 
-export const UNPUBLISHED_PRODUCT_DOC = {
+export const UNPUBLISHED_PRODUCT_DOCUMENT = {
 	data: {
 		type: "products",
 		id: "101",
@@ -89,7 +89,7 @@ export const UNPUBLISHED_PRODUCT_DOC = {
 	},
 };
 
-export const PRODUCT_ON_WRONG_STORE_DOC = {
+export const PRODUCT_ON_WRONG_STORE_DOCUMENT = {
 	data: {
 		type: "products",
 		id: "102",
@@ -242,7 +242,7 @@ export const WEBHOOKS_COLLECTION_EMPTY = { data: [] };
 
 // --- Discount fixtures ---
 
-type DiscountAttributes = {
+interface DiscountAttributes {
 	name: string;
 	code: string;
 	amount: number;
@@ -255,9 +255,9 @@ type DiscountAttributes = {
 	status: "published" | "draft";
 	duration: "once" | "forever" | "repeating";
 	store_id: number;
-};
+}
 
-const buildDiscountDocument = (
+const createDiscountDocument = (
 	id: string,
 	overrides: Partial<DiscountAttributes>,
 ) => ({
@@ -278,15 +278,15 @@ const buildDiscountDocument = (
 			duration: "once",
 			store_id: 42,
 			...overrides,
-		} as DiscountAttributes,
+		} satisfies DiscountAttributes,
 	},
 });
 
-export const publishedDiscountDoc = buildDiscountDocument("600", {
+export const publishedDiscountDocument = createDiscountDocument("600", {
 	expires_at: "2099-12-31T23:59:59Z",
 });
 
-export const draftDiscountDoc = buildDiscountDocument("601", {
+export const draftDiscountDocument = createDiscountDocument("601", {
 	name: "Draft Discount",
 	code: "DRAFT10",
 	amount: 10,
@@ -294,14 +294,14 @@ export const draftDiscountDoc = buildDiscountDocument("601", {
 	duration: "forever",
 });
 
-export const expiredDiscountDoc = buildDiscountDocument("602", {
+export const expiredDiscountDocument = createDiscountDocument("602", {
 	name: "Old Promo",
 	code: "OLD50",
 	amount: 50,
 	expires_at: "2020-01-01T00:00:00Z",
 });
 
-export const futureDiscountDoc = buildDiscountDocument("603", {
+export const futureDiscountDocument = createDiscountDocument("603", {
 	name: "Future Promo",
 	code: "FUTURE",
 	amount: 15,
@@ -310,7 +310,7 @@ export const futureDiscountDoc = buildDiscountDocument("603", {
 	duration: "repeating",
 });
 
-export const exhaustedDiscountDoc = buildDiscountDocument("604", {
+export const exhaustedDiscountDocument = createDiscountDocument("604", {
 	name: "Exhausted",
 	code: "DONE",
 	amount: 5,
@@ -318,19 +318,19 @@ export const exhaustedDiscountDoc = buildDiscountDocument("604", {
 	is_limited_redemptions: true,
 });
 
-export const invalidPercentDiscountDoc = buildDiscountDocument("605", {
+export const invalidPercentDiscountDocument = createDiscountDocument("605", {
 	name: "Bad Percent",
 	code: "BAD150",
 	amount: 150,
 });
 
-export const zeroAmountDiscountDoc = buildDiscountDocument("606", {
+export const zeroAmountDiscountDocument = createDiscountDocument("606", {
 	name: "Zero Discount",
 	code: "ZERO",
 	amount: 0,
 });
 
-export const wrongStoreDiscountDoc = buildDiscountDocument("607", {
+export const wrongStoreDiscountDocument = createDiscountDocument("607", {
 	name: "Other Store",
 	code: "OTHER",
 	amount: 10,
@@ -340,7 +340,7 @@ export const wrongStoreDiscountDoc = buildDiscountDocument("607", {
 
 // --- License key fixtures ---
 
-type LicenseKeyAttributes = {
+interface LicenseKeyAttributes {
 	key_short: string;
 	status: "active" | "disabled" | "expired";
 	expires_at: string | null;
@@ -348,9 +348,9 @@ type LicenseKeyAttributes = {
 	instances_count: number;
 	disabled: boolean;
 	store_id: number;
-};
+}
 
-const buildLicenseKeyDocument = (
+const createLicenseKeyDocument = (
 	id: string,
 	overrides: Partial<LicenseKeyAttributes>,
 ) => ({
@@ -366,23 +366,23 @@ const buildLicenseKeyDocument = (
 			disabled: false,
 			store_id: 42,
 			...overrides,
-		} as LicenseKeyAttributes,
+		} satisfies LicenseKeyAttributes,
 	},
 });
 
-export const activeLicenseKeyDoc = buildLicenseKeyDocument("700", {
+export const activeLicenseKeyDocument = createLicenseKeyDocument("700", {
 	expires_at: "2099-12-31T23:59:59Z",
 	activation_limit: 5,
 	instances_count: 2,
 });
 
-export const disabledLicenseKeyDoc = buildLicenseKeyDocument("701", {
+export const disabledLicenseKeyDocument = createLicenseKeyDocument("701", {
 	key_short: "DDDD-DDDD",
 	status: "disabled",
 	disabled: true,
 });
 
-export const expiredLicenseKeyDoc = buildLicenseKeyDocument("702", {
+export const expiredLicenseKeyDocument = createLicenseKeyDocument("702", {
 	key_short: "EEEE-EEEE",
 	status: "expired",
 	expires_at: "2020-01-01T00:00:00Z",
@@ -390,20 +390,20 @@ export const expiredLicenseKeyDoc = buildLicenseKeyDocument("702", {
 	instances_count: 1,
 });
 
-export const atLimitLicenseKeyDoc = buildLicenseKeyDocument("703", {
+export const atLimitLicenseKeyDocument = createLicenseKeyDocument("703", {
 	key_short: "LLLL-LLLL",
 	activation_limit: 3,
 	instances_count: 3,
 });
 
-export const wrongStoreLicenseKeyDoc = buildLicenseKeyDocument("704", {
+export const wrongStoreLicenseKeyDocument = createLicenseKeyDocument("704", {
 	key_short: "WWWW-WWWW",
 	store_id: 99,
 });
 
 // --- Subscription variant fixtures ---
 
-const buildVariantDocument = (
+const createVariantDocument = (
 	id: string,
 	overrides: Record<string, unknown>,
 ) => ({
@@ -427,9 +427,9 @@ const buildVariantDocument = (
 	},
 });
 
-export const subscriptionVariantDoc = buildVariantDocument("800", {});
+export const subscriptionVariantDocument = createVariantDocument("800", {});
 
-export const nonSubscriptionVariantDoc = buildVariantDocument("801", {
+export const nonSubscriptionVariantDocument = createVariantDocument("801", {
 	name: "One-time Purchase",
 	slug: "one-time",
 	is_subscription: false,
@@ -438,43 +438,52 @@ export const nonSubscriptionVariantDoc = buildVariantDocument("801", {
 	price: 2900,
 });
 
-export const invalidIntervalVariantDoc = buildVariantDocument("802", {
+export const invalidIntervalVariantDocument = createVariantDocument("802", {
 	name: "Bad Interval",
 	slug: "bad-interval",
 	interval: null,
 	interval_count: 0,
 });
 
-export const missingIntervalCountVariantDoc = buildVariantDocument("810", {
-	name: "No Interval Count",
-	slug: "no-interval-count",
-	interval_count: undefined,
-});
+export const missingIntervalCountVariantDocument = createVariantDocument(
+	"810",
+	{
+		name: "No Interval Count",
+		slug: "no-interval-count",
+		interval_count: undefined,
+	},
+);
 
-export const freePriceSubscriptionVariantDoc = buildVariantDocument("803", {
-	name: "Free Plan",
-	slug: "free-plan",
-	price: 0,
-});
+export const freePriceSubscriptionVariantDocument = createVariantDocument(
+	"803",
+	{
+		name: "Free Plan",
+		slug: "free-plan",
+		price: 0,
+	},
+);
 
-export const trialInconsistentVariantDoc = buildVariantDocument("804", {
+export const trialInconsistentVariantDocument = createVariantDocument("804", {
 	name: "Bad Trial",
 	slug: "bad-trial",
 	has_free_trial: true,
 	trial_interval_count: 0,
 });
 
-export const draftSubscriptionVariantDoc = buildVariantDocument("805", {
+export const draftSubscriptionVariantDocument = createVariantDocument("805", {
 	name: "Draft Plan",
 	slug: "draft-plan",
 	status: "draft",
 });
 
-export const wrongStoreSubscriptionVariantDoc = buildVariantDocument("806", {
-	product_id: 102,
-	name: "Wrong Store Plan",
-	slug: "wrong-store",
-});
+export const wrongStoreSubscriptionVariantDocument = createVariantDocument(
+	"806",
+	{
+		product_id: 102,
+		name: "Wrong Store Plan",
+		slug: "wrong-store",
+	},
+);
 
 export const UNAUTHORIZED_ERROR = {
 	errors: [

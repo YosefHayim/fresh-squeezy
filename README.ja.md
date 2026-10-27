@@ -53,16 +53,14 @@ Node 22 以上。
 pnpm add fresh-squeezy
 ```
 
-API キーはモードごとに 1 つ設定します。`LEMON_SQUEEZY_MODE` が使うキーを選び、既定値は `test` です。
+API キーはモードごとに 1 つ設定します。`--mode` フラグまたは `mode` オプションが使うキーを選び、既定値は `test` です。
 
 ```bash
 LEMON_SQUEEZY_TEST_API_KEY=your-test-key
 LEMON_SQUEEZY_LIVE_API_KEY=your-live-key
-LEMON_SQUEEZY_MODE=test
-LEMON_SQUEEZY_STORE_ID=12
 ```
 
-必要なのは実行するモードのキーだけで、`LEMON_SQUEEZY_STORE_ID` は任意です。同じ設定を `createFreshSqueezy({ apiKey, mode, storeId, baseUrl })` のオプションとしても使えます。
+必要なのは実行するモードのキーだけです。ストア、モード、ベース URL は秘密ではないので環境変数ではありません。`createFreshSqueezy({ apiKey, mode, storeId, baseUrl })` のオプション、または `--mode` と `--store-id` フラグを使います。
 
 ## クライアント
 
@@ -132,18 +130,18 @@ npx fresh-squeezy doctor --store-id 12 --store-id 34 \
   --webhook-url https://app.example.com/api/webhooks/lemon-squeezy --json
 ```
 
-| フラグ                  | 意味                                                                                                 |
-| ----------------------- | ---------------------------------------------------------------------------------------------------- |
-| `--mode <test\|live>`   | チェックするモード。既定値: `LEMON_SQUEEZY_MODE`、なければ `test`                                    |
-| `--store-id <id>`       | チェックするストア。複数指定は繰り返します。既定値: `LEMON_SQUEEZY_STORE_ID`、なければすべてのストア |
-| `--all-resources`       | 各ストア内のすべての商品、プラン、webhook、割引、ライセンスキーもチェックする                        |
-| `--product-id <id>`     | チェックする商品。複数指定は繰り返します                                                             |
-| `--variant-id <id>`     | チェックするサブスクリプションプラン。複数指定は繰り返します                                         |
-| `--webhook-url <url>`   | チェックする webhook。複数指定は繰り返します                                                         |
-| `--discount-id <id>`    | チェックする割引。複数指定は繰り返します                                                             |
-| `--license-key-id <id>` | チェックするライセンスキー。複数指定は繰り返します                                                   |
-| `--json`                | レポートを JSON で出力する                                                                           |
-| `--help`, `--version`   | ヘルプまたはバージョンを表示する                                                                     |
+| フラグ                  | 意味                                                                          |
+| ----------------------- | ----------------------------------------------------------------------------- |
+| `--mode <test\|live>`   | チェックするモード。既定値: `test`                                            |
+| `--store-id <id>`       | チェックするストア。複数指定は繰り返します。既定値: すべてのストア            |
+| `--all-resources`       | 各ストア内のすべての商品、プラン、webhook、割引、ライセンスキーもチェックする |
+| `--product-id <id>`     | チェックする商品。複数指定は繰り返します                                      |
+| `--variant-id <id>`     | チェックするサブスクリプションプラン。複数指定は繰り返します                  |
+| `--webhook-url <url>`   | チェックする webhook。複数指定は繰り返します                                  |
+| `--discount-id <id>`    | チェックする割引。複数指定は繰り返します                                      |
+| `--license-key-id <id>` | チェックするライセンスキー。複数指定は繰り返します                            |
+| `--json`                | レポートを JSON で出力する                                                    |
+| `--help`, `--version`   | ヘルプまたはバージョンを表示する                                              |
 
 doctor はモードに合うキー (`LEMON_SQUEEZY_TEST_API_KEY` または `LEMON_SQUEEZY_LIVE_API_KEY`) を環境変数、または作業ディレクトリの `.env` ファイルから読みます。入力を求めることも、止まることもありません。
 
@@ -190,10 +188,9 @@ doctor はモードに合うキー (`LEMON_SQUEEZY_TEST_API_KEY` または `LEMO
 
 ```yaml
 - name: Check Lemon Squeezy
-  run: npx fresh-squeezy doctor --all-resources --json
+  run: npx fresh-squeezy doctor --mode live --all-resources --json
   env:
     LEMON_SQUEEZY_LIVE_API_KEY: ${{ secrets.LEMON_SQUEEZY_LIVE_API_KEY }}
-    LEMON_SQUEEZY_MODE: live
 ```
 
 終了コードが `1` または `2` のとき、ステップは失敗します。本番キーがテストストアを指している場合(またはその逆)は `MODE_MISMATCH` になります。doctor は宣言したモードと `/v1/users/me` の `meta.test_mode` を比べます。
@@ -296,6 +293,11 @@ SDK がエクスポートするすべての関数と、それを置き換える 
 | `validateLicense`                 | `validateLicense({ licenseKey, instanceId })` from `fresh-squeezy/license`            |
 
 この 60 行が `@lemonsqueezy/lemonsqueezy.js` 4.0.0 のエクスポートするすべての関数です。
+
+## 0.4 からのアップグレード
+
+- 名前の変更: `fresh-squeezy/config` は `fresh-squeezy/environment`、`readConfig` は `readClientSettings`、`Config` は `ClientSettings`、`FreshSqueezyConfig` は `FreshSqueezySettings`、`readEnvApiKey` は `readApiKeyFromEnvironment`、`buildCheckReport` は `createCheckReport`、`buildFreshSqueezyError` は `createFreshSqueezyError`、`CreateInput` は `NewResources`、`UpdateInput` は `UpdateAttributes` です。`RelationshipName` は削除されました。
+- `LEMON_SQUEEZY_MODE` と `LEMON_SQUEEZY_STORE_ID` は削除されました。`mode` と `storeId` のオプション、または `--mode` と `--store-id` フラグを使います。
 
 ## 0.3 からのアップグレード
 

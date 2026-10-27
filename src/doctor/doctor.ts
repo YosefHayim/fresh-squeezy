@@ -1,5 +1,5 @@
-import type { Mode } from "@/client/config.js";
-import { buildFreshSqueezyError } from "@/client/errors.js";
+import type { Mode } from "@/client/environment.js";
+import { createFreshSqueezyError } from "@/client/errors.js";
 import type { Http, JsonApiResource } from "@/client/http.js";
 import type {
 	DiscountAttributes,
@@ -13,9 +13,9 @@ import { validateConnection } from "./connection.js";
 import { validateDiscount } from "./discount.js";
 import { fetchCollection, type Lookup } from "./fetch-resource.js";
 import {
-	buildCheckReport,
 	type CheckName,
 	type CheckReport,
+	createCheckReport,
 	type DoctorReport,
 } from "./findings.js";
 import { validateLicenseKey } from "./license-key.js";
@@ -77,7 +77,9 @@ const reportListingFailure = (
 	const isListed = lookup.kind === "found";
 	if (isListed) return [];
 	const target = { label: `${noun} of store ${storeId}` };
-	return [buildCheckReport({ name, mode, findings: [lookup.finding], target })];
+	return [
+		createCheckReport({ name, mode, findings: [lookup.finding], target }),
+	];
 };
 
 const fetchVariantListing = (
@@ -158,7 +160,7 @@ const assertStoreGivenForDependents = (
 		.map(([targetName]) => targetName);
 	const isNoTargetGiven = givenTargetNames.length === 0;
 	if (isNoTargetGiven) return;
-	throw buildFreshSqueezyError({
+	throw createFreshSqueezyError({
 		code: "DOCTOR_TARGETS_INVALID",
 		message: `doctor() received ${givenTargetNames.join(", ")} without storeId. These checks cannot run without a store; pass \`storeId\` or remove the dependent targets.`,
 	});
@@ -171,12 +173,12 @@ export const listStoreIds = async (http: Http) => {
 	const isFetchFailed = storesLookup.kind === "failed";
 	if (isFetchFailed) {
 		const { code, message } = storesLookup.finding;
-		throw buildFreshSqueezyError({ code, message });
+		throw createFreshSqueezyError({ code, message });
 	}
 	const stores = storesLookup.resource;
 	const hasNoStores = stores.length === 0;
 	if (hasNoStores) {
-		throw buildFreshSqueezyError({
+		throw createFreshSqueezyError({
 			code: "NO_STORES",
 			message: "No stores reachable with this API key.",
 		});

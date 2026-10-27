@@ -1,41 +1,48 @@
+import { createFreshSqueezyError } from "@/client/errors.js";
 import type { Http, JsonApiDocument } from "@/client/http.js";
 import type {
 	CreatableResource,
-	CreateInput,
 	CurrentUsage,
 	InvoiceBilling,
 	InvoiceDownload,
 	InvoiceResource,
 	ListableResource,
+	NewResources,
 	RefundableResource,
-	RelationshipName,
 	RemovableResource,
 	ResourceAttributes,
 	ResourceType,
 	UpdatableResource,
-	UpdateInput,
+	UpdateAttributes,
 } from "@/client/lemon-squeezy-types.js";
 
-const RELATIONSHIP_TYPES = {
-	store: "stores",
-	variant: "variants",
-	variants: "variants",
-	"subscription-item": "subscription-items",
-} as const;
+const RELATIONSHIP_TYPES = new Map([
+	["store", "stores"],
+	["variant", "variants"],
+	["variants", "variants"],
+	["subscription-item", "subscription-items"],
+]);
 
 export type ListFilter = Record<string, string | number>;
 
-const buildFilterQuery = (filter: ListFilter = {}) => {
-	const filterEntries = Object.entries(filter);
-	const queryEntries = filterEntries.map(([filterName, filterValue]) => [
+const createFilterQuery = (filter: ListFilter = {}) => {
+	const filterPairs = Object.entries(filter);
+	const queryPairs = filterPairs.map(([filterName, filterTerm]) => [
 		`filter[${filterName}]`,
-		filterValue,
+		filterTerm,
 	]);
-	return Object.fromEntries(queryEntries);
+	return Object.fromEntries(queryPairs);
 };
 
-const buildLinkage = (name: RelationshipName, ids: string | string[]) => {
-	const type = RELATIONSHIP_TYPES[name];
+const createLinkage = (name: string, ids: string | string[]) => {
+	const type = RELATIONSHIP_TYPES.get(name);
+	const isTypeUnknown = type === undefined;
+	if (isTypeUnknown) {
+		throw createFreshSqueezyError({
+			code: "UNKNOWN_RELATIONSHIP",
+			message: `Unknown relationship "${name}".`,
+		});
+	}
 	const isIdList = Array.isArray(ids);
 	const linkage = isIdList
 		? ids.map((id) => ({ type, id }))
@@ -43,17 +50,18 @@ const buildLinkage = (name: RelationshipName, ids: string | string[]) => {
 	return { data: linkage };
 };
 
-const buildRelationships = (
-	relationships: CreateInput[CreatableResource]["relationships"],
+const isRelationshipGiven = (
+	relationship: [string, string | string[] | undefined],
+): relationship is [string, string | string[]] => relationship[1] !== undefined;
+
+const createRelationships = (
+	relationships: NewResources[CreatableResource]["relationships"],
 ) => {
-	// Object.entries types its keys as string; the input type already limits them to RelationshipName.
-	const relationshipEntries = Object.entries(relationships) as [
-		RelationshipName,
-		string | string[],
-	][];
-	const linkages = relationshipEntries.map(([name, ids]) => [
+	const relationshipPairs = Object.entries(relationships);
+	const givenPairs = relationshipPairs.filter(isRelationshipGiven);
+	const linkages = givenPairs.map(([name, ids]) => [
 		name,
-		buildLinkage(name, ids),
+		createLinkage(name, ids),
 	]);
 	return Object.fromEntries(linkages);
 };
@@ -64,24 +72,27 @@ interface ResourceRequest {
 	document?: unknown;
 }
 
-const sendResource = async <Type extends ResourceType>(
+const sendResource = async <Resource extends ResourceType>(
 	http: Http,
 	resourceRequest: ResourceRequest,
 ) => {
 	const resourceDocument =
-		await http.request<JsonApiDocument<ResourceAttributes[Type]>>(
+		await http.request<JsonApiDocument<ResourceAttributes[Resource]>>(
 			resourceRequest,
 		);
 	return resourceDocument.data;
 };
 
 const createReadVerbs = (http: Http) => ({
-	get: <Type extends ResourceType>(type: Type, id: string) =>
-		http.getResource<ResourceAttributes[Type]>(`/v1/${type}/${id}`),
+	get: <Resource extends ResourceType>(type: Resource, id: string) =>
+		http.getResource<ResourceAttributes[Resource]>(`/v1/${type}/${id}`),
 
-	list: <Type extends ListableResource>(type: Type, filter?: ListFilter) => {
-		const query = buildFilterQuery(filter);
-		return http.getAll<ResourceAttributes[Type]>(`/v1/${type}`, query);
+	list: <Resource extends ListableResource>(
+		type: Resource,
+		filter?: ListFilter,
+	) => {
+		const query = createFilterQuery(filter);
+		return http.getAll<ResourceAttributes[Resource]>(`/v1/${type}`, query);
 	},
 
 	currentUsage: (subscriptionItemId: string) =>
@@ -91,28 +102,28 @@ const createReadVerbs = (http: Http) => ({
 });
 
 const createWriteVerbs = (http: Http) => ({
-	create: <Type extends CreatableResource>(
-		type: Type,
-		newResource: CreateInput[Type],
+	create: <Resource extends CreatableResource>(
+		type: Resource,
+		newResource: NewResources[Resource],
 	) => {
-		const relationships = buildRelationships(newResource.relationships);
+		const relationships = createRelationships(newResource.relationships);
 		const createDocument = {
 			data: { type, attributes: newResource.attributes, relationships },
 		};
-		return sendResource<Type>(http, {
+		return sendResource<Resource>(http, {
 			method: "POST",
 			path: `/v1/${type}`,
 			document: createDocument,
 		});
 	},
 
-	update: <Type extends UpdatableResource>(
-		type: Type,
+	update: <Resource extends UpdatableResource>(
+		type: Resource,
 		id: string,
-		attributes: UpdateInput[Type],
+		attributes: UpdateAttributes[Resource],
 	) => {
 		const updateDocument = { data: { type, id, attributes } };
-		return sendResource<Type>(http, {
+		return sendResource<Resource>(http, {
 			method: "PATCH",
 			path: `/v1/${type}/${id}`,
 			document: updateDocument,
@@ -130,13 +141,13 @@ const createWriteVerbs = (http: Http) => ({
 });
 
 const createBillingVerbs = (http: Http) => ({
-	refund: <Type extends RefundableResource>(
-		type: Type,
+	refund: <Resource extends RefundableResource>(
+		type: Resource,
 		id: string,
 		amount?: number,
 	) => {
 		const refundDocument = { data: { type, id, attributes: { amount } } };
-		return sendResource<Type>(http, {
+		return sendResource<Resource>(http, {
 			method: "POST",
 			path: `/v1/${type}/${id}/refund`,
 			document: refundDocument,

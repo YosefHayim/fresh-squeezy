@@ -540,7 +540,26 @@ export interface ResourceAttributes {
 
 export type ResourceType = keyof ResourceAttributes;
 
-export type ListableResource = Exclude<ResourceType, "users">;
+export type ListableResource =
+	| "stores"
+	| "customers"
+	| "products"
+	| "variants"
+	| "prices"
+	| "files"
+	| "orders"
+	| "order-items"
+	| "subscriptions"
+	| "subscription-invoices"
+	| "subscription-items"
+	| "usage-records"
+	| "discounts"
+	| "discount-redemptions"
+	| "license-keys"
+	| "license-key-instances"
+	| "checkouts"
+	| "webhooks"
+	| "affiliates";
 
 export interface CustomerCreate {
 	attributes: {
@@ -602,7 +621,7 @@ export interface WebhookCreate {
 	relationships: { store: string };
 }
 
-export interface CreateInput {
+export interface NewResources {
 	customers: CustomerCreate;
 	"usage-records": UsageRecordCreate;
 	discounts: DiscountCreate;
@@ -610,7 +629,7 @@ export interface CreateInput {
 	webhooks: WebhookCreate;
 }
 
-export type CreatableResource = keyof CreateInput;
+export type CreatableResource = keyof NewResources;
 
 export interface CustomerUpdate {
 	name?: string;
@@ -649,7 +668,7 @@ export interface WebhookUpdate {
 	secret?: string;
 }
 
-export interface UpdateInput {
+export interface UpdateAttributes {
 	customers: CustomerUpdate;
 	subscriptions: SubscriptionUpdate;
 	"subscription-items": SubscriptionItemUpdate;
@@ -657,19 +676,13 @@ export interface UpdateInput {
 	webhooks: WebhookUpdate;
 }
 
-export type UpdatableResource = keyof UpdateInput;
+export type UpdatableResource = keyof UpdateAttributes;
 
 export type RemovableResource = "discounts" | "webhooks";
 
 export type RefundableResource = "orders" | "subscription-invoices";
 
 export type InvoiceResource = "orders" | "subscription-invoices";
-
-export type RelationshipName =
-	| "store"
-	| "variant"
-	| "variants"
-	| "subscription-item";
 
 export interface InvoiceBilling {
 	name: string;
