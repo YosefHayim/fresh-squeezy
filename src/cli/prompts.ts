@@ -58,8 +58,10 @@ export const askForApiKey = async (): Promise<InitAnswers> => {
 		message: "Paste your Lemon Squeezy API key:",
 		mask: false,
 		theme: PROMPT_THEME,
-		validate: (value: string) =>
-			value.trim().length > 0 ? true : "API key is required.",
+		validate: (value: string) => {
+			const isApiKeyGiven = value.trim().length > 0;
+			return isApiKeyGiven ? true : "API key is required.";
+		},
 	});
 	return { apiKey: apiKey.trim() };
 };
@@ -88,8 +90,10 @@ export const pickStores = async (
 			value: entry.id,
 			checked: index === 0,
 		})),
-		validate: (selected) =>
-			selected.length > 0 ? true : "Pick at least one store.",
+		validate: (selected) => {
+			const isAnyStoreSelected = selected.length > 0;
+			return isAnyStoreSelected ? true : "Pick at least one store.";
+		},
 	});
 };
 
@@ -99,9 +103,9 @@ export const selectOptionalValidators = async (): Promise<
 	return checkbox<OptionalValidatorName>({
 		message: "Add resource checks to this doctor run?",
 		theme: PROMPT_THEME,
-		choices: OPTIONAL_VALIDATORS.map((row) => ({
-			name: row.menuLabel,
-			value: row.name,
+		choices: OPTIONAL_VALIDATORS.map((optionalValidator) => ({
+			name: optionalValidator.menuLabel,
+			value: optionalValidator.name,
 		})),
 	});
 };
@@ -115,30 +119,37 @@ const splitManualValues = (value: string | undefined): string[] =>
 const cleanList = (
 	value: string[] | string | undefined,
 ): string[] | undefined => {
-	const values = Array.isArray(value) ? value : splitManualValues(value);
-	const cleaned = Array.from(
-		new Set(values.map((entry) => entry.trim()).filter(Boolean)),
-	);
-	return cleaned.length > 0 ? cleaned : undefined;
+	const isAlreadyList = Array.isArray(value);
+	const values = isAlreadyList ? value : splitManualValues(value);
+	const trimmedValues = values.map((entry) => entry.trim());
+	const nonEmptyValues = trimmedValues.filter(Boolean);
+	const uniqueValues = new Set(nonEmptyValues);
+	const cleaned = Array.from(uniqueValues);
+	const isAnyValueLeft = cleaned.length > 0;
+	return isAnyValueLeft ? cleaned : undefined;
 };
 
 const pickDiscoveredIds = async (
-	row: OptionalValidator,
+	optionalValidator: OptionalValidator,
 	group: ResourceChoiceGroup | undefined,
 ): Promise<string[] | EmptyTargetAction> => {
 	const discovered = group?.choices ?? [];
-	if (discovered.length === 0) return "manual";
+	const isNothingDiscovered = discovered.length === 0;
+	if (isNothingDiscovered) return "manual";
 
 	const values = await checkbox<string>({
-		message: `Pick ${row.noun} to validate:`,
+		message: `Pick ${optionalValidator.noun} to validate:`,
 		theme: PROMPT_THEME,
 		choices: discovered.map((choice) => ({
 			name: choice.label,
 			value: choice.value,
 		})),
 	});
-	if (values.length > 0) return values;
-	return askEmptyTargetAction(`No ${row.noun} selected. What now?`);
+	const isAnyIdPicked = values.length > 0;
+	if (isAnyIdPicked) return values;
+	return askEmptyTargetAction(
+		`No ${optionalValidator.noun} selected. What now?`,
+	);
 };
 
 const askEmptyTargetAction = async (
@@ -158,31 +169,40 @@ export const askForValidatorIds = async (
 	names: OptionalValidatorName[],
 	choices: DiscoveredChoices = {},
 ): Promise<OptionalValidatorIds> => {
-	if (names.length === 0) return {};
+	const areNoValidatorsChosen = names.length === 0;
+	if (areNoValidatorsChosen) return {};
 
 	const answers: Partial<
 		Record<keyof OptionalValidatorIds, string[] | string>
 	> = {};
 	const manualRows: OptionalValidator[] = [];
 
-	for (const row of OPTIONAL_VALIDATORS) {
-		if (!names.includes(row.name)) continue;
-		const picked = await pickDiscoveredIds(row, choices[row.name]);
-		if (picked === "manual") manualRows.push(row);
-		else if (picked !== "skip") answers[row.field] = picked;
+	for (const optionalValidator of OPTIONAL_VALIDATORS) {
+		const isValidatorNotChosen = !names.includes(optionalValidator.name);
+		if (isValidatorNotChosen) continue;
+		const picked = await pickDiscoveredIds(
+			optionalValidator,
+			choices[optionalValidator.name],
+		);
+		const isManualEntryWanted = picked === "manual";
+		const arePickedIdsGiven = Array.isArray(picked);
+		if (isManualEntryWanted) manualRows.push(optionalValidator);
+		if (arePickedIdsGiven) answers[optionalValidator.field] = picked;
 	}
 
-	for (const row of manualRows) {
-		answers[row.field] = await input({
-			message: `${row.manualNoun} to validate (comma-separated, leave empty to skip):`,
+	for (const optionalValidator of manualRows) {
+		answers[optionalValidator.field] = await input({
+			message: `${optionalValidator.manualNoun} to validate (comma-separated, leave empty to skip):`,
 			theme: PROMPT_THEME,
-			validate: row.validate,
+			validate: optionalValidator.validate,
 		});
 	}
 
 	const targetValues: OptionalValidatorIds = {};
-	for (const row of OPTIONAL_VALIDATORS)
-		targetValues[row.field] = cleanList(answers[row.field]);
+	for (const optionalValidator of OPTIONAL_VALIDATORS)
+		targetValues[optionalValidator.field] = cleanList(
+			answers[optionalValidator.field],
+		);
 	return targetValues;
 };
 
@@ -213,14 +233,17 @@ export const confirmResourceOp = async (message: string): Promise<boolean> => {
 };
 
 const formatPromptPath = (filePath: string): string => {
-	const relative = path.relative(process.cwd(), filePath);
-	if (relative && !relative.startsWith("..") && !path.isAbsolute(relative))
-		return relative;
+	const workingDir = process.cwd();
+	const relative = path.relative(workingDir, filePath);
+	const isInsideWorkingDir =
+		relative !== "" && !relative.startsWith("..") && !path.isAbsolute(relative);
+	if (isInsideWorkingDir) return relative;
 	return path.basename(filePath);
 };
 
 export const isPromptCancel = (error: unknown): boolean => {
-	if (!(error instanceof Error)) return false;
+	const isNotError = !(error instanceof Error);
+	if (isNotError) return false;
 	return error.name === "ExitPromptError";
 };
 
@@ -246,8 +269,10 @@ export const askParentId = async (resource: string): Promise<string> => {
 	const value = await input({
 		message: `Parent id to list ${resource} items from:`,
 		theme: PROMPT_THEME,
-		validate: (entry: string) =>
-			entry.trim().length > 0 ? true : "A parent id is required.",
+		validate: (entry: string) => {
+			const isParentIdGiven = entry.trim().length > 0;
+			return isParentIdGiven ? true : "A parent id is required.";
+		},
 	});
 	return value.trim();
 };
@@ -263,7 +288,9 @@ export const pickBulkTargets = async (
 			name: `${item.label} — id ${item.id}`,
 			value: item.id,
 		})),
-		validate: (selected) =>
-			selected.length > 0 ? true : "Pick at least one item.",
+		validate: (selected) => {
+			const isAnyItemSelected = selected.length > 0;
+			return isAnyItemSelected ? true : "Pick at least one item.";
+		},
 	});
 };

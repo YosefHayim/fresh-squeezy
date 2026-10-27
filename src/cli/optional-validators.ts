@@ -55,8 +55,10 @@ export interface OptionalValidator {
 	discover: (context: DiscoveryContext) => Promise<ResourceChoiceGroup>;
 }
 
-const errorMessage = (err: unknown): string =>
-	err instanceof Error ? err.message : String(err);
+const errorMessage = (err: unknown): string => {
+	const isError = err instanceof Error;
+	return isError ? err.message : String(err);
+};
 
 const listChoices = async <TAttributes>(
 	load: () => Promise<unknown>,
@@ -81,9 +83,11 @@ const discoverSubscriptionPlans = async ({
 				product.id,
 			)) as JsonApiResource<SubscriptionVariantAttributes>[];
 			for (const variant of variants) {
-				if (!variant.attributes.is_subscription) continue;
+				const isNotSubscription = !variant.attributes.is_subscription;
+				if (isNotSubscription) continue;
 				const { name, interval, interval_count } = variant.attributes;
-				const cadence = interval
+				const isThereInterval = Boolean(interval);
+				const cadence = isThereInterval
 					? `${interval_count ?? 1}/${interval}`
 					: "no interval";
 				choices.push({
@@ -211,9 +215,12 @@ export const discoverChoices = async (
 	};
 
 	const choices: DiscoveredChoices = {};
-	for (const row of OPTIONAL_VALIDATORS) {
-		if (names.includes(row.name))
-			choices[row.name] = await row.discover(context);
+	for (const optionalValidator of OPTIONAL_VALIDATORS) {
+		const isValidatorChosen = names.includes(optionalValidator.name);
+		if (isValidatorChosen) {
+			choices[optionalValidator.name] =
+				await optionalValidator.discover(context);
+		}
 	}
 	return choices;
 };

@@ -36,7 +36,8 @@ const OP_VERBS: OpVerb[] = [
 ];
 
 const parseMode = (value: string): Mode => {
-	if (value === "test" || value === "live") return value;
+	const isValidMode = value === "test" || value === "live";
+	if (isValidMode) return value;
 	throw freshSqueezyErrorOf({
 		code: "INVALID_MODE",
 		message: `Mode must be "test" or "live", got "${value}"`,
@@ -57,10 +58,11 @@ const readPackageVersion = (): string => {
 
 	for (const candidate of candidates) {
 		try {
-			const pkg = JSON.parse(readFileSync(candidate, "utf8")) as {
-				version?: unknown;
-			};
-			if (typeof pkg.version === "string") return pkg.version;
+			const manifestText = readFileSync(candidate, "utf8");
+			const manifest = JSON.parse(manifestText) as { version?: unknown };
+			const version = manifest.version;
+			const isVersionText = typeof version === "string";
+			if (isVersionText) return version;
 		} catch {
 			// Source runs from src/cli; the built binary runs from dist.
 		}
@@ -100,9 +102,14 @@ const attachValidateFlags = (
 	cmd: Command,
 	spec: ValidateSubcommandSpec,
 ): Command => {
-	if (spec.required) cmd.requiredOption(spec.required[0], spec.required[1]);
+	const requiredOption = spec.required;
+	const isOptionRequired = requiredOption !== undefined;
+	if (isOptionRequired)
+		cmd.requiredOption(requiredOption[0], requiredOption[1]);
 
-	if (spec.stores === "multi") {
+	const areStoresMulti = spec.stores === "multi";
+	const areStoresOwnership = spec.stores === "ownership";
+	if (areStoresMulti) {
 		cmd
 			.option(
 				"--store-ids <ids>",
@@ -110,7 +117,7 @@ const attachValidateFlags = (
 				parseCsv,
 			)
 			.option("--all-stores", "Run against every reachable store");
-	} else if (spec.stores === "ownership") {
+	} else if (areStoresOwnership) {
 		cmd.option(
 			"--store-ids <ids>",
 			spec.storeIdsHelp ?? "Store ID for ownership check (first ID used)",
@@ -163,27 +170,26 @@ Store selection:
 );
 
 program.action(async (opts: { install?: boolean }) => {
-	if (!isInteractive) {
-		process.stderr.write(
-			renderCliError(
-				"`fresh-squeezy` guided setup requires an interactive terminal.",
-				[
-					"fresh-squeezy doctor --all-stores",
-					"fresh-squeezy validate connection",
-				],
-			),
+	const isNonInteractive = !isInteractive;
+	if (isNonInteractive) {
+		const guidedSetupError = renderCliError(
+			"`fresh-squeezy` guided setup requires an interactive terminal.",
+			[
+				"fresh-squeezy doctor --all-stores",
+				"fresh-squeezy validate connection",
+			],
 		);
+		process.stderr.write(guidedSetupError);
 		process.exitCode = 2;
 		return;
 	}
 
-	await exitWith(
-		runLauncherCommand({
-			isInteractive,
-			install: opts.install,
-			packageVersion,
-		}),
-	);
+	const launcherExitCode = runLauncherCommand({
+		isInteractive,
+		install: opts.install,
+		packageVersion,
+	});
+	await exitWith(launcherExitCode);
 });
 
 const doctor = program
@@ -207,7 +213,8 @@ const doctor = program
 	.option("--variant-id <id>", "Subscription plan variant to validate")
 	.option("--json", "Emit machine-readable JSON")
 	.action(async (opts: DoctorCommandOptions) => {
-		await exitWith(runDoctorCommand({ ...opts, isInteractive }));
+		const doctorExitCode = runDoctorCommand({ ...opts, isInteractive });
+		await exitWith(doctorExitCode);
 	});
 
 doctor.addHelpText(
@@ -243,12 +250,16 @@ for (const [name, spec] of Object.entries(VALIDATE_SUBCOMMANDS) as [
 	ValidateSubcommand,
 	ValidateSubcommandSpec,
 ][]) {
-	attachValidateFlags(
-		validate.command(name).description(spec.description),
-		spec,
-	).action(async (opts: ValidateCommandOptions) => {
-		await exitWith(runValidateCommand(name, { ...opts, isInteractive }));
-	});
+	const validateCommand = validate.command(name).description(spec.description);
+	attachValidateFlags(validateCommand, spec).action(
+		async (opts: ValidateCommandOptions) => {
+			const validateExitCode = runValidateCommand(name, {
+				...opts,
+				isInteractive,
+			});
+			await exitWith(validateExitCode);
+		},
+	);
 }
 
 program
@@ -258,7 +269,11 @@ program
 	)
 	.option("--env-file <path>", "Where to write credentials (default: .env)")
 	.action(async (opts: { envFile?: string }) => {
-		await exitWith(runInitCommand({ envFile: opts.envFile, isInteractive }));
+		const initExitCode = runInitCommand({
+			envFile: opts.envFile,
+			isInteractive,
+		});
+		await exitWith(initExitCode);
 	});
 
 const types = program
@@ -281,9 +296,11 @@ types
 		"Emit the generic file even when @lemonsqueezy/lemonsqueezy.js is detected",
 	)
 	.action(async (opts: { out?: string; force?: boolean }) => {
-		await exitWith(
-			runAugmentCommand({ out: opts.out, force: Boolean(opts.force) }),
-		);
+		const augmentExitCode = runAugmentCommand({
+			out: opts.out,
+			force: Boolean(opts.force),
+		});
+		await exitWith(augmentExitCode);
 	});
 
 program
@@ -294,34 +311,35 @@ program
 	.option("--list", "Print the full verb matrix", true)
 	.option("--json", "Emit machine-readable JSON")
 	.action(async (opts: { json?: boolean }) => {
-		await exitWith(
-			runResourceOpCommand({
-				resource: "",
-				verb: "get",
-				listCatalog: true,
-				json: Boolean(opts.json),
-			}),
-		);
+		const catalogExitCode = runResourceOpCommand({
+			resource: "",
+			verb: "get",
+			listCatalog: true,
+			json: Boolean(opts.json),
+		});
+		await exitWith(catalogExitCode);
 	});
 
 const BULK_VERBS: readonly OpVerb[] = ["delete", "cancel", "refund"];
 
+const BULK_EXAMPLE_RESOURCES: Partial<Record<OpVerb, string>> = {
+	delete: "discount",
+	cancel: "subscription",
+	refund: "order",
+};
+
 const opHelpText = (verb: OpVerb): string => {
-	if (!BULK_VERBS.includes(verb)) {
+	const isNotBulkVerb = !BULK_VERBS.includes(verb);
+	if (isNotBulkVerb) {
 		return `\nExample:\n  fresh-squeezy ${verb} <resource> --id 42 --json\n`;
 	}
-	const r =
-		verb === "delete"
-			? "discount"
-			: verb === "cancel"
-				? "subscription"
-				: "order";
+	const exampleResource = BULK_EXAMPLE_RESOURCES[verb] ?? "order";
 	return `
 Examples:
-  fresh-squeezy ${verb} ${r} --id 42 --yes
-  fresh-squeezy ${verb} ${r} --ids 1,2,3 --yes
-  fresh-squeezy ${verb} ${r} --all --store-ids 12 --dry-run
-  fresh-squeezy ${verb} ${r} --all --store-ids 12 --match TEST --yes --json
+  fresh-squeezy ${verb} ${exampleResource} --id 42 --yes
+  fresh-squeezy ${verb} ${exampleResource} --ids 1,2,3 --yes
+  fresh-squeezy ${verb} ${exampleResource} --all --store-ids 12 --dry-run
+  fresh-squeezy ${verb} ${exampleResource} --all --store-ids 12 --match TEST --yes --json
 
 Bulk notes:
   --all lists every page first, then asks once (TTY) or needs --yes (non-TTY).
@@ -331,6 +349,7 @@ Bulk notes:
 };
 
 for (const verb of OP_VERBS) {
+	const verbHelpText = opHelpText(verb);
 	program
 		.command(`${verb} <resource>`)
 		.description(`Docs-backed ${verb} for a Lemon Squeezy resource`)
@@ -366,35 +385,37 @@ for (const verb of OP_VERBS) {
 			"Bulk: with --all, only items whose name/code/url contain <text>",
 		)
 		.option("--dry-run", "Bulk: show what would be affected; send nothing")
-		.addHelpText("after", opHelpText(verb))
+		.addHelpText("after", verbHelpText)
 		.action(async (resource: string, opts: ResourceOpCliOpts) => {
-			await exitWith(
-				runResourceOpCommand({
-					verb,
-					resource,
-					mode: opts.mode,
-					id: opts.id,
-					storeIds: opts.storeIds,
-					parentId: opts.parentId,
-					body: opts.body,
-					bodyFile: opts.bodyFile,
-					yes: Boolean(opts.yes),
-					json: Boolean(opts.json),
-					isInteractive,
-					all: Boolean(opts.all),
-					ids: opts.ids,
-					match: opts.match,
-					dryRun: Boolean(opts.dryRun),
-				}),
-			);
+			const resourceOpExitCode = runResourceOpCommand({
+				verb,
+				resource,
+				mode: opts.mode,
+				id: opts.id,
+				storeIds: opts.storeIds,
+				parentId: opts.parentId,
+				body: opts.body,
+				bodyFile: opts.bodyFile,
+				yes: Boolean(opts.yes),
+				json: Boolean(opts.json),
+				isInteractive,
+				all: Boolean(opts.all),
+				ids: opts.ids,
+				match: opts.match,
+				dryRun: Boolean(opts.dryRun),
+			});
+			await exitWith(resourceOpExitCode);
 		});
 }
 
 program.parseAsync(process.argv).catch((err: unknown) => {
-	const message = err instanceof Error ? err.message : String(err);
-	const hints = message.includes("Mode must be")
+	const isError = err instanceof Error;
+	const message = isError ? err.message : String(err);
+	const isModeError = message.includes("Mode must be");
+	const hints = isModeError
 		? ["fresh-squeezy doctor --mode test", "fresh-squeezy doctor --mode live"]
 		: ["fresh-squeezy --help"];
-	process.stderr.write(renderCliError(message, hints));
+	const cliErrorText = renderCliError(message, hints);
+	process.stderr.write(cliErrorText);
 	process.exitCode = 2;
 });
