@@ -61,23 +61,13 @@ export const validateConnection = async (
 	http: HttpClient,
 	mode: Mode,
 ): Promise<ValidationResult<ConnectionSummary>> => {
-	const fetched = await probeCollection(
-		async () => {
-			const userDocument = await http.request<AuthenticatedUserDocument>({
-				path: "/v1/users/me",
-			});
-			const stores = await http.paginate<StoreAttributes>("/v1/stores");
-			return { userDocument, stores };
-		},
-		{
-			unauthorized: {
-				code: ISSUE_CODES.AUTH_FAILED,
-				message: "API key rejected by Lemon Squeezy.",
-				suggestedFix:
-					"Regenerate the key at https://app.lemonsqueezy.com/settings/api.",
-			},
-		},
-	);
+	const fetched = await probeCollection(async () => {
+		const userDocument = await http.request<AuthenticatedUserDocument>({
+			path: "/v1/users/me",
+		});
+		const stores = await http.paginate<StoreAttributes>("/v1/stores");
+		return { userDocument, stores };
+	});
 
 	const isFetchFailed = !fetched.ok;
 	if (isFetchFailed) return failedResult("connection", mode, fetched.issue);

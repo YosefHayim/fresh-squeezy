@@ -391,6 +391,12 @@ export const invalidIntervalVariantDoc = variantDocOf("802", {
 	interval_count: 0,
 });
 
+export const missingIntervalCountVariantDoc = variantDocOf("810", {
+	name: "No Interval Count",
+	slug: "no-interval-count",
+	interval_count: undefined,
+});
+
 export const freePriceSubscriptionVariantDoc = variantDocOf("803", {
 	name: "Free Plan",
 	slug: "free-plan",

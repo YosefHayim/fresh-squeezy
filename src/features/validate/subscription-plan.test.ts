@@ -2,6 +2,7 @@ import {
 	draftSubscriptionVariantDoc,
 	freePriceSubscriptionVariantDoc,
 	invalidIntervalVariantDoc,
+	missingIntervalCountVariantDoc,
 	nonSubscriptionVariantDoc,
 	notFoundError,
 	productOnWrongStoreDoc,
@@ -10,7 +11,7 @@ import {
 	trialInconsistentVariantDoc,
 	wrongStoreSubscriptionVariantDoc,
 } from "@e2e/fixtures/sandbox/data.js";
-import { makeClient, pathIs } from "@e2e/mock-fetch.js";
+import { makeClient, pathIs, route } from "@e2e/mock-fetch.js";
 import { expect, test } from "vitest";
 import { validateSubscriptionPlan } from "./subscription-plan.js";
 
@@ -178,4 +179,20 @@ test("validateSubscriptionPlan returns PLAN_STORE_MISMATCH when variant belongs 
 	});
 	expect(planValidation.ok).toBe(false);
 	expect(planValidation.issues[0]?.code).toBe("PLAN_STORE_MISMATCH");
+});
+
+test("validateSubscriptionPlan flags a subscription variant with no interval_count", async () => {
+	const http = makeClient([
+		route("/v1/variants/810", missingIntervalCountVariantDoc),
+		route("/v1/products/100", publishedProductDoc),
+	]);
+	const planValidation = await validateSubscriptionPlan(http, "test", {
+		storeId: 42,
+		variantId: 810,
+	});
+	expect(planValidation.ok).toBe(false);
+	const intervalIssue = planValidation.issues.find(
+		(entry) => entry.code === "PLAN_INVALID_INTERVAL",
+	);
+	expect(intervalIssue?.message).toContain("interval_count: missing");
 });
