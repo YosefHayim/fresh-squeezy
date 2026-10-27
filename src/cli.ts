@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs";
 import { Command } from "commander";
 import dotenv from "dotenv";
 import type { OpVerb } from "@/features/ops/resource-registry.js";
-import type { Mode } from "@/shared/contracts.js";
-import { freshSqueezyErrorOf } from "@/shared/errors.js";
+import { parseMode } from "@/shared/config.js";
+import { isFreshSqueezyError } from "@/shared/errors.js";
 import {
 	type AugmentCommandOptions,
 	runAugmentCommand,
@@ -20,11 +20,7 @@ import {
 	type OpsCommandOptions,
 	runResourceOpCommand,
 } from "./app/ops-command.js";
-import {
-	errorMessageOf,
-	writeCliFailure,
-	writeNeedsTerminalError,
-} from "./app/render.js";
+import { writeCliFailure, writeNeedsTerminalError } from "./app/render.js";
 import {
 	runValidateCommand,
 	VALIDATE_SUBCOMMANDS,
@@ -46,15 +42,6 @@ const OP_VERBS: OpVerb[] = [
 	"generate-invoice",
 	"current-usage",
 ];
-
-const parseMode = (value: string): Mode => {
-	const isValidMode = value === "test" || value === "live";
-	if (isValidMode) return value;
-	throw freshSqueezyErrorOf({
-		code: "INVALID_MODE",
-		message: `Mode must be "test" or "live", got "${value}"`,
-	});
-};
 
 const readPackageVersion = (): string => {
 	const candidates = [
@@ -359,8 +346,7 @@ for (const verb of OP_VERBS) {
 }
 
 program.parseAsync(process.argv).catch((err: unknown) => {
-	const message = errorMessageOf(err);
-	const isModeError = message.includes("Mode must be");
+	const isModeError = isFreshSqueezyError(err) && err.code === "INVALID_MODE";
 	const hints = isModeError
 		? ["fresh-squeezy doctor --mode test", "fresh-squeezy doctor --mode live"]
 		: ["fresh-squeezy --help"];

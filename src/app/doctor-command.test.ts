@@ -10,15 +10,31 @@ import {
 	webhooksCollectionComplete,
 } from "@e2e/fixtures/sandbox/data.js";
 import {
+	okRoute,
 	pathIs,
-	pathIsWithQuery,
 	SIGNED_IN_ROUTES,
 	silenceStdout,
+	storeListRoute,
 	stubFetch,
+	variantListRoute,
 } from "@e2e/mock-fetch.js";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { ENV_KEYS } from "@/shared/config.js";
 import { runDoctorCommand } from "./doctor-command.js";
+
+const runDoctorJson = async (
+	options: Parameters<typeof runDoctorCommand>[0],
+) => {
+	const stdout = silenceStdout();
+	const code = await runDoctorCommand({
+		mode: "test",
+		json: true,
+		isInteractive: false,
+		...options,
+	});
+	expect(code).toBe(0);
+	return JSON.parse(String(stdout.mock.calls[0]?.[0] ?? "{}"));
+};
 
 beforeEach(() => {
 	vi.stubEnv(ENV_KEYS.apiKey, "k_test_abc");
@@ -31,36 +47,14 @@ afterEach(() => {
 test("runDoctorCommand returns exit code 0 when every validator passes for an explicit store id", async () => {
 	stubFetch([
 		...SIGNED_IN_ROUTES,
-		{
-			match: pathIs("/v1/stores/42"),
-			status: 200,
-			body: { data: storesCollection.data[0] },
-		},
-		{
-			match: pathIs("/v1/products/100"),
-			status: 200,
-			body: publishedProductDoc,
-		},
-		{
-			match: pathIsWithQuery("/v1/variants", { "filter[product_id]": "100" }),
-			status: 200,
-			body: variantsCollectionPublished,
-		},
+		okRoute(pathIs("/v1/stores/42"), { data: storesCollection.data[0] }),
+		okRoute(pathIs("/v1/products/100"), publishedProductDoc),
+		variantListRoute("100", variantsCollectionPublished),
 	]);
-	const stdout = silenceStdout();
-
-	const code = await runDoctorCommand({
-		mode: "test",
+	const payload = await runDoctorJson({
 		storeIds: ["42"],
 		productId: "100",
-		json: true,
-		isInteractive: false,
 	});
-
-	expect(code).toBe(0);
-	const firstCall = stdout.mock.calls[0]?.[0];
-	const isFirstCallText = typeof firstCall === "string";
-	const payload = JSON.parse(isFirstCallText ? firstCall : "{}");
 	expect(payload.ok).toBe(true);
 	expect(Array.isArray(payload.reports)).toBe(true);
 	expect(payload.reports).toHaveLength(1);
@@ -75,99 +69,43 @@ test("runDoctorCommand runs against every reachable store when --all-stores is s
 		],
 	};
 	stubFetch([
-		{ match: pathIs("/v1/users/me"), status: 200, body: userDoc },
-		{ match: pathIs("/v1/stores"), status: 200, body: multi },
-		{
-			match: pathIs("/v1/stores/42"),
-			status: 200,
-			body: { data: multi.data[0] },
-		},
-		{
-			match: pathIs("/v1/stores/43"),
-			status: 200,
-			body: { data: multi.data[1] },
-		},
+		okRoute(pathIs("/v1/users/me"), userDoc),
+		okRoute(pathIs("/v1/stores"), multi),
+		okRoute(pathIs("/v1/stores/42"), { data: multi.data[0] }),
+		okRoute(pathIs("/v1/stores/43"), { data: multi.data[1] }),
 	]);
-	const stdout = silenceStdout();
-
-	const code = await runDoctorCommand({
-		mode: "test",
+	const payload = await runDoctorJson({
 		allStores: true,
-		json: true,
-		isInteractive: false,
 	});
-
-	expect(code).toBe(0);
-	const payload = JSON.parse(String(stdout.mock.calls[0]?.[0] ?? "{}"));
 	expect(payload.reports).toHaveLength(2);
 });
 
 test("runDoctorCommand discovers and validates all resource targets when --all-resources is set", async () => {
 	stubFetch([
 		...SIGNED_IN_ROUTES,
-		{
-			match: pathIsWithQuery("/v1/products", { "filter[store_id]": "42" }),
-			status: 200,
-			body: { data: [publishedProductDoc.data] },
-		},
-		{
-			match: pathIsWithQuery("/v1/webhooks", { "filter[store_id]": "42" }),
-			status: 200,
-			body: webhooksCollectionComplete,
-		},
-		{
-			match: pathIsWithQuery("/v1/discounts", { "filter[store_id]": "42" }),
-			status: 200,
-			body: { data: [publishedDiscountDoc.data] },
-		},
-		{
-			match: pathIsWithQuery("/v1/license-keys", { "filter[store_id]": "42" }),
-			status: 200,
-			body: { data: [activeLicenseKeyDoc.data] },
-		},
-		{
-			match: pathIsWithQuery("/v1/variants", { "filter[product_id]": "100" }),
-			status: 200,
-			body: { data: [subscriptionVariantDoc.data] },
-		},
-		{
-			match: pathIs("/v1/stores/42"),
-			status: 200,
-			body: { data: storesCollection.data[0] },
-		},
-		{
-			match: pathIs("/v1/products/100"),
-			status: 200,
-			body: publishedProductDoc,
-		},
-		{
-			match: pathIs("/v1/discounts/600"),
-			status: 200,
-			body: publishedDiscountDoc,
-		},
-		{
-			match: pathIs("/v1/license-keys/700"),
-			status: 200,
-			body: activeLicenseKeyDoc,
-		},
-		{
-			match: pathIs("/v1/variants/800"),
-			status: 200,
-			body: subscriptionVariantDoc,
-		},
+		storeListRoute("products", {
+			data: [publishedProductDoc.data],
+		}),
+		storeListRoute("webhooks", webhooksCollectionComplete),
+		storeListRoute("discounts", {
+			data: [publishedDiscountDoc.data],
+		}),
+		storeListRoute("license-keys", {
+			data: [activeLicenseKeyDoc.data],
+		}),
+		variantListRoute("100", {
+			data: [subscriptionVariantDoc.data],
+		}),
+		okRoute(pathIs("/v1/stores/42"), { data: storesCollection.data[0] }),
+		okRoute(pathIs("/v1/products/100"), publishedProductDoc),
+		okRoute(pathIs("/v1/discounts/600"), publishedDiscountDoc),
+		okRoute(pathIs("/v1/license-keys/700"), activeLicenseKeyDoc),
+		okRoute(pathIs("/v1/variants/800"), subscriptionVariantDoc),
 	]);
-	const stdout = silenceStdout();
-
-	const code = await runDoctorCommand({
-		mode: "test",
+	const payload = await runDoctorJson({
 		storeIds: ["42"],
 		allResources: true,
-		json: true,
-		isInteractive: false,
 	});
-
-	expect(code).toBe(0);
-	const payload = JSON.parse(String(stdout.mock.calls[0]?.[0] ?? "{}"));
 	const names = payload.reports[0].results.map(
 		(validation: { name: string }) => validation.name,
 	);
@@ -184,16 +122,7 @@ test("runDoctorCommand discovers and validates all resource targets when --all-r
 
 test("runDoctorCommand falls back to connection-only when non-interactive and no store flag", async () => {
 	stubFetch([...SIGNED_IN_ROUTES]);
-	const stdout = silenceStdout();
-
-	const code = await runDoctorCommand({
-		mode: "test",
-		json: true,
-		isInteractive: false,
-	});
-
-	expect(code).toBe(0);
-	const payload = JSON.parse(String(stdout.mock.calls[0]?.[0] ?? "{}"));
+	const payload = await runDoctorJson({});
 	expect(payload.reports).toHaveLength(1);
 	expect(payload.reports[0].results).toHaveLength(1);
 	expect(payload.reports[0].results[0].name).toBe("connection");

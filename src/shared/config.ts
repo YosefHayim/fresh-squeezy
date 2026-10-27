@@ -29,9 +29,7 @@ export const resolveConfig = (
 		});
 	}
 
-	const mode = normalizeMode(
-		input.mode ?? process.env[ENV_KEYS.mode] ?? "test",
-	);
+	const mode = parseMode(input.mode ?? process.env[ENV_KEYS.mode] ?? "test");
 	const storeIdRaw = input.storeId ?? process.env[ENV_KEYS.storeId];
 
 	const isStoreIdMissing = storeIdRaw == null;
@@ -45,9 +43,11 @@ export const resolveConfig = (
 	};
 };
 
-const normalizeMode = (value: string): Mode => {
-	const isKnownMode = value === "test" || value === "live";
-	if (isKnownMode) return value;
+export const isMode = (value: string): value is Mode =>
+	value === "test" || value === "live";
+
+export const parseMode = (value: string): Mode => {
+	if (isMode(value)) return value;
 	throw freshSqueezyErrorOf({
 		code: "INVALID_MODE",
 		message: `Mode must be "test" or "live", got "${value}".`,

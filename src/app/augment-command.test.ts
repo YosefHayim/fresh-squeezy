@@ -16,20 +16,27 @@ afterEach(() => {
 	vi.restoreAllMocks();
 });
 
-test("runAugmentCommand emits the with-sdk file when @lemonsqueezy/lemonsqueezy.js is in package.json", async () => {
-	writeFileSync(
-		join(workdir, "package.json"),
-		JSON.stringify({
-			name: "consumer",
-			dependencies: { "@lemonsqueezy/lemonsqueezy.js": "^4.0.0" },
-		}),
-	);
+const SDK_DEPENDENCIES = { "@lemonsqueezy/lemonsqueezy.js": "^4.0.0" };
+
+const writeConsumerPackage = (dependencies?: Record<string, string>) => {
+	const packageJson = JSON.stringify({ name: "consumer", dependencies });
+	writeFileSync(join(workdir, "package.json"), packageJson);
+};
+
+const emitAugmentFile = async (
+	options: { force?: boolean } = {},
+): Promise<string> => {
 	silenceStdout();
-
-	const code = await runAugmentCommand({ cwd: workdir });
-
+	const code = await runAugmentCommand({ cwd: workdir, ...options });
 	expect(code).toBe(0);
-	const out = readFileSync(join(workdir, "lemonsqueezy.augment.d.ts"), "utf8");
+	return readFileSync(join(workdir, "lemonsqueezy.augment.d.ts"), "utf8");
+};
+
+test("runAugmentCommand emits the with-sdk file when @lemonsqueezy/lemonsqueezy.js is in package.json", async () => {
+	writeConsumerPackage(SDK_DEPENDENCIES);
+
+	const out = await emitAugmentFile();
+
 	expect(out).toContain('from "@lemonsqueezy/lemonsqueezy.js"');
 	expect(out).toContain("LemonSqueezyAugmented");
 	expect(out).toContain("LatestSubscriptionFields");
@@ -46,16 +53,10 @@ test("runAugmentCommand emits the with-sdk file when @lemonsqueezy/lemonsqueezy.
 });
 
 test("runAugmentCommand emits the generic file when the SDK is not installed", async () => {
-	writeFileSync(
-		join(workdir, "package.json"),
-		JSON.stringify({ name: "consumer", dependencies: { other: "^1.0.0" } }),
-	);
-	silenceStdout();
+	writeConsumerPackage({ other: "^1.0.0" });
 
-	const code = await runAugmentCommand({ cwd: workdir });
+	const out = await emitAugmentFile();
 
-	expect(code).toBe(0);
-	const out = readFileSync(join(workdir, "lemonsqueezy.augment.d.ts"), "utf8");
 	expect(out).not.toContain('from "@lemonsqueezy/lemonsqueezy.js"');
 	expect(out).toContain("WithLatestLemonSqueezyFields");
 	expect(out).toContain('"checkout"');
@@ -64,38 +65,22 @@ test("runAugmentCommand emits the generic file when the SDK is not installed", a
 });
 
 test("runAugmentCommand emits the generic file with --force even when the SDK is detected", async () => {
-	writeFileSync(
-		join(workdir, "package.json"),
-		JSON.stringify({
-			name: "consumer",
-			dependencies: { "@lemonsqueezy/lemonsqueezy.js": "^4.0.0" },
-		}),
-	);
-	silenceStdout();
+	writeConsumerPackage(SDK_DEPENDENCIES);
 
-	const code = await runAugmentCommand({ cwd: workdir, force: true });
+	const out = await emitAugmentFile({ force: true });
 
-	expect(code).toBe(0);
-	const out = readFileSync(join(workdir, "lemonsqueezy.augment.d.ts"), "utf8");
 	expect(out).not.toContain('from "@lemonsqueezy/lemonsqueezy.js"');
 	expect(out).toContain("WithLatestLemonSqueezyFields");
 });
 
 test("runAugmentCommand falls back to generic when no package.json exists", async () => {
-	silenceStdout();
+	const out = await emitAugmentFile();
 
-	const code = await runAugmentCommand({ cwd: workdir });
-
-	expect(code).toBe(0);
-	const out = readFileSync(join(workdir, "lemonsqueezy.augment.d.ts"), "utf8");
 	expect(out).toContain("WithLatestLemonSqueezyFields");
 });
 
 test("runAugmentCommand honors the --out path", async () => {
-	writeFileSync(
-		join(workdir, "package.json"),
-		JSON.stringify({ name: "consumer" }),
-	);
+	writeConsumerPackage();
 	silenceStdout();
 
 	const code = await runAugmentCommand({
