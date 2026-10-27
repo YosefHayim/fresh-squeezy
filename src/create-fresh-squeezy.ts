@@ -26,107 +26,128 @@ type OpCaller = (
 	args?: InvokeOpArgs,
 ) => Promise<unknown>;
 
-const buildOps = (op: OpCaller) => {
-	const byId = (resource: string, verb: OpVerb = "get") => {
-		return (id: ResourceId) => op(resource, verb, { id });
-	};
-	const listInStore = (resource: string) => {
-		return (storeId: ResourceId) => op(resource, "list", { storeId });
-	};
-	const listUnder = (resource: string) => {
-		return (parentId: ResourceId) => op(resource, "list", { parentId });
-	};
-	const create = (resource: string) => {
-		return (body: unknown) => op(resource, "create", { body });
-	};
-	const update = (resource: string) => {
-		return (id: ResourceId, body: unknown) =>
-			op(resource, "update", { id, body });
-	};
-	const withOptionalBody = (resource: string, verb: OpVerb) => {
-		return (id: ResourceId, body?: unknown) => op(resource, verb, { id, body });
-	};
-
-	return {
-		users: { me: () => op("user", "get") },
-		stores: { get: byId("store"), list: () => op("store", "list") },
-		products: { get: byId("product"), list: listInStore("product") },
-		variants: { get: byId("variant"), list: listUnder("variant") },
-		prices: { get: byId("price"), list: listUnder("price") },
-		files: { get: byId("file"), list: listUnder("file") },
-		customers: {
-			get: byId("customer"),
-			list: listInStore("customer"),
-			create: create("customer"),
-			update: update("customer"),
-		},
-		orders: {
-			get: byId("order"),
-			list: listInStore("order"),
-			refund: withOptionalBody("order", "refund"),
-			generateInvoice: withOptionalBody("order", "generate-invoice"),
-		},
-		orderItems: { get: byId("order-item"), list: listUnder("order-item") },
-		subscriptions: {
-			get: byId("subscription"),
-			list: listInStore("subscription"),
-			update: update("subscription"),
-			cancel: byId("subscription", "cancel"),
-		},
-		subscriptionItems: {
-			get: byId("subscription-item"),
-			list: listUnder("subscription-item"),
-			update: update("subscription-item"),
-			currentUsage: byId("subscription-item", "current-usage"),
-		},
-		subscriptionInvoices: {
-			get: byId("subscription-invoice"),
-			list: listUnder("subscription-invoice"),
-			refund: withOptionalBody("subscription-invoice", "refund"),
-			generateInvoice: withOptionalBody(
-				"subscription-invoice",
-				"generate-invoice",
-			),
-		},
-		usageRecords: {
-			get: byId("usage-record"),
-			list: listUnder("usage-record"),
-			create: create("usage-record"),
-		},
-		discounts: {
-			get: byId("discount"),
-			list: listInStore("discount"),
-			create: create("discount"),
-			delete: byId("discount", "delete"),
-		},
-		discountRedemptions: {
-			get: byId("discount-redemption"),
-			list: listUnder("discount-redemption"),
-		},
-		licenseKeys: {
-			get: byId("license-key"),
-			list: listInStore("license-key"),
-			update: update("license-key"),
-		},
-		licenseKeyInstances: {
-			get: byId("license-key-instance"),
-			list: listUnder("license-key-instance"),
-		},
-		checkouts: {
-			get: byId("checkout"),
-			list: listInStore("checkout"),
-			create: create("checkout"),
-		},
-		webhooks: {
-			get: byId("webhook"),
-			list: listInStore("webhook"),
-			create: create("webhook"),
-			update: update("webhook"),
-			delete: byId("webhook", "delete"),
-		},
-		affiliates: { get: byId("affiliate"), list: listInStore("affiliate") },
-	};
+const byId = (op: OpCaller, resource: string, verb: OpVerb = "get") => {
+	return (id: ResourceId) => op(resource, verb, { id });
 };
+const listInStore = (op: OpCaller, resource: string) => {
+	return (storeId: ResourceId) => op(resource, "list", { storeId });
+};
+const listUnder = (op: OpCaller, resource: string) => {
+	return (parentId: ResourceId) => op(resource, "list", { parentId });
+};
+const create = (op: OpCaller, resource: string) => {
+	return (body: unknown) => op(resource, "create", { body });
+};
+const update = (op: OpCaller, resource: string) => {
+	return (id: ResourceId, body: unknown) =>
+		op(resource, "update", { id, body });
+};
+const withOptionalBody = (op: OpCaller, resource: string, verb: OpVerb) => {
+	return (id: ResourceId, body?: unknown) => op(resource, verb, { id, body });
+};
+
+const buildCatalogOps = (op: OpCaller) => ({
+	users: { me: () => op("user", "get") },
+	stores: { get: byId(op, "store"), list: () => op("store", "list") },
+	products: { get: byId(op, "product"), list: listInStore(op, "product") },
+	variants: { get: byId(op, "variant"), list: listUnder(op, "variant") },
+	prices: { get: byId(op, "price"), list: listUnder(op, "price") },
+	files: { get: byId(op, "file"), list: listUnder(op, "file") },
+	affiliates: {
+		get: byId(op, "affiliate"),
+		list: listInStore(op, "affiliate"),
+	},
+});
+
+const buildSalesOps = (op: OpCaller) => ({
+	customers: {
+		get: byId(op, "customer"),
+		list: listInStore(op, "customer"),
+		create: create(op, "customer"),
+		update: update(op, "customer"),
+	},
+	orders: {
+		get: byId(op, "order"),
+		list: listInStore(op, "order"),
+		refund: withOptionalBody(op, "order", "refund"),
+		generateInvoice: withOptionalBody(op, "order", "generate-invoice"),
+	},
+	orderItems: {
+		get: byId(op, "order-item"),
+		list: listUnder(op, "order-item"),
+	},
+	discounts: {
+		get: byId(op, "discount"),
+		list: listInStore(op, "discount"),
+		create: create(op, "discount"),
+		delete: byId(op, "discount", "delete"),
+	},
+	discountRedemptions: {
+		get: byId(op, "discount-redemption"),
+		list: listUnder(op, "discount-redemption"),
+	},
+	checkouts: {
+		get: byId(op, "checkout"),
+		list: listInStore(op, "checkout"),
+		create: create(op, "checkout"),
+	},
+});
+
+const buildSubscriptionOps = (op: OpCaller) => ({
+	subscriptions: {
+		get: byId(op, "subscription"),
+		list: listInStore(op, "subscription"),
+		update: update(op, "subscription"),
+		cancel: byId(op, "subscription", "cancel"),
+	},
+	subscriptionItems: {
+		get: byId(op, "subscription-item"),
+		list: listUnder(op, "subscription-item"),
+		update: update(op, "subscription-item"),
+		currentUsage: byId(op, "subscription-item", "current-usage"),
+	},
+	subscriptionInvoices: {
+		get: byId(op, "subscription-invoice"),
+		list: listUnder(op, "subscription-invoice"),
+		refund: withOptionalBody(op, "subscription-invoice", "refund"),
+		generateInvoice: withOptionalBody(
+			op,
+			"subscription-invoice",
+			"generate-invoice",
+		),
+	},
+	usageRecords: {
+		get: byId(op, "usage-record"),
+		list: listUnder(op, "usage-record"),
+		create: create(op, "usage-record"),
+	},
+});
+
+const buildAccessOps = (op: OpCaller) => ({
+	licenseKeys: {
+		get: byId(op, "license-key"),
+		list: listInStore(op, "license-key"),
+		update: update(op, "license-key"),
+	},
+	licenseKeyInstances: {
+		get: byId(op, "license-key-instance"),
+		list: listUnder(op, "license-key-instance"),
+	},
+	webhooks: {
+		get: byId(op, "webhook"),
+		list: listInStore(op, "webhook"),
+		create: create(op, "webhook"),
+		update: update(op, "webhook"),
+		delete: byId(op, "webhook", "delete"),
+	},
+});
+
+const buildOps = (op: OpCaller) => ({
+	...buildCatalogOps(op),
+	...buildSalesOps(op),
+	...buildSubscriptionOps(op),
+	...buildAccessOps(op),
+});
 
 export type FreshSqueezyOps = ReturnType<typeof buildOps>;
 

@@ -34,83 +34,89 @@ export interface SubscriptionPlanSummary {
 
 const VALID_INTERVALS = new Set(["day", "week", "month", "year"]);
 
+const fetchVariant = (http: HttpClient, variantId: ResourceId) => {
+	return probeFetch(
+		() =>
+			http.getResource<SubscriptionVariantAttributes>(
+				`/v1/variants/${variantId}`,
+			),
+		{
+			code: ISSUE_CODES.PLAN_VARIANT_NOT_FOUND,
+			message: `Variant ${variantId} not found.`,
+			suggestedFix: "Verify the variant ID in the Lemon Squeezy dashboard.",
+			context: { variantId: String(variantId) },
+		},
+	);
+};
+
+// Advisory only: skip on a failed product fetch rather than blocking the attribute checks.
+const checkPlanStoreOwnership = async (
+	http: HttpClient,
+	storeId: ResourceId,
+	productId: ResourceId,
+): Promise<ValidationIssue[]> => {
+	const productProbed = await probeFetch(
+		() => http.getResource<ProductAttributes>(`/v1/products/${productId}`),
+		{
+			code: ISSUE_CODES.PRODUCT_NOT_FOUND,
+			message: `Product ${productId} not found.`,
+		},
+	);
+	const isProductMissing = !productProbed.ok;
+	if (isProductMissing) return [];
+	return checkStoreOwnership({
+		expectedStoreId: storeId,
+		actualStoreId: productProbed.resource.attributes.store_id,
+		code: ISSUE_CODES.PLAN_STORE_MISMATCH,
+		label: `Subscription variant (via product ${productId})`,
+		suggestedFix:
+			"Use the correct store ID or variant ID — plans should not cross stores.",
+		extraContext: { productId: String(productId) },
+	});
+};
+
+const summarizePlan = (
+	variantId: string,
+	attributes: SubscriptionVariantAttributes,
+): SubscriptionPlanSummary => ({
+	variantId,
+	interval: attributes.interval,
+	intervalCount: attributes.interval_count,
+	price: attributes.price,
+	hasFreeTrial: attributes.has_free_trial,
+	status: attributes.status,
+});
+
 export const validateSubscriptionPlan = async (
 	http: HttpClient,
 	mode: Mode,
 	options: SubscriptionPlanValidationOptions,
 ): Promise<ValidationResult<SubscriptionPlanSummary>> => {
-	const target = {
-		label: `variant ${options.variantId}`,
-		id: String(options.variantId),
-	};
+	const { storeId, variantId } = options;
+	const target = { label: `variant ${variantId}`, id: String(variantId) };
 
-	const fetched = await probeFetch(
-		() =>
-			http.getResource<SubscriptionVariantAttributes>(
-				`/v1/variants/${options.variantId}`,
-			),
-		{
-			code: ISSUE_CODES.PLAN_VARIANT_NOT_FOUND,
-			message: `Variant ${options.variantId} not found.`,
-			suggestedFix: "Verify the variant ID in the Lemon Squeezy dashboard.",
-			context: { variantId: String(options.variantId) },
-		},
-	);
-
+	const fetched = await fetchVariant(http, variantId);
 	const isFetchFailed = !fetched.ok;
 	if (isFetchFailed) {
 		return failedResult("subscriptionPlan", mode, fetched.issue, target);
 	}
 
-	const variant = fetched.resource;
-	const attributes = variant.attributes;
-	const issues = checkSubscriptionPlan(attributes, {
-		variantId: options.variantId,
-	});
-
-	// Store cross-check needs a second fetch (parent product). Advisory only —
-	// skip on failure rather than blocking the pure attribute checks above.
-	const productProbed = await probeFetch(
-		() =>
-			http.getResource<ProductAttributes>(
-				`/v1/products/${attributes.product_id}`,
-			),
-		{
-			code: ISSUE_CODES.PRODUCT_NOT_FOUND,
-			message: `Product ${attributes.product_id} not found.`,
-		},
+	const { id, attributes } = fetched.resource;
+	const planIssues = checkSubscriptionPlan(attributes, { variantId });
+	const ownershipIssues = await checkPlanStoreOwnership(
+		http,
+		storeId,
+		attributes.product_id,
 	);
-	const isProductFetched = productProbed.ok;
-	const ownershipIssues = isProductFetched
-		? checkStoreOwnership({
-				expectedStoreId: options.storeId,
-				actualStoreId: productProbed.resource.attributes.store_id,
-				code: ISSUE_CODES.PLAN_STORE_MISMATCH,
-				label: `Subscription variant (via product ${attributes.product_id})`,
-				suggestedFix:
-					"Use the correct store ID or variant ID — plans should not cross stores.",
-				extraContext: { productId: String(attributes.product_id) },
-			})
-		: [];
 
-	const summary: SubscriptionPlanSummary = {
-		variantId: variant.id,
-		interval: attributes.interval,
-		intervalCount: attributes.interval_count,
-		price: attributes.price,
-		hasFreeTrial: attributes.has_free_trial,
-		status: attributes.status,
-	};
+	const summary = summarizePlan(id, attributes);
 
 	return buildResult(
 		"subscriptionPlan",
 		mode,
-		[...issues, ...ownershipIssues],
+		[...planIssues, ...ownershipIssues],
 		summary,
-		{
-			label: attributes.name,
-			id: String(options.variantId),
-		},
+		{ label: attributes.name, id: String(variantId) },
 	);
 };
 
