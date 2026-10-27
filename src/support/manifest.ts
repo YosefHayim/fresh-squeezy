@@ -1,7 +1,3 @@
-import { GENERATED_LEMON_SQUEEZY_RESOURCES } from "@/generated/lemonSqueezyApiTypes.js";
-
-export const SUPPORTED_RESOURCES = GENERATED_LEMON_SQUEEZY_RESOURCES;
-
 export const RECOMMENDED_WEBHOOK_EVENTS = [
 	"order_created",
 	"order_refunded",
