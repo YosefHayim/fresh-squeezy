@@ -1,6 +1,5 @@
 {
 	"$schema": "https://biomejs.dev/schemas/2.6.3/schema.json",
-	"extends": ["code-standard/biome"],
 	"vcs": {
 		"enabled": true,
 		"clientKind": "git",
@@ -16,6 +15,87 @@
 			"!**/.kiro",
 			"!**/downloads",
 			"!**/package.json"
-		]
-	}
+		],
+		"ignoreUnknown": true
+	},
+	"markdown": {
+		"parser": {
+			"frontmatter": true
+		}
+	},
+	"linter": {
+		"rules": {
+			"preset": "recommended",
+			"complexity": {
+				"useArrowFunction": "error",
+				"noExcessiveCognitiveComplexity": "error",
+				"noExcessiveLinesPerFunction": {
+					"level": "error",
+					"options": {
+						"maxLines": 50
+					}
+				},
+				"useMaxParams": {
+					"level": "error",
+					"options": {
+						"max": 3
+					}
+				}
+			},
+			"correctness": {
+				"noNestedComponentDefinitions": "error",
+				"noUnusedVariables": "error",
+				"noUnusedImports": "error"
+			},
+			"performance": {
+				"noBarrelFile": "error",
+				"noReExportAll": "error"
+			},
+			"style": {
+				"noNestedTernary": "error",
+				"noDefaultExport": "error",
+				"useConst": "error",
+				"noUselessElse": "error",
+				"useComponentExportOnlyModules": "error"
+			},
+			"suspicious": {
+				"noVar": "error",
+				"noReactForwardRef": "error"
+			}
+		}
+	},
+	"overrides": [
+		{
+			"includes": ["**/*.test.*", "**/*.spec.*"],
+			"linter": {
+				"rules": {
+					"complexity": {
+						"noExcessiveLinesPerFunction": "off"
+					}
+				}
+			}
+		},
+		{
+			"includes": ["**/app/**", "**/*.config.*"],
+			"linter": {
+				"rules": {
+					"style": {
+						"noDefaultExport": "off"
+					}
+				}
+			}
+		},
+		{
+			"includes": ["**/pnpm-lock.yaml"],
+			"formatter": {
+				"enabled": false
+			},
+			"linter": {
+				"enabled": false
+			},
+			"assist": {
+				"enabled": false
+			}
+		}
+	]
 }

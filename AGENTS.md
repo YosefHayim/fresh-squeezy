@@ -18,8 +18,6 @@ Single-context layout: one `CONTEXT.md` at the repo root.
 
 ## Conventions
 
-Code standard: read node_modules/code-standard/README.md before you write code.
-
 Rules only this repo has:
 
 - **Errors:** one `FreshSqueezyError` (a plain `Error` with `code`/`status`/`detail`), built by `freshSqueezyErrorOf`, checked with `isFreshSqueezyError`, never `instanceof`. Callers branch on `.code`. The client throws it; checks turn it into a finding and never re-throw. A function has one named return type, no multi-object bags.
@@ -27,9 +25,9 @@ Rules only this repo has:
 - **Checks:** each file in `features/validate/` holds one named list of `FindingRule` entries per check. `findingsFrom` runs the list, then `buildResult` ends the check. Fetches go through `fetchResource`, which maps every failed fetch to a finding in one place (a 401 is always `AUTH_FAILED`). No hand-rolled mapping, no silent `catch {}`. A check never throws.
 - **Client:** `src/features/client/lemon-squeezy-client.ts` has one function per verb (`get`, `list`, `create`, `update`, `remove`, `cancelSubscription`, `refund`, `generateInvoice`, `currentUsage`). Types come from `src/shared/lemon-squeezy-types.ts`. Only calls the Lemon Squeezy docs list (docs.lemonsqueezy.com/api); never invent a write the API does not have. The license API is `license-api.ts`: no key, form fields.
 - **Public API:** six `package.json` `exports` subpaths: `.`, `./config`, `./errors`, `./findings`, `./types`, `./license`. Each points at one file and has its own `tsup.config.ts` entry. No barrels. No compatibility shims: rewrite callers.
-- **Scripts contract:** same names as the sibling repos: `dev`, `build`, `cli`, `test`, `test:watch`, `test:coverage`, `typecheck`, `lint`, `lint:fix`, `format`, `check:ci`, `check:standard`, `verify`. Variants nest with `:`. One `verify` gate (`check:ci`, `check:standard`, `typecheck`, `test`, `build`), never re-split. Local-only scripts go in `scripts/dev/`, which stays gitignored.
+- **Scripts contract:** same names as the sibling repos: `dev`, `build`, `cli`, `test`, `test:watch`, `test:coverage`, `typecheck`, `lint`, `lint:fix`, `format`, `check:ci`, `verify`. Variants nest with `:`. One `verify` gate (`check:ci`, `typecheck`, `test`, `build`), never re-split. Local-only scripts go in `scripts/dev/`, which stays gitignored.
 - **CLI:** `fresh-squeezy doctor` with flags only. It never prompts and never hangs. Exit codes `0` (ok), `1` (a check failed), `2` (usage or config error). After a build: `pnpm cli` runs `node dist/cli.js`.
-- **CI and hooks:** CI runs the code standard check (Node 24, which code-standard needs), test and build. Lint, the code standard check and typecheck run in the husky pre-push hook, so a new worktree needs `pnpm install` before its first push.
+- **CI and hooks:** CI runs test and build. Lint and typecheck run in the husky pre-push hook, so a new worktree needs `pnpm install` before its first push.
 - **Skill:** the agent skill lives in `skills/fresh-squeezy/SKILL.md`.
 
 ## Commands
@@ -41,8 +39,7 @@ pnpm test:coverage      # thresholds 80/80/75/80
 pnpm test:live          # live API smoke, runs each mode whose API key is set
 pnpm build              # tsup, emits dist/
 pnpm dev                # tsup --watch
-pnpm check:standard     # code-standard check: health score and report link
-pnpm verify             # biome ci + code standard + tsc + vitest + build (pre-PR gate)
+pnpm verify             # biome ci + tsc + vitest + build (pre-PR gate)
 ```
 
 Unit tests run against fixtures and sit next to their file as `<name>.test.ts`. End-to-end tests (the doctor CLI on a fake API) and the opt-in live smoke test live in `e2e/`.
