@@ -1,3 +1,4 @@
+import { errorMessageOf } from "@/app/render.js";
 import {
 	findResourceVerb,
 	invokeOp,
@@ -25,20 +26,21 @@ export interface BulkSummary {
 }
 
 export interface BulkSelector {
-	all?: boolean;
 	ids?: string[];
 	match?: string;
 	storeId?: string;
 	parentId?: string;
 }
 
+interface ListedItem {
+	id: string | number;
+	attributes?: Record<string, unknown>;
+}
+
 export const supportsBulk = (spec: ResourceVerbSpec): boolean =>
 	Boolean(spec.destructive) && spec.idRole === "id";
 
-const describeBulkTarget = (item: {
-	id: string | number;
-	attributes?: Record<string, unknown>;
-}): BulkTarget => {
+const describeBulkTarget = (item: ListedItem): BulkTarget => {
 	const attrs = item.attributes ?? {};
 	const id = String(item.id);
 	for (const key of [
@@ -56,10 +58,7 @@ const describeBulkTarget = (item: {
 	return { id, label: id };
 };
 
-const matchesText = (
-	item: { attributes?: Record<string, unknown> },
-	text: string,
-): boolean => {
+const matchesText = (item: ListedItem, text: string): boolean => {
 	const needle = text.toLowerCase();
 	return Object.values(item.attributes ?? {}).some(
 		(value) =>
@@ -72,10 +71,9 @@ export const collectBulkTargets = async (
 	spec: ResourceVerbSpec,
 	selector: BulkSelector,
 ): Promise<BulkTarget[]> => {
-	const hasExplicitIds = Boolean(selector.ids?.length);
-	if (hasExplicitIds && selector.ids) {
-		return selector.ids.map((id) => ({ id, label: id }));
-	}
+	const { ids } = selector;
+	const hasExplicitIds = ids !== undefined && ids.length > 0;
+	if (hasExplicitIds) return ids.map((id) => ({ id, label: id }));
 
 	const listSpec = findResourceVerb(spec.resource, "list");
 	const hasNoListOp = !listSpec;
@@ -105,20 +103,12 @@ export const collectBulkTargets = async (
 		storeId: selector.storeId,
 		parentId: selector.parentId,
 	});
-	const items = listedItems as Array<{
-		id: string | number;
-		attributes?: Record<string, unknown>;
-	}>;
+	const items = listedItems as ListedItem[];
 
 	const matchingItems = items.filter((item) =>
 		selector.match ? matchesText(item, selector.match) : true,
 	);
 	return matchingItems.map(describeBulkTarget);
-};
-
-const describeFailure = (err: unknown): string => {
-	const isErrorInstance = err instanceof Error;
-	return isErrorInstance ? err.message : String(err);
 };
 
 export const executeBulk = async (
@@ -144,11 +134,11 @@ export const executeBulk = async (
 			results.push({
 				...target,
 				ok: false,
-				error: describeFailure(err),
+				error: errorMessageOf(err),
 			});
 		}
 	}
-	const failed = results.filter((r) => !r.ok).length;
+	const failed = results.filter((outcome) => !outcome.ok).length;
 	return {
 		dryRun,
 		total: results.length,
@@ -159,7 +149,7 @@ export const executeBulk = async (
 };
 
 export const previewTargets = (targets: BulkTarget[], max = 5): string => {
-	const shown = targets.slice(0, max).map((t) => t.label);
+	const shown = targets.slice(0, max).map((target) => target.label);
 	const more = targets.length - shown.length;
 	const hasHiddenTargets = more > 0;
 	return hasHiddenTargets
@@ -175,10 +165,10 @@ export const renderBulkSummary = (
 	if (isThereNothingMatched)
 		return `No ${spec.resource} items matched — nothing to ${spec.verb}.\n`;
 	const verb = summary.dryRun ? `would ${spec.verb}` : spec.verb;
-	const lines = summary.results.map((r) =>
-		r.ok
-			? `  ✓ ${verb} ${spec.resource} ${r.id} (${r.label})`
-			: `  ✗ ${spec.verb} ${spec.resource} ${r.id} (${r.label}): ${r.error}`,
+	const lines = summary.results.map((outcome) =>
+		outcome.ok
+			? `  ✓ ${verb} ${spec.resource} ${outcome.id} (${outcome.label})`
+			: `  ✗ ${spec.verb} ${spec.resource} ${outcome.id} (${outcome.label}): ${outcome.error}`,
 	);
 	const tail = summary.dryRun
 		? `dry run — ${summary.total} ${spec.resource} item(s) would be affected, nothing sent`

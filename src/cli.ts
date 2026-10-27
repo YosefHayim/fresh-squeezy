@@ -4,15 +4,27 @@ import dotenv from "dotenv";
 import type { OpVerb } from "@/features/ops/resource-registry.js";
 import type { Mode } from "@/shared/contracts.js";
 import { freshSqueezyErrorOf } from "@/shared/errors.js";
-import { runAugmentCommand } from "./app/augment-command.js";
+import {
+	type AugmentCommandOptions,
+	runAugmentCommand,
+} from "./app/augment-command.js";
+import { splitCsv } from "./app/csv-values.js";
 import {
 	type DoctorCommandOptions,
 	runDoctorCommand,
 } from "./app/doctor-command.js";
 import { runInitCommand } from "./app/init-command.js";
 import { runLauncherCommand } from "./app/launcher-menu.js";
-import { runResourceOpCommand } from "./app/ops-command.js";
-import { renderCliError } from "./app/render.js";
+import { runOpsCatalogCommand } from "./app/ops-catalog-command.js";
+import {
+	type OpsCommandOptions,
+	runResourceOpCommand,
+} from "./app/ops-command.js";
+import {
+	errorMessageOf,
+	writeCliFailure,
+	writeNeedsTerminalError,
+} from "./app/render.js";
 import {
 	runValidateCommand,
 	VALIDATE_SUBCOMMANDS,
@@ -44,12 +56,6 @@ const parseMode = (value: string): Mode => {
 	});
 };
 
-const parseCsv = (value: string): string[] =>
-	value
-		.split(",")
-		.map((entry) => entry.trim())
-		.filter((entry) => entry.length > 0);
-
 const readPackageVersion = (): string => {
 	const candidates = [
 		new URL("../package.json", import.meta.url),
@@ -74,25 +80,6 @@ const readPackageVersion = (): string => {
 const isInteractive = Boolean(process.stdin.isTTY);
 const packageVersion = readPackageVersion();
 
-interface ResourceOpCliOpts {
-	mode?: Mode;
-	id?: string;
-	storeIds?: string[];
-	parentId?: string;
-	body?: string;
-	bodyFile?: string;
-	yes?: boolean;
-	json?: boolean;
-	all?: boolean;
-	ids?: string[];
-	match?: string;
-	dryRun?: boolean;
-}
-
-const exitWith = async (code: Promise<number> | number): Promise<void> => {
-	process.exitCode = await code;
-};
-
 const attachModeJson = (cmd: Command): Command =>
 	cmd
 		.option("-m, --mode <mode>", "test or live", parseMode)
@@ -114,14 +101,14 @@ const attachValidateFlags = (
 			.option(
 				"--store-ids <ids>",
 				spec.storeIdsHelp ?? "Comma-separated store IDs",
-				parseCsv,
+				splitCsv,
 			)
 			.option("--all-stores", "Run against every reachable store");
 	} else if (areStoresOwnership) {
 		cmd.option(
 			"--store-ids <ids>",
 			spec.storeIdsHelp ?? "Store ID for ownership check (first ID used)",
-			parseCsv,
+			splitCsv,
 		);
 	}
 
@@ -172,24 +159,15 @@ Store selection:
 program.action(async (opts: { install?: boolean }) => {
 	const isNonInteractive = !isInteractive;
 	if (isNonInteractive) {
-		const guidedSetupError = renderCliError(
-			"`fresh-squeezy` guided setup requires an interactive terminal.",
-			[
-				"fresh-squeezy doctor --all-stores",
-				"fresh-squeezy validate connection",
-			],
-		);
-		process.stderr.write(guidedSetupError);
+		writeNeedsTerminalError("`fresh-squeezy` guided setup");
 		process.exitCode = 2;
 		return;
 	}
 
-	const launcherExitCode = runLauncherCommand({
-		isInteractive,
+	process.exitCode = await runLauncherCommand({
 		install: opts.install,
 		packageVersion,
 	});
-	await exitWith(launcherExitCode);
 });
 
 const doctor = program
@@ -199,7 +177,7 @@ const doctor = program
 	.option(
 		"--store-ids <ids>",
 		"Comma-separated store IDs (e.g. 1,2,3)",
-		parseCsv,
+		splitCsv,
 	)
 	.option("--all-stores", "Run against every reachable store, no prompt")
 	.option(
@@ -213,8 +191,7 @@ const doctor = program
 	.option("--variant-id <id>", "Subscription plan variant to validate")
 	.option("--json", "Emit machine-readable JSON")
 	.action(async (opts: DoctorCommandOptions) => {
-		const doctorExitCode = runDoctorCommand({ ...opts, isInteractive });
-		await exitWith(doctorExitCode);
+		process.exitCode = await runDoctorCommand({ ...opts, isInteractive });
 	});
 
 doctor.addHelpText(
@@ -253,11 +230,10 @@ for (const [name, spec] of Object.entries(VALIDATE_SUBCOMMANDS) as [
 	const validateCommand = validate.command(name).description(spec.description);
 	attachValidateFlags(validateCommand, spec).action(
 		async (opts: ValidateCommandOptions) => {
-			const validateExitCode = runValidateCommand(name, {
+			process.exitCode = await runValidateCommand(name, {
 				...opts,
 				isInteractive,
 			});
-			await exitWith(validateExitCode);
 		},
 	);
 }
@@ -269,11 +245,7 @@ program
 	)
 	.option("--env-file <path>", "Where to write credentials (default: .env)")
 	.action(async (opts: { envFile?: string }) => {
-		const initExitCode = runInitCommand({
-			envFile: opts.envFile,
-			isInteractive,
-		});
-		await exitWith(initExitCode);
+		process.exitCode = await runInitCommand({ ...opts, isInteractive });
 	});
 
 const types = program
@@ -295,12 +267,8 @@ types
 		"--force",
 		"Emit the generic file even when @lemonsqueezy/lemonsqueezy.js is detected",
 	)
-	.action(async (opts: { out?: string; force?: boolean }) => {
-		const augmentExitCode = runAugmentCommand({
-			out: opts.out,
-			force: Boolean(opts.force),
-		});
-		await exitWith(augmentExitCode);
+	.action(async (opts: AugmentCommandOptions) => {
+		process.exitCode = await runAugmentCommand(opts);
 	});
 
 program
@@ -310,14 +278,8 @@ program
 	)
 	.option("--list", "Print the full verb matrix", true)
 	.option("--json", "Emit machine-readable JSON")
-	.action(async (opts: { json?: boolean }) => {
-		const catalogExitCode = runResourceOpCommand({
-			resource: "",
-			verb: "get",
-			listCatalog: true,
-			json: Boolean(opts.json),
-		});
-		await exitWith(catalogExitCode);
+	.action((opts: { json?: boolean }) => {
+		process.exitCode = runOpsCatalogCommand(opts);
 	});
 
 const BULK_VERBS: readonly OpVerb[] = ["delete", "cancel", "refund"];
@@ -358,7 +320,7 @@ for (const verb of OP_VERBS) {
 		.option(
 			"--store-ids <ids>",
 			"Comma-separated store IDs (first used for list filters)",
-			parseCsv,
+			splitCsv,
 		)
 		.option(
 			"--parent-id <id>",
@@ -378,7 +340,7 @@ for (const verb of OP_VERBS) {
 		.option(
 			"--ids <ids>",
 			"Bulk: comma-separated ids (delete, cancel, refund)",
-			parseCsv,
+			splitCsv,
 		)
 		.option(
 			"--match <text>",
@@ -386,36 +348,22 @@ for (const verb of OP_VERBS) {
 		)
 		.option("--dry-run", "Bulk: show what would be affected; send nothing")
 		.addHelpText("after", verbHelpText)
-		.action(async (resource: string, opts: ResourceOpCliOpts) => {
-			const resourceOpExitCode = runResourceOpCommand({
+		.action(async (resource: string, opts: OpsCommandOptions) => {
+			process.exitCode = await runResourceOpCommand({
+				...opts,
 				verb,
 				resource,
-				mode: opts.mode,
-				id: opts.id,
-				storeIds: opts.storeIds,
-				parentId: opts.parentId,
-				body: opts.body,
-				bodyFile: opts.bodyFile,
-				yes: Boolean(opts.yes),
-				json: Boolean(opts.json),
 				isInteractive,
-				all: Boolean(opts.all),
-				ids: opts.ids,
-				match: opts.match,
-				dryRun: Boolean(opts.dryRun),
 			});
-			await exitWith(resourceOpExitCode);
 		});
 }
 
 program.parseAsync(process.argv).catch((err: unknown) => {
-	const isError = err instanceof Error;
-	const message = isError ? err.message : String(err);
+	const message = errorMessageOf(err);
 	const isModeError = message.includes("Mode must be");
 	const hints = isModeError
 		? ["fresh-squeezy doctor --mode test", "fresh-squeezy doctor --mode live"]
 		: ["fresh-squeezy --help"];
-	const cliErrorText = renderCliError(message, hints);
-	process.stderr.write(cliErrorText);
+	writeCliFailure(err, { hints });
 	process.exitCode = 2;
 });

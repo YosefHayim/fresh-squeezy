@@ -1,5 +1,6 @@
 import path from "node:path";
 import { checkbox, confirm, input, password, select } from "@inquirer/prompts";
+import { splitCsv, uniqueValues } from "./csv-values.js";
 import {
 	type DiscoveredChoices,
 	OPTIONAL_VALIDATORS,
@@ -8,10 +9,7 @@ import {
 	type OptionalValidatorName,
 	type ResourceChoiceGroup,
 } from "./optional-validators.js";
-
-export interface InitAnswers {
-	apiKey: string;
-}
+import type { StoreChoice } from "./resolve-stores.js";
 
 export type LauncherAction = "init" | "doctor" | "manage" | "examples" | "exit";
 
@@ -24,8 +22,8 @@ const PROMPT_THEME = {
 	},
 } as const;
 
-export const pickLauncherAction = async (): Promise<LauncherAction> => {
-	return select<LauncherAction>({
+export const pickLauncherAction = (): Promise<LauncherAction> =>
+	select<LauncherAction>({
 		message: "What do you want to do?",
 		theme: PROMPT_THEME,
 		choices: [
@@ -51,9 +49,8 @@ export const pickLauncherAction = async (): Promise<LauncherAction> => {
 			},
 		],
 	});
-};
 
-export const askForApiKey = async (): Promise<InitAnswers> => {
+export const askForApiKey = async (): Promise<string> => {
 	const apiKey = await password({
 		message: "Paste your Lemon Squeezy API key:",
 		mask: false,
@@ -63,31 +60,29 @@ export const askForApiKey = async (): Promise<InitAnswers> => {
 			return isApiKeyGiven ? true : "API key is required.";
 		},
 	});
-	return { apiKey: apiKey.trim() };
+	return apiKey.trim();
 };
 
-export const pickStore = async (
-	choices: { id: string; name: string; slug: string }[],
-): Promise<string> => {
-	return select<string>({
+const storeChoiceLabel = (store: StoreChoice): string =>
+	`${store.name} (${store.slug}) — id ${store.id}`;
+
+export const pickStore = (choices: StoreChoice[]): Promise<string> =>
+	select<string>({
 		message: "Pick a store to validate against:",
 		theme: PROMPT_THEME,
-		choices: choices.map((entry) => ({
-			name: `${entry.name} (${entry.slug}) — id ${entry.id}`,
-			value: entry.id,
+		choices: choices.map((store) => ({
+			name: storeChoiceLabel(store),
+			value: store.id,
 		})),
 	});
-};
 
-export const pickStores = async (
-	choices: { id: string; name: string; slug: string }[],
-): Promise<string[]> => {
-	return checkbox<string>({
+export const pickStores = (choices: StoreChoice[]): Promise<string[]> =>
+	checkbox<string>({
 		message: "Pick one or more stores (space to toggle, enter to confirm):",
 		theme: PROMPT_THEME,
-		choices: choices.map((entry, index) => ({
-			name: `${entry.name} (${entry.slug}) — id ${entry.id}`,
-			value: entry.id,
+		choices: choices.map((store, index) => ({
+			name: storeChoiceLabel(store),
+			value: store.id,
 			checked: index === 0,
 		})),
 		validate: (selected) => {
@@ -95,12 +90,9 @@ export const pickStores = async (
 			return isAnyStoreSelected ? true : "Pick at least one store.";
 		},
 	});
-};
 
-export const selectOptionalValidators = async (): Promise<
-	OptionalValidatorName[]
-> => {
-	return checkbox<OptionalValidatorName>({
+export const selectOptionalValidators = (): Promise<OptionalValidatorName[]> =>
+	checkbox<OptionalValidatorName>({
 		message: "Add resource checks to this doctor run?",
 		theme: PROMPT_THEME,
 		choices: OPTIONAL_VALIDATORS.map((optionalValidator) => ({
@@ -108,23 +100,13 @@ export const selectOptionalValidators = async (): Promise<
 			value: optionalValidator.name,
 		})),
 	});
-};
-
-const splitManualValues = (value: string | undefined): string[] =>
-	(value ?? "")
-		.split(",")
-		.map((entry) => entry.trim())
-		.filter(Boolean);
 
 const cleanList = (
 	value: string[] | string | undefined,
 ): string[] | undefined => {
 	const isAlreadyList = Array.isArray(value);
-	const values = isAlreadyList ? value : splitManualValues(value);
-	const trimmedValues = values.map((entry) => entry.trim());
-	const nonEmptyValues = trimmedValues.filter(Boolean);
-	const uniqueValues = new Set(nonEmptyValues);
-	const cleaned = Array.from(uniqueValues);
+	const values = isAlreadyList ? value : splitCsv(value ?? "");
+	const cleaned = uniqueValues(values);
 	const isAnyValueLeft = cleaned.length > 0;
 	return isAnyValueLeft ? cleaned : undefined;
 };
@@ -147,16 +129,8 @@ const pickDiscoveredIds = async (
 	});
 	const isAnyIdPicked = values.length > 0;
 	if (isAnyIdPicked) return values;
-	return askEmptyTargetAction(
-		`No ${optionalValidator.noun} selected. What now?`,
-	);
-};
-
-const askEmptyTargetAction = async (
-	message: string,
-): Promise<EmptyTargetAction> => {
 	return select<EmptyTargetAction>({
-		message,
+		message: `No ${optionalValidator.noun} selected. What now?`,
 		theme: PROMPT_THEME,
 		choices: [
 			{ name: "Enter manually", value: "manual" },
@@ -206,31 +180,12 @@ export const askForValidatorIds = async (
 	return targetValues;
 };
 
-export const confirmLiveModeRun = async (): Promise<boolean> => {
-	return confirm({
+export const confirmLiveModeRun = (): Promise<boolean> =>
+	confirm({
 		message: "This is a live-mode key. Continue with live checks?",
 		default: false,
 		theme: PROMPT_THEME,
 	});
-};
-
-export const confirmWriteEnvFile = async (
-	filePath: string,
-): Promise<boolean> => {
-	return confirm({
-		message: `Write these values to ${formatPromptPath(filePath)}?`,
-		default: true,
-		theme: PROMPT_THEME,
-	});
-};
-
-export const confirmResourceOp = async (message: string): Promise<boolean> => {
-	return confirm({
-		message,
-		default: false,
-		theme: PROMPT_THEME,
-	});
-};
 
 const formatPromptPath = (filePath: string): string => {
 	const workingDir = process.cwd();
@@ -240,6 +195,20 @@ const formatPromptPath = (filePath: string): string => {
 	if (isInsideWorkingDir) return relative;
 	return path.basename(filePath);
 };
+
+export const confirmWriteEnvFile = (filePath: string): Promise<boolean> =>
+	confirm({
+		message: `Write these values to ${formatPromptPath(filePath)}?`,
+		default: true,
+		theme: PROMPT_THEME,
+	});
+
+export const confirmResourceOp = (message: string): Promise<boolean> =>
+	confirm({
+		message,
+		default: false,
+		theme: PROMPT_THEME,
+	});
 
 export const isPromptCancel = (error: unknown): boolean => {
 	const isNotError = !(error instanceof Error);
@@ -252,10 +221,10 @@ export interface ManageOperationChoice {
 	verb: string;
 }
 
-export const pickManageOperation = async (
+export const pickManageOperation = (
 	ops: ManageOperationChoice[],
-): Promise<ManageOperationChoice> => {
-	return select<ManageOperationChoice>({
+): Promise<ManageOperationChoice> =>
+	select<ManageOperationChoice>({
 		message: "Which operation?",
 		theme: PROMPT_THEME,
 		choices: ops.map((op) => ({
@@ -263,10 +232,9 @@ export const pickManageOperation = async (
 			value: op,
 		})),
 	});
-};
 
 export const askParentId = async (resource: string): Promise<string> => {
-	const value = await input({
+	const parentId = await input({
 		message: `Parent id to list ${resource} items from:`,
 		theme: PROMPT_THEME,
 		validate: (entry: string) => {
@@ -274,14 +242,14 @@ export const askParentId = async (resource: string): Promise<string> => {
 			return isParentIdGiven ? true : "A parent id is required.";
 		},
 	});
-	return value.trim();
+	return parentId.trim();
 };
 
-export const pickBulkTargets = async (
+export const pickBulkTargets = (
 	verb: string,
 	items: { id: string; label: string }[],
-): Promise<string[]> => {
-	return checkbox<string>({
+): Promise<string[]> =>
+	checkbox<string>({
 		message: `Pick items to ${verb} (space toggles, a selects all, enter confirms):`,
 		theme: PROMPT_THEME,
 		choices: items.map((item) => ({
@@ -293,4 +261,3 @@ export const pickBulkTargets = async (
 			return isAnyItemSelected ? true : "Pick at least one item.";
 		},
 	});
-};

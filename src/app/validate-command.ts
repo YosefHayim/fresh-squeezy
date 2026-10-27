@@ -1,28 +1,18 @@
+import type { DoctorCommandOptions } from "@/app/doctor-command.js";
 import {
 	MISSING_API_KEY_HINTS,
-	renderCliError,
 	renderResult,
+	writeCliFailure,
 } from "@/app/render.js";
 import { resolveStores } from "@/app/resolve-stores.js";
 import {
 	createFreshSqueezy,
 	type FreshSqueezyClient,
 } from "@/create-fresh-squeezy.js";
-import type { Mode, ValidationResult } from "@/shared/contracts.js";
+import type { ValidationResult } from "@/shared/contracts.js";
 import { freshSqueezyErrorOf, isFreshSqueezyError } from "@/shared/errors.js";
 
-export interface ValidateCommandOptions {
-	mode?: Mode;
-	storeIds?: string[];
-	allStores?: boolean;
-	productId?: string;
-	webhookUrl?: string;
-	discountId?: string;
-	licenseKeyId?: string;
-	variantId?: string;
-	json?: boolean;
-	isInteractive?: boolean;
-}
+export type ValidateCommandOptions = Omit<DoctorCommandOptions, "allResources">;
 
 export interface ValidateSubcommandSpec {
 	description: string;
@@ -30,31 +20,33 @@ export interface ValidateSubcommandSpec {
 	storeIdsHelp?: string;
 	required?: [flag: string, description: string];
 	examples: string[];
-	run: (
+	// Method form: each target narrows the options to the flags commander requires for it.
+	run(
 		client: FreshSqueezyClient,
 		options: ValidateCommandOptions,
-	) => Promise<ValidationResult | ValidationResult[]>;
+	): Promise<ValidationResult | ValidationResult[]>;
 }
+
+type WithRequired<Flag extends keyof ValidateCommandOptions> =
+	ValidateCommandOptions & Required<Pick<ValidateCommandOptions, Flag>>;
 
 const EXAMPLE_WEBHOOK_URL =
 	"https://app.example.com/api/webhooks/lemon-squeezy";
 
-const required = <T>(value: T | undefined, message: string): T => {
-	const isValueMissing = value === undefined || value === null || value === "";
-	if (isValueMissing) {
-		throw freshSqueezyErrorOf({ code: "MISSING_ARG", message });
-	}
-	return value;
-};
-
 const requiredStoreId = (
 	options: ValidateCommandOptions,
 	target: string,
-): string =>
-	required(
-		options.storeIds?.[0],
-		`--store-ids is required for \`validate ${target}\`.`,
-	);
+): string => {
+	const [storeId] = options.storeIds ?? [];
+	const isStoreIdMissing = !storeId;
+	if (isStoreIdMissing) {
+		throw freshSqueezyErrorOf({
+			code: "MISSING_ARG",
+			message: `--store-ids is required for \`validate ${target}\`.`,
+		});
+	}
+	return storeId;
+};
 
 const resolveStoresForSubcommand = async (
 	client: FreshSqueezyClient,
@@ -86,7 +78,6 @@ export const VALIDATE_SUBCOMMANDS = {
 	store: {
 		description: "Check one or more stores are reachable",
 		stores: "multi",
-		storeIdsHelp: "Comma-separated store IDs",
 		examples: [
 			"fresh-squeezy validate store --store-ids 12",
 			"fresh-squeezy validate store --all-stores",
@@ -109,38 +100,28 @@ export const VALIDATE_SUBCOMMANDS = {
 		required: ["--product-id <id>", "Product ID to validate"],
 		storeIdsHelp: "Expected owning store IDs (first is used for cross-check)",
 		examples: ["fresh-squeezy validate product --product-id 987"],
-		run: (client, options) => {
-			const productId = required(
-				options.productId,
-				"--product-id is required for `validate product`.",
-			);
-			return client.validateProduct({
-				productId,
+		run: (client, options: WithRequired<"productId">) =>
+			client.validateProduct({
+				productId: options.productId,
 				expectedStoreId: options.storeIds?.[0],
-			});
-		},
+			}),
 	},
 	webhook: {
 		description: "Check a webhook is registered with the recommended events",
 		stores: "multi",
 		required: ["--webhook-url <url>", "Public webhook URL"],
-		storeIdsHelp: "Comma-separated store IDs",
 		examples: [
 			`fresh-squeezy validate webhook --store-ids 12 --webhook-url ${EXAMPLE_WEBHOOK_URL}`,
 			`fresh-squeezy validate webhook --all-stores --webhook-url ${EXAMPLE_WEBHOOK_URL}`,
 		],
-		run: async (client, options) => {
+		run: async (client, options: WithRequired<"webhookUrl">) => {
 			const storeIds = await resolveStoresForSubcommand(
 				client,
 				"webhook",
 				options,
 			);
-			const url = required(
-				options.webhookUrl,
-				"--webhook-url is required for `validate webhook`.",
-			);
 			const webhookValidations = storeIds.map((storeId) =>
-				client.validateWebhook({ storeId, url }),
+				client.validateWebhook({ storeId, url: options.webhookUrl }),
 			);
 			return Promise.all(webhookValidations);
 		},
@@ -149,17 +130,15 @@ export const VALIDATE_SUBCOMMANDS = {
 		description: "Check a discount code is valid and redeemable",
 		stores: "ownership",
 		required: ["--discount-id <id>", "Discount ID to validate"],
-		storeIdsHelp: "Store ID for ownership check (first ID used)",
 		examples: [
 			"fresh-squeezy validate discount --store-ids 12 --discount-id 123",
 		],
-		run: (client, options) => {
-			const discountId = required(
-				options.discountId,
-				"--discount-id is required for `validate discount`.",
-			);
+		run: (client, options: WithRequired<"discountId">) => {
 			const storeId = requiredStoreId(options, "discount");
-			return client.validateDiscount({ discountId, storeId });
+			return client.validateDiscount({
+				discountId: options.discountId,
+				storeId,
+			});
 		},
 	},
 	"license-key": {
@@ -167,17 +146,15 @@ export const VALIDATE_SUBCOMMANDS = {
 			"Check a license key is active and not at its activation limit",
 		stores: "ownership",
 		required: ["--license-key-id <id>", "License key ID to validate"],
-		storeIdsHelp: "Store ID for ownership check (first ID used)",
 		examples: [
 			"fresh-squeezy validate license-key --store-ids 12 --license-key-id 123",
 		],
-		run: (client, options) => {
-			const licenseKeyId = required(
-				options.licenseKeyId,
-				"--license-key-id is required for `validate license-key`.",
-			);
+		run: (client, options: WithRequired<"licenseKeyId">) => {
 			const storeId = requiredStoreId(options, "license-key");
-			return client.validateLicenseKey({ licenseKeyId, storeId });
+			return client.validateLicenseKey({
+				licenseKeyId: options.licenseKeyId,
+				storeId,
+			});
 		},
 	},
 	"subscription-plan": {
@@ -185,17 +162,15 @@ export const VALIDATE_SUBCOMMANDS = {
 			"Check a subscription plan variant has valid billing interval and trial config",
 		stores: "ownership",
 		required: ["--variant-id <id>", "Variant ID of the subscription plan"],
-		storeIdsHelp: "Store ID for ownership check (first ID used)",
 		examples: [
 			"fresh-squeezy validate subscription-plan --store-ids 12 --variant-id 123",
 		],
-		run: (client, options) => {
-			const variantId = required(
-				options.variantId,
-				"--variant-id is required for `validate subscription-plan`.",
-			);
+		run: (client, options: WithRequired<"variantId">) => {
 			const storeId = requiredStoreId(options, "subscription-plan");
-			return client.validateSubscriptionPlan({ variantId, storeId });
+			return client.validateSubscriptionPlan({
+				variantId: options.variantId,
+				storeId,
+			});
 		},
 	},
 } satisfies Record<string, ValidateSubcommandSpec>;
@@ -246,14 +221,12 @@ export const runValidateCommand = async (
 ): Promise<number> => {
 	try {
 		const client = createFreshSqueezy({ mode: options.mode });
-		const results = await VALIDATE_SUBCOMMANDS[target].run(client, options);
+		const subcommand: ValidateSubcommandSpec = VALIDATE_SUBCOMMANDS[target];
+		const results = await subcommand.run(client, options);
 		return writeResults(results, options);
 	} catch (err) {
-		const isErrorInstance = err instanceof Error;
-		const message = isErrorInstance ? err.message : String(err);
 		const hints = errorHints(err, target);
-		const cliError = renderCliError(message, hints);
-		process.stderr.write(cliError);
+		writeCliFailure(err, { hints });
 		return 2;
 	}
 };

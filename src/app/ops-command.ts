@@ -1,12 +1,15 @@
 import { readFileSync } from "node:fs";
 import { confirmResourceOp } from "@/app/prompts.js";
-import { renderCliError } from "@/app/render.js";
+import {
+	errorMessageOf,
+	OPS_LIST_HINTS,
+	renderCliError,
+	writeCliFailure,
+} from "@/app/render.js";
 import {
 	findResourceVerb,
 	invokeOp,
-	listRegisteredResources,
-	type OpVerb,
-	resourceRegistry,
+	type ResourceVerbSpec,
 } from "@/features/ops/resource-registry.js";
 import { resolveConfig } from "@/shared/config.js";
 import type { Mode } from "@/shared/contracts.js";
@@ -21,9 +24,7 @@ import {
 	supportsBulk,
 } from "./bulk-ops.js";
 
-export interface ResourceOpCommandOptions {
-	resource: string;
-	verb: OpVerb | string;
+export interface OpsCommandOptions {
 	mode?: Mode;
 	id?: string;
 	storeIds?: string[];
@@ -33,22 +34,20 @@ export interface ResourceOpCommandOptions {
 	yes?: boolean;
 	json?: boolean;
 	isInteractive?: boolean;
-	listCatalog?: boolean;
 	all?: boolean;
 	ids?: string[];
 	match?: string;
 	dryRun?: boolean;
 }
 
+export interface ResourceOpCommandOptions extends OpsCommandOptions {
+	resource: string;
+	verb: string;
+}
+
 export const runResourceOpCommand = async (
 	options: ResourceOpCommandOptions,
 ): Promise<number> => {
-	const shouldListCatalog = options.listCatalog;
-	if (shouldListCatalog) {
-		writeCatalog(options.json ?? false);
-		return 0;
-	}
-
 	const spec = findResourceVerb(options.resource, options.verb);
 	const isThereNoSpec = !spec;
 	if (isThereNoSpec) {
@@ -70,7 +69,7 @@ export const runResourceOpCommand = async (
 			code: "INVALID_ARGS",
 			message: bulkError,
 		});
-		writeFatal(invalidArgsError, options.json ?? false);
+		writeOpsFailure(invalidArgsError, options.json);
 		return 2;
 	}
 
@@ -94,8 +93,8 @@ export const runResourceOpCommand = async (
 			return await runBulk(http, spec, config.mode, options, { storeId, body });
 		}
 
-		const allowed = await assertWriteSafety(spec, config.mode, options);
-		const isWriteRefused = !allowed;
+		const isAllowed = await isWriteAllowed(spec, config.mode, options);
+		const isWriteRefused = !isAllowed;
 		if (isWriteRefused) return 2;
 
 		const opBody = await invokeOp(http, options.resource, options.verb, {
@@ -106,11 +105,8 @@ export const runResourceOpCommand = async (
 		});
 
 		const envelope = {
-			ok: true as const,
-			mode: config.mode,
-			resource: spec.resource,
-			verb: spec.verb,
-			docs: `https://docs.lemonsqueezy.com/api/${spec.docsPath}`,
+			ok: true,
+			...opEnvelope(spec, config.mode),
 			data: opBody ?? null,
 		};
 
@@ -125,47 +121,20 @@ export const runResourceOpCommand = async (
 		);
 		return 0;
 	} catch (err) {
-		writeFatal(err, options.json ?? false);
+		writeOpsFailure(err, options.json);
 		return 2;
 	}
 };
 
-const writeCatalog = (asJson: boolean): void => {
-	if (asJson) {
-		const catalog = {
-			resources: listRegisteredResources(),
-			ops: resourceRegistry,
-		};
-		const catalogText = JSON.stringify(catalog, null, 2);
-		process.stdout.write(`${catalogText}\n`);
-		return;
-	}
-	process.stdout.write(
-		"Docs-backed ops (Lemon Squeezy official API only):\n\n",
-	);
-	for (const entry of resourceRegistry) {
-		const hasBody = entry.body && entry.body !== "none";
-		const flagList = [
-			entry.destructive ? "destructive" : undefined,
-			hasBody ? `body=${entry.body}` : undefined,
-		].filter(Boolean);
-		const flags = flagList.join(", ");
-		const flagsSuffix = flags ? `  (${flags})` : "";
-		const verbColumn = entry.verb.padEnd(18);
-		const resourceColumn = entry.resource.padEnd(22);
-		process.stdout.write(
-			`  ${verbColumn} ${resourceColumn} ${entry.docsPath}${flagsSuffix}\n`,
-		);
-	}
-	process.stdout.write(
-		"\nCatalog resources (product, variant, price, file, store, …) are read-only in the API.\n",
-	);
-};
-
-type VerbSpec = NonNullable<ReturnType<typeof findResourceVerb>>;
+const opEnvelope = (spec: ResourceVerbSpec, mode: Mode) => ({
+	mode,
+	resource: spec.resource,
+	verb: spec.verb,
+	docs: `https://docs.lemonsqueezy.com/api/${spec.docsPath}`,
+});
 
 const validateBulkFlags = (
-	spec: VerbSpec,
+	spec: ResourceVerbSpec,
 	options: ResourceOpCommandOptions,
 ): string | undefined => {
 	const isBulk = Boolean(options.all || options.ids);
@@ -189,13 +158,12 @@ const validateBulkFlags = (
 
 const runBulk = async (
 	http: HttpClient,
-	spec: VerbSpec,
+	spec: ResourceVerbSpec,
 	mode: Mode,
 	options: ResourceOpCommandOptions,
 	scope: { storeId?: string; body?: unknown },
 ): Promise<number> => {
 	const selector: BulkSelector = {
-		all: options.all,
 		ids: options.ids,
 		match: options.match,
 		storeId: scope.storeId,
@@ -206,13 +174,13 @@ const runBulk = async (
 	const hasTargets = targets.length > 0;
 	const shouldConfirm = !options.dryRun && hasTargets;
 	const preview = previewTargets(targets);
-	const allowed = shouldConfirm
-		? await assertWriteSafety(spec, mode, options, {
+	const isAllowed = shouldConfirm
+		? await isWriteAllowed(spec, mode, options, {
 				count: targets.length,
 				preview,
 			})
 		: true;
-	const isWriteRefused = !allowed;
+	const isWriteRefused = !isAllowed;
 	if (isWriteRefused) return 2;
 
 	const summary = await executeBulk(http, spec, targets, {
@@ -225,10 +193,7 @@ const runBulk = async (
 	if (options.json) {
 		const envelope = {
 			ok: summary.failed === 0,
-			mode,
-			resource: spec.resource,
-			verb: spec.verb,
-			docs: `https://docs.lemonsqueezy.com/api/${spec.docsPath}`,
+			...opEnvelope(spec, mode),
 			...summary,
 		};
 		const envelopeText = JSON.stringify(envelope, null, 2);
@@ -241,8 +206,8 @@ const runBulk = async (
 	return exitCode;
 };
 
-const assertWriteSafety = async (
-	spec: VerbSpec,
+const isWriteAllowed = async (
+	spec: ResourceVerbSpec,
 	mode: Mode,
 	options: ResourceOpCommandOptions,
 	bulk?: { count: number; preview: string },
@@ -288,26 +253,27 @@ const readBody = (options: ResourceOpCommandOptions): unknown | undefined => {
 		const bodyFileText = readFileSync(options.bodyFile, "utf8");
 		return JSON.parse(bodyFileText) as unknown;
 	}
-	const isBodyGiven = options.body !== undefined;
-	if (isBodyGiven) return JSON.parse(options.body as string) as unknown;
-	return undefined;
+	const { body } = options;
+	const isBodyMissing = body === undefined;
+	if (isBodyMissing) return undefined;
+	return JSON.parse(body) as unknown;
 };
 
-const writeFatal = (err: unknown, json: boolean): void => {
-	const isKnownError = isFreshSqueezyError(err);
-	const isNativeError = err instanceof Error;
-	const message = isNativeError ? err.message : String(err);
-	if (json) {
-		const code = isKnownError ? err.code : "FATAL";
-		const status = isKnownError ? err.status : undefined;
-		const errorText = JSON.stringify(
-			{ ok: false, error: { code, message, status } },
-			null,
-			2,
-		);
-		process.stderr.write(`${errorText}\n`);
+// Ops keep their own pretty-printed failure JSON; text failures share the common writer.
+const writeOpsFailure = (err: unknown, json: boolean | undefined): void => {
+	const isTextRequested = !json;
+	if (isTextRequested) {
+		writeCliFailure(err, { hints: OPS_LIST_HINTS });
 		return;
 	}
-	const errorScreen = renderCliError(message, ["fresh-squeezy ops --list"]);
-	process.stderr.write(errorScreen);
+	const isKnownError = isFreshSqueezyError(err);
+	const code = isKnownError ? err.code : "FATAL";
+	const status = isKnownError ? err.status : undefined;
+	const message = errorMessageOf(err);
+	const failureJson = JSON.stringify(
+		{ ok: false, error: { code, message, status } },
+		null,
+		2,
+	);
+	process.stderr.write(`${failureJson}\n`);
 };

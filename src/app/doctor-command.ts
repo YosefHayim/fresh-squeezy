@@ -4,14 +4,13 @@ import {
 	type OptionalValidatorIds,
 	type ResourceChoiceGroup,
 } from "@/app/optional-validators.js";
-import { getDoctorHints, renderCliError, renderReport } from "@/app/render.js";
+import { getDoctorHints, renderReport, writeCliFailure } from "@/app/render.js";
 import { resolveStores } from "@/app/resolve-stores.js";
 import {
 	createFreshSqueezy,
 	type FreshSqueezyClient,
 } from "@/create-fresh-squeezy.js";
 import type { DoctorReport, Mode } from "@/shared/contracts.js";
-import { isFreshSqueezyError } from "@/shared/errors.js";
 
 export interface DoctorCommandOptions {
 	mode?: Mode;
@@ -56,13 +55,18 @@ export const runDoctorCommand = async (
 		const reportJobs = resolved.storeIds.map(runStoreDoctor);
 		const reports = await Promise.all(reportJobs);
 
-		const ok = reports.every((report) => report.ok);
-		const payload: DoctorJsonOutput = { ok, mode: client.mode, reports };
+		const areAllReportsOk = reports.every((report) => report.ok);
+		const exitCode = areAllReportsOk ? 0 : 1;
+		const payload: DoctorJsonOutput = {
+			ok: areAllReportsOk,
+			mode: client.mode,
+			reports,
+		};
 
 		if (options.json) {
 			const payloadText = JSON.stringify(payload, null, 2);
 			process.stdout.write(`${payloadText}\n`);
-			return ok ? 0 : 1;
+			return exitCode;
 		}
 
 		for (const report of reports) {
@@ -78,27 +82,28 @@ export const runDoctorCommand = async (
 			);
 		}
 
-		return ok ? 0 : 1;
+		return exitCode;
 	} catch (err) {
-		writeFatal(err, options.json ?? false);
+		const hints = getDoctorHints(err);
+		writeCliFailure(err, { json: options.json, hints });
 		return 2;
 	}
 };
 
-const one = (value: string | undefined): string[] | undefined =>
+const singleItemList = (value: string | undefined): string[] | undefined =>
 	value ? [value] : undefined;
 
 const explicitValidatorIds = (
 	options: DoctorCommandOptions,
 ): OptionalValidatorIds => ({
-	productIds: one(options.productId),
-	webhookUrls: one(options.webhookUrl),
-	discountIds: one(options.discountId),
-	licenseKeyIds: one(options.licenseKeyId),
-	variantIds: one(options.variantId),
+	productIds: singleItemList(options.productId),
+	webhookUrls: singleItemList(options.webhookUrl),
+	discountIds: singleItemList(options.discountId),
+	licenseKeyIds: singleItemList(options.licenseKeyId),
+	variantIds: singleItemList(options.variantId),
 });
 
-const values = (
+const choiceValues = (
 	group: ResourceChoiceGroup | undefined,
 ): string[] | undefined => {
 	const hasNoChoices = !group?.choices.length;
@@ -153,7 +158,7 @@ const resolveValidatorIds = async (
 
 	const mergedIds: OptionalValidatorIds = {};
 	for (const validator of OPTIONAL_VALIDATORS) {
-		const discoveredValues = values(discovered[validator.name]);
+		const discoveredValues = choiceValues(discovered[validator.name]);
 		mergedIds[validator.field] = mergeValues(
 			explicit[validator.field],
 			discoveredValues,
@@ -197,23 +202,4 @@ const runConnectionOnly = async (
 	const reportText = renderReport(report);
 	process.stdout.write(`${reportText}\n`);
 	return exitCode;
-};
-
-const writeFatal = (err: unknown, asJson: boolean): void => {
-	const isKnownError = isFreshSqueezyError(err);
-	const isNativeError = err instanceof Error;
-	const message = isNativeError ? err.message : String(err);
-	if (asJson) {
-		const code = isKnownError ? err.code : "UNKNOWN";
-		const status = isKnownError ? (err.status ?? null) : null;
-		const errorText = JSON.stringify({
-			ok: false,
-			error: { code, message, status },
-		});
-		process.stderr.write(`${errorText}\n`);
-		return;
-	}
-	const hints = getDoctorHints(err);
-	const errorScreen = renderCliError(message, hints);
-	process.stderr.write(errorScreen);
 };
