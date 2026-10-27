@@ -3,23 +3,29 @@
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
+import { fetchText, runWhenInvokedDirectly } from "./script-support.mjs";
 
 const DOCS_ORIGIN = "https://docs.lemonsqueezy.com";
 const INDEX_URL = `${DOCS_ORIGIN}/api/getting-started/requests`;
 
-const outputPath = fileURLToPath(
-	new URL("../../shared/lemon-squeezy-api-types.ts", import.meta.url),
+const outputUrl = new URL(
+	"../../shared/lemon-squeezy-api-types.ts",
+	import.meta.url,
 );
+const outputPath = fileURLToPath(outputUrl);
 const updateMode = process.argv.includes("--update");
 
+const USER_AGENT =
+	"fresh-squeezy-api-type-generator/0.1 (+https://github.com/YosefHayim/fresh-squeezy)";
+
 const loadResources = async () => {
-	const indexHtml = await fetchText(INDEX_URL);
+	const indexHtml = await fetchText(INDEX_URL, USER_AGENT);
 	const pages = discoverObjectPages(indexHtml);
 	const resources = [];
 
 	for (const page of pages) {
-		const html = await fetchText(page.url);
+		const html = await fetchText(page.url, USER_AGENT);
 		const example = extractResourceExample(html, page.resourceType);
 		const isExampleMissing = !example;
 		if (isExampleMissing) continue;
@@ -39,7 +45,8 @@ const writeOrCompare = async (generated, resourceCount) => {
 	const isOutputMissing = !existsSync(outputPath);
 	const shouldWriteOutput = updateMode || isOutputMissing;
 	if (shouldWriteOutput) {
-		await mkdir(dirname(outputPath), { recursive: true });
+		const outputFolder = dirname(outputPath);
+		await mkdir(outputFolder, { recursive: true });
 		await writeFile(outputPath, generated, "utf8");
 		process.stdout.write(`Generated ${outputPath}\n`);
 		process.stdout.write(`  resources: ${resourceCount}\n`);
@@ -64,20 +71,6 @@ export const main = async () => {
 	const resources = await loadResources();
 	const generated = renderTypes(resources);
 	await writeOrCompare(generated, resources.length);
-};
-
-const fetchText = async (url) => {
-	const response = await fetch(url, {
-		headers: {
-			"user-agent":
-				"fresh-squeezy-api-type-generator/0.1 (+https://github.com/YosefHayim/fresh-squeezy)",
-			accept: "text/html,*/*",
-		},
-	});
-	const isResponseFailed = !response.ok;
-	if (isResponseFailed)
-		throw new Error(`Fetch failed ${response.status} for ${url}`);
-	return response.text();
 };
 
 const stripTags = (html) => {
@@ -117,7 +110,10 @@ const singular = (value) => {
 	return value;
 };
 
-const resourceName = (resourceType) => camel(singular(resourceType));
+const resourceName = (resourceType) => {
+	const singularType = singular(resourceType);
+	return camel(singularType);
+};
 
 const resourceTypeFromUrl = (url) => {
 	const parsed = new URL(url);
@@ -328,13 +324,4 @@ export const renderTypes = (resources) => {
 	return `${lines.join("\n")}\n`;
 };
 
-const invokedAsCli =
-	process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
-if (invokedAsCli) {
-	main().catch((err) => {
-		const isRealError = err instanceof Error;
-		const errorText = isRealError ? (err.stack ?? err.message) : String(err);
-		process.stderr.write(`${errorText}\n`);
-		process.exit(2);
-	});
-}
+runWhenInvokedDirectly(import.meta.url, main);

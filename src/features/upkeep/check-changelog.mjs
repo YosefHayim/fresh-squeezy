@@ -3,19 +3,33 @@
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
+import { fetchText, runWhenInvokedDirectly } from "./script-support.mjs";
 
 const CHANGELOG_URL =
 	"https://docs.lemonsqueezy.com/api/getting-started/changelog";
+const USER_AGENT =
+	"fresh-squeezy-drift-check/0.1 (+https://github.com/YosefHayim/fresh-squeezy)";
+const EXCERPT_LIMIT = 400;
+const MONTH_NAMES = [
+	"january",
+	"february",
+	"march",
+	"april",
+	"may",
+	"june",
+	"july",
+	"august",
+	"september",
+	"october",
+	"november",
+	"december",
+];
+const MONTH_PATTERN = MONTH_NAMES.join("|");
+const LONG_DATE_PATTERN = `(${MONTH_PATTERN})\\s+(\\d{1,2})(?:st|nd|rd|th)?,?\\s+(\\d{4})`;
 
-const thisFile = fileURLToPath(import.meta.url);
-const thisFolder = dirname(thisFile);
-const repoRoot = resolve(thisFolder, "../../..");
-const snapshotPath = resolve(
-	repoRoot,
-	"src/features/upkeep/changelog-snapshot.json",
-);
+const snapshotUrl = new URL("./changelog-snapshot.json", import.meta.url);
+const snapshotPath = fileURLToPath(snapshotUrl);
 
 const readFlagValue = (flagName) => {
 	const flagIndex = process.argv.indexOf(flagName);
@@ -27,61 +41,29 @@ const readFlagValue = (flagName) => {
 const updateMode = process.argv.includes("--update");
 const githubOutputPath = readFlagValue("--github-output");
 
-export const DATE_RE =
-	/\d{4}-\d{2}-\d{2}|(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4}/i;
+export const DATE_RE = new RegExp(
+	`\\d{4}-\\d{2}-\\d{2}|${LONG_DATE_PATTERN}`,
+	"i",
+);
+const LONG_DATE_RE = new RegExp(`^${LONG_DATE_PATTERN}$`, "i");
 
-const main = async () => {
-	const html = await fetchText(CHANGELOG_URL);
-	const normalized = normalize(html);
-	const currentEntries = extractEntries(normalized);
-	const canonicalEntries = canonicalize(currentEntries);
-	const hash = sha256(canonicalEntries);
-	const fetchedAt = new Date().toISOString();
+const writeSnapshotFile = async (snapshot) => {
+	const snapshotJson = JSON.stringify(snapshot, null, 2);
+	await writeFile(snapshotPath, `${snapshotJson}\n`, "utf8");
+	process.stdout.write(`Snapshot written: ${snapshotPath}\n`);
+	process.stdout.write(`  url:        ${CHANGELOG_URL}\n`);
+	process.stdout.write(`  hash:       ${snapshot.hash}\n`);
+	process.stdout.write(`  entries:    ${snapshot.entryCount}\n`);
+};
 
-	const isSnapshotMissing = !existsSync(snapshotPath);
-	const shouldWriteSnapshot = updateMode || isSnapshotMissing;
-	if (shouldWriteSnapshot) {
-		await writeSnapshot({
-			url: CHANGELOG_URL,
-			fetchedAt,
-			hash,
-			entryCount: currentEntries.length,
-			entries: currentEntries,
-		});
-		process.stdout.write(`Snapshot written: ${snapshotPath}\n`);
-		process.stdout.write(`  url:        ${CHANGELOG_URL}\n`);
-		process.stdout.write(`  hash:       ${hash}\n`);
-		process.stdout.write(`  entries:    ${currentEntries.length}\n`);
-		return;
-	}
-
-	const snapshotText = await readFile(snapshotPath, "utf8");
-	const previous = JSON.parse(snapshotText);
-	const isChangelogUnchanged = previous.hash === hash;
-	if (isChangelogUnchanged) {
-		process.stdout.write(
-			`No drift. Changelog unchanged since ${previous.fetchedAt}.\n`,
-		);
-		process.stdout.write(
-			`  ${currentEntries.length} entries match the snapshot.\n`,
-		);
-		return;
-	}
-
-	// --- Drift detected ---
-	process.exitCode = 1;
-
-	const previousEntries = previousSnapshotEntries(previous);
-	const newEntries = diffEntries(previousEntries, currentEntries);
-	const formattedDiff = formatDiff(newEntries);
-
-	const message = [
+const driftMessage = (previous, current, formattedDiff) =>
+	[
 		`Drift detected in ${CHANGELOG_URL}.`,
 		"",
 		`Previous hash: ${previous.hash}`,
 		`Previous seen: ${previous.fetchedAt}`,
-		`Current hash:  ${hash}`,
-		`Current seen:  ${fetchedAt}`,
+		`Current hash:  ${current.hash}`,
+		`Current seen:  ${current.fetchedAt}`,
 		formattedDiff
 			? `\n## New entries since last snapshot\n\n${formattedDiff}\n`
 			: "",
@@ -89,45 +71,77 @@ const main = async () => {
 		"  pnpm check:changelog -- --update",
 		"",
 		"Then review the diff against src/shared/support-manifest.ts and update",
-		"RECOMMENDED_WEBHOOK_EVENTS / OPTIONAL_WEBHOOK_EVENTS /",
-		"ACKNOWLEDGED_CHANGELOG_ENTRIES before committing.",
+		"RECOMMENDED_WEBHOOK_EVENTS / OPTIONAL_WEBHOOK_EVENTS before committing.",
 	]
 		.filter(Boolean)
 		.join("\n");
-	process.stderr.write(`${message}\n`);
 
-	const isGithubOutputNotRequested = !githubOutputPath;
-	if (isGithubOutputNotRequested) return;
-
-	await appendGithubOutput("drifted", "true");
-	await appendGithubOutput("previous_hash", previous.hash);
-	await appendGithubOutput("current_hash", hash);
-	await appendGithubOutput("previous_seen", previous.fetchedAt);
-	await appendGithubOutput("current_seen", fetchedAt);
-	const isThereNoDiff = !formattedDiff;
-	if (isThereNoDiff) return;
-	const diffBytes = Buffer.from(formattedDiff, "utf8");
-	const diffBase64 = diffBytes.toString("base64");
-	await appendGithubOutput("diff_b64", diffBase64);
+const publishDriftOutputs = async (previous, current, formattedDiff) => {
+	const outputs = {
+		drifted: "true",
+		previous_hash: previous.hash,
+		current_hash: current.hash,
+		previous_seen: previous.fetchedAt,
+		current_seen: current.fetchedAt,
+	};
+	const hasDiff = Boolean(formattedDiff);
+	if (hasDiff) {
+		outputs.diff_b64 = Buffer.from(formattedDiff, "utf8").toString("base64");
+	}
+	const outputLines = Object.entries(outputs).map(([key, value]) => {
+		const singleLineValue = String(value).replace(/\r?\n/g, "%0A");
+		return `${key}=${singleLineValue}\n`;
+	});
+	const outputText = outputLines.join("");
+	await writeFile(githubOutputPath, outputText, {
+		flag: "a",
+		encoding: "utf8",
+	});
 };
 
-const fetchText = async (url) => {
-	const response = await fetch(url, {
-		headers: {
-			"user-agent":
-				"fresh-squeezy-drift-check/0.1 (+https://github.com/YosefHayim/fresh-squeezy)",
-			accept: "text/html,*/*",
-		},
-	});
-	const isResponseFailed = !response.ok;
-	if (isResponseFailed) {
-		throw new Error(`Fetch failed ${response.status} for ${url}`);
+const main = async () => {
+	const html = await fetchText(CHANGELOG_URL, USER_AGENT);
+	const normalizedHtml = normalize(html);
+	const entries = extractEntries(normalizedHtml);
+	const canonicalEntries = canonicalize(entries);
+	const current = {
+		url: CHANGELOG_URL,
+		fetchedAt: new Date().toISOString(),
+		hash: sha256(canonicalEntries),
+		entryCount: entries.length,
+		entries,
+	};
+
+	const isSnapshotMissing = !existsSync(snapshotPath);
+	const shouldWriteSnapshot = updateMode || isSnapshotMissing;
+	if (shouldWriteSnapshot) return writeSnapshotFile(current);
+
+	const snapshotText = await readFile(snapshotPath, "utf8");
+	const previous = JSON.parse(snapshotText);
+	const isChangelogUnchanged = previous.hash === current.hash;
+	if (isChangelogUnchanged) {
+		process.stdout.write(
+			`No drift. Changelog unchanged since ${previous.fetchedAt}.\n`,
+		);
+		process.stdout.write(`  ${entries.length} entries match the snapshot.\n`);
+		return;
 	}
-	return response.text();
+
+	process.exitCode = 1;
+	const newEntries = diffEntries(previous.entries ?? [], entries);
+	const formattedDiff = formatDiff(newEntries);
+	const message = driftMessage(previous, current, formattedDiff);
+	process.stderr.write(`${message}\n`);
+
+	const isGithubOutputRequested = Boolean(githubOutputPath);
+	if (isGithubOutputRequested) {
+		await publishDriftOutputs(previous, current, formattedDiff);
+	}
 };
 
 const normalize = (html) => {
-	const mainHtml = isolateMain(html);
+	const mainMatch = html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i);
+	const mainHtml = mainMatch ? mainMatch[1] : html;
 	return mainHtml
 		.replace(/<script[\s\S]*?<\/script>/gi, "")
 		.replace(/<style[\s\S]*?<\/style>/gi, "")
@@ -136,24 +150,8 @@ const normalize = (html) => {
 		.trim();
 };
 
-const isolateMain = (html) => {
-	const match = html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i);
-	return match ? match[1] : html;
-};
-
 const sha256 = (value) =>
 	createHash("sha256").update(value, "utf8").digest("hex");
-
-const writeSnapshot = async (snapshot) => {
-	const snapshotJson = JSON.stringify(snapshot, null, 2);
-	await writeFile(snapshotPath, `${snapshotJson}\n`, "utf8");
-};
-
-const appendGithubOutput = async (key, value) => {
-	const singleLineValue = String(value).replace(/\r?\n/g, "%0A");
-	const line = `${key}=${singleLineValue}\n`;
-	await writeFile(githubOutputPath, line, { flag: "a", encoding: "utf8" });
-};
 
 const stripTags = (html) =>
 	html
@@ -171,8 +169,6 @@ export const extractEntries = (html) => {
 	const isHtmlEmpty = !html;
 	if (isHtmlEmpty) return [];
 
-	const entries = [];
-	// Raw row example: "heading"-like input should match.
 	const headingRe = /<(h[1-6])[^>]*>(.*?)<\/\1>/gi;
 	const headings = [];
 	for (const headingMatch of html.matchAll(headingRe)) {
@@ -183,6 +179,7 @@ export const extractEntries = (html) => {
 		headings.push({ index, end: index + headingMatch[0].length, text });
 	}
 
+	const entries = [];
 	for (const [headingPosition, heading] of headings.entries()) {
 		const nextHeading = headings[headingPosition + 1];
 		const bodyEnd = nextHeading ? nextHeading.index : html.length;
@@ -190,7 +187,7 @@ export const extractEntries = (html) => {
 		const excerpt = stripTags(bodyHtml)
 			.replace(/\s+/g, " ")
 			.trim()
-			.slice(0, 400);
+			.slice(0, EXCERPT_LIMIT);
 
 		const dateMatch = heading.text.match(DATE_RE);
 		const date = dateMatch ? dateMatch[0] : "unknown";
@@ -202,26 +199,10 @@ export const extractEntries = (html) => {
 		});
 	}
 
-	// Sort newest-first so the snapshot is naturally readable: open the file
-	// and the most recent entries are at the top of the array.
-	return entries.sort((a, b) =>
-		(b.isoDate ?? "").localeCompare(a.isoDate ?? ""),
+	// Newest first, so the top of the snapshot file is the latest entry.
+	return entries.sort((entry, otherEntry) =>
+		(otherEntry.isoDate ?? "").localeCompare(entry.isoDate ?? ""),
 	);
-};
-
-const MONTHS = {
-	january: "01",
-	february: "02",
-	march: "03",
-	april: "04",
-	may: "05",
-	june: "06",
-	july: "07",
-	august: "08",
-	september: "09",
-	october: "10",
-	november: "11",
-	december: "12",
 };
 
 export const toIsoDate = (raw) => {
@@ -229,37 +210,28 @@ export const toIsoDate = (raw) => {
 	if (isDateMissing) return null;
 	const isAlreadyIso = /^\d{4}-\d{2}-\d{2}$/.test(raw);
 	if (isAlreadyIso) return raw;
-	const m = raw.match(
-		/^(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})$/i,
-	);
-	const isDateUnparseable = !m;
+	const longDateMatch = raw.match(LONG_DATE_RE);
+	const isDateUnparseable = !longDateMatch;
 	if (isDateUnparseable) return null;
-	const month = MONTHS[m[1].toLowerCase()];
-	const isMonthUnknown = !month;
-	if (isMonthUnknown) return null;
-	const day = m[2].padStart(2, "0");
-	return `${m[3]}-${month}-${day}`;
+	const [, monthName, day, year] = longDateMatch;
+	const lowerMonthName = monthName.toLowerCase();
+	const monthIndex = MONTH_NAMES.indexOf(lowerMonthName);
+	const month = String(monthIndex + 1).padStart(2, "0");
+	return `${year}-${month}-${day.padStart(2, "0")}`;
 };
 
 const canonicalize = (entries) => {
-	const canonicalEntries = entries.map((e) => ({
-		heading: e.heading,
-		excerpt: e.excerpt,
+	const canonicalEntries = entries.map((entry) => ({
+		heading: entry.heading,
+		excerpt: entry.excerpt,
 	}));
 	return JSON.stringify(canonicalEntries);
 };
 
-const previousSnapshotEntries = (previous) => {
-	if (Array.isArray(previous?.entries)) return previous.entries;
-	const hasLegacyHtml = typeof previous?.html === "string";
-	if (hasLegacyHtml) return extractEntries(previous.html);
-	return [];
-};
-
 export const diffEntries = (previous, current) => {
-	const previousHeadingList = previous.map((e) => e.heading);
-	const prevHeadings = new Set(previousHeadingList);
-	return current.filter((e) => !prevHeadings.has(e.heading));
+	const previousHeadingList = previous.map((entry) => entry.heading);
+	const previousHeadings = new Set(previousHeadingList);
+	return current.filter((entry) => !previousHeadings.has(entry.heading));
 };
 
 const formatEntry = (entry) => {
@@ -270,26 +242,11 @@ const formatEntry = (entry) => {
 	const block = [`### ${title}`];
 	const isExcerptMissing = !entry.excerpt;
 	if (isExcerptMissing) return block.join("\n");
-	const isExcerptTruncated = entry.excerpt.length >= 400;
+	const isExcerptTruncated = entry.excerpt.length >= EXCERPT_LIMIT;
 	block.push("", entry.excerpt + (isExcerptTruncated ? "…" : ""));
 	return block.join("\n");
 };
 
-const formatDiff = (newEntries) => {
-	const hasNoNewEntries = newEntries.length === 0;
-	if (hasNoNewEntries) return "";
-	return newEntries.map(formatEntry).join("\n\n");
-};
+const formatDiff = (newEntries) => newEntries.map(formatEntry).join("\n\n");
 
-// Only run as a CLI when invoked directly (e.g. `node src/features/upkeep/check-changelog.mjs`).
-// Importing this module from a test or script should not trigger a network fetch.
-const invokedAsCli =
-	process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
-if (invokedAsCli) {
-	main().catch((err) => {
-		const isRealError = err instanceof Error;
-		const errorText = isRealError ? (err.stack ?? err.message) : String(err);
-		process.stderr.write(`${errorText}\n`);
-		process.exit(2);
-	});
-}
+runWhenInvokedDirectly(import.meta.url, main);
