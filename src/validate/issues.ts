@@ -49,9 +49,10 @@ export const issue = (
 	extras: { suggestedFix?: string; context?: ValidationIssue["context"] } = {},
 ): ValidationIssue => {
 	const base: ValidationIssue = { code, severity, message };
-	if (extras.suggestedFix !== undefined)
-		base.suggestedFix = extras.suggestedFix;
-	if (extras.context !== undefined) base.context = extras.context;
+	const isThereSuggestedFix = extras.suggestedFix !== undefined;
+	const isThereContext = extras.context !== undefined;
+	if (isThereSuggestedFix) base.suggestedFix = extras.suggestedFix;
+	if (isThereContext) base.context = extras.context;
 	return base;
 };
 
@@ -66,13 +67,15 @@ export const buildResult = <T>(
 	resource?: T,
 	target?: ValidationTarget,
 ): ValidationResult<T> => {
-	const result: ValidationResult<T> = {
+	const validation: ValidationResult<T> = {
 		name,
 		ok: isOk(issues),
 		mode,
 		issues,
 	};
-	if (resource !== undefined) result.resource = resource;
-	if (target !== undefined) result.target = target;
-	return result;
+	const isThereResource = resource !== undefined;
+	const isThereTarget = target !== undefined;
+	if (isThereResource) validation.resource = resource;
+	if (isThereTarget) validation.target = target;
+	return validation;
 };
