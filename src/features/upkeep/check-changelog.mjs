@@ -48,7 +48,7 @@ export const DATE_RE = new RegExp(
 const LONG_DATE_RE = new RegExp(`^${LONG_DATE_PATTERN}$`, "i");
 
 const writeSnapshotFile = async (snapshot) => {
-	const snapshotJson = JSON.stringify(snapshot, null, 2);
+	const snapshotJson = JSON.stringify(snapshot, null, "\t");
 	await writeFile(snapshotPath, `${snapshotJson}\n`, "utf8");
 	process.stdout.write(`Snapshot written: ${snapshotPath}\n`);
 	process.stdout.write(`  url:        ${CHANGELOG_URL}\n`);
