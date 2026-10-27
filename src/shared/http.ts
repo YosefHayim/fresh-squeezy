@@ -3,6 +3,8 @@ import { type FreshSqueezyError, freshSqueezyErrorOf } from "./errors.js";
 
 const PAGE_SIZE = 100;
 
+const LICENSE_API_URL = "https://api.lemonsqueezy.com";
+
 const API_CONTENT_TYPE = "application/vnd.api+json";
 
 const HTTP_STATUS_CODES = {
@@ -125,6 +127,35 @@ const sendRequest = async <Payload>(
 	const parsedBody = isBodyPresent ? parseJsonBody(text) : undefined;
 	const isResponseFailed = !response.ok;
 	if (isResponseFailed) throw apiErrorOf(response.status, parsedBody);
+	return parsedBody as Payload;
+};
+
+export interface LicenseFormRequest {
+	action: "activate" | "validate" | "deactivate";
+	fields: Record<string, string | undefined>;
+}
+
+// The license API takes no API key and answers 4xx with a JSON body that carries `error`.
+export const postLicenseForm = async <Payload>({
+	action,
+	fields,
+}: LicenseFormRequest) => {
+	const url = new URL(`/v1/licenses/${action}`, LICENSE_API_URL);
+	const presentFields = Object.entries(fields).filter(
+		([, value]) => value !== undefined,
+	) as [string, string][];
+	const body = new URLSearchParams(presentFields);
+	const response = await fetch(url, {
+		method: "POST",
+		headers: { Accept: "application/json" },
+		body,
+	}).catch((cause: unknown) => {
+		throw networkErrorOf(cause);
+	});
+	const text = await response.text();
+	const parsedBody = parseJsonBody(text);
+	const isBodyJson = typeof parsedBody === "object" && parsedBody !== null;
+	if (!isBodyJson) throw apiErrorOf(response.status, parsedBody);
 	return parsedBody as Payload;
 };
 
