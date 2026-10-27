@@ -43,14 +43,14 @@ const expectKnownAttributeKeys = async (mode: Mode) => {
 	const attributeKeys = readAttributeKeys();
 	const [storeId] = await freshSqueezy.listStoreIds();
 	const resourceTypes = Object.keys(attributeKeys) as ResourceType[];
-	const keysMissingFromInterfaces: string[] = [];
+	const keysMissingFromInterfaces = new Set<string>();
 
 	const checkAttributes = (type: ResourceType, attributes: object) => {
 		const knownKeys = attributeKeys[type];
 		const liveKeys = Object.keys(attributes);
 		const unknownKeys = liveKeys.filter((key) => !knownKeys.includes(key));
 		for (const key of unknownKeys)
-			keysMissingFromInterfaces.push(`${type}.${key}`);
+			keysMissingFromInterfaces.add(`${type}.${key}`);
 	};
 
 	const firstResourceOf = async (type: ResourceType) => {
@@ -72,7 +72,7 @@ const expectKnownAttributeKeys = async (mode: Mode) => {
 			checkAttributes(type, firstResource.attributes as object);
 	}
 
-	expect(keysMissingFromInterfaces).toEqual([]);
+	expect([...keysMissingFromInterfaces]).toEqual([]);
 };
 
 test.runIf(isTestModeSmoked)(
