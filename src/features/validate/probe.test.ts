@@ -1,6 +1,15 @@
+import { unauthorizedError } from "@e2e/fixtures/sandbox/data.js";
+import { makeClient } from "@e2e/mock-fetch.js";
 import { expect, test } from "vitest";
 import { freshSqueezyErrorOf } from "@/shared/errors.js";
+import { validateConnection } from "./connection.js";
+import { validateDiscount } from "./discount.js";
+import { validateLicenseKey } from "./license-key.js";
 import { checkStoreOwnership, mapErrorToIssue, probeFetch } from "./probe.js";
+import { validateProduct } from "./product.js";
+import { validateStore } from "./store.js";
+import { validateSubscriptionPlan } from "./subscription-plan.js";
+import { validateWebhook } from "./webhook.js";
 
 const probeThrowing = (thrown: Error) => {
 	return probeFetch(
@@ -81,28 +90,16 @@ test("probeFetch maps non-FreshSqueezyError to UNKNOWN with the error message", 
 	expect(probeOutcome.issue.message).toBe("oops");
 });
 
-test("mapErrorToIssue maps 401 to the caller-supplied unauthorized code when present", () => {
+test("mapErrorToIssue maps 401 to AUTH_FAILED with the regenerate-key fix", () => {
 	const mappedIssue = mapErrorToIssue(
 		freshSqueezyErrorOf({ code: "UNAUTHORIZED", status: 401, message: "no" }),
-		{
-			unauthorized: {
-				code: "AUTH_FAILED",
-				message: "API key rejected by Lemon Squeezy.",
-				suggestedFix: "Regenerate the key.",
-			},
-		},
 	);
 	expect(mappedIssue.code).toBe("AUTH_FAILED");
-	expect(mappedIssue.suggestedFix).toBe("Regenerate the key.");
-	expect(mappedIssue.context).toEqual({ status: 401 });
-});
-
-test("mapErrorToIssue falls through 401 to UNKNOWN when no unauthorized mapping is provided", () => {
-	const mappedIssue = mapErrorToIssue(
-		freshSqueezyErrorOf({ code: "UNAUTHORIZED", status: 401, message: "no" }),
+	expect(mappedIssue.message).toBe("API key rejected by Lemon Squeezy.");
+	expect(mappedIssue.suggestedFix).toBe(
+		"Regenerate the key at https://app.lemonsqueezy.com/settings/api.",
 	);
-	expect(mappedIssue.code).toBe("UNKNOWN");
-	expect(mappedIssue.context).toEqual({ status: 401, code: "UNAUTHORIZED" });
+	expect(mappedIssue.context).toEqual({ status: 401 });
 });
 
 test("checkStoreOwnership returns null when expected matches actual", () => {
@@ -149,3 +146,66 @@ test("checkStoreOwnership returns a mismatch issue when IDs differ", () => {
 		discountId: "7",
 	});
 });
+
+const rejectedKeyClient = () =>
+	makeClient([{ match: () => true, status: 401, body: unauthorizedError }]);
+
+const validatorCases = [
+	{
+		name: "connection",
+		validate: () => validateConnection(rejectedKeyClient(), "test"),
+	},
+	{
+		name: "store",
+		validate: () => validateStore(rejectedKeyClient(), "test", 42),
+	},
+	{
+		name: "product",
+		validate: () =>
+			validateProduct(rejectedKeyClient(), "test", { productId: 100 }),
+	},
+	{
+		name: "webhook",
+		validate: () =>
+			validateWebhook(rejectedKeyClient(), "test", {
+				storeId: 42,
+				url: "https://example.com/hook",
+			}),
+	},
+	{
+		name: "discount",
+		validate: () =>
+			validateDiscount(rejectedKeyClient(), "test", {
+				storeId: 42,
+				discountId: 600,
+			}),
+	},
+	{
+		name: "license key",
+		validate: () =>
+			validateLicenseKey(rejectedKeyClient(), "test", {
+				storeId: 42,
+				licenseKeyId: 700,
+			}),
+	},
+	{
+		name: "subscription plan",
+		validate: () =>
+			validateSubscriptionPlan(rejectedKeyClient(), "test", {
+				storeId: 42,
+				variantId: 800,
+			}),
+	},
+];
+
+test.each(validatorCases)(
+	"$name validator gives AUTH_FAILED on a 401",
+	async ({ validate }) => {
+		const validation = await validate();
+		expect(validation.ok).toBe(false);
+		expect(validation.issues[0]?.code).toBe("AUTH_FAILED");
+		expect(validation.issues[0]?.suggestedFix).toContain(
+			"https://app.lemonsqueezy.com/settings/api",
+		);
+	},
+);

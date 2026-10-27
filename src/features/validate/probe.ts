@@ -7,8 +7,11 @@ export interface IssueTemplate extends IssueExtras {
 	message: string;
 }
 
+const AUTH_FAILED_MESSAGE = "API key rejected by Lemon Squeezy.";
+const AUTH_FAILED_FIX =
+	"Regenerate the key at https://app.lemonsqueezy.com/settings/api.";
+
 export interface IssueMapping {
-	unauthorized?: Omit<IssueTemplate, "context">;
 	notFound?: IssueTemplate;
 }
 
@@ -23,12 +26,11 @@ export const mapErrorToIssue = (
 		return issue(ISSUE_CODES.UNKNOWN, "error", message);
 	}
 
-	const { unauthorized, notFound } = mapping;
-	const isUnauthorized =
-		unauthorized && (err.status === 401 || err.code === "UNAUTHORIZED");
+	const { notFound } = mapping;
+	const isUnauthorized = err.status === 401 || err.code === "UNAUTHORIZED";
 	if (isUnauthorized) {
-		return issue(unauthorized.code, "error", unauthorized.message, {
-			suggestedFix: unauthorized.suggestedFix,
+		return issue(ISSUE_CODES.AUTH_FAILED, "error", AUTH_FAILED_MESSAGE, {
+			suggestedFix: AUTH_FAILED_FIX,
 			context: { status: err.status ?? null },
 		});
 	}
