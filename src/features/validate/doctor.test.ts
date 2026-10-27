@@ -1,12 +1,12 @@
 import {
 	activeLicenseKeyDoc,
-	notFoundError,
+	NOT_FOUND_ERROR,
+	PUBLISHED_PRODUCT_DOC,
 	publishedDiscountDoc,
-	publishedProductDoc,
-	storeDoc,
+	STORE_DOC,
 	subscriptionVariantDoc,
-	unauthorizedError,
-	webhooksCollectionComplete,
+	UNAUTHORIZED_ERROR,
+	WEBHOOKS_COLLECTION_COMPLETE,
 } from "@e2e/fixtures/sandbox/data.js";
 import {
 	makeHttp,
@@ -27,12 +27,12 @@ test("doctor skips validators for targets that are not configured", async () => 
 	expect(report.results[0]?.name).toBe("connection");
 });
 
-const storeScopedRoutes = [
+const STORE_SCOPED_ROUTES = [
 	...SIGNED_IN_ROUTES,
-	route("/v1/stores/42", storeDoc),
+	route("/v1/stores/42", STORE_DOC),
 ];
 
-const targetCases = [
+const TARGET_CASES = [
 	{
 		title: "discount validator when discountId is provided",
 		routes: [route("/v1/discounts/600", publishedDiscountDoc)],
@@ -49,17 +49,17 @@ const targetCases = [
 		title: "subscription plan validator when variantId is provided",
 		routes: [
 			route("/v1/variants/800", subscriptionVariantDoc),
-			route("/v1/products/100", publishedProductDoc),
+			route("/v1/products/100", PUBLISHED_PRODUCT_DOC),
 		],
 		options: { variantIds: ["800"] },
 		name: "subscriptionPlan",
 	},
 ];
 
-test.each(targetCases)(
+test.each(TARGET_CASES)(
 	"doctor runs $title",
 	async ({ routes, options, name }) => {
-		const http = makeHttp([...storeScopedRoutes, ...routes]);
+		const http = makeHttp([...STORE_SCOPED_ROUTES, ...routes]);
 
 		const report = await doctor(http, "test", { storeId: "42", ...options });
 
@@ -70,8 +70,8 @@ test.each(targetCases)(
 
 test("doctor includes discount failure in overall ok", async () => {
 	const http = makeHttp([
-		...storeScopedRoutes,
-		route("/v1/discounts/9999", unauthorizedError, 404),
+		...STORE_SCOPED_ROUTES,
+		route("/v1/discounts/9999", UNAUTHORIZED_ERROR, 404),
 	]);
 
 	const report = await doctor(http, "test", {
@@ -86,7 +86,7 @@ test("doctor includes discount failure in overall ok", async () => {
 });
 
 test("doctor stops after a failed connection", async () => {
-	const http = makeHttp([route("/v1/users/me", unauthorizedError, 401)]);
+	const http = makeHttp([route("/v1/users/me", UNAUTHORIZED_ERROR, 401)]);
 
 	const report = await doctor(http, "test", {
 		storeId: "42",
@@ -114,7 +114,7 @@ test("doctor throws DOCTOR_OPTIONS_INVALID when dependent options come without a
 
 test("doctor runs each explicit id once", async () => {
 	const http = makeHttp([
-		...storeScopedRoutes,
+		...STORE_SCOPED_ROUTES,
 		route("/v1/discounts/600", publishedDiscountDoc),
 	]);
 
@@ -129,21 +129,21 @@ test("doctor runs each explicit id once", async () => {
 	expect(discountResults).toHaveLength(1);
 });
 
-const discoveryRoutes = [
-	...storeScopedRoutes,
-	storeListRoute("products", { data: [publishedProductDoc.data] }),
-	storeListRoute("webhooks", webhooksCollectionComplete),
+const DISCOVERY_ROUTES = [
+	...STORE_SCOPED_ROUTES,
+	storeListRoute("products", { data: [PUBLISHED_PRODUCT_DOC.data] }),
+	storeListRoute("webhooks", WEBHOOKS_COLLECTION_COMPLETE),
 	storeListRoute("discounts", { data: [publishedDiscountDoc.data] }),
 	storeListRoute("license-keys", { data: [activeLicenseKeyDoc.data] }),
 	variantListRoute("100", { data: [subscriptionVariantDoc.data] }),
-	route("/v1/products/100", publishedProductDoc),
+	route("/v1/products/100", PUBLISHED_PRODUCT_DOC),
 	route("/v1/variants/800", subscriptionVariantDoc),
 	route("/v1/discounts/600", publishedDiscountDoc),
 	route("/v1/license-keys/700", activeLicenseKeyDoc),
 ];
 
 test("doctor with allResources checks everything it finds in the store", async () => {
-	const http = makeHttp(discoveryRoutes);
+	const http = makeHttp(DISCOVERY_ROUTES);
 
 	const report = await doctor(http, "test", {
 		storeId: "42",
@@ -165,8 +165,8 @@ test("doctor with allResources checks everything it finds in the store", async (
 
 test("doctor with allResources reports a failed listing as a failed check", async () => {
 	const http = makeHttp([
-		{ ...storeListRoute("products", notFoundError), status: 500 },
-		...discoveryRoutes,
+		{ ...storeListRoute("products", NOT_FOUND_ERROR), status: 500 },
+		...DISCOVERY_ROUTES,
 	]);
 
 	const report = await doctor(http, "test", {
@@ -197,7 +197,7 @@ test("listStoreIds throws NO_STORES when the key reaches no store", async () => 
 });
 
 test("listStoreIds throws AUTH_FAILED when the key is rejected", async () => {
-	const http = makeHttp([route("/v1/stores", unauthorizedError, 401)]);
+	const http = makeHttp([route("/v1/stores", UNAUTHORIZED_ERROR, 401)]);
 
 	await expect(listStoreIds(http)).rejects.toMatchObject({
 		code: "AUTH_FAILED",

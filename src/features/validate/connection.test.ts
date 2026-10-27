@@ -1,14 +1,14 @@
 import {
-	liveUserDoc,
-	unauthorizedError,
-	userDoc,
+	LIVE_USER_DOC,
+	UNAUTHORIZED_ERROR,
+	USER_DOC,
 } from "@e2e/fixtures/sandbox/data.js";
 import { makeHttp, route, SIGNED_IN_ROUTES } from "@e2e/mock-fetch.js";
 import { expect, test } from "vitest";
 import { validateConnection } from "./connection.js";
 
-const liveRoutes = [
-	route("/v1/users/me", liveUserDoc),
+const LIVE_ROUTES = [
+	route("/v1/users/me", LIVE_USER_DOC),
 	...SIGNED_IN_ROUTES.slice(1),
 ];
 
@@ -37,7 +37,7 @@ test("validateConnection warns when no stores reachable", async () => {
 });
 
 test("validateConnection surfaces AUTH_FAILED on 401", async () => {
-	const http = makeHttp([route("/v1/users/me", unauthorizedError, 401)]);
+	const http = makeHttp([route("/v1/users/me", UNAUTHORIZED_ERROR, 401)]);
 
 	const connectionValidation = await validateConnection(http, "test");
 
@@ -46,7 +46,7 @@ test("validateConnection surfaces AUTH_FAILED on 401", async () => {
 });
 
 test("validateConnection flags MODE_MISMATCH when declared mode differs from meta.test_mode", async () => {
-	const http = makeHttp(liveRoutes);
+	const http = makeHttp(LIVE_ROUTES);
 
 	const connectionValidation = await validateConnection(http, "test");
 
@@ -61,7 +61,7 @@ test("validateConnection flags MODE_MISMATCH when declared mode differs from met
 });
 
 test("validateConnection passes when declared mode matches meta.test_mode", async () => {
-	const http = makeHttp(liveRoutes);
+	const http = makeHttp(LIVE_ROUTES);
 
 	const connectionValidation = await validateConnection(http, "live");
 
@@ -70,7 +70,7 @@ test("validateConnection passes when declared mode matches meta.test_mode", asyn
 });
 
 test("validateConnection skips mode check when meta.test_mode is absent", async () => {
-	const docWithoutMeta = { data: userDoc.data };
+	const docWithoutMeta = { data: USER_DOC.data };
 	const http = makeHttp([
 		route("/v1/users/me", docWithoutMeta),
 		...SIGNED_IN_ROUTES.slice(1),

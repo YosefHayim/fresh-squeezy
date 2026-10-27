@@ -1,7 +1,7 @@
 import {
-	webhooksCollectionComplete,
-	webhooksCollectionEmpty,
-	webhooksCollectionMissingEvents,
+	WEBHOOKS_COLLECTION_COMPLETE,
+	WEBHOOKS_COLLECTION_EMPTY,
+	WEBHOOKS_COLLECTION_MISSING_EVENTS,
 } from "@e2e/fixtures/sandbox/data.js";
 import { makeHttp, pathIsWithQuery } from "@e2e/mock-fetch.js";
 import { expect, test } from "vitest";
@@ -21,7 +21,7 @@ const validateAgainst = (storeWebhooks: unknown, url = WEBHOOK_URL) => {
 };
 
 test("validateWebhook passes when every recommended event is subscribed", async () => {
-	const webhookValidation = await validateAgainst(webhooksCollectionComplete);
+	const webhookValidation = await validateAgainst(WEBHOOKS_COLLECTION_COMPLETE);
 
 	expect(webhookValidation.ok).toBe(true);
 	expect(
@@ -31,7 +31,7 @@ test("validateWebhook passes when every recommended event is subscribed", async 
 
 test("validateWebhook flags missing recommended events as errors", async () => {
 	const webhookValidation = await validateAgainst(
-		webhooksCollectionMissingEvents,
+		WEBHOOKS_COLLECTION_MISSING_EVENTS,
 	);
 
 	expect(webhookValidation.ok).toBe(false);
@@ -41,7 +41,7 @@ test("validateWebhook flags missing recommended events as errors", async () => {
 });
 
 test("validateWebhook returns WEBHOOK_NOT_FOUND when the store has no matching webhook", async () => {
-	const webhookValidation = await validateAgainst(webhooksCollectionEmpty);
+	const webhookValidation = await validateAgainst(WEBHOOKS_COLLECTION_EMPTY);
 
 	expect(webhookValidation.ok).toBe(false);
 	expect(webhookValidation.findings[0]?.code).toBe("WEBHOOK_NOT_FOUND");
@@ -49,7 +49,7 @@ test("validateWebhook returns WEBHOOK_NOT_FOUND when the store has no matching w
 
 test("validateWebhook normalizes trailing slashes when matching URLs", async () => {
 	const webhookValidation = await validateAgainst(
-		webhooksCollectionComplete,
+		WEBHOOKS_COLLECTION_COMPLETE,
 		`${WEBHOOK_URL}/`,
 	);
 
@@ -65,7 +65,7 @@ test.each([
 	["different host", WEBHOOK_URL.replace("app.", "other."), false],
 ])("validateWebhook url match: %s", async (_label, url, isMatch) => {
 	const webhookValidation = await validateAgainst(
-		webhooksCollectionComplete,
+		WEBHOOKS_COLLECTION_COMPLETE,
 		url,
 	);
 

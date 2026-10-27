@@ -1,10 +1,10 @@
-import { storeDoc } from "@e2e/fixtures/sandbox/data.js";
+import { STORE_DOC } from "@e2e/fixtures/sandbox/data.js";
 import { createMockFetch, route, SIGNED_IN_ROUTES } from "@e2e/mock-fetch.js";
 import { expect, test } from "vitest";
 import { createFreshSqueezy } from "./create-fresh-squeezy.js";
 
 const freshSqueezyOf = (storeId?: string) => {
-	const routes = [...SIGNED_IN_ROUTES, route("/v1/stores/42", storeDoc)];
+	const routes = [...SIGNED_IN_ROUTES, route("/v1/stores/42", STORE_DOC)];
 	const { fetch, calls } = createMockFetch(routes);
 	const freshSqueezy = createFreshSqueezy({ apiKey: "k", storeId, fetch });
 	return { freshSqueezy, calls };

@@ -1,4 +1,4 @@
-import { storesCollection, userDoc } from "@e2e/fixtures/sandbox/data.js";
+import { STORES_COLLECTION, USER_DOC } from "@e2e/fixtures/sandbox/data.js";
 
 import { readConfig } from "@/shared/config.js";
 import { createHttp } from "@/shared/http.js";
@@ -93,8 +93,8 @@ export const pathIsWithQuery = (
 };
 
 export const SIGNED_IN_ROUTES: MockRoute[] = [
-	{ match: pathIs("/v1/users/me"), status: 200, body: userDoc },
-	{ match: pathIs("/v1/stores"), status: 200, body: storesCollection },
+	{ match: pathIs("/v1/users/me"), status: 200, body: USER_DOC },
+	{ match: pathIs("/v1/stores"), status: 200, body: STORES_COLLECTION },
 ];
 
 export const makeHttp = (routes: MockRoute[]) => {

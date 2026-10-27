@@ -1,6 +1,6 @@
 import {
-	notFoundError,
-	unauthorizedError,
+	NOT_FOUND_ERROR,
+	UNAUTHORIZED_ERROR,
 } from "@e2e/fixtures/sandbox/data.js";
 import { makeHttp, route } from "@e2e/mock-fetch.js";
 import { expect, test } from "vitest";
@@ -139,7 +139,7 @@ test("fetchResource returns the attributes of the resource", async () => {
 });
 
 test("fetchResource uses the not-found finding on a 404", async () => {
-	const http = makeHttp([route("/v1/stores/1", notFoundError, 404)]);
+	const http = makeHttp([route("/v1/stores/1", NOT_FOUND_ERROR, 404)]);
 
 	const fetched = await fetchResource(http, {
 		path: "/v1/stores/1",
@@ -193,9 +193,9 @@ test("storeMismatchFindings returns one finding when the stores differ", () => {
 });
 
 const rejectedKeyHttp = () =>
-	makeHttp([{ match: () => true, status: 401, body: unauthorizedError }]);
+	makeHttp([{ match: () => true, status: 401, body: UNAUTHORIZED_ERROR }]);
 
-const rejectedKeyCases = [
+const REJECTED_KEY_CASES = [
 	{
 		name: "connection",
 		validate: () => validateConnection(rejectedKeyHttp(), "test"),
@@ -243,7 +243,7 @@ const rejectedKeyCases = [
 	},
 ];
 
-test.each(rejectedKeyCases)(
+test.each(REJECTED_KEY_CASES)(
 	"$name check gives AUTH_FAILED on a 401",
 	async ({ validate }) => {
 		const validation = await validate();

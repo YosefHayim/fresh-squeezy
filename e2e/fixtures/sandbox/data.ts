@@ -1,6 +1,4 @@
-// == users ==
-
-export const userDoc = {
+export const USER_DOC = {
 	data: {
 		type: "users",
 		id: "1",
@@ -15,7 +13,7 @@ export const userDoc = {
 	},
 };
 
-export const liveUserDoc = {
+export const LIVE_USER_DOC = {
 	data: {
 		type: "users",
 		id: "2",
@@ -30,9 +28,7 @@ export const liveUserDoc = {
 	},
 };
 
-// == stores ==
-
-export const storesCollection = {
+export const STORES_COLLECTION = {
 	data: [
 		{
 			type: "stores",
@@ -48,7 +44,7 @@ export const storesCollection = {
 	],
 };
 
-export const storeDoc = {
+export const STORE_DOC = {
 	data: {
 		type: "stores",
 		id: "42",
@@ -62,9 +58,7 @@ export const storeDoc = {
 	},
 };
 
-// == products ==
-
-export const publishedProductDoc = {
+export const PUBLISHED_PRODUCT_DOC = {
 	data: {
 		type: "products",
 		id: "100",
@@ -81,7 +75,7 @@ export const publishedProductDoc = {
 	},
 };
 
-export const unpublishedProductDoc = {
+export const UNPUBLISHED_PRODUCT_DOC = {
 	data: {
 		type: "products",
 		id: "101",
@@ -95,7 +89,7 @@ export const unpublishedProductDoc = {
 	},
 };
 
-export const productOnWrongStoreDoc = {
+export const PRODUCT_ON_WRONG_STORE_DOC = {
 	data: {
 		type: "products",
 		id: "102",
@@ -109,9 +103,7 @@ export const productOnWrongStoreDoc = {
 	},
 };
 
-// == variants ==
-
-export const variantsCollectionPublished = {
+export const VARIANTS_COLLECTION_PUBLISHED = {
 	data: [
 		{
 			type: "variants",
@@ -129,9 +121,9 @@ export const variantsCollectionPublished = {
 	],
 };
 
-export const variantsCollectionEmpty = { data: [] };
+export const VARIANTS_COLLECTION_EMPTY = { data: [] };
 
-export const variantsCollectionAllDraft = {
+export const VARIANTS_COLLECTION_ALL_DRAFT = {
 	data: [
 		{
 			type: "variants",
@@ -147,9 +139,7 @@ export const variantsCollectionAllDraft = {
 	],
 };
 
-// == webhooks ==
-
-export const webhooksCollectionComplete = {
+export const WEBHOOKS_COLLECTION_COMPLETE = {
 	data: [
 		{
 			type: "webhooks",
@@ -175,7 +165,7 @@ export const webhooksCollectionComplete = {
 	],
 };
 
-export const webhooksCollectionMissingEvents = {
+export const WEBHOOKS_COLLECTION_MISSING_EVENTS = {
 	data: [
 		{
 			type: "webhooks",
@@ -190,7 +180,7 @@ export const webhooksCollectionMissingEvents = {
 	],
 };
 
-export const webhooksCollectionEmpty = { data: [] };
+export const WEBHOOKS_COLLECTION_EMPTY = { data: [] };
 
 // --- Discount fixtures ---
 
@@ -422,9 +412,7 @@ export const wrongStoreSubscriptionVariantDoc = variantDocOf("806", {
 	slug: "wrong-store",
 });
 
-// == errors ==
-
-export const unauthorizedError = {
+export const UNAUTHORIZED_ERROR = {
 	errors: [
 		{
 			status: "401",
@@ -435,7 +423,7 @@ export const unauthorizedError = {
 	],
 };
 
-export const notFoundError = {
+export const NOT_FOUND_ERROR = {
 	errors: [
 		{
 			status: "404",

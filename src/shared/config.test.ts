@@ -4,19 +4,19 @@ import { ENV_KEYS, readConfig } from "./config.js";
 
 test("readConfig uses explicit argument over env vars", () => {
 	vi.stubEnv(ENV_KEYS.apiKey, "from-env");
-	const resolved = readConfig({ apiKey: "from-arg", mode: "live" });
-	expect(resolved.apiKey).toBe("from-arg");
-	expect(resolved.mode).toBe("live");
+	const config = readConfig({ apiKey: "from-arg", mode: "live" });
+	expect(config.apiKey).toBe("from-arg");
+	expect(config.mode).toBe("live");
 });
 
 test("readConfig falls back to env vars when no argument passed", () => {
 	vi.stubEnv(ENV_KEYS.apiKey, "from-env");
 	vi.stubEnv(ENV_KEYS.mode, "live");
 	vi.stubEnv(ENV_KEYS.storeId, "42");
-	const resolved = readConfig();
-	expect(resolved.apiKey).toBe("from-env");
-	expect(resolved.mode).toBe("live");
-	expect(resolved.storeId).toBe("42");
+	const config = readConfig();
+	expect(config.apiKey).toBe("from-env");
+	expect(config.mode).toBe("live");
+	expect(config.storeId).toBe("42");
 });
 
 test("readConfig defaults mode to test when nothing is set", () => {
@@ -39,9 +39,9 @@ test("readConfig throws INVALID_MODE for unknown mode", () => {
 });
 
 test("readConfig defaults baseUrl and keeps the storeId", () => {
-	const resolved = readConfig({ apiKey: "k", storeId: "42" });
-	expect(resolved.storeId).toBe("42");
-	expect(resolved.baseUrl).toBe("https://api.lemonsqueezy.com");
+	const config = readConfig({ apiKey: "k", storeId: "42" });
+	expect(config.storeId).toBe("42");
+	expect(config.baseUrl).toBe("https://api.lemonsqueezy.com");
 });
 
 test("readConfig surfaces INVALID_MODE with the bad value in the message", () => {

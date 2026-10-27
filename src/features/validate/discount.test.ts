@@ -4,7 +4,7 @@ import {
 	expiredDiscountDoc,
 	futureDiscountDoc,
 	invalidPercentDiscountDoc,
-	notFoundError,
+	NOT_FOUND_ERROR,
 	publishedDiscountDoc,
 	wrongStoreDiscountDoc,
 	zeroAmountDiscountDoc,
@@ -32,7 +32,7 @@ test("validateDiscount returns ok for a valid published discount", async () => {
 
 test("validateDiscount returns DISCOUNT_NOT_FOUND on 404", async () => {
 	const http = makeHttp([
-		{ match: pathIs("/v1/discounts/9999"), status: 404, body: notFoundError },
+		{ match: pathIs("/v1/discounts/9999"), status: 404, body: NOT_FOUND_ERROR },
 	]);
 	const discountValidation = await validateDiscount(http, "test", {
 		storeId: "42",

@@ -1,4 +1,4 @@
-import { storeDoc, unauthorizedError } from "@e2e/fixtures/sandbox/data.js";
+import { STORE_DOC, UNAUTHORIZED_ERROR } from "@e2e/fixtures/sandbox/data.js";
 import { createMockFetch, pathIs } from "@e2e/mock-fetch.js";
 import { expect, test } from "vitest";
 import { readConfig } from "@/shared/config.js";
@@ -7,7 +7,7 @@ import { createHttp } from "./http.js";
 
 test("http sends bearer auth and returns parsed JSON", async () => {
 	const { fetch, calls } = createMockFetch([
-		{ match: pathIs("/v1/stores/42"), status: 200, body: storeDoc },
+		{ match: pathIs("/v1/stores/42"), status: 200, body: STORE_DOC },
 	]);
 	const http = createHttp(readConfig({ apiKey: "k_test_abc", fetch }));
 
@@ -21,7 +21,7 @@ test("http sends bearer auth and returns parsed JSON", async () => {
 
 test("http throws FreshSqueezyError with UNAUTHORIZED on 401", async () => {
 	const { fetch } = createMockFetch([
-		{ match: pathIs("/v1/users/me"), status: 401, body: unauthorizedError },
+		{ match: pathIs("/v1/users/me"), status: 401, body: UNAUTHORIZED_ERROR },
 	]);
 	const http = createHttp(readConfig({ apiKey: "bad", fetch }));
 
@@ -106,7 +106,7 @@ test("http request sends a POST body as JSON and returns the parsed document", a
 	]);
 	const http = createHttp(readConfig({ apiKey: "k", fetch }));
 
-	const doc = await http.request<typeof createDoc>({
+	const createdCustomer = await http.request<typeof createDoc>({
 		method: "POST",
 		path: "/v1/customers",
 		body: {
@@ -117,7 +117,7 @@ test("http request sends a POST body as JSON and returns the parsed document", a
 		},
 	});
 
-	expect(doc.data.id).toBe("9");
+	expect(createdCustomer.data.id).toBe("9");
 	expect(calls[0]?.method).toBe("POST");
 	expect(calls[0]?.body).toContain("ada@example.com");
 });

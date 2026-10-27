@@ -214,12 +214,14 @@ const checksOf = (
 	};
 };
 
-const jobsOf = (
-	http: Http,
-	mode: Mode,
-	storeId: string,
-	checks: StoreChecks,
-): Job[] => {
+interface StoreJobs {
+	http: Http;
+	mode: Mode;
+	storeId: string;
+	checks: StoreChecks;
+}
+
+const jobsOf = ({ http, mode, storeId, checks }: StoreJobs): Job[] => {
 	const productJobs = checks.productIds.map(
 		(productId) => () =>
 			validateProduct(http, mode, { productId, expectedStoreId: storeId }),
@@ -288,7 +290,7 @@ export const doctor = async (
 		listingFailureResults(mode, storeId, listing),
 	);
 	const checks = checksOf(options, discovered);
-	const jobs = jobsOf(http, mode, storeId, checks);
+	const jobs = jobsOf({ http, mode, storeId, checks });
 	const jobResults = await runInOrder(jobs);
 	const results = [connection, ...listingFailures, ...jobResults];
 	const isEveryResultOk = results.every((entry) => entry.ok);

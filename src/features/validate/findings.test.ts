@@ -21,12 +21,12 @@ const NUMBER_RULES: FindingRule<number>[] = [
 	{ code: "UNKNOWN", severity: "warning", when: isZero, message: "Zero." },
 ];
 
-const errorFinding: Finding = {
+const ERROR_FINDING: Finding = {
 	code: "UNKNOWN",
 	severity: "error",
 	message: "bad",
 };
-const warningFinding: Finding = {
+const WARNING_FINDING: Finding = {
 	code: "UNKNOWN",
 	severity: "warning",
 	message: "meh",
@@ -56,7 +56,7 @@ test("buildResult is ok with warnings only", () => {
 	const validation = buildResult({
 		name: "store",
 		mode: "test",
-		findings: [warningFinding],
+		findings: [WARNING_FINDING],
 	});
 
 	expect(validation.ok).toBe(true);
@@ -66,7 +66,7 @@ test("buildResult is not ok with an error finding", () => {
 	const validation = buildResult({
 		name: "store",
 		mode: "live",
-		findings: [warningFinding, errorFinding],
+		findings: [WARNING_FINDING, ERROR_FINDING],
 		resource: { id: 1 },
 		target: { label: "store 1", id: "1" },
 	});

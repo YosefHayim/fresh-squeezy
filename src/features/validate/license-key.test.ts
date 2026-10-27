@@ -3,7 +3,7 @@ import {
 	atLimitLicenseKeyDoc,
 	disabledLicenseKeyDoc,
 	expiredLicenseKeyDoc,
-	notFoundError,
+	NOT_FOUND_ERROR,
 	wrongStoreLicenseKeyDoc,
 } from "@e2e/fixtures/sandbox/data.js";
 import { makeHttp, pathIs } from "@e2e/mock-fetch.js";
@@ -32,7 +32,7 @@ test("validateLicenseKey returns LICENSE_KEY_NOT_FOUND on 404", async () => {
 		{
 			match: pathIs("/v1/license-keys/9999"),
 			status: 404,
-			body: notFoundError,
+			body: NOT_FOUND_ERROR,
 		},
 	]);
 	const licenseKeyValidation = await validateLicenseKey(http, "test", {

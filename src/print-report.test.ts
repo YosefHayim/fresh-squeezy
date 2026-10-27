@@ -4,7 +4,7 @@ import { reportTextOf } from "./print-report.js";
 
 vi.stubEnv("NO_COLOR", "1");
 
-const passingReport: DoctorReport = {
+const PASSING_REPORT: DoctorReport = {
 	ok: true,
 	mode: "test",
 	results: [
@@ -18,7 +18,7 @@ const passingReport: DoctorReport = {
 	],
 };
 
-const failingReport: DoctorReport = {
+const FAILING_REPORT: DoctorReport = {
 	ok: false,
 	mode: "live",
 	results: [
@@ -47,7 +47,7 @@ const failingReport: DoctorReport = {
 };
 
 test("reportTextOf prints the pass summary and the check line", () => {
-	const text = reportTextOf(passingReport);
+	const text = reportTextOf(PASSING_REPORT);
 
 	expect(text).toContain("fresh-squeezy doctor: OK");
 	expect(text).toContain("(mode: test)");
@@ -56,7 +56,7 @@ test("reportTextOf prints the pass summary and the check line", () => {
 });
 
 test("reportTextOf prints failed checks with findings, fixes and the target", () => {
-	const text = reportTextOf(failingReport);
+	const text = reportTextOf(FAILING_REPORT);
 
 	expect(text).toContain("fresh-squeezy doctor: FAILED");
 	expect(text).toContain("1/2 checks failed");

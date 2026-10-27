@@ -18,8 +18,8 @@ importers:
         specifier: ^2.1.0
         version: 2.1.9(vitest@2.1.9(@types/node@22.20.5))
       code-standard:
-        specifier: 0.3.0
-        version: 0.3.0
+        specifier: 0.4.1
+        version: 0.4.1
       husky:
         specifier: ^9.1.7
         version: 9.1.7
@@ -1071,8 +1071,8 @@ packages:
   code-block-writer@13.0.3:
     resolution: {integrity: sha512-Oofo0pq3IKnsFtuHqSF7TqBfr71aeyZDVJ0HpmqB7FBM2qEigL0iPONSCZSO9pE9dZTAxANe5XHG9Uy0YMv8cg==}
 
-  code-standard@0.3.0:
-    resolution: {integrity: sha512-gqCV5o4yBw0iikk6AYvzSSkLRvIXin+yX4u+nx77iZ0SOutiMOL0puqwGICov8FtiiQhK6zHE7U34w/VhKg6RA==}
+  code-standard@0.4.1:
+    resolution: {integrity: sha512-V1sX+SLc2ajpiPeIESgixtk9lzblnAs0fxaFMLmNIwnzisKs5r42XTi1OQYOeGtcTrJzWU0t+8hewSAowcrdrA==}
     engines: {node: '>=24'}
     hasBin: true
 
@@ -2320,7 +2320,7 @@ snapshots:
 
   code-block-writer@13.0.3: {}
 
-  code-standard@0.3.0:
+  code-standard@0.4.1:
     dependencies:
       '@biomejs/biome': 2.6.3
       get-tsconfig: 4.14.3
