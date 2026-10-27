@@ -2,96 +2,72 @@ import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
-/**
- * Options for `fresh-squeezy types:augment`.
- *
- * All paths are CLI-friendly defaults: the command runs in the consumer's
- * CWD, reads their `package.json`, and writes the augmentation `.d.ts`
- * next to it (or wherever they redirect with `--out`).
- */
 export interface AugmentCommandOptions {
-  /** Project root. Defaults to `process.cwd()`. */
-  cwd?: string;
-  /** Output path for the augmentation file. Defaults to `lemonsqueezy.augment.d.ts`. */
-  out?: string;
-  /** Suppress "no SDK detected" message and emit the generic file anyway. */
-  force?: boolean;
+	cwd?: string;
+	out?: string;
+	force?: boolean;
 }
 
-/**
- * Two flavours of file we emit.
- *
- * - `with-sdk` — the consumer has `@lemonsqueezy/lemonsqueezy.js` installed.
- *   The file imports types from the SDK and intersects them with our
- *   `Latest*Fields`. Consumers reach the augmented type via
- *   `LemonSqueezyAugmented["subscription"]`.
- *
- * - `generic` — the consumer's resource types are home-rolled or come from
- *   another SDK. The file re-exports `WithLatestLemonSqueezyFields<T, R>`
- *   so consumers can wire their own base type.
- */
 type Flavour = "with-sdk" | "generic";
 
-/**
- * Generate a `.d.ts` file in the consumer's project so their existing
- * Lemon Squeezy resource types pick up fields fresh-squeezy already knows
- * about (per the changelog audit in `src/support/manifest.ts`).
- *
- * Writes a single file. Idempotent: re-running overwrites with the
- * current version, so a CI step can safely regenerate after each
- * fresh-squeezy upgrade. Returns 0 on success, 2 on I/O failure.
- */
-export const runAugmentCommand = async (options: AugmentCommandOptions = {}): Promise<number> => {
-  const cwd = options.cwd ?? process.cwd();
-  const outPath = resolve(cwd, options.out ?? "lemonsqueezy.augment.d.ts");
+export const runAugmentCommand = async (
+	options: AugmentCommandOptions = {},
+): Promise<number> => {
+	const cwd = options.cwd ?? process.cwd();
+	const outPath = resolve(cwd, options.out ?? "lemonsqueezy.augment.d.ts");
 
-  try {
-    const flavour = await detectFlavour(cwd, options.force ?? false);
-    const contents = renderAugmentationFile(flavour);
-    await mkdir(dirname(outPath), { recursive: true });
-    await writeFile(outPath, contents, "utf8");
+	try {
+		const flavour = await detectFlavour(cwd, options.force ?? false);
+		const contents = renderAugmentationFile(flavour);
+		const outDirectory = dirname(outPath);
+		await mkdir(outDirectory, { recursive: true });
+		await writeFile(outPath, contents, "utf8");
 
-    process.stdout.write(`fresh-squeezy: wrote ${outPath} (${flavour}).\n`);
-    if (flavour === "with-sdk") {
-      process.stdout.write(
-        `Use it via: import type { LemonSqueezyAugmented } from "./lemonsqueezy.augment";\n`,
-      );
-    } else {
-      process.stdout.write(
-        `Use it via: import type { WithLatestLemonSqueezyFields } from "./lemonsqueezy.augment";\n`,
-      );
-    }
-    return 0;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    process.stderr.write(`fresh-squeezy: ${message}\n`);
-    return 2;
-  }
+		process.stdout.write(`fresh-squeezy: wrote ${outPath} (${flavour}).\n`);
+		const isWithSdk = flavour === "with-sdk";
+		if (isWithSdk) {
+			process.stdout.write(
+				`Use it via: import type { LemonSqueezyAugmented } from "./lemonsqueezy.augment";\n`,
+			);
+		} else {
+			process.stdout.write(
+				`Use it via: import type { WithLatestLemonSqueezyFields } from "./lemonsqueezy.augment";\n`,
+			);
+		}
+		return 0;
+	} catch (err) {
+		const isErrorInstance = err instanceof Error;
+		const message = isErrorInstance ? err.message : String(err);
+		process.stderr.write(`fresh-squeezy: ${message}\n`);
+		return 2;
+	}
 };
 
 const detectFlavour = async (cwd: string, force: boolean): Promise<Flavour> => {
-  if (force) return "generic";
-  const pkgPath = resolve(cwd, "package.json");
-  if (!existsSync(pkgPath)) return "generic";
+	if (force) return "generic";
+	const pkgPath = resolve(cwd, "package.json");
+	const isPackageJsonMissing = !existsSync(pkgPath);
+	if (isPackageJsonMissing) return "generic";
 
-  const raw = await readFile(pkgPath, "utf8");
-  const pkg = JSON.parse(raw) as {
-    dependencies?: Record<string, string>;
-    devDependencies?: Record<string, string>;
-    peerDependencies?: Record<string, string>;
-  };
+	const raw = await readFile(pkgPath, "utf8");
+	const pkg = JSON.parse(raw) as {
+		dependencies?: Record<string, string>;
+		devDependencies?: Record<string, string>;
+		peerDependencies?: Record<string, string>;
+	};
 
-  const deps = {
-    ...(pkg.dependencies ?? {}),
-    ...(pkg.devDependencies ?? {}),
-    ...(pkg.peerDependencies ?? {}),
-  };
+	const deps = {
+		...(pkg.dependencies ?? {}),
+		...(pkg.devDependencies ?? {}),
+		...(pkg.peerDependencies ?? {}),
+	};
 
-  return "@lemonsqueezy/lemonsqueezy.js" in deps ? "with-sdk" : "generic";
+	const hasOfficialSdk = "@lemonsqueezy/lemonsqueezy.js" in deps;
+	return hasOfficialSdk ? "with-sdk" : "generic";
 };
 
 const renderAugmentationFile = (flavour: Flavour): string => {
-  const header = `/**
+	const header = `/**
  * Generated by \`fresh-squeezy types:augment\` — re-run after upgrading
  * fresh-squeezy to refresh the field set.
  *
@@ -113,8 +89,9 @@ const renderAugmentationFile = (flavour: Flavour): string => {
 
 `;
 
-  if (flavour === "with-sdk") {
-    return `${header}import type {
+	const isWithSdk = flavour === "with-sdk";
+	if (isWithSdk) {
+		return `${header}import type {
   Subscription,
   SubscriptionInvoice,
   Order,
@@ -206,9 +183,9 @@ type AugmentResponse<T, Fields> = T extends {
  * }
  */
 `;
-  }
+	}
 
-  return `${header}import type {
+	return `${header}import type {
   WithLatestLemonSqueezyFields,
   LatestSubscriptionFields,
   LatestSubscriptionInvoiceFields,

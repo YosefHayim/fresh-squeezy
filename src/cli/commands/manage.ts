@@ -1,151 +1,164 @@
-import { resolveConfig } from "../../core/config.js";
-import { freshSqueezyErrorOf } from "../../core/errors.js";
-import { HttpClient } from "../../core/http.js";
-import type { Mode } from "../../core/types.js";
-import { createFreshSqueezy } from "../../createFreshSqueezy.js";
-import { findResourceVerb, resourceRegistry } from "../../resources/registry.js";
 import {
-  type ManageOperationChoice,
-  askParentId,
-  confirmResourceOp,
-  isPromptCancel,
-  pickBulkTargets,
-  pickManageOperation,
-} from "../prompts.js";
-import { renderCliError } from "../render.js";
-import { resolveStores } from "../resolveStores.js";
+	askParentId,
+	confirmResourceOp,
+	isPromptCancel,
+	type ManageOperationChoice,
+	pickBulkTargets,
+	pickManageOperation,
+} from "@/cli/prompts.js";
+import { renderCliError } from "@/cli/render.js";
+import { resolveStores } from "@/cli/resolve-stores.js";
+import type { Mode } from "@/contracts/contracts.js";
 import {
-  type BulkTarget,
-  collectBulkTargets,
-  executeBulk,
-  previewTargets,
-  renderBulkSummary,
-  supportsBulk,
-} from "./bulkOps.js";
+	createFreshSqueezy,
+	type FreshSqueezyClient,
+} from "@/create-fresh-squeezy.js";
+import { freshSqueezyErrorOf } from "@/errors/errors.js";
+import { HttpClient } from "@/http/http.js";
+import { findResourceVerb, resourceRegistry } from "@/resources/registry.js";
+import { resolveConfig } from "@/shared/config.js";
+import {
+	type BulkTarget,
+	collectBulkTargets,
+	executeBulk,
+	previewTargets,
+	renderBulkSummary,
+	supportsBulk,
+} from "./bulk-ops.js";
 
-/**
- * Operations the menu offers: every destructive, id-based registry op that also
- * has a `list` to enumerate from.
- *
- * @returns Resource/verb pairs in registry order.
- */
-export const listManageOperations = (): ManageOperationChoice[] =>
-  resourceRegistry
-    .filter((spec) => supportsBulk(spec) && findResourceVerb(spec.resource, "list"))
-    .map((spec) => ({ resource: spec.resource, verb: spec.verb }));
-
-/**
- * Build the flag-driven command that reproduces an interactive selection, so
- * the menu teaches the scriptable form.
- *
- * @param input - What was chosen and where.
- * @returns A copy/paste `fresh-squeezy …` command.
- *
- * @example
- * ```ts
- * renderEquivalentCommand({ verb: "delete", resource: "discount", mode: "test",
- *   storeId: "1", picked: ["7"], total: 3 });
- * // fresh-squeezy delete discount --ids 7 --yes
- * ```
- */
-export const renderEquivalentCommand = (input: {
-  verb: string;
-  resource: string;
-  mode: Mode;
-  storeId?: string;
-  parentId?: string;
-  picked: string[];
-  total: number;
-}): string => {
-  const parts = ["fresh-squeezy", input.verb, input.resource];
-  if (input.picked.length === input.total) {
-    parts.push("--all");
-    if (input.storeId) parts.push("--store-ids", input.storeId);
-    if (input.parentId) parts.push("--parent-id", input.parentId);
-  } else {
-    parts.push("--ids", input.picked.join(","));
-  }
-  parts.push("--yes");
-  if (input.mode === "live") parts.push("--mode", "live");
-  return parts.join(" ");
+export const listManageOperations = (): ManageOperationChoice[] => {
+	const isManageable = (spec: (typeof resourceRegistry)[number]): boolean => {
+		const listVerb = findResourceVerb(spec.resource, "list");
+		const hasListVerb = Boolean(listVerb);
+		return supportsBulk(spec) && hasListVerb;
+	};
+	const manageableSpecs = resourceRegistry.filter(isManageable);
+	return manageableSpecs.map((spec) => ({
+		resource: spec.resource,
+		verb: spec.verb,
+	}));
 };
 
-/**
- * Interactive "Manage resources": pick an op, a store, the items, confirm once,
- * run it through the same bulk executor the `--all` / `--ids` flags use.
- *
- * @returns 0 ok, 1 some items failed, 2 setup/API error. Prompt cancels propagate
- * to the launcher, which maps them to 130.
- *
- * @example
- * ```ts
- * const code = await runManageCommand();
- * ```
- */
+export const renderEquivalentCommand = (input: {
+	verb: string;
+	resource: string;
+	mode: Mode;
+	storeId?: string;
+	parentId?: string;
+	picked: string[];
+	total: number;
+}): string => {
+	const parts = ["fresh-squeezy", input.verb, input.resource];
+	const isEverythingPicked = input.picked.length === input.total;
+	if (isEverythingPicked) parts.push("--all");
+	if (isEverythingPicked && input.storeId) {
+		parts.push("--store-ids", input.storeId);
+	}
+	if (isEverythingPicked && input.parentId) {
+		parts.push("--parent-id", input.parentId);
+	}
+	const pickedIdList = input.picked.join(",");
+	const isSubsetPicked = !isEverythingPicked;
+	if (isSubsetPicked) parts.push("--ids", pickedIdList);
+	parts.push("--yes");
+	const isLive = input.mode === "live";
+	if (isLive) parts.push("--mode", "live");
+	return parts.join(" ");
+};
+
+type ManageScope = { storeId?: string; parentId?: string };
+
+const pickScopes = async (
+	client: FreshSqueezyClient,
+	resource: string,
+	idRole: string | undefined,
+): Promise<ManageScope[]> => {
+	const isStoreScoped = idRole === "store";
+	const isParentScoped = idRole === "parent";
+	if (isStoreScoped) {
+		const { storeIds } = await resolveStores(client, { isInteractive: true });
+		return storeIds.map((storeId) => ({ storeId }));
+	}
+	if (isParentScoped) {
+		const parentId = await askParentId(resource);
+		return [{ parentId }];
+	}
+	return [{}];
+};
+
 export const runManageCommand = async (): Promise<number> => {
-  try {
-    const client = createFreshSqueezy();
-    const http = new HttpClient(resolveConfig());
-    const op = await pickManageOperation(listManageOperations());
-    const spec = findResourceVerb(op.resource, op.verb);
-    const listSpec = findResourceVerb(op.resource, "list");
-    if (!spec || !listSpec) {
-      throw freshSqueezyErrorOf({
-        code: "UNKNOWN_OP",
-        message: `${op.verb} ${op.resource} is not available.`,
-      });
-    }
+	try {
+		const client = createFreshSqueezy();
+		const config = resolveConfig();
+		const http = new HttpClient(config);
+		const manageOperations = listManageOperations();
+		const op = await pickManageOperation(manageOperations);
+		const spec = findResourceVerb(op.resource, op.verb);
+		const listSpec = findResourceVerb(op.resource, "list");
+		const isOperationUnavailable = !spec || !listSpec;
+		if (isOperationUnavailable) {
+			throw freshSqueezyErrorOf({
+				code: "UNKNOWN_OP",
+				message: `${op.verb} ${op.resource} is not available.`,
+			});
+		}
 
-    process.stdout.write(`\n${op.verb} ${op.resource} — mode=${client.mode}\n`);
+		process.stdout.write(`\n${op.verb} ${op.resource} — mode=${client.mode}\n`);
 
-    let scopes: Array<{ storeId?: string; parentId?: string }> = [{}];
-    if (listSpec.idRole === "store") {
-      const { storeIds } = await resolveStores(client, { isInteractive: true });
-      scopes = storeIds.map((storeId) => ({ storeId }));
-    } else if (listSpec.idRole === "parent") {
-      scopes = [{ parentId: await askParentId(op.resource) }];
-    }
+		const scopes = await pickScopes(client, op.resource, listSpec.idRole);
+		const isLive = client.mode === "live";
+		const liveMark = isLive ? "LIVE mode: " : "";
 
-    let exitCode = 0;
-    for (const scope of scopes) {
-      const targets = await collectBulkTargets(http, spec, { all: true, ...scope });
-      if (targets.length === 0) {
-        process.stdout.write(
-          `No ${op.resource} items found${scope.storeId ? ` in store ${scope.storeId}` : ""}.\n`,
-        );
-        continue;
-      }
+		let exitCode = 0;
+		for (const scope of scopes) {
+			const targets = await collectBulkTargets(http, spec, {
+				all: true,
+				...scope,
+			});
+			const areThereNoTargets = targets.length === 0;
+			if (areThereNoTargets) {
+				const storeNote = scope.storeId ? ` in store ${scope.storeId}` : "";
+				process.stdout.write(`No ${op.resource} items found${storeNote}.\n`);
+				continue;
+			}
 
-      const pickedIds = await pickBulkTargets(op.verb, targets);
-      const picked: BulkTarget[] = targets.filter((t) => pickedIds.includes(t.id));
-      const mark = client.mode === "live" ? "LIVE mode: " : "";
-      const go = await confirmResourceOp(
-        `${mark}${op.verb} ${picked.length} ${op.resource} item(s) (${previewTargets(picked)})?`,
-      );
-      if (!go) {
-        process.stdout.write("Skipped — nothing changed.\n");
-        continue;
-      }
+			const pickedIds = await pickBulkTargets(op.verb, targets);
+			const picked: BulkTarget[] = targets.filter((target) =>
+				pickedIds.includes(target.id),
+			);
+			const preview = previewTargets(picked);
+			const isConfirmed = await confirmResourceOp(
+				`${liveMark}${op.verb} ${picked.length} ${op.resource} item(s) (${preview})?`,
+			);
+			const isDeclined = !isConfirmed;
+			if (isDeclined) {
+				process.stdout.write("Skipped — nothing changed.\n");
+				continue;
+			}
 
-      const summary = await executeBulk(http, spec, picked);
-      process.stdout.write(renderBulkSummary(spec, summary));
-      process.stdout.write(
-        `\nNext time:\n  ${renderEquivalentCommand({
-          verb: op.verb,
-          resource: op.resource,
-          mode: client.mode,
-          ...scope,
-          picked: pickedIds,
-          total: targets.length,
-        })}\n`,
-      );
-      if (summary.failed > 0) exitCode = 1;
-    }
-    return exitCode;
-  } catch (err) {
-    if (isPromptCancel(err)) throw err;
-    const message = err instanceof Error ? err.message : String(err);
-    process.stderr.write(renderCliError(message, ["fresh-squeezy ops --list"]));
-    return 2;
-  }
+			const summary = await executeBulk(http, spec, picked);
+			const summaryText = renderBulkSummary(spec, summary);
+			process.stdout.write(summaryText);
+			const equivalentCommand = renderEquivalentCommand({
+				verb: op.verb,
+				resource: op.resource,
+				mode: client.mode,
+				...scope,
+				picked: pickedIds,
+				total: targets.length,
+			});
+			process.stdout.write(`\nNext time:\n  ${equivalentCommand}\n`);
+			const hasFailures = summary.failed > 0;
+			if (hasFailures) exitCode = 1;
+		}
+		return exitCode;
+	} catch (err) {
+		const isCancel = isPromptCancel(err);
+		if (isCancel) throw err;
+		const isNativeError = err instanceof Error;
+		const message = isNativeError ? err.message : String(err);
+		const errorScreen = renderCliError(message, ["fresh-squeezy ops --list"]);
+		process.stderr.write(errorScreen);
+		return 2;
+	}
 };

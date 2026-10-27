@@ -1,12 +1,13 @@
 ---
+
 name: fresh-squeezy-ops
 description: >
-  Use the fresh-squeezy CLI and TypeScript library for Lemon Squeezy: doctor/validate
-  pre-flight checks plus docs-backed resource ops (get/list/create/update/delete/cancel/
-  refund/generate-invoice/current-usage). Trigger when integrating Lemon Squeezy, running
-  billing health checks, inspecting or changing Lemon Squeezy data, managing webhooks/
-  discounts/checkouts/customers/subscriptions, or extending fresh-squeezy with a new
-  resource verb. Prefer it over ad-hoc curl for supported store operations.
+Use the fresh-squeezy CLI and TypeScript library for Lemon Squeezy: doctor/validate
+pre-flight checks plus docs-backed resource ops (get/list/create/update/delete/cancel/
+refund/generate-invoice/current-usage). Trigger when integrating Lemon Squeezy, running
+billing health checks, inspecting or changing Lemon Squeezy data, managing webhooks/
+discounts/checkouts/customers/subscriptions, or extending fresh-squeezy with a new
+resource verb. Prefer it over ad-hoc curl for supported store operations.
 ---
 
 # fresh-squeezy ops + doctor
@@ -22,8 +23,8 @@ description: >
 
 Lemon Squeezy does **not** expose create/update/delete for catalog objects:
 
-| Read-only in API | Writes / actions documented |
-|------------------|-----------------------------|
+| Read-only in API                                                                                                | Writes / actions documented                                                                                                                                                                                                                                                             |
+| --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | products, variants, prices, files, stores, affiliates, order-items, discount-redemptions, license-key-instances | webhooks CRUD; discounts create/delete; customers create/update; checkouts create; subscriptions update/cancel; subscription-items update + current-usage; usage-records create; license-keys update; orders refund + generate-invoice; subscription-invoices refund + generate-invoice |
 
 Never invent `create product`. Confirm with `fresh-squeezy ops --list`.
@@ -34,11 +35,11 @@ Squeezy dashboard and use fresh-squeezy afterward to read and verify the resulti
 
 ## CLI dual-mode contract
 
-| Context | Behavior |
-|---------|----------|
-| TTY bare `fresh-squeezy` | Launcher menu (never hang without TTY → exit 2) |
-| Flags / CI / agents | No prompts; missing args → exit 2 |
-| Exit codes | `0` ok · `1` validation failed · `2` fatal/usage · `130` cancel |
+| Context                  | Behavior                                                        |
+| ------------------------ | --------------------------------------------------------------- |
+| TTY bare `fresh-squeezy` | Launcher menu (never hang without TTY → exit 2)                 |
+| Flags / CI / agents      | No prompts; missing args → exit 2                               |
+| Exit codes               | `0` ok · `1` validation failed · `2` fatal/usage · `130` cancel |
 
 ### Safety
 
@@ -87,17 +88,17 @@ fresh-squeezy current-usage subscription-item --id 3 --json
 
 ```json
 {
-  "data": {
-    "type": "webhooks",
-    "attributes": {
-      "url": "https://app.example.com/api/webhooks/lemon-squeezy",
-      "events": ["order_created", "subscription_created"],
-      "secret": "whsec_…"
-    },
-    "relationships": {
-      "store": { "data": { "type": "stores", "id": "1" } }
-    }
-  }
+	"data": {
+		"type": "webhooks",
+		"attributes": {
+			"url": "https://app.example.com/api/webhooks/lemon-squeezy",
+			"events": ["order_created", "subscription_created"],
+			"secret": "whsec_…"
+		},
+		"relationships": {
+			"store": { "data": { "type": "stores", "id": "1" } }
+		}
+	}
 }
 ```
 
@@ -116,11 +117,11 @@ if (!report.ok) process.exit(1);
 const product = await lemon.products.get(42);
 const webhooks = await lemon.webhooks.list(1);
 const created = await lemon.webhooks.create({
-  data: {
-    type: "webhooks",
-    attributes: { url: "https://…", events: ["order_created"] },
-    relationships: { store: { data: { type: "stores", id: "1" } } },
-  },
+	data: {
+		type: "webhooks",
+		attributes: { url: "https://…", events: ["order_created"] },
+		relationships: { store: { data: { type: "stores", id: "1" } } },
+	},
 });
 await lemon.subscriptions.cancel(9);
 ```
@@ -132,25 +133,25 @@ HTTP failures throw a plain `Error` named `FreshSqueezyError` with `code` / `sta
 1. Confirm the verb exists on official docs (`docsPath`).
 2. Add the verb to the resource's row in `RESOURCES` (`src/resources/registry.ts`). New resource → new row + its `*Attributes` in `src/resources/attributes.ts`. New kind of verb → new `VERB_RULES` entry (HTTP method, path suffix, body rule, docs slug).
 3. If the docs page breaks the naming pattern, add it to `DOCS_PATH_EXCEPTIONS`.
-4. Add the nested client method in `createFreshSqueezy.ts` (interface + `op(...)` line).
+4. Add the nested client method in `create-fresh-squeezy.ts` (interface + `op(...)` line).
 5. CLI already routes all `OpVerb`s; no main.ts change unless new verb token.
-6. Tests: a row in `src/createFreshSqueezy.test.ts` asserting method + path.
+6. Tests: a row in `src/create-fresh-squeezy.test.ts` asserting method + path.
 7. Run `pnpm verify`; `fresh-squeezy ops --list` should show the new verb.
 
 ### Adding a validator (separate recipe)
 
-See `CODE-STYLE.md` → “How to add a validator”. Ops do not replace doctor.
+See `CONTEXT.md` → “Add a validator”. Ops do not replace doctor.
 
 ## Key files
 
-| Path | Role |
-|------|------|
-| `src/resources/registry.ts` | `RESOURCES` × `VERB_RULES` ops table + `invokeOp` dispatcher |
-| `src/resources/attributes.ts` | Typed `*Attributes` for every resource |
-| `src/core/http.ts` | Only `fetch` |
-| `src/cli/commands/resourceOps.ts` | CLI safety + body + exit codes |
-| `src/cli/main.ts` | `get\|list\|create\|…` commands |
-| `src/validate/*` | Doctor validators |
+| Path                               | Role                                                         |
+| ---------------------------------- | ------------------------------------------------------------ |
+| `src/resources/registry.ts`        | `RESOURCES` × `VERB_RULES` ops table + `invokeOp` dispatcher |
+| `src/resources/attributes.ts`      | Typed `*Attributes` for every resource                       |
+| `src/http/http.ts`                 | Only `fetch`                                                 |
+| `src/cli/commands/resource-ops.ts` | CLI safety + body + exit codes                               |
+| `src/cli/main.ts`                  | `get\|list\|create\|…` commands                              |
+| `src/validate/*`                   | Doctor validators                                            |
 
 ## Agent checklist
 

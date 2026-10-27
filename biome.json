@@ -1,42 +1,23 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
-  "vcs": {
-    "enabled": true,
-    "clientKind": "git",
-    "useIgnoreFile": true,
-    "defaultBranch": "main"
-  },
-  "files": {
-    "ignore": [
-      "dist",
-      "coverage",
-      "node_modules",
-      "src/generated",
-      ".kiro",
-      "downloads",
-      "package.json"
-    ]
-  },
-  "organizeImports": {
-    "enabled": true
-  },
-  "formatter": {
-    "enabled": true,
-    "indentStyle": "space",
-    "indentWidth": 2,
-    "lineWidth": 100
-  },
-  "javascript": {
-    "formatter": {
-      "quoteStyle": "double",
-      "semicolons": "always",
-      "trailingCommas": "all"
-    }
-  },
-  "linter": {
-    "enabled": true,
-    "rules": {
-      "recommended": true
-    }
-  }
+	"$schema": "https://biomejs.dev/schemas/2.6.3/schema.json",
+	"extends": ["code-standard/biome"],
+	"vcs": {
+		"enabled": true,
+		"clientKind": "git",
+		"useIgnoreFile": true,
+		"defaultBranch": "main"
+	},
+	"files": {
+		"includes": [
+			"**",
+			"!**/dist",
+			"!**/coverage",
+			"!**/node_modules",
+			"!**/src/generated",
+			"!**/.kiro",
+			"!**/downloads",
+			"!**/package.json",
+			"!**/pnpm-lock.yaml"
+		]
+	}
 }

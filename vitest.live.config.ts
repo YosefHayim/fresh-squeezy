@@ -1,17 +1,27 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
-/**
- * Vitest config for live API smoke tests.
- *
- * Why a separate config: the default `vitest.config.ts` excludes `tests/live/**`
- * so unit-test runs do not hit the real API. This config flips that — it ONLY
- * runs `tests/live/**` and is opted into via `npm run test:live`.
- */
+const isLiveSmokeEnabled = process.env.LEMON_SQUEEZY_LIVE_SMOKE === "1";
+const liveSmokeApiKey = isLiveSmokeEnabled
+	? process.env.LEMON_SQUEEZY_API_KEY?.trim()
+	: undefined;
+
+const e2eUrl = new URL("./e2e", import.meta.url);
+const srcUrl = new URL("./src", import.meta.url);
+
 export default defineConfig({
-  test: {
-    globals: false,
-    environment: "node",
-    include: ["tests/live/**/*.test.ts"],
-    exclude: ["node_modules/**", "dist/**"],
-  },
+	resolve: {
+		alias: {
+			"@e2e": fileURLToPath(e2eUrl),
+			"@": fileURLToPath(srcUrl),
+		},
+	},
+	test: {
+		globals: false,
+		environment: "node",
+		unstubEnvs: true,
+		provide: { liveSmokeApiKey },
+		include: ["e2e/live-smoke.test.ts"],
+		exclude: ["node_modules/**", "dist/**"],
+	},
 });

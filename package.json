@@ -145,7 +145,8 @@
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "check:ci": "biome ci .",
-    "verify": "pnpm check:ci && pnpm typecheck && pnpm test && pnpm build",
+    "check:standard": "code-standard check --repo .",
+    "verify": "pnpm check:ci && pnpm check:standard && pnpm typecheck && pnpm test && pnpm build",
     "check:changelog": "node src/scripts/check-changelog.mjs",
     "generate:api-types": "node src/scripts/generate-api-types.mjs --update",
     "check:api-types": "node src/scripts/generate-api-types.mjs",
@@ -159,9 +160,10 @@
     "dotenv": "^16.4.5"
   },
   "devDependencies": {
-    "@biomejs/biome": "^1.9.4",
+    "@biomejs/biome": "2.6.3",
     "@types/node": "^20.14.0",
     "@vitest/coverage-v8": "^2.1.0",
+    "code-standard": "0.1.0",
     "husky": "^9.1.7",
     "tsup": "^8.3.0",
     "typescript": "^5.5.0",

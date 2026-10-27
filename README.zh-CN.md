@@ -54,12 +54,12 @@ npx fresh-squeezy
 
 首次运行时，如果 `fresh-squeezy` 不在 devDependencies 中，会自动添加，然后启动引导式配置。无需从控制台复制店铺 ID —— CLI 会自行发现可访问的店铺。使用 `npx fresh-squeezy --no-install` 可在不修改 `package.json` 的情况下运行配置。
 
-| 退出码 | 含义 |
-|------|---------|
-| `0`  | 所有验证器均通过 |
-| `1`  | 一个或多个验证器报告了 `error` 级别的问题 |
-| `2`  | 致命错误（缺少密钥、标志无效、网络故障） |
-| `130` | 用户取消了交互流程 |
+| 退出码 | 含义                                      |
+| ------ | ----------------------------------------- |
+| `0`    | 所有验证器均通过                          |
+| `1`    | 一个或多个验证器报告了 `error` 级别的问题 |
+| `2`    | 致命错误（缺少密钥、标志无效、网络故障）  |
+| `130`  | 用户取消了交互流程                        |
 
 ## 它能捕获哪些 Postman 和官方 SDK 发现不了的问题
 
@@ -73,16 +73,16 @@ npx fresh-squeezy
 
 下面比较了一次典型的 Lemon Squeezy 上线前检查在开发者本来会选用的各类工具上的表现：
 
-| 能力 | fresh-squeezy | 官方 SDK | Postman | 手写封装 |
-|---|:---:|:---:|:---:|:---:|
-| 模式 / 密钥不匹配检测（`MODE_MISMATCH`） | ✅ | ❌ | ❌ | ❌ |
-| 店铺归属交叉核验 | ✅ | ❌ | ❌ | ⚠️ 手动 |
-| Webhook 事件覆盖差异比对 | ✅ | ❌ | ⚠️ 手动 | ⚠️ 手动 |
-| 折扣 / 许可证密钥 / 计划验证 | ✅ | ❌ | ❌ | ⚠️ 手动 |
-| 更新日志漂移跟踪 | ✅ | ❌ | ❌ | ❌ |
-| 稳定的、可用于 CI 的退出码 + JSON | ✅ | ❌ | ❌ | ⚠️ 手动 |
-| 一条命令完成全面扫描（`doctor`） | ✅ | ❌ | ❌ | ❌ |
-| 带类型的 API 响应 | ✅ | ✅ | ❌ | ⚠️ 视情况 |
+| 能力                                     | fresh-squeezy | 官方 SDK | Postman | 手写封装  |
+| ---------------------------------------- | :-----------: | :------: | :-----: | :-------: |
+| 模式 / 密钥不匹配检测（`MODE_MISMATCH`） |      ✅       |    ❌    |   ❌    |    ❌     |
+| 店铺归属交叉核验                         |      ✅       |    ❌    |   ❌    |  ⚠️ 手动  |
+| Webhook 事件覆盖差异比对                 |      ✅       |    ❌    | ⚠️ 手动 |  ⚠️ 手动  |
+| 折扣 / 许可证密钥 / 计划验证             |      ✅       |    ❌    |   ❌    |  ⚠️ 手动  |
+| 更新日志漂移跟踪                         |      ✅       |    ❌    |   ❌    |    ❌     |
+| 稳定的、可用于 CI 的退出码 + JSON        |      ✅       |    ❌    |   ❌    |  ⚠️ 手动  |
+| 一条命令完成全面扫描（`doctor`）         |      ✅       |    ❌    |   ❌    |    ❌     |
+| 带类型的 API 响应                        |      ✅       |    ✅    |   ❌    | ⚠️ 视情况 |
 
 fresh-squeezy **不是**官方 SDK 的替代品 —— 它是你*配合* SDK 一起运行的预检工具。用 SDK 来发起 API 调用；用 fresh-squeezy 在这些调用进入生产环境之前证明你的配置是正确的。
 
@@ -120,24 +120,24 @@ import { createFreshSqueezy } from "fresh-squeezy";
 const lemon = createFreshSqueezy(); // reads LEMON_SQUEEZY_API_KEY, LEMON_SQUEEZY_MODE
 
 const report = await lemon.doctor({
-  storeId: 12,                      // library is single-store per call
-  productId: 987,
-  webhookUrl: "https://app.example.com/api/webhooks/lemon-squeezy",
+	storeId: 12, // library is single-store per call
+	productId: 987,
+	webhookUrl: "https://app.example.com/api/webhooks/lemon-squeezy",
 });
 
 if (!report.ok) {
-  for (const result of report.results) {
-    for (const issue of result.issues) {
-      console.error(`[${issue.severity}] ${issue.code}: ${issue.message}`);
-    }
-  }
-  process.exit(1);
+	for (const result of report.results) {
+		for (const issue of result.issues) {
+			console.error(`[${issue.severity}] ${issue.code}: ${issue.message}`);
+		}
+	}
+	process.exit(1);
 }
 ```
 
 如需在库层进行多店铺运行，请在循环中调用 `doctor()` —— CLI 正是这样做的。在 CI 逻辑中对 `issue.code` 进行分支判断；这些代码在次版本之间保持稳定。
 
-公共类型：[`FreshSqueezyClient`](src/createFreshSqueezy.ts)、[`ValidationResult<T>`](src/core/types.ts)、[`DoctorReport`](src/core/types.ts)、[`src/resources/attributes.ts`](src/resources/attributes.ts) 下的资源属性接口、[`src/generated/lemonSqueezyApiTypes.ts`](src/generated/lemonSqueezyApiTypes.ts) 中由文档生成的 Lemon Squeezy 对象类型，以及 [`src/augmentations.ts`](src/augmentations.ts) 中的更新日志增强辅助函数。
+公共类型：[`FreshSqueezyClient`](src/create-fresh-squeezy.ts)、[`ValidationResult<T>`](src/contracts/contracts.ts)、[`DoctorReport`](src/contracts/contracts.ts)、[`src/resources/attributes.ts`](src/resources/attributes.ts) 下的资源属性接口、[`src/generated/lemonSqueezyApiTypes.ts`](src/generated/lemonSqueezyApiTypes.ts) 中由文档生成的 Lemon Squeezy 对象类型，以及 [`src/augmentations.ts`](src/augmentations.ts) 中的更新日志增强辅助函数。
 
 对于尚未封装的端点，可使用原始转义出口：
 
@@ -151,24 +151,28 @@ const user = await lemon.request({ path: "/v1/users/me" });
 
 导入对照表：
 
-| Before (`from "fresh-squeezy"`) | Now |
-| --- | --- |
-| `createFreshSqueezy`, `FreshSqueezyClient`, `FreshSqueezyOps` | `fresh-squeezy` |
-| `FreshSqueezyError` | `fresh-squeezy/errors` |
-| config helpers | `fresh-squeezy/config` |
-| `ValidationResult`, `DoctorReport`, shared types | `fresh-squeezy/types` |
-| `Generated*` Lemon Squeezy types | `fresh-squeezy/api-types` |
-| resource attribute interfaces | `fresh-squeezy/resources/attributes` |
-| resource registry (`invokeOp`, ...) | `fresh-squeezy/resources/registry` |
-| validators | `fresh-squeezy/validate/connection`, `discount`, `doctor`, `license-key`, `product`, `issues`, `store`, `subscription-plan`, `webhook` |
-| webhook policy, supported resources | `fresh-squeezy/manifest` |
-| `Latest*` helpers | `fresh-squeezy/augmentations` |
+| Before (`from "fresh-squeezy"`)                               | Now                                                                                                                                    |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `createFreshSqueezy`, `FreshSqueezyClient`, `FreshSqueezyOps` | `fresh-squeezy`                                                                                                                        |
+| `FreshSqueezyError`                                           | `fresh-squeezy/errors`                                                                                                                 |
+| config helpers                                                | `fresh-squeezy/config`                                                                                                                 |
+| `ValidationResult`, `DoctorReport`, shared types              | `fresh-squeezy/types`                                                                                                                  |
+| `Generated*` Lemon Squeezy types                              | `fresh-squeezy/api-types`                                                                                                              |
+| resource attribute interfaces                                 | `fresh-squeezy/resources/attributes`                                                                                                   |
+| resource registry (`invokeOp`, ...)                           | `fresh-squeezy/resources/registry`                                                                                                     |
+| validators                                                    | `fresh-squeezy/validate/connection`, `discount`, `doctor`, `license-key`, `product`, `issues`, `store`, `subscription-plan`, `webhook` |
+| webhook policy, supported resources                           | `fresh-squeezy/manifest`                                                                                                               |
+| `Latest*` helpers                                             | `fresh-squeezy/augmentations`                                                                                                          |
 
 导入与错误判断：
 
 ```ts
 // before
-import { createFreshSqueezy, validateStore, FreshSqueezyError } from "fresh-squeezy";
+import {
+	createFreshSqueezy,
+	validateStore,
+	FreshSqueezyError,
+} from "fresh-squeezy";
 if (error instanceof FreshSqueezyError) console.error(error.code);
 
 // after
@@ -185,7 +189,7 @@ Lemon Squeezy 从同一个 API 主机提供两种模式；模式由密钥决定�
 ```ts
 const lemon = createFreshSqueezy({ mode: "test" });
 const result = await lemon.validateConnection();
-result.mode;                 // "test" (declared)
+result.mode; // "test" (declared)
 result.resource?.actualMode; // "live" — alarm bell
 ```
 
@@ -193,11 +197,11 @@ CLI 默认是 `--mode test`。使用 `--mode live` 覆盖。在检测到正式�
 
 ## 环境变量
 
-| 变量 | 是否必填 | 用途 |
-|----------|----------|---------|
-| `LEMON_SQUEEZY_API_KEY` | 是 | Bearer 令牌（库 + CLI） |
-| `LEMON_SQUEEZY_MODE` | 否 | `test`（默认）或 `live` |
-| `LEMON_SQUEEZY_STORE_ID` | 否 | 供 `client.doctor()` 使用的便捷默认值 —— 仅限库 |
+| 变量                     | 是否必填 | 用途                                            |
+| ------------------------ | -------- | ----------------------------------------------- |
+| `LEMON_SQUEEZY_API_KEY`  | 是       | Bearer 令牌（库 + CLI）                         |
+| `LEMON_SQUEEZY_MODE`     | 否       | `test`（默认）或 `live`                         |
+| `LEMON_SQUEEZY_STORE_ID` | 否       | 供 `client.doctor()` 使用的便捷默认值 —— 仅限库 |
 
 CLI 不会读取 `LEMON_SQUEEZY_STORE_ID`；请使用 `--store-ids` 或 `--all-stores`，以便每条命令的店铺选择都保持显式。
 
@@ -205,13 +209,13 @@ CLI 不会读取 `LEMON_SQUEEZY_STORE_ID`；请使用 `--store-ids` 或 `--all-s
 
 在 CI 中对 `issue.code` 进行分支判断 —— 所有代码在次版本之间保持稳定。最常见的几个：
 
-| 代码 | 含义 |
-|------|---------|
-| `AUTH_FAILED` | API 密钥无效或缺失 |
-| `MODE_MISMATCH` | 声明的模式与密钥的 `meta.test_mode` 不一致 |
-| `STORE_NOT_FOUND` / `STORE_NOT_OWNED` | 店铺 ID 无效或归属于其他账户 |
-| `PRODUCT_UNPUBLISHED` / `PRODUCT_WRONG_STORE` / `PRODUCT_NO_BUY_URL` | 产品无法接受结账 |
-| `WEBHOOK_NOT_FOUND` / `WEBHOOK_EVENTS_MISSING` | Webhook URL 未注册或订阅不足 |
+| 代码                                                                 | 含义                                       |
+| -------------------------------------------------------------------- | ------------------------------------------ |
+| `AUTH_FAILED`                                                        | API 密钥无效或缺失                         |
+| `MODE_MISMATCH`                                                      | 声明的模式与密钥的 `meta.test_mode` 不一致 |
+| `STORE_NOT_FOUND` / `STORE_NOT_OWNED`                                | 店铺 ID 无效或归属于其他账户               |
+| `PRODUCT_UNPUBLISHED` / `PRODUCT_WRONG_STORE` / `PRODUCT_NO_BUY_URL` | 产品无法接受结账                           |
+| `WEBHOOK_NOT_FOUND` / `WEBHOOK_EVENTS_MISSING`                       | Webhook URL 未注册或订阅不足               |
 
 ## 参考
 
@@ -222,8 +226,8 @@ CLI 不会读取 `LEMON_SQUEEZY_STORE_ID`；请使用 `--store-ids` 或 `--all-s
 - **`validateProduct`** —— 已发布、位于预期店铺、拥有正式变体和购买 URL。[→ 源码](src/validate/product.ts)
 - **`validateWebhook`** —— Webhook URL 已注册并订阅了推荐事件。[→ 源码](src/validate/webhook.ts)
 - **`validateDiscount`** —— 有效、在时间窗口内、金额有效、店铺归属匹配。[→ 源码](src/validate/discount.ts)
-- **`validateLicenseKey`** —— 已启用、未过期、有可用的激活次数、店铺归属匹配。[→ 源码](src/validate/licenseKey.ts)
-- **`validateSubscriptionPlan`** —— 订阅类型、有效的周期、非零价格、一致的试用期。[→ 源码](src/validate/subscriptionPlan.ts)
+- **`validateLicenseKey`** —— 已启用、未过期、有可用的激活次数、店铺归属匹配。[→ 源码](src/validate/license-key.ts)
+- **`validateSubscriptionPlan`** —— 订阅类型、有效的周期、非零价格、一致的试用期。[→ 源码](src/validate/subscription-plan.ts)
 - **`doctor`** —— 将上述各项组合成一份 `DoctorReport`。[→ 源码](src/validate/doctor.ts)
 
 资源覆盖范围是从 Lemon Squeezy 的对象文档生成的，因此大多数新文档化的字段不需要手动编辑：
@@ -265,7 +269,7 @@ Lemon Squeezy 发布 API 变更（新事件、新字段、新资源）的速度�
 
 ## 贡献
 
-参见 [CONTRIBUTING.md](./CONTRIBUTING.md)。克隆仓库，运行 `pnpm install`、`pnpm test`。本项目力求保持小巧而朴素 —— 验证优先、单一 HTTP 层、稳定的 `issue.code` 契约。
+参见 [README.md](./README.md#contributing)。克隆仓库，运行 `pnpm install`、`pnpm test`。本项目力求保持小巧而朴素 —— 验证优先、单一 HTTP 层、稳定的 `issue.code` 契约。
 
 ## 贡献者
 

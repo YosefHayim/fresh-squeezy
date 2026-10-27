@@ -1,193 +1,212 @@
-import { freshSqueezyErrorOf } from "../core/errors.js";
-import type { HttpClient } from "../core/http.js";
-import type { DoctorReport, Mode, ValidationResult } from "../core/types.js";
 import type {
-  DiscountAttributes,
-  LicenseKeyAttributes,
-  ProductAttributes,
-  StoreAttributes,
-  WebhookAttributes,
-} from "../resources/attributes.js";
+	DoctorReport,
+	Mode,
+	ValidationResult,
+} from "@/contracts/contracts.js";
+import { freshSqueezyErrorOf } from "@/errors/errors.js";
+import type { HttpClient } from "@/http/http.js";
+import type {
+	DiscountAttributes,
+	LicenseKeyAttributes,
+	ProductAttributes,
+	StoreAttributes,
+	WebhookAttributes,
+} from "@/resources/attributes.js";
 import { type ConnectionSummary, validateConnection } from "./connection.js";
-import { type DiscountValidationOptions, validateDiscount } from "./discount.js";
-import { type LicenseKeyValidationOptions, validateLicenseKey } from "./licenseKey.js";
+import {
+	type DiscountValidationOptions,
+	validateDiscount,
+} from "./discount.js";
+import {
+	type LicenseKeyValidationOptions,
+	validateLicenseKey,
+} from "./license-key.js";
 import { type ProductValidationOptions, validateProduct } from "./product.js";
 import { validateStore } from "./store.js";
 import {
-  type SubscriptionPlanValidationOptions,
-  validateSubscriptionPlan,
-} from "./subscriptionPlan.js";
-import { type WebhookValidationOptions, validateWebhook } from "./webhook.js";
+	type SubscriptionPlanValidationOptions,
+	validateSubscriptionPlan,
+} from "./subscription-plan.js";
+import { validateWebhook, type WebhookValidationOptions } from "./webhook.js";
 
-/**
- * Optional targets for the doctor run. If a target is omitted, its validator
- * is skipped — consumers only pay for what they configure.
- */
 export interface DoctorOptions {
-  storeId?: string | number;
-  productId?: string | number;
-  productIds?: Array<string | number>;
-  webhookUrl?: string;
-  webhookUrls?: string[];
-  discountId?: string | number;
-  discountIds?: Array<string | number>;
-  licenseKeyId?: string | number;
-  licenseKeyIds?: Array<string | number>;
-  variantId?: string | number;
-  variantIds?: Array<string | number>;
+	storeId?: string | number;
+	productId?: string | number;
+	productIds?: Array<string | number>;
+	webhookUrl?: string;
+	webhookUrls?: string[];
+	discountId?: string | number;
+	discountIds?: Array<string | number>;
+	licenseKeyId?: string | number;
+	licenseKeyIds?: Array<string | number>;
+	variantId?: string | number;
+	variantIds?: Array<string | number>;
 }
 
-/**
- * The set of validator functions doctor composes.
- *
- * Exposed as an injectable seam so tests can exercise composition order,
- * short-circuiting on connection failure, and option propagation without
- * setting up an HTTP route table for every validator. Production callers
- * normally rely on `DEFAULT_VALIDATORS`, which wires in the real
- * implementations from each `validate/*` module.
- */
 export interface DoctorValidators {
-  connection: (http: HttpClient, mode: Mode) => Promise<ValidationResult<ConnectionSummary>>;
-  store: (
-    http: HttpClient,
-    mode: Mode,
-    storeId: string | number,
-  ) => Promise<ValidationResult<StoreAttributes>>;
-  product: (
-    http: HttpClient,
-    mode: Mode,
-    options: ProductValidationOptions,
-  ) => Promise<ValidationResult<ProductAttributes>>;
-  webhook: (
-    http: HttpClient,
-    mode: Mode,
-    options: WebhookValidationOptions,
-  ) => Promise<ValidationResult<WebhookAttributes>>;
-  discount: (
-    http: HttpClient,
-    mode: Mode,
-    options: DiscountValidationOptions,
-  ) => Promise<ValidationResult<DiscountAttributes>>;
-  licenseKey: (
-    http: HttpClient,
-    mode: Mode,
-    options: LicenseKeyValidationOptions,
-  ) => Promise<ValidationResult<LicenseKeyAttributes>>;
-  subscriptionPlan: (
-    http: HttpClient,
-    mode: Mode,
-    options: SubscriptionPlanValidationOptions,
-  ) => Promise<ValidationResult>;
+	connection: (
+		http: HttpClient,
+		mode: Mode,
+	) => Promise<ValidationResult<ConnectionSummary>>;
+	store: (
+		http: HttpClient,
+		mode: Mode,
+		storeId: string | number,
+	) => Promise<ValidationResult<StoreAttributes>>;
+	product: (
+		http: HttpClient,
+		mode: Mode,
+		options: ProductValidationOptions,
+	) => Promise<ValidationResult<ProductAttributes>>;
+	webhook: (
+		http: HttpClient,
+		mode: Mode,
+		options: WebhookValidationOptions,
+	) => Promise<ValidationResult<WebhookAttributes>>;
+	discount: (
+		http: HttpClient,
+		mode: Mode,
+		options: DiscountValidationOptions,
+	) => Promise<ValidationResult<DiscountAttributes>>;
+	licenseKey: (
+		http: HttpClient,
+		mode: Mode,
+		options: LicenseKeyValidationOptions,
+	) => Promise<ValidationResult<LicenseKeyAttributes>>;
+	subscriptionPlan: (
+		http: HttpClient,
+		mode: Mode,
+		options: SubscriptionPlanValidationOptions,
+	) => Promise<ValidationResult>;
 }
 
-/** Default wiring used by `doctor` when no overrides are provided. */
 export const DEFAULT_VALIDATORS: DoctorValidators = {
-  connection: validateConnection,
-  store: validateStore,
-  product: validateProduct,
-  webhook: validateWebhook,
-  discount: validateDiscount,
-  licenseKey: validateLicenseKey,
-  subscriptionPlan: validateSubscriptionPlan,
+	connection: validateConnection,
+	store: validateStore,
+	product: validateProduct,
+	webhook: validateWebhook,
+	discount: validateDiscount,
+	licenseKey: validateLicenseKey,
+	subscriptionPlan: validateSubscriptionPlan,
 };
 
-/**
- * Compose every configured validator into a single report. This is the
- * primary entry point for CI pre-flight runs: one call, one structured result,
- * one exit code decision.
- *
- * Order is meaningful. Connection runs first because downstream validators
- * have nothing useful to say if the API key is broken.
- *
- * The optional `validators` parameter lets tests inject fakes without a fetch
- * mock; production callers omit it and get `DEFAULT_VALIDATORS`.
- */
 export const doctor = async (
-  http: HttpClient,
-  mode: Mode,
-  options: DoctorOptions = {},
-  validators: DoctorValidators = DEFAULT_VALIDATORS,
+	http: HttpClient,
+	mode: Mode,
+	options: DoctorOptions = {},
+	validators: DoctorValidators = DEFAULT_VALIDATORS,
 ): Promise<DoctorReport> => {
-  assertOptionsCoherent(options);
+	assertOptionsCoherent(options);
 
-  const results: ValidationResult[] = [];
-  const productIds = collectValues(options.productId, options.productIds);
-  const webhookUrls = collectValues(options.webhookUrl, options.webhookUrls);
-  const discountIds = collectValues(options.discountId, options.discountIds);
-  const licenseKeyIds = collectValues(options.licenseKeyId, options.licenseKeyIds);
-  const variantIds = collectValues(options.variantId, options.variantIds);
+	const results: ValidationResult[] = [];
+	const productIds = collectValues(options.productId, options.productIds);
+	const webhookUrls = collectValues(options.webhookUrl, options.webhookUrls);
+	const discountIds = collectValues(options.discountId, options.discountIds);
+	const licenseKeyIds = collectValues(
+		options.licenseKeyId,
+		options.licenseKeyIds,
+	);
+	const variantIds = collectValues(options.variantId, options.variantIds);
 
-  const connection = await validators.connection(http, mode);
-  results.push(connection);
+	const connection = await validators.connection(http, mode);
+	results.push(connection);
 
-  if (!connection.ok) {
-    return { ok: false, mode, results };
-  }
+	const isConnectionFailed = !connection.ok;
+	if (isConnectionFailed) {
+		return { ok: false, mode, results };
+	}
 
-  if (options.storeId !== undefined) {
-    results.push(await validators.store(http, mode, options.storeId));
-  }
+	const { storeId } = options;
+	const isStoreGiven = storeId !== undefined;
+	if (isStoreGiven) {
+		const storeResult = await validators.store(http, mode, storeId);
+		results.push(storeResult);
+	}
 
-  for (const productId of productIds) {
-    results.push(
-      await validators.product(http, mode, {
-        productId,
-        expectedStoreId: options.storeId,
-      }),
-    );
-  }
+	for (const productId of productIds) {
+		const productResult = await validators.product(http, mode, {
+			productId,
+			expectedStoreId: storeId,
+		});
+		results.push(productResult);
+	}
 
-  // webhook / discount / licenseKey / subscriptionPlan all require storeId
-  // (assertOptionsCoherent rejects those options when storeId is absent).
-  if (options.storeId !== undefined) {
-    const storeId = options.storeId;
-    for (const url of webhookUrls) {
-      results.push(await validators.webhook(http, mode, { storeId, url }));
-    }
-    for (const discountId of discountIds) {
-      results.push(await validators.discount(http, mode, { storeId, discountId }));
-    }
-    for (const licenseKeyId of licenseKeyIds) {
-      results.push(await validators.licenseKey(http, mode, { storeId, licenseKeyId }));
-    }
-    for (const variantId of variantIds) {
-      results.push(await validators.subscriptionPlan(http, mode, { storeId, variantId }));
-    }
-  }
+	// webhook / discount / licenseKey / subscriptionPlan all require storeId
+	// (assertOptionsCoherent rejects those options when storeId is absent).
+	if (isStoreGiven) {
+		for (const url of webhookUrls) {
+			const webhookResult = await validators.webhook(http, mode, {
+				storeId,
+				url,
+			});
+			results.push(webhookResult);
+		}
+		for (const discountId of discountIds) {
+			const discountResult = await validators.discount(http, mode, {
+				storeId,
+				discountId,
+			});
+			results.push(discountResult);
+		}
+		for (const licenseKeyId of licenseKeyIds) {
+			const licenseKeyResult = await validators.licenseKey(http, mode, {
+				storeId,
+				licenseKeyId,
+			});
+			results.push(licenseKeyResult);
+		}
+		for (const variantId of variantIds) {
+			const planResult = await validators.subscriptionPlan(http, mode, {
+				storeId,
+				variantId,
+			});
+			results.push(planResult);
+		}
+	}
 
-  return { ok: results.every((entry) => entry.ok), mode, results };
+	const isEveryResultOk = results.every((entry) => entry.ok);
+	return { ok: isEveryResultOk, mode, results };
 };
 
-/**
- * Fail fast when store-scoped targets are set without `storeId`. Without this,
- * doctor would silently skip those validators and report a false-positive ok.
- */
 const assertOptionsCoherent = (options: DoctorOptions): void => {
-  if (options.storeId !== undefined) return;
+	const isStoreGiven = options.storeId !== undefined;
+	if (isStoreGiven) return;
 
-  const dependent: Array<keyof DoctorOptions> = [];
-  if (hasAny(options.webhookUrl, options.webhookUrls)) dependent.push("webhookUrl");
-  if (hasAny(options.discountId, options.discountIds)) dependent.push("discountId");
-  if (hasAny(options.licenseKeyId, options.licenseKeyIds)) dependent.push("licenseKeyId");
-  if (hasAny(options.variantId, options.variantIds)) dependent.push("variantId");
+	const isWebhookGiven = hasAny(options.webhookUrl, options.webhookUrls);
+	const isDiscountGiven = hasAny(options.discountId, options.discountIds);
+	const isLicenseKeyGiven = hasAny(options.licenseKeyId, options.licenseKeyIds);
+	const isVariantGiven = hasAny(options.variantId, options.variantIds);
 
-  if (dependent.length === 0) return;
+	const dependent: Array<keyof DoctorOptions> = [];
+	if (isWebhookGiven) dependent.push("webhookUrl");
+	if (isDiscountGiven) dependent.push("discountId");
+	if (isLicenseKeyGiven) dependent.push("licenseKeyId");
+	if (isVariantGiven) dependent.push("variantId");
 
-  throw freshSqueezyErrorOf({
-    code: "DOCTOR_OPTIONS_INVALID",
-    message: `doctor() received ${dependent.join(", ")} without storeId. These validators cannot run without a store; pass \`storeId\` or remove the dependent options.`,
-  });
+	const isEverythingCoherent = dependent.length === 0;
+	if (isEverythingCoherent) return;
+
+	throw freshSqueezyErrorOf({
+		code: "DOCTOR_OPTIONS_INVALID",
+		message: `doctor() received ${dependent.join(", ")} without storeId. These validators cannot run without a store; pass \`storeId\` or remove the dependent options.`,
+	});
 };
 
-const collectValues = <T>(single: T | undefined, many: T[] | undefined): T[] => {
-  const values = new Set<T>();
-  if (single !== undefined) values.add(single);
-  for (const value of many ?? []) {
-    if (value !== undefined) values.add(value);
-  }
-  return Array.from(values);
+const collectValues = <T>(
+	single: T | undefined,
+	many: T[] | undefined,
+): T[] => {
+	const values = new Set<T>();
+	const isSingleGiven = single !== undefined;
+	if (isSingleGiven) values.add(single);
+	for (const value of many ?? []) {
+		const isValueGiven = value !== undefined;
+		if (isValueGiven) values.add(value);
+	}
+	return Array.from(values);
 };
 
 const hasAny = <T>(single: T | undefined, many: T[] | undefined): boolean => {
-  return single !== undefined || (many?.length ?? 0) > 0;
+	const manyCount = many?.length ?? 0;
+	return single !== undefined || manyCount > 0;
 };
