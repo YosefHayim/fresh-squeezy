@@ -26,7 +26,7 @@ vi.mock("@/cli/prompts.js", async (importOriginal) => ({
 // interactive menu. Keep that guarantee even if the runner env exports a key.
 const API_KEY_ENV = "LEMON_SQUEEZY_API_KEY";
 beforeEach(() => {
-	delete process.env[API_KEY_ENV];
+	vi.stubEnv(API_KEY_ENV, undefined);
 });
 
 afterEach(() => {
@@ -109,7 +109,7 @@ test("runLauncherCommand does not bootstrap in non-interactive mode", async () =
 });
 
 test("runLauncherCommand routes the Manage resources menu choice to the bulk manager", async () => {
-	process.env[API_KEY_ENV] = "test-key";
+	vi.stubEnv(API_KEY_ENV, "test-key");
 	vi.mocked(ensureFreshSqueezyDevDependency).mockResolvedValueOnce({
 		status: "skipped",
 	});

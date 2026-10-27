@@ -33,11 +33,7 @@ type PromptConfig = {
 	choices?: Array<{ name?: string }>;
 };
 
-const ORIGINAL_ENV = { ...process.env };
-
 afterEach(() => {
-	for (const key of Object.values(ENV_KEYS)) delete process.env[key];
-	Object.assign(process.env, ORIGINAL_ENV);
 	vi.unstubAllGlobals();
 	vi.restoreAllMocks();
 });
@@ -262,7 +258,7 @@ test("runInitCommand allows multiple discovered resources for one selected check
 });
 
 test("runInitCommand uses env API key and auto-detects live mode without prompting for credentials", async () => {
-	process.env[ENV_KEYS.apiKey] = "k_live_env";
+	vi.stubEnv(ENV_KEYS.apiKey, "k_live_env");
 	vi.mocked(confirm).mockResolvedValueOnce(true).mockResolvedValueOnce(false);
 	vi.mocked(checkbox).mockResolvedValueOnce([]);
 
@@ -288,7 +284,7 @@ test("runInitCommand uses env API key and auto-detects live mode without prompti
 });
 
 test("runInitCommand stops before live-mode setup when the user does not confirm", async () => {
-	process.env[ENV_KEYS.apiKey] = "k_live_env";
+	vi.stubEnv(ENV_KEYS.apiKey, "k_live_env");
 	vi.mocked(confirm).mockResolvedValueOnce(false);
 
 	const { fetch } = createMockFetch([
@@ -336,7 +332,7 @@ test("runInitCommand preserves unrelated env file entries when writing setup val
 	const envFile = join(workdir, ".env");
 	writeFileSync(envFile, "OTHER_SECRET=keep\nLEMON_SQUEEZY_MODE=live\n");
 
-	process.env[ENV_KEYS.apiKey] = "k_test_env";
+	vi.stubEnv(ENV_KEYS.apiKey, "k_test_env");
 	vi.mocked(checkbox).mockResolvedValueOnce([]);
 	vi.mocked(confirm).mockResolvedValueOnce(true);
 
