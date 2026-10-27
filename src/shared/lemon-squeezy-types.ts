@@ -538,3 +538,157 @@ export interface ResourceAttributes {
 export type ResourceType = keyof ResourceAttributes;
 
 export type ListableResource = Exclude<ResourceType, "users">;
+
+export interface CustomerCreate {
+	attributes: {
+		name: string;
+		email: string;
+		city?: string;
+		region?: string;
+		country?: string;
+	};
+	relationships: { store: string };
+}
+
+export interface UsageRecordCreate {
+	attributes: {
+		quantity: number;
+		action?: "increment" | "set";
+	};
+	relationships: { "subscription-item": string };
+}
+
+export interface DiscountCreate {
+	attributes: {
+		name: string;
+		code: string;
+		amount: number;
+		amount_type: "percent" | "fixed";
+		is_limited_to_products?: boolean;
+		is_limited_redemptions?: boolean;
+		max_redemptions?: number;
+		starts_at?: string | null;
+		expires_at?: string | null;
+		duration?: "once" | "repeating" | "forever";
+		duration_in_months?: number;
+		test_mode?: boolean;
+	};
+	relationships: { store: string; variants?: string[] };
+}
+
+export interface CheckoutCreate {
+	attributes: {
+		custom_price?: number;
+		product_options?: CheckoutProductOptions;
+		checkout_options?: CheckoutOptions;
+		checkout_data?: CheckoutData;
+		preview?: boolean;
+		test_mode?: boolean;
+		expires_at?: string | null;
+	};
+	relationships: { store: string; variant: string };
+}
+
+export interface WebhookCreate {
+	attributes: {
+		url: string;
+		events: string[];
+		secret: string;
+		test_mode?: boolean;
+	};
+	relationships: { store: string };
+}
+
+export interface CreateInput {
+	customers: CustomerCreate;
+	"usage-records": UsageRecordCreate;
+	discounts: DiscountCreate;
+	checkouts: CheckoutCreate;
+	webhooks: WebhookCreate;
+}
+
+export type CreatableResource = keyof CreateInput;
+
+export interface CustomerUpdate {
+	name?: string;
+	email?: string;
+	city?: string;
+	region?: string;
+	country?: string;
+	status?: "archived";
+}
+
+export interface SubscriptionUpdate {
+	variant_id?: number;
+	pause?: { mode: "void" | "free"; resumes_at?: string } | null;
+	cancelled?: boolean;
+	trial_ends_at?: string | null;
+	billing_anchor?: number | null;
+	invoice_immediately?: boolean;
+	disable_prorations?: boolean;
+}
+
+export interface SubscriptionItemUpdate {
+	quantity?: number;
+	invoice_immediately?: boolean;
+	disable_prorations?: boolean;
+}
+
+export interface LicenseKeyUpdate {
+	activation_limit?: number | null;
+	expires_at?: string | null;
+	disabled?: boolean;
+}
+
+export interface WebhookUpdate {
+	url?: string;
+	events?: string[];
+	secret?: string;
+}
+
+export interface UpdateInput {
+	customers: CustomerUpdate;
+	subscriptions: SubscriptionUpdate;
+	"subscription-items": SubscriptionItemUpdate;
+	"license-keys": LicenseKeyUpdate;
+	webhooks: WebhookUpdate;
+}
+
+export type UpdatableResource = keyof UpdateInput;
+
+export type RemovableResource = "discounts" | "webhooks";
+
+export type RefundableResource = "orders" | "subscription-invoices";
+
+export type InvoiceResource = "orders" | "subscription-invoices";
+
+export type RelationshipName =
+	| "store"
+	| "variant"
+	| "variants"
+	| "subscription-item";
+
+export interface InvoiceBilling {
+	name: string;
+	address: string;
+	city: string;
+	state?: string;
+	zip_code: string;
+	country: string;
+	notes?: string;
+	locale?: string;
+}
+
+export interface InvoiceDownload {
+	meta: { urls: { download_invoice: string } };
+}
+
+export interface CurrentUsage {
+	meta: {
+		period_start: string;
+		period_end: string;
+		quantity: number;
+		interval_unit: IntervalUnit;
+		interval_quantity: number;
+	};
+}
