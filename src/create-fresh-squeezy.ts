@@ -1,3 +1,4 @@
+import { createLemonSqueezyClient } from "./features/client/lemon-squeezy-client.js";
 import { validateConnection } from "./features/validate/connection.js";
 import {
 	type DiscountCheck,
@@ -40,6 +41,7 @@ export const createFreshSqueezy = (input: FreshSqueezyConfig = {}) => {
 	};
 
 	return {
+		...createLemonSqueezyClient(http),
 		mode,
 		validateConnection: () => validateConnection(http, mode),
 		validateStore: (id: string) => validateStore(http, mode, id),

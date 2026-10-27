@@ -8,6 +8,7 @@ export default defineConfig([
 			errors: "src/shared/errors.ts",
 			findings: "src/features/validate/findings.ts",
 			types: "src/shared/lemon-squeezy-types.ts",
+			license: "src/features/client/license-api.ts",
 		},
 		format: ["esm", "cjs"],
 		dts: true,

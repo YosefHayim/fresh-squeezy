@@ -53,6 +53,11 @@
       "types": "./dist/types.d.ts",
       "import": "./dist/types.js",
       "require": "./dist/types.cjs"
+    },
+    "./license": {
+      "types": "./dist/license.d.ts",
+      "import": "./dist/license.js",
+      "require": "./dist/license.cjs"
     }
   },
   "bin": {
