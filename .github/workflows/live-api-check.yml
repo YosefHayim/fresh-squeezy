@@ -22,14 +22,24 @@ jobs:
       - name: Setup workspace
         uses: ./.github/actions/setup
 
+      - name: Require the test API key
+        env:
+          LEMON_SQUEEZY_TEST_API_KEY: ${{ secrets.LEMON_SQUEEZY_TEST_API_KEY }}
+        run: |
+          if [ -z "$LEMON_SQUEEZY_TEST_API_KEY" ]; then
+            echo "Set the LEMON_SQUEEZY_TEST_API_KEY repository secret; without it every live test is skipped." >&2
+            exit 1
+          fi
+
       - name: Compare the types with the live Lemon Squeezy API
+        id: compare
         env:
           LEMON_SQUEEZY_TEST_API_KEY: ${{ secrets.LEMON_SQUEEZY_TEST_API_KEY }}
           LEMON_SQUEEZY_LIVE_API_KEY: ${{ secrets.LEMON_SQUEEZY_LIVE_API_KEY }}
         run: pnpm test:live
 
       - name: Open an issue when the live API no longer matches the types
-        if: failure()
+        if: failure() && steps.compare.outcome == 'failure'
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
