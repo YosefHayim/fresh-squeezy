@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fresh Squeezy"
+  short_description: "Check a Lemon Squeezy store and call its API"
+  default_prompt: "Use $fresh-squeezy to run the doctor on my Lemon Squeezy store, fix the findings, or call the Lemon Squeezy API safely."
