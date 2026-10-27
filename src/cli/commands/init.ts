@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import chalk from "chalk";
-import { ENV_KEYS } from "@/shared/config.js";
+import { ENV_KEYS, readEnvApiKey, readEnvMode } from "@/shared/config.js";
 import type { Mode, ValidationResult } from "@/contracts/contracts.js";
 import {
 	type FreshSqueezyClient,
@@ -45,106 +45,146 @@ export const runInitCommand = async (
 	try {
 		return await runInitFlow(options);
 	} catch (err) {
-		if (isPromptCancel(err)) {
-			process.stderr.write(renderCancelMessage());
-			return 130;
-		}
-		throw err;
+		const isCancel = isPromptCancel(err);
+		const isUnexpectedError = !isCancel;
+		if (isUnexpectedError) throw err;
+		const cancelMessage = renderCancelMessage();
+		process.stderr.write(cancelMessage);
+		return 130;
 	}
 };
 
 const runInitFlow = async (options: InitCommandOptions): Promise<number> => {
-	if (options.isInteractive === false) {
-		process.stderr.write(
-			renderCliError("`fresh-squeezy init` requires an interactive terminal.", [
+	const isNonInteractive = options.isInteractive === false;
+	if (isNonInteractive) {
+		const needsTerminalError = renderCliError(
+			"`fresh-squeezy init` requires an interactive terminal.",
+			[
 				"fresh-squeezy doctor --all-stores",
 				"fresh-squeezy validate connection",
-			]),
+			],
 		);
+		process.stderr.write(needsTerminalError);
 		return 2;
 	}
 
-	process.stdout.write(
-		renderBrandHeader(
-			"Guided setup",
-			"Connect a key, pick the right store, and run a focused billing doctor.",
-		),
+	const brandHeader = renderBrandHeader(
+		"Guided setup",
+		"Connect a key, pick the right store, and run a focused billing doctor.",
 	);
+	process.stdout.write(brandHeader);
 
-	process.stdout.write(
-		renderStep(1, 5, "Credentials", "reuse env when available"),
+	const credentialsStep = renderStep(
+		1,
+		5,
+		"Credentials",
+		"reuse env when available",
 	);
+	process.stdout.write(credentialsStep);
 	const apiKey = await resolveApiKey();
 
-	process.stdout.write(
-		renderStep(2, 5, "Account probe", "detect mode and reachable stores"),
+	const probeStep = renderStep(
+		2,
+		5,
+		"Account probe",
+		"detect mode and reachable stores",
 	);
+	process.stdout.write(probeStep);
 	const { client, connection } = await connectWithDetectedMode(apiKey);
 	const mode = client.mode;
 
-	if (!connection.ok) {
-		process.stdout.write(
-			`${renderReport({ ok: false, mode, results: [connection] })}\n`,
-		);
+	const isConnectionBroken = !connection.ok;
+	if (isConnectionBroken) {
+		const connectionReport = renderReport({
+			ok: false,
+			mode,
+			results: [connection],
+		});
+		process.stdout.write(`${connectionReport}\n`);
 		return 1;
 	}
 
-	if (mode === "live" && !(await confirmLiveModeRun())) {
-		process.stderr.write(renderCancelMessage());
+	const isLiveMode = mode === "live";
+	const isLiveRunDeclined = isLiveMode && !(await confirmLiveModeRun());
+	if (isLiveRunDeclined) {
+		const cancelMessage = renderCancelMessage();
+		process.stderr.write(cancelMessage);
 		return 130;
 	}
 
 	const stores = await listStoreChoices(client);
-	if (stores.length === 0) {
-		process.stdout.write(
-			chalk.yellow(
-				"No stores reachable with this key. Create a store in Lemon Squeezy and retry.\n",
-			),
+	const areThereNoStores = stores.length === 0;
+	if (areThereNoStores) {
+		const noStoresMessage = chalk.yellow(
+			"No stores reachable with this key. Create a store in Lemon Squeezy and retry.\n",
 		);
+		process.stdout.write(noStoresMessage);
 		return 1;
 	}
 
-	process.stdout.write(
-		renderDetected("Stores", String(stores.length), "Lemon Squeezy API"),
+	const storeCount = String(stores.length);
+	const detectedStores = renderDetected(
+		"Stores",
+		storeCount,
+		"Lemon Squeezy API",
 	);
-	process.stdout.write(
-		renderStep(3, 5, "Store selection", "auto-select when unambiguous"),
+	process.stdout.write(detectedStores);
+	const storeStep = renderStep(
+		3,
+		5,
+		"Store selection",
+		"auto-select when unambiguous",
 	);
+	process.stdout.write(storeStep);
 	const storeId = await resolveStoreSelection(stores);
 
-	process.stdout.write(
-		renderStep(4, 5, "Optional checks", "pick resources before manual IDs"),
+	const checksStep = renderStep(
+		4,
+		5,
+		"Optional checks",
+		"pick resources before manual IDs",
 	);
+	process.stdout.write(checksStep);
 	const selectedValidators = await selectOptionalValidators();
 	const resourceChoices = await discoverChoices(
 		client,
 		storeId,
 		selectedValidators,
 	);
-	process.stdout.write(
-		renderDiscoverySummary(resourceChoices, selectedValidators),
+	const discoverySummary = renderDiscoverySummary(
+		resourceChoices,
+		selectedValidators,
 	);
+	process.stdout.write(discoverySummary);
 	const validatorIds = await askForValidatorIds(
 		selectedValidators,
 		resourceChoices,
 	);
 
-	const envPath = path.resolve(process.cwd(), options.envFile ?? ".env");
+	const envFileName = options.envFile ?? ".env";
+	const workingDirectory = process.cwd();
+	const envPath = path.resolve(workingDirectory, envFileName);
 	const checkNames = listValidatorNames(validatorIds);
-	process.stdout.write(
-		renderSetupSummary({ envPath, mode, storeId, checkNames }),
-	);
+	const setupSummary = renderSetupSummary({
+		envPath,
+		mode,
+		storeId,
+		checkNames,
+	});
+	process.stdout.write(setupSummary);
 	const shouldWrite = await confirmWriteEnvFile(envPath);
 	if (shouldWrite) {
 		await writeEnvFile(envPath, { apiKey, mode, storeId });
-		process.stdout.write(chalk.green(`Wrote ${envPath}\n`));
+		const wroteMessage = chalk.green(`Wrote ${envPath}\n`);
+		process.stdout.write(wroteMessage);
 	}
 
-	process.stdout.write(
-		chalk.dim(`\nRunning doctor (${checkNames.join(", ")})...\n\n`),
-	);
+	const checkList = checkNames.join(", ");
+	const runningMessage = chalk.dim(`\nRunning doctor (${checkList})...\n\n`);
+	process.stdout.write(runningMessage);
 	const report = await client.doctor({ storeId, ...validatorIds });
-	process.stdout.write(`${renderReport(report)}\n`);
+	const doctorReport = renderReport(report);
+	process.stdout.write(`${doctorReport}\n`);
 
 	return report.ok ? 0 : 1;
 };
@@ -153,27 +193,30 @@ const resolveStoreSelection = async (
 	stores: StoreChoice[],
 ): Promise<string> => {
 	const [only, ...others] = stores;
-	if (only && others.length === 0) {
-		process.stdout.write(
-			renderDetected("Store", `${only.name} (${only.slug})`, `id ${only.id}`),
-		);
-		return only.id;
-	}
+	const hasOnlyOneStore = others.length === 0;
+	const isThereOnlyOneStore = Boolean(only) && hasOnlyOneStore;
+	const isThereAChoiceToMake = !only || !isThereOnlyOneStore;
+	if (isThereAChoiceToMake) return pickStore(stores);
 
-	return pickStore(stores);
+	const storeLabel = `${only.name} (${only.slug})`;
+	const detectedStore = renderDetected("Store", storeLabel, `id ${only.id}`);
+	process.stdout.write(detectedStore);
+	return only.id;
 };
 
 const resolveApiKey = async (): Promise<string> => {
-	const envApiKey = process.env[ENV_KEYS.apiKey]?.trim();
-	if (envApiKey) {
-		process.stdout.write(
-			chalk.dim(`Using ${ENV_KEYS.apiKey} from environment.\n`),
-		);
-		return envApiKey;
+	const envApiKey = readEnvApiKey();
+	const isApiKeyMissing = !envApiKey;
+	if (isApiKeyMissing) {
+		const answers = await askForApiKey();
+		return answers.apiKey;
 	}
 
-	const answers = await askForApiKey();
-	return answers.apiKey;
+	const usingEnvMessage = chalk.dim(
+		`Using ${ENV_KEYS.apiKey} from environment.\n`,
+	);
+	process.stdout.write(usingEnvMessage);
+	return envApiKey;
 };
 
 interface DetectedConnection {
@@ -190,55 +233,66 @@ const connectWithDetectedMode = async (
 	let connection = await client.validateConnection();
 	const actualMode = connection.resource?.actualMode;
 
-	if (actualMode && actualMode !== initialMode) {
-		const message = envMode
+	const isModeMismatch = Boolean(actualMode) && actualMode !== initialMode;
+	if (actualMode && isModeMismatch) {
+		const hasEnvMode = Boolean(envMode);
+		const message = hasEnvMode
 			? `Detected ${actualMode}-mode API key; ignoring ${ENV_KEYS.mode}=${initialMode} for this run.`
 			: `Detected ${actualMode}-mode API key.`;
-		process.stdout.write(chalk.yellow(`${message}\n`));
+		const mismatchMessage = chalk.yellow(`${message}\n`);
+		process.stdout.write(mismatchMessage);
 		client = createFreshSqueezy({ apiKey, mode: actualMode });
 		connection = await client.validateConnection();
 		return { client, connection };
 	}
 
 	if (actualMode) {
-		process.stdout.write(chalk.dim(`Detected ${actualMode}-mode API key.\n`));
+		const detectedMessage = chalk.dim(`Detected ${actualMode}-mode API key.\n`);
+		process.stdout.write(detectedMessage);
 		return { client, connection };
 	}
 
 	if (envMode) {
-		process.stdout.write(
-			chalk.dim(
-				`Using ${ENV_KEYS.mode}=${envMode}; API mode was not exposed.\n`,
-			),
+		const envModeMessage = chalk.dim(
+			`Using ${ENV_KEYS.mode}=${envMode}; API mode was not exposed.\n`,
 		);
+		process.stdout.write(envModeMessage);
 		return { client, connection };
 	}
 
-	process.stdout.write(
-		chalk.dim("Could not auto-detect key mode; using test mode.\n"),
+	const fallbackMessage = chalk.dim(
+		"Could not auto-detect key mode; using test mode.\n",
 	);
+	process.stdout.write(fallbackMessage);
 	return { client, connection };
 };
 
 const parseEnvMode = (): Mode | undefined => {
-	const value = process.env[ENV_KEYS.mode]?.trim();
-	if (value === "test" || value === "live") return value;
-	if (value) {
-		process.stdout.write(
-			chalk.yellow(
-				`Ignoring invalid ${ENV_KEYS.mode}=${value}; expected test or live.\n`,
-			),
-		);
-	}
+	const envMode = readEnvMode();
+	const isModeMissing = !envMode;
+	if (isModeMissing) return undefined;
+	const isValidMode = envMode === "test" || envMode === "live";
+	if (isValidMode) return envMode;
+
+	const invalidModeMessage = chalk.yellow(
+		`Ignoring invalid ${ENV_KEYS.mode}=${envMode}; expected test or live.\n`,
+	);
+	process.stdout.write(invalidModeMessage);
 	return undefined;
 };
 
 const listValidatorNames = (validatorIds: OptionalValidatorIds): string[] => {
 	const names = ["connection", "store"];
-	for (const row of OPTIONAL_VALIDATORS) {
-		const count = validatorIds[row.field]?.length ?? 0;
-		if (count > 0)
-			names.push(count === 1 ? row.resultName : `${row.resultName} x${count}`);
+	for (const validatorRow of OPTIONAL_VALIDATORS) {
+		const count = validatorIds[validatorRow.field]?.length ?? 0;
+		const isThereNoSelection = count === 0;
+		if (isThereNoSelection) continue;
+		const isSingleSelection = count === 1;
+		names.push(
+			isSingleSelection
+				? validatorRow.resultName
+				: `${validatorRow.resultName} x${count}`,
+		);
 	}
 	return names;
 };
@@ -249,15 +303,27 @@ const renderSetupSummary = (input: {
 	storeId: string;
 	checkNames: string[];
 }): string => {
+	const readyStep = renderStep(
+		5,
+		5,
+		"Ready to verify",
+		"review before writing env",
+	);
+	const modeLabel = chalk.dim("mode");
+	const storeLabel = chalk.dim("store");
+	const checksLabel = chalk.dim("checks");
+	const envLabel = chalk.dim("env");
 	return [
-		renderStep(5, 5, "Ready to verify", "review before writing env"),
-		`  ${chalk.dim("mode")}   ${input.mode}`,
-		`  ${chalk.dim("store")}  ${input.storeId}`,
-		`  ${chalk.dim("checks")} ${input.checkNames.join(", ")}`,
-		`  ${chalk.dim("env")}    ${input.envPath}`,
+		readyStep,
+		`  ${modeLabel}   ${input.mode}`,
+		`  ${storeLabel}  ${input.storeId}`,
+		`  ${checksLabel} ${input.checkNames.join(", ")}`,
+		`  ${envLabel}    ${input.envPath}`,
 		"",
 	].join("\n");
 };
+
+const ENV_LINE_PATTERN = /^([A-Za-z_][A-Za-z0-9_]*)=/;
 
 const writeEnvFile = async (
 	envPath: string,
@@ -269,44 +335,48 @@ const writeEnvFile = async (
 		[ENV_KEYS.mode, values.mode],
 	]);
 	const existing = await readEnvFile(envPath);
-	const lines = existing.length > 0 ? existing.split(/\r?\n/) : [];
+	const hasExistingContent = existing.length > 0;
+	const lines = hasExistingContent ? existing.split(/\r?\n/) : [];
 	const seen = new Set<string>();
 	const next = lines.map((line) => {
-		const match = /^([A-Za-z_][A-Za-z0-9_]*)=/.exec(line);
-		const key = match?.[1];
-		if (!key || !updates.has(key)) return line;
+		const lineMatch = ENV_LINE_PATTERN.exec(line);
+		const key = lineMatch?.[1];
+		const isNotAnAssignment = !key;
+		if (isNotAnAssignment) return line;
+		const isUntouchedKey = !updates.has(key);
+		if (isUntouchedKey) return line;
 		seen.add(key);
 		return `${key}=${updates.get(key) ?? ""}`;
 	});
 
-	if (next.length > 0 && next.at(-1) !== "") {
-		next.push("");
-	}
+	const lacksTrailingBlankLine = next.length > 0 && next.at(-1) !== "";
+	if (lacksTrailingBlankLine) next.push("");
 
 	for (const [key, value] of updates) {
-		if (!seen.has(key)) {
-			next.push(`${key}=${value}`);
-		}
+		const isMissingFromFile = !seen.has(key);
+		if (isMissingFromFile) next.push(`${key}=${value}`);
 	}
 
-	await fs.mkdir(path.dirname(envPath), { recursive: true });
-	await fs.writeFile(envPath, `${next.join("\n").replace(/\n*$/, "")}\n`, {
-		encoding: "utf8",
-	});
+	const envDirectory = path.dirname(envPath);
+	await fs.mkdir(envDirectory, { recursive: true });
+	const joinedLines = next.join("\n");
+	const trimmedLines = joinedLines.replace(/\n*$/, "");
+	await fs.writeFile(envPath, `${trimmedLines}\n`, { encoding: "utf8" });
+};
+
+const isMissingFileError = (err: unknown): boolean => {
+	const isObjectError = Boolean(err) && typeof err === "object";
+	return (
+		isObjectError && err !== null && "code" in err && err.code === "ENOENT"
+	);
 };
 
 const readEnvFile = async (envPath: string): Promise<string> => {
 	try {
 		return await fs.readFile(envPath, "utf8");
 	} catch (err) {
-		if (
-			err &&
-			typeof err === "object" &&
-			"code" in err &&
-			err.code === "ENOENT"
-		) {
-			return "";
-		}
+		const isMissingFile = isMissingFileError(err);
+		if (isMissingFile) return "";
 		throw err;
 	}
 };
@@ -315,20 +385,27 @@ const renderDiscoverySummary = (
 	choices: DiscoveredChoices,
 	selectedValidators: OptionalValidatorName[],
 ): string => {
-	if (selectedValidators.length === 0)
+	const isThereNoSelection = selectedValidators.length === 0;
+	if (isThereNoSelection)
 		return chalk.dim("  No optional resource checks selected.\n");
 
-	const lines = OPTIONAL_VALIDATORS.filter((row) =>
-		selectedValidators.includes(row.name),
-	).map((row) => {
-		const group = choices[row.name];
+	const selectedRows = OPTIONAL_VALIDATORS.filter((validatorRow) =>
+		selectedValidators.includes(validatorRow.name),
+	);
+	const lines = selectedRows.map((validatorRow) => {
+		const group = choices[validatorRow.name];
 		if (group?.error) {
 			return chalk.yellow(
-				`  ! ${row.label} discovery failed; manual entry is available.`,
+				`  ! ${validatorRow.label} discovery failed; manual entry is available.`,
 			);
 		}
 		const count = String(group?.choices.length ?? 0);
-		return renderDetected(row.label, count, "Lemon Squeezy API").trimEnd();
+		const detectedLine = renderDetected(
+			validatorRow.label,
+			count,
+			"Lemon Squeezy API",
+		);
+		return detectedLine.trimEnd();
 	});
 	return `${lines.join("\n")}\n`;
 };

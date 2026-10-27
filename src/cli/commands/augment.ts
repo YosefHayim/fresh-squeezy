@@ -19,11 +19,13 @@ export const runAugmentCommand = async (
 	try {
 		const flavour = await detectFlavour(cwd, options.force ?? false);
 		const contents = renderAugmentationFile(flavour);
-		await mkdir(dirname(outPath), { recursive: true });
+		const outDirectory = dirname(outPath);
+		await mkdir(outDirectory, { recursive: true });
 		await writeFile(outPath, contents, "utf8");
 
 		process.stdout.write(`fresh-squeezy: wrote ${outPath} (${flavour}).\n`);
-		if (flavour === "with-sdk") {
+		const isWithSdk = flavour === "with-sdk";
+		if (isWithSdk) {
 			process.stdout.write(
 				`Use it via: import type { LemonSqueezyAugmented } from "./lemonsqueezy.augment";\n`,
 			);
@@ -34,7 +36,8 @@ export const runAugmentCommand = async (
 		}
 		return 0;
 	} catch (err) {
-		const message = err instanceof Error ? err.message : String(err);
+		const isErrorInstance = err instanceof Error;
+		const message = isErrorInstance ? err.message : String(err);
 		process.stderr.write(`fresh-squeezy: ${message}\n`);
 		return 2;
 	}
@@ -43,7 +46,8 @@ export const runAugmentCommand = async (
 const detectFlavour = async (cwd: string, force: boolean): Promise<Flavour> => {
 	if (force) return "generic";
 	const pkgPath = resolve(cwd, "package.json");
-	if (!existsSync(pkgPath)) return "generic";
+	const isPackageJsonMissing = !existsSync(pkgPath);
+	if (isPackageJsonMissing) return "generic";
 
 	const raw = await readFile(pkgPath, "utf8");
 	const pkg = JSON.parse(raw) as {
@@ -58,7 +62,8 @@ const detectFlavour = async (cwd: string, force: boolean): Promise<Flavour> => {
 		...(pkg.peerDependencies ?? {}),
 	};
 
-	return "@lemonsqueezy/lemonsqueezy.js" in deps ? "with-sdk" : "generic";
+	const hasOfficialSdk = "@lemonsqueezy/lemonsqueezy.js" in deps;
+	return hasOfficialSdk ? "with-sdk" : "generic";
 };
 
 const renderAugmentationFile = (flavour: Flavour): string => {
@@ -84,7 +89,8 @@ const renderAugmentationFile = (flavour: Flavour): string => {
 
 `;
 
-	if (flavour === "with-sdk") {
+	const isWithSdk = flavour === "with-sdk";
+	if (isWithSdk) {
 		return `${header}import type {
   Subscription,
   SubscriptionInvoice,
