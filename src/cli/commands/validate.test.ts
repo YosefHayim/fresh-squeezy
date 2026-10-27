@@ -8,15 +8,11 @@ import { createMockFetch, pathIs } from "@e2e/mock-fetch.js";
 import { ENV_KEYS } from "@/shared/config.js";
 import { runValidateCommand } from "./validate.js";
 
-const ORIGINAL = { ...process.env };
-
 beforeEach(() => {
-	process.env[ENV_KEYS.apiKey] = "k_test_abc";
+	vi.stubEnv(ENV_KEYS.apiKey, "k_test_abc");
 });
 
 afterEach(() => {
-	for (const key of Object.values(ENV_KEYS)) delete process.env[key];
-	Object.assign(process.env, ORIGINAL);
 	vi.restoreAllMocks();
 });
 

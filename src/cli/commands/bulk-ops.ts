@@ -50,8 +50,8 @@ const describeBulkTarget = (item: {
 		"status",
 	]) {
 		const value = attrs[key];
-		if (typeof value === "string" && value.length > 0)
-			return { id, label: value };
+		const isLabelText = typeof value === "string" && value.length > 0;
+		if (isLabelText) return { id, label: value };
 	}
 	return { id, label: id };
 };
@@ -72,41 +72,53 @@ export const collectBulkTargets = async (
 	spec: ResourceVerbSpec,
 	selector: BulkSelector,
 ): Promise<BulkTarget[]> => {
-	if (selector.ids?.length) {
+	const hasExplicitIds = Boolean(selector.ids?.length);
+	if (hasExplicitIds && selector.ids) {
 		return selector.ids.map((id) => ({ id, label: id }));
 	}
 
 	const listSpec = findResourceVerb(spec.resource, "list");
-	if (!listSpec) {
+	const hasNoListOp = !listSpec;
+	if (hasNoListOp) {
 		throw freshSqueezyErrorOf({
 			code: "UNKNOWN_OP",
 			message: `Cannot use --all: ${spec.resource} has no list op. Pass --ids instead.`,
 		});
 	}
-	if (listSpec.idRole === "store" && !selector.storeId) {
+	const needsStore = listSpec.idRole === "store" && !selector.storeId;
+	if (needsStore) {
 		throw freshSqueezyErrorOf({
 			code: "MISSING_ARG",
 			message:
 				"--all needs a store: pass --store-ids or set LEMON_SQUEEZY_STORE_ID.",
 		});
 	}
-	if (listSpec.idRole === "parent" && !selector.parentId) {
+	const needsParent = listSpec.idRole === "parent" && !selector.parentId;
+	if (needsParent) {
 		throw freshSqueezyErrorOf({
 			code: "MISSING_ARG",
 			message: `--all needs --parent-id to list ${spec.resource} items.`,
 		});
 	}
 
-	const items = (await invokeOp(http, spec.resource, "list", {
+	const listedItems = await invokeOp(http, spec.resource, "list", {
 		storeId: selector.storeId,
 		parentId: selector.parentId,
-	})) as Array<{ id: string | number; attributes?: Record<string, unknown> }>;
+	});
+	const items = listedItems as Array<{
+		id: string | number;
+		attributes?: Record<string, unknown>;
+	}>;
 
-	return items
-		.filter((item) =>
-			selector.match ? matchesText(item, selector.match) : true,
-		)
-		.map(describeBulkTarget);
+	const matchingItems = items.filter((item) =>
+		selector.match ? matchesText(item, selector.match) : true,
+	);
+	return matchingItems.map(describeBulkTarget);
+};
+
+const describeFailure = (err: unknown): string => {
+	const isErrorInstance = err instanceof Error;
+	return isErrorInstance ? err.message : String(err);
 };
 
 export const executeBulk = async (
@@ -132,7 +144,7 @@ export const executeBulk = async (
 			results.push({
 				...target,
 				ok: false,
-				error: err instanceof Error ? err.message : String(err),
+				error: describeFailure(err),
 			});
 		}
 	}
@@ -149,14 +161,18 @@ export const executeBulk = async (
 export const previewTargets = (targets: BulkTarget[], max = 5): string => {
 	const shown = targets.slice(0, max).map((t) => t.label);
 	const more = targets.length - shown.length;
-	return more > 0 ? `${shown.join(", ")}, … +${more} more` : shown.join(", ");
+	const hasHiddenTargets = more > 0;
+	return hasHiddenTargets
+		? `${shown.join(", ")}, … +${more} more`
+		: shown.join(", ");
 };
 
 export const renderBulkSummary = (
 	spec: ResourceVerbSpec,
 	summary: BulkSummary,
 ): string => {
-	if (summary.total === 0)
+	const isThereNothingMatched = summary.total === 0;
+	if (isThereNothingMatched)
 		return `No ${spec.resource} items matched — nothing to ${spec.verb}.\n`;
 	const verb = summary.dryRun ? `would ${spec.verb}` : spec.verb;
 	const lines = summary.results.map((r) =>

@@ -40,7 +40,8 @@ const EXAMPLE_WEBHOOK_URL =
 	"https://app.example.com/api/webhooks/lemon-squeezy";
 
 const required = <T>(value: T | undefined, message: string): T => {
-	if (value === undefined || value === null || value === "") {
+	const isValueMissing = value === undefined || value === null || value === "";
+	if (isValueMissing) {
 		throw freshSqueezyErrorOf({ code: "MISSING_ARG", message });
 	}
 	return value;
@@ -65,7 +66,8 @@ const resolveStoresForSubcommand = async (
 		allStores: options.allStores,
 		isInteractive: options.isInteractive ?? false,
 	});
-	if (resolved.skipped) {
+	const wereStoresSkipped = resolved.skipped;
+	if (wereStoresSkipped) {
 		throw freshSqueezyErrorOf({
 			code: "MISSING_ARG",
 			message: `--store-ids or --all-stores is required for \`validate ${target}\` in non-interactive mode.`,
@@ -95,9 +97,10 @@ export const VALIDATE_SUBCOMMANDS = {
 				"store",
 				options,
 			);
-			return Promise.all(
-				storeIds.map((storeId) => client.validateStore(storeId)),
+			const storeValidations = storeIds.map((storeId) =>
+				client.validateStore(storeId),
 			);
+			return Promise.all(storeValidations);
 		},
 	},
 	product: {
@@ -106,14 +109,16 @@ export const VALIDATE_SUBCOMMANDS = {
 		required: ["--product-id <id>", "Product ID to validate"],
 		storeIdsHelp: "Expected owning store IDs (first is used for cross-check)",
 		examples: ["fresh-squeezy validate product --product-id 987"],
-		run: (client, options) =>
-			client.validateProduct({
-				productId: required(
-					options.productId,
-					"--product-id is required for `validate product`.",
-				),
+		run: (client, options) => {
+			const productId = required(
+				options.productId,
+				"--product-id is required for `validate product`.",
+			);
+			return client.validateProduct({
+				productId,
 				expectedStoreId: options.storeIds?.[0],
-			}),
+			});
+		},
 	},
 	webhook: {
 		description: "Check a webhook is registered with the recommended events",
@@ -134,9 +139,10 @@ export const VALIDATE_SUBCOMMANDS = {
 				options.webhookUrl,
 				"--webhook-url is required for `validate webhook`.",
 			);
-			return Promise.all(
-				storeIds.map((storeId) => client.validateWebhook({ storeId, url })),
+			const webhookValidations = storeIds.map((storeId) =>
+				client.validateWebhook({ storeId, url }),
 			);
+			return Promise.all(webhookValidations);
 		},
 	},
 	discount: {
@@ -147,14 +153,14 @@ export const VALIDATE_SUBCOMMANDS = {
 		examples: [
 			"fresh-squeezy validate discount --store-ids 12 --discount-id 123",
 		],
-		run: (client, options) =>
-			client.validateDiscount({
-				discountId: required(
-					options.discountId,
-					"--discount-id is required for `validate discount`.",
-				),
-				storeId: requiredStoreId(options, "discount"),
-			}),
+		run: (client, options) => {
+			const discountId = required(
+				options.discountId,
+				"--discount-id is required for `validate discount`.",
+			);
+			const storeId = requiredStoreId(options, "discount");
+			return client.validateDiscount({ discountId, storeId });
+		},
 	},
 	"license-key": {
 		description:
@@ -165,14 +171,14 @@ export const VALIDATE_SUBCOMMANDS = {
 		examples: [
 			"fresh-squeezy validate license-key --store-ids 12 --license-key-id 123",
 		],
-		run: (client, options) =>
-			client.validateLicenseKey({
-				licenseKeyId: required(
-					options.licenseKeyId,
-					"--license-key-id is required for `validate license-key`.",
-				),
-				storeId: requiredStoreId(options, "license-key"),
-			}),
+		run: (client, options) => {
+			const licenseKeyId = required(
+				options.licenseKeyId,
+				"--license-key-id is required for `validate license-key`.",
+			);
+			const storeId = requiredStoreId(options, "license-key");
+			return client.validateLicenseKey({ licenseKeyId, storeId });
+		},
 	},
 	"subscription-plan": {
 		description:
@@ -183,29 +189,34 @@ export const VALIDATE_SUBCOMMANDS = {
 		examples: [
 			"fresh-squeezy validate subscription-plan --store-ids 12 --variant-id 123",
 		],
-		run: (client, options) =>
-			client.validateSubscriptionPlan({
-				variantId: required(
-					options.variantId,
-					"--variant-id is required for `validate subscription-plan`.",
-				),
-				storeId: requiredStoreId(options, "subscription-plan"),
-			}),
+		run: (client, options) => {
+			const variantId = required(
+				options.variantId,
+				"--variant-id is required for `validate subscription-plan`.",
+			);
+			const storeId = requiredStoreId(options, "subscription-plan");
+			return client.validateSubscriptionPlan({ variantId, storeId });
+		},
 	},
 } satisfies Record<string, ValidateSubcommandSpec>;
 
 export type ValidateSubcommand = keyof typeof VALIDATE_SUBCOMMANDS;
 
 const errorHints = (err: unknown, target: ValidateSubcommand): string[] => {
-	if (!isFreshSqueezyError(err)) return [];
-	if (err.code === "MISSING_API_KEY") return MISSING_API_KEY_HINTS;
-	if (err.code === "INVALID_MODE") {
+	const isKnownError = isFreshSqueezyError(err);
+	const isUnknownError = !isKnownError;
+	if (isUnknownError) return [];
+	const isMissingApiKey = err.code === "MISSING_API_KEY";
+	if (isMissingApiKey) return MISSING_API_KEY_HINTS;
+	const isInvalidMode = err.code === "INVALID_MODE";
+	if (isInvalidMode) {
 		return [
 			`fresh-squeezy validate ${target} --mode test`,
 			`fresh-squeezy validate ${target} --mode live`,
 		];
 	}
-	if (err.code === "MISSING_ARG") return VALIDATE_SUBCOMMANDS[target].examples;
+	const isMissingArg = err.code === "MISSING_ARG";
+	if (isMissingArg) return VALIDATE_SUBCOMMANDS[target].examples;
 	return [];
 };
 
@@ -213,15 +224,20 @@ const writeResults = (
 	results: ValidationResult | ValidationResult[],
 	options: ValidateCommandOptions,
 ): number => {
-	const list = Array.isArray(results) ? results : [results];
+	const isListOfResults = Array.isArray(results);
+	const list = isListOfResults ? results : [results];
 	if (options.json) {
-		process.stdout.write(`${JSON.stringify(results, null, 2)}\n`);
+		const jsonOutput = JSON.stringify(results, null, 2);
+		process.stdout.write(`${jsonOutput}\n`);
 	} else {
-		const separator = Array.isArray(results) ? "\n\n" : "\n";
-		for (const result of list)
-			process.stdout.write(`${renderResult(result)}${separator}`);
+		const separator = isListOfResults ? "\n\n" : "\n";
+		for (const validationResult of list) {
+			const renderedResult = renderResult(validationResult);
+			process.stdout.write(`${renderedResult}${separator}`);
+		}
 	}
-	return list.every((result) => result.ok) ? 0 : 1;
+	const areAllResultsOk = list.every((validationResult) => validationResult.ok);
+	return areAllResultsOk ? 0 : 1;
 };
 
 export const runValidateCommand = async (
@@ -230,13 +246,14 @@ export const runValidateCommand = async (
 ): Promise<number> => {
 	try {
 		const client = createFreshSqueezy({ mode: options.mode });
-		return writeResults(
-			await VALIDATE_SUBCOMMANDS[target].run(client, options),
-			options,
-		);
+		const results = await VALIDATE_SUBCOMMANDS[target].run(client, options);
+		return writeResults(results, options);
 	} catch (err) {
-		const message = err instanceof Error ? err.message : String(err);
-		process.stderr.write(renderCliError(message, errorHints(err, target)));
+		const isErrorInstance = err instanceof Error;
+		const message = isErrorInstance ? err.message : String(err);
+		const hints = errorHints(err, target);
+		const cliError = renderCliError(message, hints);
+		process.stderr.write(cliError);
 		return 2;
 	}
 };

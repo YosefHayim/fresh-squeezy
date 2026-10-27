@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { ENV_KEYS } from "@/shared/config.js";
+import { readEnvApiKey } from "@/shared/config.js";
 import {
 	type ProjectInstallResult,
 	ensureFreshSqueezyDevDependency,
@@ -29,41 +29,50 @@ export interface LauncherCommandOptions {
 export const runLauncherCommand = async (
 	options: LauncherCommandOptions,
 ): Promise<number> => {
-	if (!options.isInteractive) return 2;
+	const isNotInteractive = !options.isInteractive;
+	if (isNotInteractive) return 2;
 
 	try {
-		process.stdout.write(
-			renderBrandHeader(
-				"Project bootstrap",
-				"Install the billing doctor locally, then verify Lemon Squeezy in one guided run.",
-			),
+		const brandHeader = renderBrandHeader(
+			"Project bootstrap",
+			"Install the billing doctor locally, then verify Lemon Squeezy in one guided run.",
 		);
+		process.stdout.write(brandHeader);
 
-		process.stdout.write(
-			renderStep(1, 2, "Project dependency", "add fresh-squeezy when missing"),
+		const dependencyStep = renderStep(
+			1,
+			2,
+			"Project dependency",
+			"add fresh-squeezy when missing",
 		);
+		process.stdout.write(dependencyStep);
 		const installResult = await ensureFreshSqueezyDevDependency({
 			skipInstall: options.install === false,
 			packageVersion: options.packageVersion,
 		});
-		process.stdout.write(renderProjectInstallResult(installResult));
+		const installSummary = renderProjectInstallResult(installResult);
+		process.stdout.write(installSummary);
 
 		// No key yet → the only useful next step is guided setup, so skip the menu.
 		// With a key configured, open the interactive front door and route the choice.
-		if (!process.env[ENV_KEYS.apiKey]?.trim()) {
-			return startGuidedSetup();
-		}
-		return routeLauncherAction(await pickLauncherAction());
+		const envApiKey = readEnvApiKey();
+		const isApiKeyMissing = !envApiKey;
+		if (isApiKeyMissing) return startGuidedSetup();
+		const pickedAction = await pickLauncherAction();
+		return routeLauncherAction(pickedAction);
 	} catch (err) {
-		if (isPromptCancel(err)) {
-			process.stderr.write(renderCancelMessage());
+		const isCancel = isPromptCancel(err);
+		if (isCancel) {
+			const cancelMessage = renderCancelMessage();
+			process.stderr.write(cancelMessage);
 			return 130;
 		}
-		const message = err instanceof Error ? err.message : String(err);
-		process.stderr.write(
-			`${chalk.red("fresh-squeezy bootstrap failed:")} ${message}\n\n`,
-		);
-		process.stderr.write(renderCommandExamples());
+		const isErrorInstance = err instanceof Error;
+		const message = isErrorInstance ? err.message : String(err);
+		const failureHeadline = chalk.red("fresh-squeezy bootstrap failed:");
+		process.stderr.write(`${failureHeadline} ${message}\n\n`);
+		const commandExamples = renderCommandExamples();
+		process.stderr.write(commandExamples);
 		return 1;
 	}
 };
@@ -76,40 +85,47 @@ const routeLauncherAction = async (action: LauncherAction): Promise<number> => {
 			return runDoctorCommand({ isInteractive: true });
 		case "manage":
 			return runManageCommand();
-		case "examples":
-			process.stdout.write(renderCommandExamples());
+		case "examples": {
+			const commandExamples = renderCommandExamples();
+			process.stdout.write(commandExamples);
 			return 0;
+		}
 		case "exit":
 			return 0;
 	}
 };
 
 const startGuidedSetup = (): Promise<number> => {
-	process.stdout.write(
-		renderStep(
-			2,
-			2,
-			"Guided setup",
-			"detect credentials, stores, and resources",
-		),
+	const setupStep = renderStep(
+		2,
+		2,
+		"Guided setup",
+		"detect credentials, stores, and resources",
 	);
+	process.stdout.write(setupStep);
 	return runInitCommand({ isInteractive: true });
 };
 
-const renderProjectInstallResult = (result: ProjectInstallResult): string => {
-	if (result.status === "installed") {
+const renderProjectInstallResult = (
+	installOutcome: ProjectInstallResult,
+): string => {
+	const isInstalled = installOutcome.status === "installed";
+	if (isInstalled) {
+		const packageManager = installOutcome.packageManager ?? "npm";
 		return renderDetected(
 			"Dev dependency",
 			"fresh-squeezy",
-			`${result.packageManager ?? "npm"} install`,
+			`${packageManager} install`,
 		);
 	}
 
-	if (result.status === "already-present") {
+	const isAlreadyPresent = installOutcome.status === "already-present";
+	if (isAlreadyPresent) {
 		return renderDetected("Dev dependency", "fresh-squeezy", "package.json");
 	}
 
-	if (result.status === "self-package") {
+	const isSelfPackage = installOutcome.status === "self-package";
+	if (isSelfPackage) {
 		return renderDetected(
 			"Project",
 			"fresh-squeezy source repo",
@@ -117,7 +133,8 @@ const renderProjectInstallResult = (result: ProjectInstallResult): string => {
 		);
 	}
 
-	if (result.status === "skipped") {
+	const isSkipped = installOutcome.status === "skipped";
+	if (isSkipped) {
 		return chalk.dim("  Skipped dev dependency install (--no-install).\n");
 	}
 
