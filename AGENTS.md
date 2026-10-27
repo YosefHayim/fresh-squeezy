@@ -16,7 +16,6 @@ Canonical role names (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-fo
 
 Single-context layout: one `CONTEXT.md` at the repo root.
 
-
 ## Conventions
 
 Code standard: read node_modules/code-standard/README.md before you write code.
