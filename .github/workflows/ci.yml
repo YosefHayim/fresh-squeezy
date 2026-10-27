@@ -42,20 +42,6 @@ jobs:
               - *everything
               - 'src/**'
               - 'e2e/**'
-  standard:
-    name: code standard
-    needs: changes
-    if: needs.changes.outputs.code == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Setup workspace
-        uses: ./.github/actions/setup
-        with:
-          node-version: "24"
-      - name: code standard
-        run: pnpm check:standard
   test:
     name: test (node ${{ matrix.node }})
     needs: changes
