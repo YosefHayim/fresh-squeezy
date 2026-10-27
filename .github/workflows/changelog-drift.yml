@@ -125,7 +125,6 @@ jobs:
           2. Run \`pnpm generate:api-types\` if the scheduled type refresh PR did not already cover object-field changes.
           3. Update \`src/shared/support-manifest.ts\` for policy-level changes:
              - Add new webhook events to \`RECOMMENDED_WEBHOOK_EVENTS\` or \`OPTIONAL_WEBHOOK_EVENTS\`.
-             - Add a row to \`ACKNOWLEDGED_CHANGELOG_ENTRIES\` with the date + how it's handled.
           4. Refresh the snapshot:
              \`\`\`
              pnpm check:changelog -- --update
