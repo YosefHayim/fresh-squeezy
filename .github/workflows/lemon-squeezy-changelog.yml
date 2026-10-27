@@ -32,4 +32,4 @@ jobs:
             exit 0
           fi
 
-          gh issue create --title "$title" --label changelog-drift --body "New entry on $CHANGELOG_URL. Read it, then update src/shared/lemon-squeezy-types.ts and the client by hand, or hand this issue to an agent."
+          gh issue create --title "$title" --label changelog-drift --body "New entry on $CHANGELOG_URL. Read it, then update src/client/lemon-squeezy-types.ts and the client by hand, or hand this issue to an agent."

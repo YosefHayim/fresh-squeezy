@@ -24,7 +24,7 @@ export default defineConfig({
 			exclude: [
 				"**/*.test.ts",
 				"src/cli.ts",
-				"src/shared/lemon-squeezy-types.ts",
+				"src/client/lemon-squeezy-types.ts",
 				"**/*.d.ts",
 			],
 			thresholds: {

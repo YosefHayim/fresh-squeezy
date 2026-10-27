@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { loadEnvFile } from "node:process";
 import { defineConfig } from "vitest/config";
-import { ENV_KEYS, type Mode } from "./src/shared/config.js";
+import { ENV_KEYS, type Mode } from "./src/client/config.js";
 import baseConfig from "./vitest.config.js";
 
 const ENV_FILE = ".env";
@@ -24,6 +24,6 @@ export default defineConfig({
 	test: {
 		...baseConfig.test,
 		provide: { liveSmokeModes },
-		include: ["e2e/live-smoke.test.ts"],
+		include: ["e2e/live-api.test.ts"],
 	},
 });

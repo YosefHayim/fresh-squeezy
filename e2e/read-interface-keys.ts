@@ -1,9 +1,9 @@
 import { readFileSync } from "node:fs";
 import ts from "typescript";
-import type { ResourceType } from "@/shared/lemon-squeezy-types.js";
+import type { ResourceType } from "@/client/lemon-squeezy-types.js";
 
 const TYPES_FILE = new URL(
-	"../src/shared/lemon-squeezy-types.ts",
+	"../src/client/lemon-squeezy-types.ts",
 	import.meta.url,
 );
 

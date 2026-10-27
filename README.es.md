@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://github.com/YosefHayim/fresh-squeezy">
-    <img src="public/fresh-squeezy-hero.png" alt="fresh-squeezy — el cliente actualizado de Lemon Squeezy, más un doctor que revisa tu configuración de facturación." width="640" />
+    <img src=".github/fresh-squeezy-hero.png" alt="fresh-squeezy — el cliente actualizado de Lemon Squeezy, más un doctor que revisa tu configuración de facturación." width="640" />
   </a>
 </p>
 
@@ -322,7 +322,7 @@ if (result.findings.length > 0) console.error(result.findings[0].code);
 
 El workflow `lemon-squeezy-changelog` se ejecuta el día 1 y el 15 de cada mes. Cuando la entrada más reciente del [registro de cambios de la API](https://docs.lemonsqueezy.com/api/getting-started/changelog) aún no tiene issue, abre uno con la etiqueta `changelog-drift`.
 
-Para arreglarlo, lee la entrada, edita a mano `src/shared/lemon-squeezy-types.ts` y el cliente, agrega una prueba y cierra el issue. Un agente puede encargarse del issue.
+Para arreglarlo, lee la entrada, edita a mano `src/client/lemon-squeezy-types.ts` y el cliente, agrega una prueba y cierra el issue. Un agente puede encargarse del issue.
 
 En un repositorio público, GitHub desactiva los workflows programados tras 60 días sin actividad. Vuelve a activarlo con:
 

@@ -1,4 +1,4 @@
-import { STORE_DOC } from "@e2e/fixtures/sandbox/data.js";
+import { STORE_DOC } from "@e2e/sandbox-store.js";
 import { createMockFetch, route, SIGNED_IN_ROUTES } from "@e2e/mock-fetch.js";
 import { expect, test } from "vitest";
 import { createFreshSqueezy } from "./create-fresh-squeezy.js";

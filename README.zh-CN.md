@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://github.com/YosefHayim/fresh-squeezy">
-    <img src="public/fresh-squeezy-hero.png" alt="fresh-squeezy — 最新的 Lemon Squeezy 客户端,外加检查计费配置的 doctor。" width="640" />
+    <img src=".github/fresh-squeezy-hero.png" alt="fresh-squeezy — 最新的 Lemon Squeezy 客户端,外加检查计费配置的 doctor。" width="640" />
   </a>
 </p>
 
@@ -322,7 +322,7 @@ if (result.findings.length > 0) console.error(result.findings[0].code);
 
 `lemon-squeezy-changelog` 工作流在每月 1 日和 15 日运行。当 [API 更新日志](https://docs.lemonsqueezy.com/api/getting-started/changelog)的最新条目还没有对应 issue 时,它会创建一个带 `changelog-drift` 标签的 issue。
 
-修复方法:阅读该条目,然后手动编辑 `src/shared/lemon-squeezy-types.ts` 和客户端,添加测试,并关闭 issue。也可以交给 agent 处理。
+修复方法:阅读该条目,然后手动编辑 `src/client/lemon-squeezy-types.ts` 和客户端,添加测试,并关闭 issue。也可以交给 agent 处理。
 
 在公开仓库中,仓库 60 天没有活动后,GitHub 会停用定时工作流。用下面的命令重新启用:
 

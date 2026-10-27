@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://github.com/YosefHayim/fresh-squeezy">
-    <img src="public/fresh-squeezy-hero.png" alt="fresh-squeezy — the up-to-date Lemon Squeezy client, plus a doctor that checks your billing setup." width="640" />
+    <img src=".github/fresh-squeezy-hero.png" alt="fresh-squeezy — the up-to-date Lemon Squeezy client, plus a doctor that checks your billing setup." width="640" />
   </a>
 </p>
 
@@ -322,7 +322,7 @@ if (result.findings.length > 0) console.error(result.findings[0].code);
 
 The `lemon-squeezy-changelog` workflow runs on the 1st and 15th of each month. When the newest entry on the [API changelog](https://docs.lemonsqueezy.com/api/getting-started/changelog) has no issue yet, it opens one labeled `changelog-drift`.
 
-To fix it, read the entry, then edit `src/shared/lemon-squeezy-types.ts` and the client by hand, add a test, and close the issue. An agent can take the issue.
+To fix it, read the entry, then edit `src/client/lemon-squeezy-types.ts` and the client by hand, add a test, and close the issue. An agent can take the issue.
 
 GitHub turns scheduled workflows off after 60 days without repository activity in a public repo. Turn it back on with:
 

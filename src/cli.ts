@@ -6,8 +6,8 @@ import {
 	createFreshSqueezy,
 	type FreshSqueezy,
 } from "./create-fresh-squeezy.js";
-import { reportTextOf } from "./print-report.js";
-import { parseMode } from "./shared/config.js";
+import { reportTextOf } from "@/doctor/report-text.js";
+import { parseMode } from "@/client/config.js";
 
 const EXIT_CODES = { ok: 0, checkFailed: 1, usageError: 2 } as const;
 

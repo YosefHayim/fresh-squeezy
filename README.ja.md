@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://github.com/YosefHayim/fresh-squeezy">
-    <img src="public/fresh-squeezy-hero.png" alt="fresh-squeezy — 最新の Lemon Squeezy クライアントと、課金設定をチェックする doctor。" width="640" />
+    <img src=".github/fresh-squeezy-hero.png" alt="fresh-squeezy — 最新の Lemon Squeezy クライアントと、課金設定をチェックする doctor。" width="640" />
   </a>
 </p>
 
@@ -322,7 +322,7 @@ if (result.findings.length > 0) console.error(result.findings[0].code);
 
 `lemon-squeezy-changelog` ワークフローは毎月 1 日と 15 日に実行されます。[API の変更履歴](https://docs.lemonsqueezy.com/api/getting-started/changelog)の最新エントリにまだ issue がなければ、`changelog-drift` ラベル付きの issue を作ります。
 
-直すには、エントリを読み、`src/shared/lemon-squeezy-types.ts` とクライアントを手で編集し、テストを追加して、issue を閉じます。issue をエージェントに任せることもできます。
+直すには、エントリを読み、`src/client/lemon-squeezy-types.ts` とクライアントを手で編集し、テストを追加して、issue を閉じます。issue をエージェントに任せることもできます。
 
 公開リポジトリでは、60 日間アクティビティがないと GitHub がスケジュール実行を止めます。次のコマンドで再び有効にします。
 

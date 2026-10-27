@@ -4,11 +4,11 @@ export default defineConfig([
 	{
 		entry: {
 			index: "src/create-fresh-squeezy.ts",
-			config: "src/shared/config.ts",
-			errors: "src/shared/errors.ts",
-			findings: "src/features/validate/findings.ts",
-			types: "src/shared/lemon-squeezy-types.ts",
-			license: "src/features/client/license-api.ts",
+			config: "src/client/config.ts",
+			errors: "src/client/errors.ts",
+			findings: "src/doctor/findings.ts",
+			types: "src/client/lemon-squeezy-types.ts",
+			license: "src/client/license-api.ts",
 		},
 		format: ["esm", "cjs"],
 		dts: true,

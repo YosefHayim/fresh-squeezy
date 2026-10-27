@@ -1,7 +1,7 @@
-import { STORES_COLLECTION, USER_DOC } from "@e2e/fixtures/sandbox/data.js";
+import { STORES_COLLECTION, USER_DOC } from "@e2e/sandbox-store.js";
 
-import { readConfig } from "@/shared/config.js";
-import { createHttp } from "@/shared/http.js";
+import { readConfig } from "@/client/config.js";
+import { createHttp } from "@/client/http.js";
 
 export interface MockRoute {
 	match: (request: { method: string; url: string }) => boolean;
