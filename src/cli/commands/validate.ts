@@ -1,15 +1,15 @@
-import { freshSqueezyErrorOf, isFreshSqueezyError } from "@/core/errors.js";
-import type { Mode, ValidationResult } from "@/core/types.js";
+import { freshSqueezyErrorOf, isFreshSqueezyError } from "@/errors/errors.js";
+import type { Mode, ValidationResult } from "@/contracts/contracts.js";
 import {
 	type FreshSqueezyClient,
 	createFreshSqueezy,
-} from "@/createFreshSqueezy.js";
+} from "@/create-fresh-squeezy.js";
 import {
 	MISSING_API_KEY_HINTS,
 	renderCliError,
 	renderResult,
 } from "@/cli/render.js";
-import { resolveStores } from "@/cli/resolveStores.js";
+import { resolveStores } from "@/cli/resolve-stores.js";
 
 export interface ValidateCommandOptions {
 	mode?: Mode;

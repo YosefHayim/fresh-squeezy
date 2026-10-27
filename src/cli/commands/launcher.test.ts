@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { ensureFreshSqueezyDevDependency } from "../projectInstall.js";
-import { pickLauncherAction } from "../prompts.js";
+import { ensureFreshSqueezyDevDependency } from "@/cli/project-install.js";
+import { pickLauncherAction } from "@/cli/prompts.js";
 import { runInitCommand } from "./init.js";
 import { runLauncherCommand } from "./launcher.js";
 import { runManageCommand } from "./manage.js";
 
-vi.mock("../projectInstall.js", () => ({
+vi.mock("@/cli/project-install.js", () => ({
 	ensureFreshSqueezyDevDependency: vi.fn(),
 }));
 
@@ -17,8 +17,8 @@ vi.mock("./manage.js", () => ({
 	runManageCommand: vi.fn(),
 }));
 
-vi.mock("../prompts.js", async (importOriginal) => ({
-	...(await importOriginal<typeof import("../prompts.js")>()),
+vi.mock("@/cli/prompts.js", async (importOriginal) => ({
+	...(await importOriginal<typeof import("@/cli/prompts.js")>()),
 	pickLauncherAction: vi.fn(),
 }));
 

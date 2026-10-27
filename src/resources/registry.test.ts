@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from "vitest";
-import { isFreshSqueezyError } from "../core/errors.js";
-import type { HttpClient } from "../core/http.js";
+import { isFreshSqueezyError } from "@/errors/errors.js";
+import type { HttpClient } from "@/http/http.js";
 import {
 	type OpVerb,
 	findResourceVerb,

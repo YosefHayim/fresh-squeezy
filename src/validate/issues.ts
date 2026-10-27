@@ -3,7 +3,7 @@ import type {
 	ValidationResult,
 	ValidationSeverity,
 	ValidationTarget,
-} from "@/core/types.js";
+} from "@/contracts/contracts.js";
 
 export const ISSUE_CODES = {
 	AUTH_FAILED: "AUTH_FAILED",

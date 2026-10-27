@@ -137,7 +137,7 @@ if (!report.ok) {
 
 Para execuções multi-loja na camada de biblioteca, chame `doctor()` em um loop — a CLI faz exatamente isso. Faça o branch com base em `issue.code` na lógica de CI; os códigos são estáveis entre versões menores.
 
-Tipos públicos: [`FreshSqueezyClient`](src/createFreshSqueezy.ts), [`ValidationResult<T>`](src/core/types.ts), [`DoctorReport`](src/core/types.ts), interfaces de atributos de recurso em [`src/resources/attributes.ts`](src/resources/attributes.ts), tipos de objeto do Lemon Squeezy gerados a partir da documentação em [`src/generated/lemonSqueezyApiTypes.ts`](src/generated/lemonSqueezyApiTypes.ts) e helpers de augmentação do changelog em [`src/augmentations.ts`](src/augmentations.ts).
+Tipos públicos: [`FreshSqueezyClient`](src/create-fresh-squeezy.ts), [`ValidationResult<T>`](src/contracts/contracts.ts), [`DoctorReport`](src/contracts/contracts.ts), interfaces de atributos de recurso em [`src/resources/attributes.ts`](src/resources/attributes.ts), tipos de objeto do Lemon Squeezy gerados a partir da documentação em [`src/generated/lemonSqueezyApiTypes.ts`](src/generated/lemonSqueezyApiTypes.ts) e helpers de augmentação do changelog em [`src/augmentations.ts`](src/augmentations.ts).
 
 Para endpoints ainda não encapsulados, use a saída de emergência bruta:
 
@@ -226,8 +226,8 @@ Validadores — cada um retorna um `ValidationResult` estável:
 - **`validateProduct`** — publicado, na loja esperada, com variantes live e uma URL de compra. [→ código-fonte](src/validate/product.ts)
 - **`validateWebhook`** — URL do webhook registrada e inscrita nos eventos recomendados. [→ código-fonte](src/validate/webhook.ts)
 - **`validateDiscount`** — ativo, dentro da janela, valor válido, propriedade de loja correspondente. [→ código-fonte](src/validate/discount.ts)
-- **`validateLicenseKey`** — habilitada, não expirada, ativações disponíveis, propriedade de loja correspondente. [→ código-fonte](src/validate/licenseKey.ts)
-- **`validateSubscriptionPlan`** — tipo de assinatura, intervalo válido, preço não nulo, trial consistente. [→ código-fonte](src/validate/subscriptionPlan.ts)
+- **`validateLicenseKey`** — habilitada, não expirada, ativações disponíveis, propriedade de loja correspondente. [→ código-fonte](src/validate/license-key.ts)
+- **`validateSubscriptionPlan`** — tipo de assinatura, intervalo válido, preço não nulo, trial consistente. [→ código-fonte](src/validate/subscription-plan.ts)
 - **`doctor`** — compõe os anteriores em um único `DoctorReport`. [→ código-fonte](src/validate/doctor.ts)
 
 A cobertura de recursos é gerada a partir da documentação de objetos do Lemon Squeezy, então a maioria dos campos recém-documentados não precisa de edição manual:

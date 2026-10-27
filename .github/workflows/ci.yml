@@ -39,7 +39,7 @@ jobs:
             code:
               - *everything
               - 'src/**'
-              - 'tests/**'
+              - 'e2e/**'
   test:
     name: test (node ${{ matrix.node }})
     needs: changes

@@ -5,7 +5,7 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import {
 	type RunPackageCommand,
 	ensureFreshSqueezyDevDependency,
-} from "./projectInstall.js";
+} from "./project-install.js";
 
 let workdir: string;
 

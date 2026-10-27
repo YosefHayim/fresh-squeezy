@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { createMockFetch, pathIs } from "../../../tests/helpers/mockFetch.js";
+import { createMockFetch, pathIs } from "@e2e/mock-fetch.js";
 
-vi.mock("../prompts.js", () => ({
+vi.mock("@/cli/prompts.js", () => ({
 	pickManageOperation: vi.fn(),
 	askParentId: vi.fn(),
 	pickBulkTargets: vi.fn(),
@@ -9,15 +9,15 @@ vi.mock("../prompts.js", () => ({
 	isPromptCancel: (err: unknown) =>
 		err instanceof Error && err.name === "ExitPromptError",
 }));
-vi.mock("../resolveStores.js", () => ({ resolveStores: vi.fn() }));
+vi.mock("@/cli/resolve-stores.js", () => ({ resolveStores: vi.fn() }));
 
 import {
 	askParentId,
 	confirmResourceOp,
 	pickBulkTargets,
 	pickManageOperation,
-} from "../prompts.js";
-import { resolveStores } from "../resolveStores.js";
+} from "@/cli/prompts.js";
+import { resolveStores } from "@/cli/resolve-stores.js";
 import {
 	listManageOperations,
 	renderEquivalentCommand,

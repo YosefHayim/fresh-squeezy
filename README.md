@@ -181,7 +181,7 @@ await lemon.subscriptions.cancel(9);
 
 For multi-store doctor runs at the library layer, call `doctor()` in a loop — the CLI does exactly this. Switch on `issue.code` in CI logic; codes are stable across minor versions. Validators return `ValidationResult` and never throw for findings; resource mutations throw a plain `Error` with `name: "FreshSqueezyError"`, `code`, `status` and `detail`; check it with `isFreshSqueezyError` from `fresh-squeezy/errors`.
 
-Public modules, one subpath each: `fresh-squeezy` (the client, [`src/createFreshSqueezy.ts`](src/createFreshSqueezy.ts)), `fresh-squeezy/types` ([`ValidationResult<T>`, `DoctorReport`](src/core/types.ts)), `fresh-squeezy/errors`, `fresh-squeezy/config`, `fresh-squeezy/resources/attributes`, `fresh-squeezy/resources/registry`, `fresh-squeezy/api-types` (docs-generated Lemon Squeezy object types), `fresh-squeezy/augmentations` (changelog augmentation helpers), `fresh-squeezy/manifest`, and one `fresh-squeezy/validate/<name>` per validator.
+Public modules, one subpath each: `fresh-squeezy` (the client, [`src/create-fresh-squeezy.ts`](src/create-fresh-squeezy.ts)), `fresh-squeezy/types` ([`ValidationResult<T>`, `DoctorReport`](src/contracts/contracts.ts)), `fresh-squeezy/errors`, `fresh-squeezy/config`, `fresh-squeezy/resources/attributes`, `fresh-squeezy/resources/registry`, `fresh-squeezy/api-types` (docs-generated Lemon Squeezy object types), `fresh-squeezy/augmentations` (changelog augmentation helpers), `fresh-squeezy/manifest`, and one `fresh-squeezy/validate/<name>` per validator.
 
 For endpoints not yet wrapped, use the raw escape hatch:
 
@@ -270,8 +270,8 @@ Validators — each returns a stable `ValidationResult`:
 - **`validateProduct`** — published, on the expected store, has live variants and a buy URL. [→ source](src/validate/product.ts)
 - **`validateWebhook`** — webhook URL registered and subscribed to recommended events. [→ source](src/validate/webhook.ts)
 - **`validateDiscount`** — active, in-window, valid amount, store ownership matches. [→ source](src/validate/discount.ts)
-- **`validateLicenseKey`** — enabled, not expired, activations available, store ownership matches. [→ source](src/validate/licenseKey.ts)
-- **`validateSubscriptionPlan`** — subscription type, valid interval, non-zero price, consistent trial. [→ source](src/validate/subscriptionPlan.ts)
+- **`validateLicenseKey`** — enabled, not expired, activations available, store ownership matches. [→ source](src/validate/license-key.ts)
+- **`validateSubscriptionPlan`** — subscription type, valid interval, non-zero price, consistent trial. [→ source](src/validate/subscription-plan.ts)
 - **`doctor`** — composes the above into one `DoctorReport`. [→ source](src/validate/doctor.ts)
 
 Resource coverage is generated from Lemon Squeezy's object docs, so most newly documented fields don't need a hand edit:
@@ -318,9 +318,9 @@ Connection/auth, stores, products (and variants), webhooks, discounts, license k
 ## Project structure
 
 ```
-src/createFreshSqueezy.ts   the client (package root export; no barrel): validators, doctor(), lemon.<resource>.<verb>()
+src/create-fresh-squeezy.ts   the client (package root export; no barrel): validators, doctor(), lemon.<resource>.<verb>()
 src/http/                   HttpClient (the only fetch)
-src/errors/, src/config/    FreshSqueezyError, config resolution
+src/errors/, src/shared/    FreshSqueezyError, config resolution
 src/contracts/              shared public types
 src/resources/              registry.ts (one table of docs-backed ops + invokeOp), attributes.ts
 src/validate/               one file per validator, doctor composition, issues, probe

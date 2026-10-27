@@ -1,6 +1,10 @@
-import { freshSqueezyErrorOf } from "@/core/errors.js";
-import type { HttpClient } from "@/core/http.js";
-import type { DoctorReport, Mode, ValidationResult } from "@/core/types.js";
+import { freshSqueezyErrorOf } from "@/errors/errors.js";
+import type { HttpClient } from "@/http/http.js";
+import type {
+	DoctorReport,
+	Mode,
+	ValidationResult,
+} from "@/contracts/contracts.js";
 import type {
 	DiscountAttributes,
 	LicenseKeyAttributes,
@@ -16,13 +20,13 @@ import {
 import {
 	type LicenseKeyValidationOptions,
 	validateLicenseKey,
-} from "./licenseKey.js";
+} from "./license-key.js";
 import { type ProductValidationOptions, validateProduct } from "./product.js";
 import { validateStore } from "./store.js";
 import {
 	type SubscriptionPlanValidationOptions,
 	validateSubscriptionPlan,
-} from "./subscriptionPlan.js";
+} from "./subscription-plan.js";
 import { type WebhookValidationOptions, validateWebhook } from "./webhook.js";
 
 export interface DoctorOptions {

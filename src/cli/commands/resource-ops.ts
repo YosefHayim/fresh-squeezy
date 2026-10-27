@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
-import { resolveConfig } from "@/core/config.js";
-import { freshSqueezyErrorOf, isFreshSqueezyError } from "@/core/errors.js";
-import { HttpClient } from "@/core/http.js";
-import type { Mode } from "@/core/types.js";
+import { resolveConfig } from "@/shared/config.js";
+import { freshSqueezyErrorOf, isFreshSqueezyError } from "@/errors/errors.js";
+import { HttpClient } from "@/http/http.js";
+import type { Mode } from "@/contracts/contracts.js";
 import {
 	type OpVerb,
 	findResourceVerb,

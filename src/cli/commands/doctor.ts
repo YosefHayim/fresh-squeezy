@@ -1,17 +1,17 @@
-import { isFreshSqueezyError } from "@/core/errors.js";
-import type { DoctorReport, Mode } from "@/core/types.js";
+import { isFreshSqueezyError } from "@/errors/errors.js";
+import type { DoctorReport, Mode } from "@/contracts/contracts.js";
 import {
 	type FreshSqueezyClient,
 	createFreshSqueezy,
-} from "@/createFreshSqueezy.js";
+} from "@/create-fresh-squeezy.js";
 import {
 	OPTIONAL_VALIDATORS,
 	type OptionalValidatorIds,
 	type ResourceChoiceGroup,
 	discoverChoices,
-} from "@/cli/optionalValidators.js";
+} from "@/cli/optional-validators.js";
 import { getDoctorHints, renderCliError, renderReport } from "@/cli/render.js";
-import { resolveStores } from "@/cli/resolveStores.js";
+import { resolveStores } from "@/cli/resolve-stores.js";
 
 export interface DoctorCommandOptions {
 	mode?: Mode;

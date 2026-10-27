@@ -7,7 +7,7 @@ import {
 	type OptionalValidatorIds,
 	type OptionalValidatorName,
 	type ResourceChoiceGroup,
-} from "./optionalValidators.js";
+} from "./optional-validators.js";
 
 export interface InitAnswers {
 	apiKey: string;

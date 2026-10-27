@@ -1,4 +1,4 @@
-import type { JsonApiDocument } from "@/core/types.js";
+import type { JsonApiDocument } from "@/contracts/contracts.js";
 import type {
 	GeneratedAffiliateAttributes,
 	GeneratedCheckoutAttributes,

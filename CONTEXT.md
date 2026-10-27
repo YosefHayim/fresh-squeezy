@@ -25,14 +25,14 @@ as CLI (`npx fresh-squeezy`) and TypeScript library.
 
 ## Shape
 
-Layer-based, strict one-directional imports (`generated → contracts, errors, config, http →
+Layer-based, strict one-directional imports (`generated → contracts, errors, shared, http →
 resources → validate → cli`):
 
 ```
 generated/        auto-generated Lemon Squeezy attribute types
 http/             HttpClient (the one I/O chokepoint)
 errors/           FreshSqueezyError (plain Error + fields)
-config/           env and config resolution
+shared/           env and config resolution (the only place that reads the environment)
 contracts/        shared public types (ValidationResult, DoctorReport, config, JSON:API)
 resources/        registry.ts (one table of docs-backed ops + invokeOp) + attributes.ts
 support/          static manifest (webhook policy, acknowledged changelog) + drift snapshot

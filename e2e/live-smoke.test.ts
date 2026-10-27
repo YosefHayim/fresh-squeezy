@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { createFreshSqueezy } from "../../src/createFreshSqueezy.js";
+import { createFreshSqueezy } from "@/create-fresh-squeezy.js";
 
 const enabled =
 	process.env.LEMON_SQUEEZY_LIVE_SMOKE === "1" &&

@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { freshSqueezyErrorOf } from "../core/errors.js";
+import { freshSqueezyErrorOf } from "@/errors/errors.js";
 import { checkStoreOwnership, mapErrorToIssue, probeFetch } from "./probe.js";
 
 test("probeFetch returns the resource on success", async () => {

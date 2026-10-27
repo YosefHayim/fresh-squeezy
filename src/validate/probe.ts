@@ -1,5 +1,5 @@
-import { isFreshSqueezyError } from "@/core/errors.js";
-import type { ValidationIssue } from "@/core/types.js";
+import { isFreshSqueezyError } from "@/errors/errors.js";
+import type { ValidationIssue } from "@/contracts/contracts.js";
 import { ISSUE_CODES, issue } from "./issues.js";
 
 export interface IssueMapping {

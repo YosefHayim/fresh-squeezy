@@ -6,11 +6,11 @@ import {
 	expiredLicenseKeyDoc,
 	notFoundError,
 	wrongStoreLicenseKeyDoc,
-} from "../../tests/fixtures/sandbox/data.js";
-import { createMockFetch, pathIs } from "../../tests/helpers/mockFetch.js";
-import { resolveConfig } from "../core/config.js";
-import { HttpClient } from "../core/http.js";
-import { validateLicenseKey } from "./licenseKey.js";
+} from "@e2e/fixtures/sandbox/data.js";
+import { createMockFetch, pathIs } from "@e2e/mock-fetch.js";
+import { resolveConfig } from "@/shared/config.js";
+import { HttpClient } from "@/http/http.js";
+import { validateLicenseKey } from "./license-key.js";
 
 const makeClient = (routes: Parameters<typeof createMockFetch>[0]) => {
 	const { fetch } = createMockFetch(routes);

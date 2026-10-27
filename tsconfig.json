@@ -19,7 +19,7 @@
 		"sourceMap": true,
 		"outDir": "./dist",
 		"rootDir": "./src",
-		"paths": { "@/*": ["./src/*"] },
+		"paths": { "@/*": ["./src/*"], "@e2e/*": ["./e2e/*"] },
 		"forceConsistentCasingInFileNames": true,
 		"noUnusedLocals": true,
 		"noUnusedParameters": true

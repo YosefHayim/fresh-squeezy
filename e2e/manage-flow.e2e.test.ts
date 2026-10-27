@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { createMockFetch, pathIs } from "../../tests/helpers/mockFetch.js";
+import { createMockFetch, pathIs } from "@e2e/mock-fetch.js";
 
 // Only the inquirer layer and project install are mocked: launcher → menu →
 // manage → prompt wrappers → bulk executor → HTTP all run for real.
@@ -10,17 +10,17 @@ vi.mock("@inquirer/prompts", () => ({
 	input: vi.fn(),
 	password: vi.fn(),
 }));
-vi.mock("./projectInstall.js", () => ({
+vi.mock("@/cli/project-install.js", () => ({
 	ensureFreshSqueezyDevDependency: vi
 		.fn()
 		.mockResolvedValue({ status: "skipped" }),
 }));
-vi.mock("./resolveStores.js", () => ({
+vi.mock("@/cli/resolve-stores.js", () => ({
 	resolveStores: vi.fn().mockResolvedValue({ storeIds: ["1"], skipped: false }),
 }));
 
 import { checkbox, confirm, select } from "@inquirer/prompts";
-import { runLauncherCommand } from "./commands/launcher.js";
+import { runLauncherCommand } from "@/cli/commands/launcher.js";
 
 const discount = (id: string, code: string) => ({
 	type: "discounts",

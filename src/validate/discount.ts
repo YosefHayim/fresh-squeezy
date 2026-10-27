@@ -1,5 +1,9 @@
-import type { HttpClient } from "@/core/http.js";
-import type { Mode, ValidationIssue, ValidationResult } from "@/core/types.js";
+import type { HttpClient } from "@/http/http.js";
+import type {
+	Mode,
+	ValidationIssue,
+	ValidationResult,
+} from "@/contracts/contracts.js";
 import type { DiscountAttributes } from "@/resources/attributes.js";
 import { ISSUE_CODES, buildResult, issue } from "./issues.js";
 import { checkStoreOwnership, probeFetch } from "./probe.js";

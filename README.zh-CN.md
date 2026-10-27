@@ -137,7 +137,7 @@ if (!report.ok) {
 
 如需在库层进行多店铺运行，请在循环中调用 `doctor()` —— CLI 正是这样做的。在 CI 逻辑中对 `issue.code` 进行分支判断；这些代码在次版本之间保持稳定。
 
-公共类型：[`FreshSqueezyClient`](src/createFreshSqueezy.ts)、[`ValidationResult<T>`](src/core/types.ts)、[`DoctorReport`](src/core/types.ts)、[`src/resources/attributes.ts`](src/resources/attributes.ts) 下的资源属性接口、[`src/generated/lemonSqueezyApiTypes.ts`](src/generated/lemonSqueezyApiTypes.ts) 中由文档生成的 Lemon Squeezy 对象类型，以及 [`src/augmentations.ts`](src/augmentations.ts) 中的更新日志增强辅助函数。
+公共类型：[`FreshSqueezyClient`](src/create-fresh-squeezy.ts)、[`ValidationResult<T>`](src/contracts/contracts.ts)、[`DoctorReport`](src/contracts/contracts.ts)、[`src/resources/attributes.ts`](src/resources/attributes.ts) 下的资源属性接口、[`src/generated/lemonSqueezyApiTypes.ts`](src/generated/lemonSqueezyApiTypes.ts) 中由文档生成的 Lemon Squeezy 对象类型，以及 [`src/augmentations.ts`](src/augmentations.ts) 中的更新日志增强辅助函数。
 
 对于尚未封装的端点，可使用原始转义出口：
 
@@ -226,8 +226,8 @@ CLI 不会读取 `LEMON_SQUEEZY_STORE_ID`；请使用 `--store-ids` 或 `--all-s
 - **`validateProduct`** —— 已发布、位于预期店铺、拥有正式变体和购买 URL。[→ 源码](src/validate/product.ts)
 - **`validateWebhook`** —— Webhook URL 已注册并订阅了推荐事件。[→ 源码](src/validate/webhook.ts)
 - **`validateDiscount`** —— 有效、在时间窗口内、金额有效、店铺归属匹配。[→ 源码](src/validate/discount.ts)
-- **`validateLicenseKey`** —— 已启用、未过期、有可用的激活次数、店铺归属匹配。[→ 源码](src/validate/licenseKey.ts)
-- **`validateSubscriptionPlan`** —— 订阅类型、有效的周期、非零价格、一致的试用期。[→ 源码](src/validate/subscriptionPlan.ts)
+- **`validateLicenseKey`** —— 已启用、未过期、有可用的激活次数、店铺归属匹配。[→ 源码](src/validate/license-key.ts)
+- **`validateSubscriptionPlan`** —— 订阅类型、有效的周期、非零价格、一致的试用期。[→ 源码](src/validate/subscription-plan.ts)
 - **`doctor`** —— 将上述各项组合成一份 `DoctorReport`。[→ 源码](src/validate/doctor.ts)
 
 资源覆盖范围是从 Lemon Squeezy 的对象文档生成的，因此大多数新文档化的字段不需要手动编辑：

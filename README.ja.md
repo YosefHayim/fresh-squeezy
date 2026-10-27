@@ -137,7 +137,7 @@ if (!report.ok) {
 
 ライブラリ層でのマルチストア実行には、`doctor()` をループで呼び出してください — CLI はまさにこれを行っています。CI ロジックでは `issue.code` で分岐してください。コードはマイナーバージョン間で安定しています。
 
-公開型: [`FreshSqueezyClient`](src/createFreshSqueezy.ts)、[`ValidationResult<T>`](src/core/types.ts)、[`DoctorReport`](src/core/types.ts)、[`src/resources/attributes.ts`](src/resources/attributes.ts) 配下のリソース属性インターフェース、[`src/generated/lemonSqueezyApiTypes.ts`](src/generated/lemonSqueezyApiTypes.ts) のドキュメント生成された Lemon Squeezy オブジェクト型、[`src/augmentations.ts`](src/augmentations.ts) のチェンジログ拡張ヘルパー。
+公開型: [`FreshSqueezyClient`](src/create-fresh-squeezy.ts)、[`ValidationResult<T>`](src/contracts/contracts.ts)、[`DoctorReport`](src/contracts/contracts.ts)、[`src/resources/attributes.ts`](src/resources/attributes.ts) 配下のリソース属性インターフェース、[`src/generated/lemonSqueezyApiTypes.ts`](src/generated/lemonSqueezyApiTypes.ts) のドキュメント生成された Lemon Squeezy オブジェクト型、[`src/augmentations.ts`](src/augmentations.ts) のチェンジログ拡張ヘルパー。
 
 まだラップされていないエンドポイントには、生のエスケープハッチを使用してください:
 
@@ -226,8 +226,8 @@ CI では `issue.code` で分岐してください — すべてのコードは�
 - **`validateProduct`** — 公開済み、期待されるストア上、ライブバリアントと購入 URL がある。[→ ソース](src/validate/product.ts)
 - **`validateWebhook`** — Webhook URL が登録され、推奨イベントを購読している。[→ ソース](src/validate/webhook.ts)
 - **`validateDiscount`** — 有効、期間内、金額が妥当、ストア所有権が一致。[→ ソース](src/validate/discount.ts)
-- **`validateLicenseKey`** — 有効、期限切れでない、アクティベーションに空きがある、ストア所有権が一致。[→ ソース](src/validate/licenseKey.ts)
-- **`validateSubscriptionPlan`** — サブスクリプションタイプ、有効な間隔、ゼロでない価格、一貫したトライアル。[→ ソース](src/validate/subscriptionPlan.ts)
+- **`validateLicenseKey`** — 有効、期限切れでない、アクティベーションに空きがある、ストア所有権が一致。[→ ソース](src/validate/license-key.ts)
+- **`validateSubscriptionPlan`** — サブスクリプションタイプ、有効な間隔、ゼロでない価格、一貫したトライアル。[→ ソース](src/validate/subscription-plan.ts)
 - **`doctor`** — 上記を 1 つの `DoctorReport` に構成します。[→ ソース](src/validate/doctor.ts)
 
 リソースカバレッジは Lemon Squeezy のオブジェクトドキュメントから生成されるため、新たにドキュメント化されたフィールドのほとんどは手動編集を必要としません:

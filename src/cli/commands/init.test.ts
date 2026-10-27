@@ -14,13 +14,9 @@ import {
 	userDoc,
 	variantsCollectionPublished,
 	webhooksCollectionComplete,
-} from "../../../tests/fixtures/sandbox/data.js";
-import {
-	createMockFetch,
-	pathIs,
-	pathIsWithQuery,
-} from "../../../tests/helpers/mockFetch.js";
-import { ENV_KEYS } from "../../core/config.js";
+} from "@e2e/fixtures/sandbox/data.js";
+import { createMockFetch, pathIs, pathIsWithQuery } from "@e2e/mock-fetch.js";
+import { ENV_KEYS } from "@/shared/config.js";
 import { runInitCommand } from "./init.js";
 
 vi.mock("@inquirer/prompts", () => ({

@@ -3,12 +3,12 @@ import { mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { beforeAll, describe, expect, test } from "vitest";
 
-const root = resolve(import.meta.dirname, "../..");
+const root = resolve(import.meta.dirname, "..");
 const cacheDir = join(root, "node_modules/.cache/fresh-squeezy-e2e");
 // Empty cwd so dotenv never picks up a developer's real .env.
 const emptyCwd = join(cacheDir, "cwd");
 const cli = join(cacheDir, "main.js");
-const preload = join(root, "tests/e2e/fakeApi.mjs");
+const preload = join(root, "e2e/fake-api.mjs");
 
 const run = (args: string[]) => {
 	const res = spawnSync(process.execPath, ["--import", preload, cli, ...args], {

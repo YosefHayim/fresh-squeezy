@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { freshSqueezyErrorOf, isFreshSqueezyError } from "./errors.js";
+import { freshSqueezyErrorOf, isFreshSqueezyError } from "@/errors/errors.js";
 
 test("freshSqueezyErrorOf returns a real Error carrying code, status and detail", () => {
 	const error = freshSqueezyErrorOf({

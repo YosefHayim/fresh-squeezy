@@ -1,5 +1,9 @@
-import type { HttpClient } from "@/core/http.js";
-import type { Mode, ValidationIssue, ValidationResult } from "@/core/types.js";
+import type { HttpClient } from "@/http/http.js";
+import type {
+	Mode,
+	ValidationIssue,
+	ValidationResult,
+} from "@/contracts/contracts.js";
 import type { WebhookAttributes } from "@/resources/attributes.js";
 import {
 	OPTIONAL_WEBHOOK_EVENTS,

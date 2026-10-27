@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import type { DoctorReport, ValidationResult } from "../core/types.js";
+import type { DoctorReport, ValidationResult } from "@/contracts/contracts.js";
 import { renderReport, renderResult, renderStep } from "./render.js";
 
 // biome-ignore lint/suspicious/noControlCharactersInRegex: strip ANSI SGR escape sequences from CLI output

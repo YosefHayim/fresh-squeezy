@@ -133,9 +133,9 @@ HTTP failures throw a plain `Error` named `FreshSqueezyError` with `code` / `sta
 1. Confirm the verb exists on official docs (`docsPath`).
 2. Add the verb to the resource's row in `RESOURCES` (`src/resources/registry.ts`). New resource → new row + its `*Attributes` in `src/resources/attributes.ts`. New kind of verb → new `VERB_RULES` entry (HTTP method, path suffix, body rule, docs slug).
 3. If the docs page breaks the naming pattern, add it to `DOCS_PATH_EXCEPTIONS`.
-4. Add the nested client method in `createFreshSqueezy.ts` (interface + `op(...)` line).
+4. Add the nested client method in `create-fresh-squeezy.ts` (interface + `op(...)` line).
 5. CLI already routes all `OpVerb`s; no main.ts change unless new verb token.
-6. Tests: a row in `src/createFreshSqueezy.test.ts` asserting method + path.
+6. Tests: a row in `src/create-fresh-squeezy.test.ts` asserting method + path.
 7. Run `pnpm verify`; `fresh-squeezy ops --list` should show the new verb.
 
 ### Adding a validator (separate recipe)
@@ -144,14 +144,14 @@ See `CONTEXT.md` → “Add a validator”. Ops do not replace doctor.
 
 ## Key files
 
-| Path                              | Role                                                         |
-| --------------------------------- | ------------------------------------------------------------ |
-| `src/resources/registry.ts`       | `RESOURCES` × `VERB_RULES` ops table + `invokeOp` dispatcher |
-| `src/resources/attributes.ts`     | Typed `*Attributes` for every resource                       |
-| `src/core/http.ts`                | Only `fetch`                                                 |
-| `src/cli/commands/resourceOps.ts` | CLI safety + body + exit codes                               |
-| `src/cli/main.ts`                 | `get\|list\|create\|…` commands                              |
-| `src/validate/*`                  | Doctor validators                                            |
+| Path                               | Role                                                         |
+| ---------------------------------- | ------------------------------------------------------------ |
+| `src/resources/registry.ts`        | `RESOURCES` × `VERB_RULES` ops table + `invokeOp` dispatcher |
+| `src/resources/attributes.ts`      | Typed `*Attributes` for every resource                       |
+| `src/http/http.ts`                 | Only `fetch`                                                 |
+| `src/cli/commands/resource-ops.ts` | CLI safety + body + exit codes                               |
+| `src/cli/main.ts`                  | `get\|list\|create\|…` commands                              |
+| `src/validate/*`                   | Doctor validators                                            |
 
 ## Agent checklist
 

@@ -1,10 +1,13 @@
-import { type FreshSqueezyError, freshSqueezyErrorOf } from "./errors.js";
+import {
+	type FreshSqueezyError,
+	freshSqueezyErrorOf,
+} from "@/errors/errors.js";
 import type {
 	JsonApiCollection,
 	JsonApiDocument,
 	JsonApiResource,
 	ResolvedConfig,
-} from "./types.js";
+} from "@/contracts/contracts.js";
 
 const HTTP_STATUS_CODES = {
 	401: "UNAUTHORIZED",

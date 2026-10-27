@@ -1,6 +1,6 @@
 import { expect, test, vi } from "vitest";
-import type { FreshSqueezyClient } from "../createFreshSqueezy.js";
-import { resolveStores } from "./resolveStores.js";
+import type { FreshSqueezyClient } from "@/create-fresh-squeezy.js";
+import { resolveStores } from "./resolve-stores.js";
 
 const stubClient = (
 	overrides: Partial<FreshSqueezyClient>,

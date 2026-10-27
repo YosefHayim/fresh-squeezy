@@ -7,14 +7,10 @@ import {
 	variantsCollectionAllDraft,
 	variantsCollectionEmpty,
 	variantsCollectionPublished,
-} from "../../tests/fixtures/sandbox/data.js";
-import {
-	createMockFetch,
-	pathIs,
-	pathIsWithQuery,
-} from "../../tests/helpers/mockFetch.js";
-import { resolveConfig } from "../core/config.js";
-import { HttpClient } from "../core/http.js";
+} from "@e2e/fixtures/sandbox/data.js";
+import { createMockFetch, pathIs, pathIsWithQuery } from "@e2e/mock-fetch.js";
+import { resolveConfig } from "@/shared/config.js";
+import { HttpClient } from "@/http/http.js";
 import { validateProduct } from "./product.js";
 
 const makeClient = (routes: Parameters<typeof createMockFetch>[0]) => {

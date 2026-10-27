@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from "vitest";
 import { ENV_KEYS, resolveConfig } from "./config.js";
-import { isFreshSqueezyError } from "./errors.js";
+import { isFreshSqueezyError } from "@/errors/errors.js";
 
 const ORIGINAL = { ...process.env };
 

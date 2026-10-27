@@ -1,5 +1,5 @@
-import type { JsonApiResource } from "@/core/types.js";
-import type { FreshSqueezyClient } from "@/createFreshSqueezy.js";
+import type { JsonApiResource } from "@/contracts/contracts.js";
+import type { FreshSqueezyClient } from "@/create-fresh-squeezy.js";
 import type {
 	DiscountAttributes,
 	LicenseKeyAttributes,

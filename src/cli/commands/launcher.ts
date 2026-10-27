@@ -1,9 +1,9 @@
 import chalk from "chalk";
-import { ENV_KEYS } from "@/core/config.js";
+import { ENV_KEYS } from "@/shared/config.js";
 import {
 	type ProjectInstallResult,
 	ensureFreshSqueezyDevDependency,
-} from "@/cli/projectInstall.js";
+} from "@/cli/project-install.js";
 import {
 	type LauncherAction,
 	isPromptCancel,

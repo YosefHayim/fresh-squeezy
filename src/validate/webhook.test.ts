@@ -3,13 +3,10 @@ import {
 	webhooksCollectionComplete,
 	webhooksCollectionEmpty,
 	webhooksCollectionMissingEvents,
-} from "../../tests/fixtures/sandbox/data.js";
-import {
-	createMockFetch,
-	pathIsWithQuery,
-} from "../../tests/helpers/mockFetch.js";
-import { resolveConfig } from "../core/config.js";
-import { HttpClient } from "../core/http.js";
+} from "@e2e/fixtures/sandbox/data.js";
+import { createMockFetch, pathIsWithQuery } from "@e2e/mock-fetch.js";
+import { resolveConfig } from "@/shared/config.js";
+import { HttpClient } from "@/http/http.js";
 import { sameWebhookUrl, validateWebhook } from "./webhook.js";
 
 const makeClient = (routes: Parameters<typeof createMockFetch>[0]) => {

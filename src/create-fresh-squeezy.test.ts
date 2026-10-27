@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import {
 	type FreshSqueezyClient,
 	createFreshSqueezy,
-} from "./createFreshSqueezy.js";
+} from "./create-fresh-squeezy.js";
 
 const clientWithLog = (): { lemon: FreshSqueezyClient; calls: string[] } => {
 	const calls: string[] = [];

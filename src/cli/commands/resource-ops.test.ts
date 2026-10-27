@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { createMockFetch, pathIs } from "../../../tests/helpers/mockFetch.js";
+import { createMockFetch, pathIs } from "@e2e/mock-fetch.js";
 
 vi.mock("@inquirer/prompts", () => ({
 	select: vi.fn(),
@@ -10,7 +10,7 @@ vi.mock("@inquirer/prompts", () => ({
 }));
 
 import { confirm } from "@inquirer/prompts";
-import { runResourceOpCommand } from "./resourceOps.js";
+import { runResourceOpCommand } from "./resource-ops.js";
 
 const discount = (id: string, code: string, name = `Name ${code}`) => ({
 	type: "discounts",
