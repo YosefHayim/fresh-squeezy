@@ -159,18 +159,18 @@ const lemon = createFreshSqueezy(); // reads LEMON_SQUEEZY_API_KEY, LEMON_SQUEEZ
 
 // Doctor
 const report = await lemon.doctor({
-  storeId: 12, // library is single-store per call
-  productId: 987,
-  webhookUrl: "https://app.example.com/api/webhooks/lemon-squeezy",
+	storeId: 12, // library is single-store per call
+	productId: 987,
+	webhookUrl: "https://app.example.com/api/webhooks/lemon-squeezy",
 });
 
 if (!report.ok) {
-  for (const result of report.results) {
-    for (const issue of result.issues) {
-      console.error(`[${issue.severity}] ${issue.code}: ${issue.message}`);
-    }
-  }
-  process.exit(1);
+	for (const result of report.results) {
+		for (const issue of result.issues) {
+			console.error(`[${issue.severity}] ${issue.code}: ${issue.message}`);
+		}
+	}
+	process.exit(1);
 }
 
 // Nested docs-backed ops (HTTP failures throw a FreshSqueezyError, see below)
@@ -212,7 +212,11 @@ Imports and the error check:
 
 ```ts
 // before
-import { createFreshSqueezy, validateStore, FreshSqueezyError } from "fresh-squeezy";
+import {
+	createFreshSqueezy,
+	validateStore,
+	FreshSqueezyError,
+} from "fresh-squeezy";
 if (error instanceof FreshSqueezyError) console.error(error.code);
 
 // after

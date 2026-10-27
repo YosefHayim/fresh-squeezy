@@ -7,93 +7,103 @@ import { runAugmentCommand } from "./augment.js";
 let workdir: string;
 
 beforeEach(() => {
-  workdir = mkdtempSync(join(tmpdir(), "fresh-squeezy-augment-"));
+	workdir = mkdtempSync(join(tmpdir(), "fresh-squeezy-augment-"));
 });
 
 afterEach(() => {
-  rmSync(workdir, { recursive: true, force: true });
-  vi.restoreAllMocks();
+	rmSync(workdir, { recursive: true, force: true });
+	vi.restoreAllMocks();
 });
 
 test("runAugmentCommand emits the with-sdk file when @lemonsqueezy/lemonsqueezy.js is in package.json", async () => {
-  writeFileSync(
-    join(workdir, "package.json"),
-    JSON.stringify({
-      name: "consumer",
-      dependencies: { "@lemonsqueezy/lemonsqueezy.js": "^4.0.0" },
-    }),
-  );
-  vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+	writeFileSync(
+		join(workdir, "package.json"),
+		JSON.stringify({
+			name: "consumer",
+			dependencies: { "@lemonsqueezy/lemonsqueezy.js": "^4.0.0" },
+		}),
+	);
+	vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 
-  const code = await runAugmentCommand({ cwd: workdir });
+	const code = await runAugmentCommand({ cwd: workdir });
 
-  expect(code).toBe(0);
-  const out = readFileSync(join(workdir, "lemonsqueezy.augment.d.ts"), "utf8");
-  expect(out).toContain('from "@lemonsqueezy/lemonsqueezy.js"');
-  expect(out).toContain("LemonSqueezyAugmented");
-  expect(out).toContain("LatestSubscriptionFields");
-  expect(out).toContain("LatestCheckoutFields");
-  expect(out).toContain("LatestSubscriptionInvoiceFields");
-  expect(out).toContain("GeneratedLemonSqueezyFieldMap");
-  expect(out).toContain("LatestFieldsFor");
-  // Widened response map covers every SDK-response-shaped resource, not just the original four.
-  expect(out).toContain("AugmentResponse<SubscriptionInvoice, LatestSubscriptionInvoiceFields>");
-  expect(out).toContain("AugmentResponse<OrderItem, LatestOrderItemFields>");
-  expect(out).toContain("AugmentResponse<Checkout, LatestCheckoutFields>");
+	expect(code).toBe(0);
+	const out = readFileSync(join(workdir, "lemonsqueezy.augment.d.ts"), "utf8");
+	expect(out).toContain('from "@lemonsqueezy/lemonsqueezy.js"');
+	expect(out).toContain("LemonSqueezyAugmented");
+	expect(out).toContain("LatestSubscriptionFields");
+	expect(out).toContain("LatestCheckoutFields");
+	expect(out).toContain("LatestSubscriptionInvoiceFields");
+	expect(out).toContain("GeneratedLemonSqueezyFieldMap");
+	expect(out).toContain("LatestFieldsFor");
+	// Widened response map covers every SDK-response-shaped resource, not just the original four.
+	expect(out).toContain(
+		"AugmentResponse<SubscriptionInvoice, LatestSubscriptionInvoiceFields>",
+	);
+	expect(out).toContain("AugmentResponse<OrderItem, LatestOrderItemFields>");
+	expect(out).toContain("AugmentResponse<Checkout, LatestCheckoutFields>");
 });
 
 test("runAugmentCommand emits the generic file when the SDK is not installed", async () => {
-  writeFileSync(
-    join(workdir, "package.json"),
-    JSON.stringify({ name: "consumer", dependencies: { other: "^1.0.0" } }),
-  );
-  vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+	writeFileSync(
+		join(workdir, "package.json"),
+		JSON.stringify({ name: "consumer", dependencies: { other: "^1.0.0" } }),
+	);
+	vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 
-  const code = await runAugmentCommand({ cwd: workdir });
+	const code = await runAugmentCommand({ cwd: workdir });
 
-  expect(code).toBe(0);
-  const out = readFileSync(join(workdir, "lemonsqueezy.augment.d.ts"), "utf8");
-  expect(out).not.toContain('from "@lemonsqueezy/lemonsqueezy.js"');
-  expect(out).toContain("WithLatestLemonSqueezyFields");
-  expect(out).toContain('"checkout"');
-  expect(out).toContain("LatestOrderItemFields");
-  expect(out).toContain("GeneratedLemonSqueezyResourceName");
+	expect(code).toBe(0);
+	const out = readFileSync(join(workdir, "lemonsqueezy.augment.d.ts"), "utf8");
+	expect(out).not.toContain('from "@lemonsqueezy/lemonsqueezy.js"');
+	expect(out).toContain("WithLatestLemonSqueezyFields");
+	expect(out).toContain('"checkout"');
+	expect(out).toContain("LatestOrderItemFields");
+	expect(out).toContain("GeneratedLemonSqueezyResourceName");
 });
 
 test("runAugmentCommand emits the generic file with --force even when the SDK is detected", async () => {
-  writeFileSync(
-    join(workdir, "package.json"),
-    JSON.stringify({
-      name: "consumer",
-      dependencies: { "@lemonsqueezy/lemonsqueezy.js": "^4.0.0" },
-    }),
-  );
-  vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+	writeFileSync(
+		join(workdir, "package.json"),
+		JSON.stringify({
+			name: "consumer",
+			dependencies: { "@lemonsqueezy/lemonsqueezy.js": "^4.0.0" },
+		}),
+	);
+	vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 
-  const code = await runAugmentCommand({ cwd: workdir, force: true });
+	const code = await runAugmentCommand({ cwd: workdir, force: true });
 
-  expect(code).toBe(0);
-  const out = readFileSync(join(workdir, "lemonsqueezy.augment.d.ts"), "utf8");
-  expect(out).not.toContain('from "@lemonsqueezy/lemonsqueezy.js"');
-  expect(out).toContain("WithLatestLemonSqueezyFields");
+	expect(code).toBe(0);
+	const out = readFileSync(join(workdir, "lemonsqueezy.augment.d.ts"), "utf8");
+	expect(out).not.toContain('from "@lemonsqueezy/lemonsqueezy.js"');
+	expect(out).toContain("WithLatestLemonSqueezyFields");
 });
 
 test("runAugmentCommand falls back to generic when no package.json exists", async () => {
-  vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+	vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 
-  const code = await runAugmentCommand({ cwd: workdir });
+	const code = await runAugmentCommand({ cwd: workdir });
 
-  expect(code).toBe(0);
-  const out = readFileSync(join(workdir, "lemonsqueezy.augment.d.ts"), "utf8");
-  expect(out).toContain("WithLatestLemonSqueezyFields");
+	expect(code).toBe(0);
+	const out = readFileSync(join(workdir, "lemonsqueezy.augment.d.ts"), "utf8");
+	expect(out).toContain("WithLatestLemonSqueezyFields");
 });
 
 test("runAugmentCommand honors the --out path", async () => {
-  writeFileSync(join(workdir, "package.json"), JSON.stringify({ name: "consumer" }));
-  vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+	writeFileSync(
+		join(workdir, "package.json"),
+		JSON.stringify({ name: "consumer" }),
+	);
+	vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 
-  const code = await runAugmentCommand({ cwd: workdir, out: "types/ls.augment.d.ts" });
+	const code = await runAugmentCommand({
+		cwd: workdir,
+		out: "types/ls.augment.d.ts",
+	});
 
-  expect(code).toBe(0);
-  expect(() => readFileSync(join(workdir, "types/ls.augment.d.ts"), "utf8")).not.toThrow();
+	expect(code).toBe(0);
+	expect(() =>
+		readFileSync(join(workdir, "types/ls.augment.d.ts"), "utf8"),
+	).not.toThrow();
 });

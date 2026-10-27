@@ -88,17 +88,17 @@ fresh-squeezy current-usage subscription-item --id 3 --json
 
 ```json
 {
-  "data": {
-    "type": "webhooks",
-    "attributes": {
-      "url": "https://app.example.com/api/webhooks/lemon-squeezy",
-      "events": ["order_created", "subscription_created"],
-      "secret": "whsec_…"
-    },
-    "relationships": {
-      "store": { "data": { "type": "stores", "id": "1" } }
-    }
-  }
+	"data": {
+		"type": "webhooks",
+		"attributes": {
+			"url": "https://app.example.com/api/webhooks/lemon-squeezy",
+			"events": ["order_created", "subscription_created"],
+			"secret": "whsec_…"
+		},
+		"relationships": {
+			"store": { "data": { "type": "stores", "id": "1" } }
+		}
+	}
 }
 ```
 
@@ -117,11 +117,11 @@ if (!report.ok) process.exit(1);
 const product = await lemon.products.get(42);
 const webhooks = await lemon.webhooks.list(1);
 const created = await lemon.webhooks.create({
-  data: {
-    type: "webhooks",
-    attributes: { url: "https://…", events: ["order_created"] },
-    relationships: { store: { data: { type: "stores", id: "1" } } },
-  },
+	data: {
+		type: "webhooks",
+		attributes: { url: "https://…", events: ["order_created"] },
+		relationships: { store: { data: { type: "stores", id: "1" } } },
+	},
 });
 await lemon.subscriptions.cancel(9);
 ```

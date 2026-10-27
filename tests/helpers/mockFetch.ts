@@ -1,60 +1,76 @@
-
 export interface MockRoute {
-  match: (req: { method: string; url: string }) => boolean;
-  status: number;
-  body: unknown;
+	match: (req: { method: string; url: string }) => boolean;
+	status: number;
+	body: unknown;
 }
 
 export interface MockFetchResult {
-  fetch: typeof fetch;
-  calls: Array<{ method: string; url: string; body?: string }>;
+	fetch: typeof fetch;
+	calls: Array<{ method: string; url: string; body?: string }>;
 }
 
 export const createMockFetch = (routes: MockRoute[]): MockFetchResult => {
-  const calls: MockFetchResult["calls"] = [];
+	const calls: MockFetchResult["calls"] = [];
 
-  const mock: typeof fetch = async (input, init) => {
-    const url =
-      typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-    const method = (init?.method ?? "GET").toUpperCase();
-    const body = typeof init?.body === "string" ? init.body : undefined;
-    calls.push({ method, url, body });
+	const mock: typeof fetch = async (input, init) => {
+		const url =
+			typeof input === "string"
+				? input
+				: input instanceof URL
+					? input.toString()
+					: input.url;
+		const method = (init?.method ?? "GET").toUpperCase();
+		const body = typeof init?.body === "string" ? init.body : undefined;
+		calls.push({ method, url, body });
 
-    const route = routes.find((entry) => entry.match({ method, url }));
-    if (!route) {
-      return new Response(
-        JSON.stringify({
-          errors: [{ status: "404", code: "no_route", title: "No mock route", detail: url }],
-        }),
-        {
-          status: 404,
-          headers: { "content-type": "application/vnd.api+json" },
-        },
-      );
-    }
+		const route = routes.find((entry) => entry.match({ method, url }));
+		if (!route) {
+			return new Response(
+				JSON.stringify({
+					errors: [
+						{
+							status: "404",
+							code: "no_route",
+							title: "No mock route",
+							detail: url,
+						},
+					],
+				}),
+				{
+					status: 404,
+					headers: { "content-type": "application/vnd.api+json" },
+				},
+			);
+		}
 
-    return new Response(JSON.stringify(route.body), {
-      status: route.status,
-      headers: { "content-type": "application/vnd.api+json" },
-    });
-  };
+		return new Response(JSON.stringify(route.body), {
+			status: route.status,
+			headers: { "content-type": "application/vnd.api+json" },
+		});
+	};
 
-  return { fetch: mock, calls };
+	return { fetch: mock, calls };
 };
 
-export const pathIs = (expected: string, method = "GET"): MockRoute["match"] => {
-  return ({ method: m, url }) => m === method && new URL(url).pathname === expected;
+export const pathIs = (
+	expected: string,
+	method = "GET",
+): MockRoute["match"] => {
+	return ({ method: m, url }) =>
+		m === method && new URL(url).pathname === expected;
 };
 
 export const pathIsWithQuery = (
-  expected: string,
-  query: Record<string, string>,
-  method = "GET",
+	expected: string,
+	query: Record<string, string>,
+	method = "GET",
 ): MockRoute["match"] => {
-  return ({ method: m, url }) => {
-    if (m !== method) return false;
-    const parsed = new URL(url);
-    if (parsed.pathname !== expected) return false;
-    return Object.entries(query).every(([key, value]) => parsed.searchParams.get(key) === value);
-  };
+	return ({ method: m, url }) => {
+		if (m !== method) return false;
+		const parsed = new URL(url);
+		if (parsed.pathname !== expected) return false;
+		return Object.entries(query).every(
+			([key, value]) => parsed.searchParams.get(key) === value,
+		);
+	};
 };

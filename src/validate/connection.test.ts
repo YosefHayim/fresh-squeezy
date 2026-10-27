@@ -1,147 +1,165 @@
 import { expect, test } from "vitest";
 import {
-  liveUserDoc,
-  storesCollection,
-  unauthorizedError,
-  userDoc,
+	liveUserDoc,
+	storesCollection,
+	unauthorizedError,
+	userDoc,
 } from "../../tests/fixtures/sandbox/data.js";
 import { createMockFetch, pathIs } from "../../tests/helpers/mockFetch.js";
 import { resolveConfig } from "../core/config.js";
 import { HttpClient } from "../core/http.js";
-import { fetchActualMode, resolveActualMode, validateConnection } from "./connection.js";
+import {
+	fetchActualMode,
+	resolveActualMode,
+	validateConnection,
+} from "./connection.js";
 
 const makeClient = (routes: Parameters<typeof createMockFetch>[0]) => {
-  const { fetch } = createMockFetch(routes);
-  return new HttpClient(resolveConfig({ apiKey: "k", fetch, mode: "test" }));
+	const { fetch } = createMockFetch(routes);
+	return new HttpClient(resolveConfig({ apiKey: "k", fetch, mode: "test" }));
 };
 
 test("validateConnection returns ok when key auths and stores are reachable", async () => {
-  const http = makeClient([
-    { match: pathIs("/v1/users/me"), status: 200, body: userDoc },
-    { match: pathIs("/v1/stores"), status: 200, body: storesCollection },
-  ]);
+	const http = makeClient([
+		{ match: pathIs("/v1/users/me"), status: 200, body: userDoc },
+		{ match: pathIs("/v1/stores"), status: 200, body: storesCollection },
+	]);
 
-  const result = await validateConnection(http, "test");
+	const result = await validateConnection(http, "test");
 
-  expect(result.ok).toBe(true);
-  expect(result.mode).toBe("test");
-  expect(result.resource?.storeCount).toBe(1);
-  expect(result.resource?.storeIds).toEqual(["42"]);
+	expect(result.ok).toBe(true);
+	expect(result.mode).toBe("test");
+	expect(result.resource?.storeCount).toBe(1);
+	expect(result.resource?.storeIds).toEqual(["42"]);
 });
 
 test("validateConnection warns when no stores reachable", async () => {
-  const http = makeClient([
-    { match: pathIs("/v1/users/me"), status: 200, body: userDoc },
-    { match: pathIs("/v1/stores"), status: 200, body: { data: [] } },
-  ]);
+	const http = makeClient([
+		{ match: pathIs("/v1/users/me"), status: 200, body: userDoc },
+		{ match: pathIs("/v1/stores"), status: 200, body: { data: [] } },
+	]);
 
-  const result = await validateConnection(http, "test");
+	const result = await validateConnection(http, "test");
 
-  expect(result.ok).toBe(true);
-  expect(result.issues[0]?.code).toBe("STORE_NOT_FOUND");
-  expect(result.issues[0]?.severity).toBe("warning");
+	expect(result.ok).toBe(true);
+	expect(result.issues[0]?.code).toBe("STORE_NOT_FOUND");
+	expect(result.issues[0]?.severity).toBe("warning");
 });
 
 test("validateConnection surfaces AUTH_FAILED on 401", async () => {
-  const http = makeClient([
-    { match: pathIs("/v1/users/me"), status: 401, body: unauthorizedError },
-  ]);
+	const http = makeClient([
+		{ match: pathIs("/v1/users/me"), status: 401, body: unauthorizedError },
+	]);
 
-  const result = await validateConnection(http, "test");
+	const result = await validateConnection(http, "test");
 
-  expect(result.ok).toBe(false);
-  expect(result.issues[0]?.code).toBe("AUTH_FAILED");
+	expect(result.ok).toBe(false);
+	expect(result.issues[0]?.code).toBe("AUTH_FAILED");
 });
 
 test("validateConnection flags MODE_MISMATCH when declared mode differs from meta.test_mode", async () => {
-  const http = makeClient([
-    { match: pathIs("/v1/users/me"), status: 200, body: liveUserDoc },
-    { match: pathIs("/v1/stores"), status: 200, body: storesCollection },
-  ]);
+	const http = makeClient([
+		{ match: pathIs("/v1/users/me"), status: 200, body: liveUserDoc },
+		{ match: pathIs("/v1/stores"), status: 200, body: storesCollection },
+	]);
 
-  const result = await validateConnection(http, "test");
+	const result = await validateConnection(http, "test");
 
-  expect(result.ok).toBe(false);
-  expect(result.resource?.actualMode).toBe("live");
-  expect(result.resource?.declaredMode).toBe("test");
-  const mismatch = result.issues.find((entry) => entry.code === "MODE_MISMATCH");
-  expect(mismatch?.severity).toBe("error");
-  expect(mismatch?.context).toMatchObject({ declared: "test", actual: "live" });
+	expect(result.ok).toBe(false);
+	expect(result.resource?.actualMode).toBe("live");
+	expect(result.resource?.declaredMode).toBe("test");
+	const mismatch = result.issues.find(
+		(entry) => entry.code === "MODE_MISMATCH",
+	);
+	expect(mismatch?.severity).toBe("error");
+	expect(mismatch?.context).toMatchObject({ declared: "test", actual: "live" });
 });
 
 test("validateConnection passes when declared mode matches meta.test_mode", async () => {
-  const http = makeClient([
-    { match: pathIs("/v1/users/me"), status: 200, body: liveUserDoc },
-    { match: pathIs("/v1/stores"), status: 200, body: storesCollection },
-  ]);
+	const http = makeClient([
+		{ match: pathIs("/v1/users/me"), status: 200, body: liveUserDoc },
+		{ match: pathIs("/v1/stores"), status: 200, body: storesCollection },
+	]);
 
-  const result = await validateConnection(http, "live");
+	const result = await validateConnection(http, "live");
 
-  expect(result.ok).toBe(true);
-  expect(result.resource?.actualMode).toBe("live");
+	expect(result.ok).toBe(true);
+	expect(result.resource?.actualMode).toBe("live");
 });
 
 test("validateConnection skips mode check when meta.test_mode is absent", async () => {
-  const docWithoutMeta = { data: userDoc.data };
-  const http = makeClient([
-    { match: pathIs("/v1/users/me"), status: 200, body: docWithoutMeta },
-    { match: pathIs("/v1/stores"), status: 200, body: storesCollection },
-  ]);
+	const docWithoutMeta = { data: userDoc.data };
+	const http = makeClient([
+		{ match: pathIs("/v1/users/me"), status: 200, body: docWithoutMeta },
+		{ match: pathIs("/v1/stores"), status: 200, body: storesCollection },
+	]);
 
-  const result = await validateConnection(http, "live");
+	const result = await validateConnection(http, "live");
 
-  expect(result.ok).toBe(true);
-  expect(result.resource?.actualMode).toBeUndefined();
-  expect(result.issues.find((entry) => entry.code === "MODE_MISMATCH")).toBeUndefined();
+	expect(result.ok).toBe(true);
+	expect(result.resource?.actualMode).toBeUndefined();
+	expect(
+		result.issues.find((entry) => entry.code === "MODE_MISMATCH"),
+	).toBeUndefined();
 });
 
 test("fetchActualMode derives mode from /v1/users/me meta", async () => {
-  const { fetch } = createMockFetch([
-    {
-      match: pathIs("/v1/users/me"),
-      status: 200,
-      body: {
-        data: { type: "users", id: "1", attributes: { name: "x", email: "x@x" } },
-        meta: { test_mode: true },
-      },
-    },
-  ]);
-  const http = new HttpClient({
-    apiKey: "k",
-    mode: "test",
-    baseUrl: "https://api.lemonsqueezy.com",
-    fetch,
-  });
+	const { fetch } = createMockFetch([
+		{
+			match: pathIs("/v1/users/me"),
+			status: 200,
+			body: {
+				data: {
+					type: "users",
+					id: "1",
+					attributes: { name: "x", email: "x@x" },
+				},
+				meta: { test_mode: true },
+			},
+		},
+	]);
+	const http = new HttpClient({
+		apiKey: "k",
+		mode: "test",
+		baseUrl: "https://api.lemonsqueezy.com",
+		fetch,
+	});
 
-  expect(await fetchActualMode(http)).toBe("test");
+	expect(await fetchActualMode(http)).toBe("test");
 });
 
 test("fetchActualMode returns undefined when the API does not surface meta.test_mode", async () => {
-  const { fetch } = createMockFetch([
-    {
-      match: pathIs("/v1/users/me"),
-      status: 200,
-      body: { data: { type: "users", id: "1", attributes: { name: "x", email: "x@x" } } },
-    },
-  ]);
-  const http = new HttpClient({
-    apiKey: "k",
-    mode: "live",
-    baseUrl: "https://api.lemonsqueezy.com",
-    fetch,
-  });
+	const { fetch } = createMockFetch([
+		{
+			match: pathIs("/v1/users/me"),
+			status: 200,
+			body: {
+				data: {
+					type: "users",
+					id: "1",
+					attributes: { name: "x", email: "x@x" },
+				},
+			},
+		},
+	]);
+	const http = new HttpClient({
+		apiKey: "k",
+		mode: "live",
+		baseUrl: "https://api.lemonsqueezy.com",
+		fetch,
+	});
 
-  expect(await fetchActualMode(http)).toBeUndefined();
+	expect(await fetchActualMode(http)).toBeUndefined();
 });
 
 test("resolveActualMode returns 'test' when test_mode is true", () => {
-  expect(resolveActualMode(true)).toBe("test");
+	expect(resolveActualMode(true)).toBe("test");
 });
 
 test("resolveActualMode returns 'live' when test_mode is false", () => {
-  expect(resolveActualMode(false)).toBe("live");
+	expect(resolveActualMode(false)).toBe("live");
 });
 
 test("resolveActualMode returns undefined when test_mode is missing", () => {
-  expect(resolveActualMode(undefined)).toBeUndefined();
+	expect(resolveActualMode(undefined)).toBeUndefined();
 });

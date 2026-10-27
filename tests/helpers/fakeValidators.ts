@@ -3,19 +3,20 @@ import type { DoctorValidators } from "../../src/validate/doctor.js";
 import { buildResult } from "../../src/validate/issues.js";
 
 export const createFakeValidators = (
-  overrides: Partial<DoctorValidators> = {},
+	overrides: Partial<DoctorValidators> = {},
 ): DoctorValidators => {
-  const ok = <T>(name: string, mode: Mode): ValidationResult<T> => buildResult<T>(name, mode, []);
+	const ok = <T>(name: string, mode: Mode): ValidationResult<T> =>
+		buildResult<T>(name, mode, []);
 
-  const defaults: DoctorValidators = {
-    connection: async (_http, mode) => ok("connection", mode),
-    store: async (_http, mode) => ok("store", mode),
-    product: async (_http, mode) => ok("product", mode),
-    webhook: async (_http, mode) => ok("webhook", mode),
-    discount: async (_http, mode) => ok("discount", mode),
-    licenseKey: async (_http, mode) => ok("licenseKey", mode),
-    subscriptionPlan: async (_http, mode) => ok("subscriptionPlan", mode),
-  };
+	const defaults: DoctorValidators = {
+		connection: async (_http, mode) => ok("connection", mode),
+		store: async (_http, mode) => ok("store", mode),
+		product: async (_http, mode) => ok("product", mode),
+		webhook: async (_http, mode) => ok("webhook", mode),
+		discount: async (_http, mode) => ok("discount", mode),
+		licenseKey: async (_http, mode) => ok("licenseKey", mode),
+		subscriptionPlan: async (_http, mode) => ok("subscriptionPlan", mode),
+	};
 
-  return { ...defaults, ...overrides };
+	return { ...defaults, ...overrides };
 };
