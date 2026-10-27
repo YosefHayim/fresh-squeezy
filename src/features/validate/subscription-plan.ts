@@ -1,26 +1,22 @@
+import type { Mode } from "@/shared/config.js";
+import type { Http } from "@/shared/http.js";
 import type {
 	ProductAttributes,
-	SubscriptionVariantAttributes,
-} from "@/shared/attributes.js";
-import type {
-	Mode,
-	ResourceId,
-	ValidationIssue,
-	ValidationResult,
-} from "@/shared/contracts.js";
-import type { HttpClient } from "@/shared/http.js";
+	VariantAttributes,
+} from "@/shared/lemon-squeezy-types.js";
+import { fetchResource, storeMismatchFindings } from "./fetch-resource.js";
 import {
 	buildResult,
-	failedResult,
-	ISSUE_CODES,
-	type IssueRule,
-	issuesOf,
-} from "./issues.js";
-import { checkStoreOwnership, probeFetch } from "./probe.js";
+	FINDING_CODES,
+	type Finding,
+	type FindingRule,
+	findingsFrom,
+	type ValidationResult,
+} from "./findings.js";
 
-export interface SubscriptionPlanValidationOptions {
-	storeId: ResourceId;
-	variantId: ResourceId;
+export interface SubscriptionPlanCheck {
+	storeId: string;
+	variantId: string;
 }
 
 export interface SubscriptionPlanSummary {
@@ -32,133 +28,64 @@ export interface SubscriptionPlanSummary {
 	status: string;
 }
 
+type PlanSubject = VariantAttributes & { variantId: string };
+
 const VALID_INTERVALS = new Set(["day", "week", "month", "year"]);
 
-const fetchVariant = (http: HttpClient, variantId: ResourceId) => {
-	return probeFetch(
-		() =>
-			http.getResource<SubscriptionVariantAttributes>(
-				`/v1/variants/${variantId}`,
-			),
-		{
-			code: ISSUE_CODES.PLAN_VARIANT_NOT_FOUND,
-			message: `Variant ${variantId} not found.`,
-			suggestedFix: "Verify the variant ID in the Lemon Squeezy dashboard.",
-			context: { variantId: String(variantId) },
-		},
-	);
+const isNotSubscription = (plan: PlanSubject) => !plan.is_subscription;
+
+const hasInvalidInterval = ({ interval }: PlanSubject) =>
+	!interval || !VALID_INTERVALS.has(interval);
+
+const hasInvalidIntervalCount = ({
+	interval_count: intervalCount,
+}: PlanSubject) => typeof intervalCount !== "number" || intervalCount <= 0;
+
+const hasFreePrice = (plan: PlanSubject) =>
+	plan.price === 0 && plan.is_subscription;
+
+const hasBrokenTrial = (plan: PlanSubject) => {
+	const isTrialMissingInterval = !plan.trial_interval;
+	const isTrialCountMissing = (plan.trial_interval_count ?? 0) <= 0;
+	return plan.has_free_trial && (isTrialMissingInterval || isTrialCountMissing);
 };
 
-// Advisory only: skip on a failed product fetch rather than blocking the attribute checks.
-const checkPlanStoreOwnership = async (
-	http: HttpClient,
-	storeId: ResourceId,
-	productId: ResourceId,
-): Promise<ValidationIssue[]> => {
-	const productProbed = await probeFetch(
-		() => http.getResource<ProductAttributes>(`/v1/products/${productId}`),
-		{
-			code: ISSUE_CODES.PRODUCT_NOT_FOUND,
-			message: `Product ${productId} not found.`,
-		},
-	);
-	const isProductMissing = !productProbed.ok;
-	if (isProductMissing) return [];
-	return checkStoreOwnership({
-		expectedStoreId: storeId,
-		actualStoreId: productProbed.resource.attributes.store_id,
-		code: ISSUE_CODES.PLAN_STORE_MISMATCH,
-		label: `Subscription variant (via product ${productId})`,
-		suggestedFix:
-			"Use the correct store ID or variant ID — plans should not cross stores.",
-		extraContext: { productId: String(productId) },
-	});
-};
+const isDraft = (plan: PlanSubject) => plan.status === "draft";
 
-const summarizePlan = (
-	variantId: string,
-	attributes: SubscriptionVariantAttributes,
-): SubscriptionPlanSummary => ({
-	variantId,
-	interval: attributes.interval,
-	intervalCount: attributes.interval_count,
-	price: attributes.price,
-	hasFreeTrial: attributes.has_free_trial,
-	status: attributes.status,
-});
-
-export const validateSubscriptionPlan = async (
-	http: HttpClient,
-	mode: Mode,
-	options: SubscriptionPlanValidationOptions,
-): Promise<ValidationResult<SubscriptionPlanSummary>> => {
-	const { storeId, variantId } = options;
-	const target = { label: `variant ${variantId}`, id: String(variantId) };
-
-	const fetched = await fetchVariant(http, variantId);
-	const isFetchFailed = !fetched.ok;
-	if (isFetchFailed) {
-		return failedResult("subscriptionPlan", mode, fetched.issue, target);
-	}
-
-	const { id, attributes } = fetched.resource;
-	const planIssues = checkSubscriptionPlan(attributes, { variantId });
-	const ownershipIssues = await checkPlanStoreOwnership(
-		http,
-		storeId,
-		attributes.product_id,
-	);
-
-	const summary = summarizePlan(id, attributes);
-
-	return buildResult(
-		"subscriptionPlan",
-		mode,
-		[...planIssues, ...ownershipIssues],
-		summary,
-		{ label: attributes.name, id: String(variantId) },
-	);
-};
-
-type PlanSubject = SubscriptionVariantAttributes & {
-	variantId: ResourceId;
-};
-
-const planIssueRules: IssueRule<PlanSubject>[] = [
+const PLAN_RULES: FindingRule<PlanSubject>[] = [
 	{
-		code: ISSUE_CODES.PLAN_NOT_SUBSCRIPTION,
+		code: FINDING_CODES.PLAN_NOT_SUBSCRIPTION,
 		severity: "error",
-		isRaised: (plan) => !plan.is_subscription,
+		when: isNotSubscription,
 		message: (plan) =>
 			`Variant ${plan.variantId} is not a subscription variant (is_subscription is false).`,
 		suggestedFix:
 			"Use a variant that has subscription billing enabled, or use the regular variant validator.",
-		context: (plan) => ({ variantId: String(plan.variantId) }),
+		context: (plan) => ({ variantId: plan.variantId }),
 	},
 	{
-		code: ISSUE_CODES.PLAN_INVALID_INTERVAL,
+		code: FINDING_CODES.PLAN_INVALID_INTERVAL,
 		severity: "error",
-		isRaised: ({ interval }) => !interval || !VALID_INTERVALS.has(interval),
+		when: hasInvalidInterval,
 		message: (plan) =>
 			`Subscription variant has invalid interval: "${plan.interval ?? "missing"}". Expected one of: day, week, month, year.`,
 		suggestedFix: "Set a valid billing interval in the variant configuration.",
 		context: (plan) => ({ interval: plan.interval ?? null }),
 	},
 	{
-		code: ISSUE_CODES.PLAN_INVALID_INTERVAL,
+		code: FINDING_CODES.PLAN_INVALID_INTERVAL,
 		severity: "error",
-		isRaised: ({ interval_count }) =>
-			typeof interval_count !== "number" || interval_count <= 0,
+		when: hasInvalidIntervalCount,
 		message: (plan) =>
 			`Subscription variant has invalid interval_count: ${plan.interval_count ?? "missing"}. Must be a positive integer.`,
 		suggestedFix:
 			"Set interval_count to a positive value (e.g. 1 for monthly, 2 for biweekly).",
-		context: (plan) => ({ intervalCount: plan.interval_count }),
+		context: (plan) => ({ intervalCount: plan.interval_count ?? null }),
 	},
 	{
-		code: ISSUE_CODES.PLAN_FREE_PRICE,
+		code: FINDING_CODES.PLAN_FREE_PRICE,
 		severity: "warning",
-		isRaised: (plan) => plan.price === 0 && plan.is_subscription,
+		when: hasFreePrice,
 		message:
 			"Subscription variant has a price of 0 — this is almost always a misconfiguration for paid plans.",
 		suggestedFix:
@@ -166,11 +93,9 @@ const planIssueRules: IssueRule<PlanSubject>[] = [
 		context: (plan) => ({ price: plan.price }),
 	},
 	{
-		code: ISSUE_CODES.PLAN_TRIAL_INCONSISTENT,
+		code: FINDING_CODES.PLAN_TRIAL_INCONSISTENT,
 		severity: "warning",
-		isRaised: (plan) =>
-			plan.has_free_trial &&
-			(!plan.trial_interval || (plan.trial_interval_count ?? 0) <= 0),
+		when: hasBrokenTrial,
 		message: (plan) =>
 			`Subscription variant has free trial enabled but trial interval is misconfigured (interval: "${plan.trial_interval ?? "missing"}", count: ${plan.trial_interval_count ?? 0}).`,
 		suggestedFix:
@@ -181,9 +106,9 @@ const planIssueRules: IssueRule<PlanSubject>[] = [
 		}),
 	},
 	{
-		code: ISSUE_CODES.PLAN_DRAFT,
+		code: FINDING_CODES.PLAN_DRAFT,
 		severity: "warning",
-		isRaised: (plan) => plan.status === "draft",
+		when: isDraft,
 		message:
 			"Subscription variant is in draft status — customers cannot subscribe.",
 		suggestedFix: "Publish the variant in the Lemon Squeezy dashboard.",
@@ -191,8 +116,77 @@ const planIssueRules: IssueRule<PlanSubject>[] = [
 	},
 ];
 
-export const checkSubscriptionPlan = (
-	attributes: SubscriptionVariantAttributes,
-	options: { variantId: ResourceId },
-): ValidationIssue[] =>
-	issuesOf(planIssueRules, { ...attributes, variantId: options.variantId });
+const summaryOf = (
+	variantId: string,
+	plan: VariantAttributes,
+): SubscriptionPlanSummary => ({
+	variantId,
+	interval: plan.interval,
+	intervalCount: plan.interval_count,
+	price: plan.price,
+	hasFreeTrial: plan.has_free_trial,
+	status: plan.status,
+});
+
+const storeFindingsOf = async (
+	http: Http,
+	storeId: string,
+	productId: number,
+): Promise<Finding[]> => {
+	const fetched = await fetchResource<ProductAttributes>(http, {
+		path: `/v1/products/${productId}`,
+		notFound: {
+			code: FINDING_CODES.PRODUCT_NOT_FOUND,
+			message: `Product ${productId} not found.`,
+		},
+	});
+	// Advisory only: a failed product fetch skips the store check instead of blocking the plan checks.
+	const isFetchFailed = fetched.kind === "failed";
+	if (isFetchFailed) return [];
+	return storeMismatchFindings({
+		label: `Subscription variant (via product ${productId})`,
+		code: FINDING_CODES.PLAN_STORE_MISMATCH,
+		expectedStoreId: storeId,
+		actualStoreId: fetched.payload.store_id,
+		suggestedFix:
+			"Use the correct store ID or variant ID — plans should not cross stores.",
+		extraContext: { productId: String(productId) },
+	});
+};
+
+export const validateSubscriptionPlan = async (
+	http: Http,
+	mode: Mode,
+	{ storeId, variantId }: SubscriptionPlanCheck,
+): Promise<ValidationResult<SubscriptionPlanSummary>> => {
+	const fetched = await fetchResource<VariantAttributes>(http, {
+		path: `/v1/variants/${variantId}`,
+		notFound: {
+			code: FINDING_CODES.PLAN_VARIANT_NOT_FOUND,
+			message: `Variant ${variantId} not found.`,
+			suggestedFix: "Verify the variant ID in the Lemon Squeezy dashboard.",
+			context: { variantId },
+		},
+	});
+
+	const isFetchFailed = fetched.kind === "failed";
+	if (isFetchFailed) {
+		return buildResult({
+			name: "subscriptionPlan",
+			mode,
+			findings: [fetched.finding],
+			target: { label: `variant ${variantId}`, id: variantId },
+		});
+	}
+
+	const plan = fetched.payload;
+	const planFindings = findingsFrom(PLAN_RULES, { ...plan, variantId });
+	const storeFindings = await storeFindingsOf(http, storeId, plan.product_id);
+	return buildResult({
+		name: "subscriptionPlan",
+		mode,
+		findings: [...planFindings, ...storeFindings],
+		resource: summaryOf(variantId, plan),
+		target: { label: plan.name, id: variantId },
+	});
+};

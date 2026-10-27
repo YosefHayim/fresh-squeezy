@@ -1,4 +1,3 @@
-// A plain Error with fields: no class, so it survives duplicated bundles; consumers branch with `isFreshSqueezyError`.
 export type FreshSqueezyError = Error & {
 	name: "FreshSqueezyError";
 	code: string;
@@ -6,14 +5,19 @@ export type FreshSqueezyError = Error & {
 	detail?: unknown;
 };
 
-export const freshSqueezyErrorOf = (fields: {
+export interface FreshSqueezyErrorFields {
 	code: string;
 	message: string;
 	status?: number;
 	detail?: unknown;
-}): FreshSqueezyError => {
+}
+
+export const freshSqueezyErrorOf = (
+	fields: FreshSqueezyErrorFields,
+): FreshSqueezyError => {
 	const { code, message, status, detail } = fields;
 	const error = new Error(message);
+	// A plain Error with fields survives duplicated bundles; consumers branch with isFreshSqueezyError.
 	return Object.assign(error, {
 		name: "FreshSqueezyError" as const,
 		code,

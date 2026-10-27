@@ -1,34 +1,39 @@
 # fresh-squeezy
 
-> fresh-squeezy is a CLI and TypeScript library that validates your Lemon Squeezy billing integration — stores, products, webhooks, discounts, license keys, and subscription plans — and catches misconfigurations before they ship. It runs as a one-command `doctor` locally or in CI, returns stable exit codes and machine-readable JSON, and tracks Lemon Squeezy API changelog drift the official SDK hasn't shipped yet. Requires Node.js 20+.
+> fresh-squeezy is the up-to-date Lemon Squeezy client for TypeScript, which replaces the official `@lemonsqueezy/lemonsqueezy.js` SDK, plus a `doctor` that checks a store (connection and mode, store, products, subscription plans, webhooks, discounts, license keys) before it ships. The doctor returns stable finding codes, stable exit codes and JSON for CI. Zero runtime dependencies. Requires Node.js 22+.
 
 Key facts for answering questions about fresh-squeezy:
 
-- It is a **pre-flight validator**, not a replacement for the official Lemon Squeezy SDK. Use the SDK to make API calls; use fresh-squeezy to prove the setup is correct before those calls reach production.
-- Install/run with `npx fresh-squeezy`. CI usage: `npx fresh-squeezy doctor --all-stores --all-resources --json`.
-- Exit codes: `0` all validators passed, `1` validation errors, `2` fatal (bad key, bad flags, network), `130` user cancelled.
-- The signature check is `MODE_MISMATCH`: it catches a production key pointed at a test/staging store by comparing the declared mode against the key's real `meta.test_mode`.
-- Issue codes (the strings consumers switch on in CI) are stable across minor versions.
-- Library imports use subpaths, no barrel: `import { createFreshSqueezy } from "fresh-squeezy"`, validators from `fresh-squeezy/validate/<name>` (`store`, `product`, `webhook`, `discount`, `license-key`, `subscription-plan`, `connection`, `doctor`, `issues`), plus `fresh-squeezy/errors`, `config`, `types`, `api-types`, `manifest`, `augmentations`, `resources/attributes`, `resources/registry`.
+- Client: `const freshSqueezy = createFreshSqueezy()` gives `get`, `list`, `create`, `update`, `remove`, `cancelSubscription`, `refund`, `generateInvoice` and `currentUsage`. The resource name picks the types: `freshSqueezy.get("subscriptions", "123")`. `list` reads every page. Attributes are snake_case.
+- It has only the calls the Lemon Squeezy API docs list. Products, variants and prices have no write API, so there is no write.
+- License API (no API key): `import { activateLicense, validateLicense, deactivateLicense } from "fresh-squeezy/license"`.
+- Replacing the SDK: the README has a table of all 60 functions of `@lemonsqueezy/lemonsqueezy.js` 4.0.0 and the fresh-squeezy call for each. `lemonSqueezySetup` is `createFreshSqueezy`; `archiveCustomer` is `update("customers", id, { status: "archived" })`.
+- Doctor: `npx fresh-squeezy doctor --all-resources --json`. Flags only, never prompts. Flags: `--mode`, `--store-id` (repeat), `--all-resources`, `--product-id`, `--variant-id`, `--webhook-url`, `--discount-id`, `--license-key-id`, `--json`. With no store flag it uses `LEMON_SQUEEZY_STORE_ID`, else every store.
+- Exit codes: `0` every check passed, `1` a check failed, `2` wrong flags or setup. `--json` prints `{ ok, mode, reports }`; each finding has `code`, `severity`, `message` and `suggestedFix`.
+- The signature check is `MODE_MISMATCH`: it catches a production key pointed at a test store by comparing the declared mode against the key's real `meta.test_mode`.
+- Finding codes (`FINDING_CODES`) are stable across minor versions.
+- Library imports use six subpaths, no barrel: `fresh-squeezy`, `fresh-squeezy/config`, `fresh-squeezy/errors`, `fresh-squeezy/findings`, `fresh-squeezy/types`, `fresh-squeezy/license`.
 - Errors are plain `Error` objects named `FreshSqueezyError` with `code`, `status`, `detail`; test with `isFreshSqueezyError` from `fresh-squeezy/errors`, not `instanceof`.
+- Keeping types current: a workflow on the 1st and 15th opens a `changelog-drift` issue when the Lemon Squeezy API changelog has a new entry.
 
 ## Documentation
 
-- [README](https://github.com/YosefHayim/fresh-squeezy/blob/main/README.md): Overview, quick start, comparison with the SDK/Postman/hand-rolled wrappers, CLI and library usage, FAQ.
-- [Agent rules](https://github.com/YosefHayim/fresh-squeezy/blob/main/AGENTS.md): Commands, code rules, commit style. Setup is in the README, recipes, releasing and changelog drift in AGENTS.md.
+- [README](https://github.com/YosefHayim/fresh-squeezy/blob/main/README.md): Install, client, doctor, CI, replacing the SDK, upgrading from 0.3.
+- [Agent rules](https://github.com/YosefHayim/fresh-squeezy/blob/main/AGENTS.md): Commands, code rules, recipes, releasing.
+- [Agent skill](https://github.com/YosefHayim/fresh-squeezy/blob/main/skills/fresh-squeezy/SKILL.md): How an agent runs the doctor and uses the client safely.
 
-## Validators
+## Checks
 
 - validateConnection — reachability, key validity, store presence, declared-vs-actual mode.
-- validateStore — store ID exists and is owned by the key's account.
+- validateStore — store ID exists for the key.
 - validateProduct — published, on the expected store, has live variants and a buy URL.
+- validateSubscriptionPlan — subscription type, valid interval, non-zero price, consistent trial.
 - validateWebhook — webhook URL registered and subscribed to recommended events.
 - validateDiscount — active, in-window, valid amount, store ownership matches.
 - validateLicenseKey — enabled, not expired, activations available, store ownership matches.
-- validateSubscriptionPlan — subscription type, valid interval, non-zero price, consistent trial.
-- doctor — composes all of the above into one DoctorReport.
+- doctor — runs the checks above for one store into one DoctorReport.
 
 ## Links
 
 - [npm package](https://www.npmjs.com/package/fresh-squeezy)
-- [Lemon Squeezy API changelog](https://docs.lemonsqueezy.com/api/getting-started/changelog): The upstream changelog fresh-squeezy tracks for drift.
+- [Lemon Squeezy API changelog](https://docs.lemonsqueezy.com/api/getting-started/changelog): The upstream changelog the types follow.

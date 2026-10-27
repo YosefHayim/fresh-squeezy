@@ -1,111 +1,112 @@
-import type { LicenseKeyAttributes } from "@/shared/attributes.js";
-import type {
-	Mode,
-	ResourceId,
-	ValidationIssue,
-	ValidationResult,
-} from "@/shared/contracts.js";
-import type { HttpClient } from "@/shared/http.js";
-import { isPast } from "./dates.js";
+import type { Mode } from "@/shared/config.js";
+import type { Http } from "@/shared/http.js";
+import type { LicenseKeyAttributes } from "@/shared/lemon-squeezy-types.js";
+import { fetchResource, storeMismatchFindings } from "./fetch-resource.js";
 import {
 	buildResult,
-	failedResult,
-	ISSUE_CODES,
-	type IssueRule,
-	issuesOf,
-} from "./issues.js";
-import { checkStoreOwnership, probeFetch } from "./probe.js";
+	FINDING_CODES,
+	type FindingRule,
+	findingsFrom,
+	type ValidationResult,
+} from "./findings.js";
 
-export interface LicenseKeyValidationOptions {
-	storeId: ResourceId;
-	licenseKeyId: ResourceId;
+export interface LicenseKeyCheck {
+	storeId: string;
+	licenseKeyId: string;
 }
 
-export const validateLicenseKey = async (
-	http: HttpClient,
-	mode: Mode,
-	options: LicenseKeyValidationOptions,
-): Promise<ValidationResult<LicenseKeyAttributes>> => {
-	const target = {
-		label: `license key ${options.licenseKeyId}`,
-		id: String(options.licenseKeyId),
-	};
+const isDisabled = (licenseKey: LicenseKeyAttributes) => licenseKey.disabled;
 
-	const fetched = await probeFetch(
-		() =>
-			http.getResource<LicenseKeyAttributes>(
-				`/v1/license-keys/${options.licenseKeyId}`,
-			),
-		{
-			code: ISSUE_CODES.LICENSE_KEY_NOT_FOUND,
-			message: `License key ${options.licenseKeyId} not found.`,
-			suggestedFix: "Verify the license key ID in the Lemon Squeezy dashboard.",
-			context: { licenseKeyId: String(options.licenseKeyId) },
-		},
-	);
-
-	const isFetchFailed = !fetched.ok;
-	if (isFetchFailed) {
-		return failedResult("licenseKey", mode, fetched.issue, target);
-	}
-
-	const attributes = fetched.resource.attributes;
-	const issues = checkLicenseKey(attributes, { storeId: options.storeId });
-	return buildResult("licenseKey", mode, issues, attributes, {
-		label: attributes.key_short,
-		id: String(options.licenseKeyId),
-	});
+const isExpired = (licenseKey: LicenseKeyAttributes) => {
+	const expiresAt = licenseKey.expires_at;
+	const isExpirySet = expiresAt !== null;
+	return isExpirySet && Date.parse(expiresAt) < Date.now();
 };
 
-const licenseKeyIssueRules: IssueRule<LicenseKeyAttributes>[] = [
+const isAtActivationLimit = (licenseKey: LicenseKeyAttributes) => {
+	const { activation_limit: activationLimit, instances_count: instancesCount } =
+		licenseKey;
+	const isLimitSet = activationLimit !== null;
+	return isLimitSet && instancesCount >= activationLimit;
+};
+
+const LICENSE_KEY_RULES: FindingRule<LicenseKeyAttributes>[] = [
 	{
-		code: ISSUE_CODES.LICENSE_KEY_DISABLED,
+		code: FINDING_CODES.LICENSE_KEY_DISABLED,
 		severity: "error",
-		isRaised: (attributes) => attributes.disabled,
-		message: (attributes) => `License key ${attributes.key_short} is disabled.`,
+		when: isDisabled,
+		message: (licenseKey) => `License key ${licenseKey.key_short} is disabled.`,
 		suggestedFix: "Re-enable the license key in the Lemon Squeezy dashboard.",
-		context: (attributes) => ({ keyShort: attributes.key_short }),
+		context: (licenseKey) => ({ keyShort: licenseKey.key_short }),
 	},
 	{
-		code: ISSUE_CODES.LICENSE_KEY_EXPIRED,
+		code: FINDING_CODES.LICENSE_KEY_EXPIRED,
 		severity: "error",
-		isRaised: (attributes) => isPast(attributes.expires_at),
-		message: (attributes) =>
-			`License key ${attributes.key_short} expired at ${attributes.expires_at}.`,
+		when: isExpired,
+		message: (licenseKey) =>
+			`License key ${licenseKey.key_short} expired at ${licenseKey.expires_at}.`,
 		suggestedFix: "Extend the expiration date or issue a new license key.",
-		context: (attributes) => ({
-			keyShort: attributes.key_short,
-			expiresAt: attributes.expires_at,
+		context: (licenseKey) => ({
+			keyShort: licenseKey.key_short,
+			expiresAt: licenseKey.expires_at,
 		}),
 	},
 	{
-		code: ISSUE_CODES.LICENSE_KEY_AT_ACTIVATION_LIMIT,
+		code: FINDING_CODES.LICENSE_KEY_AT_ACTIVATION_LIMIT,
 		severity: "warning",
-		isRaised: ({ activation_limit, instances_count }) =>
-			activation_limit !== null && instances_count >= activation_limit,
-		message: (attributes) =>
-			`License key ${attributes.key_short} has reached its activation limit (${attributes.instances_count}/${attributes.activation_limit}).`,
+		when: isAtActivationLimit,
+		message: (licenseKey) =>
+			`License key ${licenseKey.key_short} has reached its activation limit (${licenseKey.instances_count}/${licenseKey.activation_limit}).`,
 		suggestedFix:
 			"Increase the activation limit or deactivate unused instances.",
-		context: (attributes) => ({
-			keyShort: attributes.key_short,
-			instancesCount: attributes.instances_count,
-			activationLimit: attributes.activation_limit,
+		context: (licenseKey) => ({
+			keyShort: licenseKey.key_short,
+			instancesCount: licenseKey.instances_count,
+			activationLimit: licenseKey.activation_limit,
 		}),
 	},
 ];
 
-export const checkLicenseKey = (
-	attributes: LicenseKeyAttributes,
-	options: { storeId: ResourceId },
-): ValidationIssue[] => {
-	const ownershipIssues = checkStoreOwnership({
-		expectedStoreId: options.storeId,
-		actualStoreId: attributes.store_id,
-		code: ISSUE_CODES.LICENSE_KEY_STORE_MISMATCH,
+export const validateLicenseKey = async (
+	http: Http,
+	mode: Mode,
+	{ storeId, licenseKeyId }: LicenseKeyCheck,
+): Promise<ValidationResult<LicenseKeyAttributes>> => {
+	const fetched = await fetchResource<LicenseKeyAttributes>(http, {
+		path: `/v1/license-keys/${licenseKeyId}`,
+		notFound: {
+			code: FINDING_CODES.LICENSE_KEY_NOT_FOUND,
+			message: `License key ${licenseKeyId} not found.`,
+			suggestedFix: "Verify the license key ID in the Lemon Squeezy dashboard.",
+			context: { licenseKeyId },
+		},
+	});
+
+	const isFetchFailed = fetched.kind === "failed";
+	if (isFetchFailed) {
+		return buildResult({
+			name: "licenseKey",
+			mode,
+			findings: [fetched.finding],
+			target: { label: `license key ${licenseKeyId}`, id: licenseKeyId },
+		});
+	}
+
+	const licenseKey = fetched.payload;
+	const storeFindings = storeMismatchFindings({
 		label: "License key",
+		code: FINDING_CODES.LICENSE_KEY_STORE_MISMATCH,
+		expectedStoreId: storeId,
+		actualStoreId: licenseKey.store_id,
 		suggestedFix:
 			"Use the correct store ID or license key ID — keys should not cross stores.",
 	});
-	return [...ownershipIssues, ...issuesOf(licenseKeyIssueRules, attributes)];
+	const ruleFindings = findingsFrom(LICENSE_KEY_RULES, licenseKey);
+	return buildResult({
+		name: "licenseKey",
+		mode,
+		findings: [...storeFindings, ...ruleFindings],
+		resource: licenseKey,
+		target: { label: licenseKey.key_short, id: licenseKeyId },
+	});
 };

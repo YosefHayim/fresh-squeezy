@@ -1,32 +1,45 @@
-import type { StoreAttributes } from "@/shared/attributes.js";
-import type { Mode, ResourceId, ValidationResult } from "@/shared/contracts.js";
-import type { HttpClient } from "@/shared/http.js";
-import { buildResult, failedResult, ISSUE_CODES } from "./issues.js";
-import { probeFetch } from "./probe.js";
+import type { Mode } from "@/shared/config.js";
+import type { Http } from "@/shared/http.js";
+import type { StoreAttributes } from "@/shared/lemon-squeezy-types.js";
+import { fetchResource } from "./fetch-resource.js";
+import {
+	buildResult,
+	FINDING_CODES,
+	type ValidationResult,
+} from "./findings.js";
 
 export const validateStore = async (
-	http: HttpClient,
+	http: Http,
 	mode: Mode,
-	storeId: ResourceId,
+	storeId: string,
 ): Promise<ValidationResult<StoreAttributes>> => {
-	const target = { label: `store ${storeId}`, id: String(storeId) };
-
-	const fetched = await probeFetch(
-		() => http.getResource<StoreAttributes>(`/v1/stores/${storeId}`),
-		{
-			code: ISSUE_CODES.STORE_NOT_FOUND,
+	const fetched = await fetchResource<StoreAttributes>(http, {
+		path: `/v1/stores/${storeId}`,
+		notFound: {
+			code: FINDING_CODES.STORE_NOT_FOUND,
 			message: `Store ${storeId} not found with the current API key.`,
 			suggestedFix:
 				"Check the store ID and confirm the API key belongs to the account that owns it.",
-			context: { storeId: String(storeId) },
+			context: { storeId },
 		},
-	);
+	});
 
-	const isFetchFailed = !fetched.ok;
-	if (isFetchFailed) return failedResult("store", mode, fetched.issue, target);
+	const isFetchFailed = fetched.kind === "failed";
+	if (isFetchFailed) {
+		return buildResult({
+			name: "store",
+			mode,
+			findings: [fetched.finding],
+			target: { label: `store ${storeId}`, id: storeId },
+		});
+	}
 
-	return buildResult("store", mode, [], fetched.resource.attributes, {
-		label: fetched.resource.attributes.name,
-		id: String(storeId),
+	const store = fetched.payload;
+	return buildResult({
+		name: "store",
+		mode,
+		findings: [],
+		resource: store,
+		target: { label: store.name, id: storeId },
 	});
 };

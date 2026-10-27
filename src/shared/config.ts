@@ -1,11 +1,8 @@
-import type {
-	FreshSqueezyConfig,
-	Mode,
-	ResolvedConfig,
-} from "@/shared/contracts.js";
-import { freshSqueezyErrorOf } from "@/shared/errors.js";
+import { freshSqueezyErrorOf } from "./errors.js";
 
 const DEFAULT_BASE_URL = "https://api.lemonsqueezy.com";
+
+const DEFAULT_MODE = "test";
 
 export const ENV_KEYS = {
 	apiKey: "LEMON_SQUEEZY_API_KEY",
@@ -13,14 +10,43 @@ export const ENV_KEYS = {
 	mode: "LEMON_SQUEEZY_MODE",
 } as const;
 
-export const readEnvApiKey = () => process.env[ENV_KEYS.apiKey]?.trim();
+export type Mode = "test" | "live";
 
-export const readEnvMode = () => process.env[ENV_KEYS.mode]?.trim();
+export interface FreshSqueezyConfig {
+	apiKey?: string;
+	storeId?: string;
+	mode?: Mode;
+	baseUrl?: string;
+	fetch?: typeof fetch;
+}
 
-export const resolveConfig = (
-	input: FreshSqueezyConfig = {},
-): ResolvedConfig => {
-	const apiKey = input.apiKey ?? process.env[ENV_KEYS.apiKey];
+export interface Config {
+	apiKey: string;
+	storeId?: string;
+	mode: Mode;
+	baseUrl: string;
+	fetch: typeof fetch;
+}
+
+const readEnv = (key: keyof typeof ENV_KEYS) => {
+	const envName = ENV_KEYS[key];
+	return process.env[envName]?.trim();
+};
+
+const isMode = (value: string): value is Mode =>
+	value === "test" || value === "live";
+
+export const parseMode = (value: string): Mode => {
+	const isKnownMode = isMode(value);
+	if (isKnownMode) return value;
+	throw freshSqueezyErrorOf({
+		code: "INVALID_MODE",
+		message: `Mode must be "test" or "live", got "${value}".`,
+	});
+};
+
+export const readConfig = (input: FreshSqueezyConfig = {}): Config => {
+	const apiKey = input.apiKey ?? readEnv("apiKey");
 	const isApiKeyMissing = !apiKey;
 	if (isApiKeyMissing) {
 		throw freshSqueezyErrorOf({
@@ -28,28 +54,12 @@ export const resolveConfig = (
 			message: `No API key provided. Pass \`apiKey\` or set ${ENV_KEYS.apiKey}.`,
 		});
 	}
-
-	const mode = parseMode(input.mode ?? process.env[ENV_KEYS.mode] ?? "test");
-	const storeIdRaw = input.storeId ?? process.env[ENV_KEYS.storeId];
-
-	const isStoreIdMissing = storeIdRaw == null;
-
+	const modeText = input.mode ?? readEnv("mode") ?? DEFAULT_MODE;
 	return {
 		apiKey,
-		storeId: isStoreIdMissing ? undefined : String(storeIdRaw),
-		mode,
+		storeId: input.storeId ?? readEnv("storeId"),
+		mode: parseMode(modeText),
 		baseUrl: input.baseUrl ?? DEFAULT_BASE_URL,
 		fetch: input.fetch ?? globalThis.fetch,
 	};
-};
-
-export const isMode = (value: string): value is Mode =>
-	value === "test" || value === "live";
-
-export const parseMode = (value: string): Mode => {
-	if (isMode(value)) return value;
-	throw freshSqueezyErrorOf({
-		code: "INVALID_MODE",
-		message: `Mode must be "test" or "live", got "${value}".`,
-	});
 };
