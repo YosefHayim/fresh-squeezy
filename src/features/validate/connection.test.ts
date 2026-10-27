@@ -3,7 +3,7 @@ import {
 	unauthorizedError,
 	userDoc,
 } from "@e2e/fixtures/sandbox/data.js";
-import { makeClient, route, SIGNED_IN_ROUTES } from "@e2e/mock-fetch.js";
+import { makeHttp, route, SIGNED_IN_ROUTES } from "@e2e/mock-fetch.js";
 import { expect, test } from "vitest";
 import { validateConnection } from "./connection.js";
 
@@ -13,7 +13,7 @@ const liveRoutes = [
 ];
 
 test("validateConnection returns ok when key auths and stores are reachable", async () => {
-	const http = makeClient(SIGNED_IN_ROUTES);
+	const http = makeHttp(SIGNED_IN_ROUTES);
 
 	const connectionValidation = await validateConnection(http, "test");
 
@@ -24,7 +24,7 @@ test("validateConnection returns ok when key auths and stores are reachable", as
 });
 
 test("validateConnection warns when no stores reachable", async () => {
-	const http = makeClient([
+	const http = makeHttp([
 		...SIGNED_IN_ROUTES.slice(0, 1),
 		route("/v1/stores", { data: [] }),
 	]);
@@ -32,28 +32,28 @@ test("validateConnection warns when no stores reachable", async () => {
 	const connectionValidation = await validateConnection(http, "test");
 
 	expect(connectionValidation.ok).toBe(true);
-	expect(connectionValidation.issues[0]?.code).toBe("STORE_NOT_FOUND");
-	expect(connectionValidation.issues[0]?.severity).toBe("warning");
+	expect(connectionValidation.findings[0]?.code).toBe("STORE_NOT_FOUND");
+	expect(connectionValidation.findings[0]?.severity).toBe("warning");
 });
 
 test("validateConnection surfaces AUTH_FAILED on 401", async () => {
-	const http = makeClient([route("/v1/users/me", unauthorizedError, 401)]);
+	const http = makeHttp([route("/v1/users/me", unauthorizedError, 401)]);
 
 	const connectionValidation = await validateConnection(http, "test");
 
 	expect(connectionValidation.ok).toBe(false);
-	expect(connectionValidation.issues[0]?.code).toBe("AUTH_FAILED");
+	expect(connectionValidation.findings[0]?.code).toBe("AUTH_FAILED");
 });
 
 test("validateConnection flags MODE_MISMATCH when declared mode differs from meta.test_mode", async () => {
-	const http = makeClient(liveRoutes);
+	const http = makeHttp(liveRoutes);
 
 	const connectionValidation = await validateConnection(http, "test");
 
 	expect(connectionValidation.ok).toBe(false);
 	expect(connectionValidation.resource?.actualMode).toBe("live");
 	expect(connectionValidation.resource?.declaredMode).toBe("test");
-	const mismatch = connectionValidation.issues.find(
+	const mismatch = connectionValidation.findings.find(
 		(entry) => entry.code === "MODE_MISMATCH",
 	);
 	expect(mismatch?.severity).toBe("error");
@@ -61,7 +61,7 @@ test("validateConnection flags MODE_MISMATCH when declared mode differs from met
 });
 
 test("validateConnection passes when declared mode matches meta.test_mode", async () => {
-	const http = makeClient(liveRoutes);
+	const http = makeHttp(liveRoutes);
 
 	const connectionValidation = await validateConnection(http, "live");
 
@@ -71,7 +71,7 @@ test("validateConnection passes when declared mode matches meta.test_mode", asyn
 
 test("validateConnection skips mode check when meta.test_mode is absent", async () => {
 	const docWithoutMeta = { data: userDoc.data };
-	const http = makeClient([
+	const http = makeHttp([
 		route("/v1/users/me", docWithoutMeta),
 		...SIGNED_IN_ROUTES.slice(1),
 	]);
@@ -81,6 +81,8 @@ test("validateConnection skips mode check when meta.test_mode is absent", async 
 	expect(connectionValidation.ok).toBe(true);
 	expect(connectionValidation.resource?.actualMode).toBeUndefined();
 	expect(
-		connectionValidation.issues.find((entry) => entry.code === "MODE_MISMATCH"),
+		connectionValidation.findings.find(
+			(entry) => entry.code === "MODE_MISMATCH",
+		),
 	).toBeUndefined();
 });

@@ -1,15 +1,15 @@
 import { storeDoc, unauthorizedError } from "@e2e/fixtures/sandbox/data.js";
 import { createMockFetch, pathIs } from "@e2e/mock-fetch.js";
 import { expect, test } from "vitest";
-import { resolveConfig } from "@/shared/config.js";
+import { readConfig } from "@/shared/config.js";
 import { isFreshSqueezyError } from "@/shared/errors.js";
-import { HttpClient } from "./http.js";
+import { createHttp } from "./http.js";
 
-test("HttpClient sends bearer auth and returns parsed JSON", async () => {
+test("http sends bearer auth and returns parsed JSON", async () => {
 	const { fetch, calls } = createMockFetch([
 		{ match: pathIs("/v1/stores/42"), status: 200, body: storeDoc },
 	]);
-	const http = new HttpClient(resolveConfig({ apiKey: "k_test_abc", fetch }));
+	const http = createHttp(readConfig({ apiKey: "k_test_abc", fetch }));
 
 	const resource = await http.getResource("/v1/stores/42");
 
@@ -19,11 +19,11 @@ test("HttpClient sends bearer auth and returns parsed JSON", async () => {
 	expect(calls[0]?.method).toBe("GET");
 });
 
-test("HttpClient throws FreshSqueezyError with UNAUTHORIZED on 401", async () => {
+test("http throws FreshSqueezyError with UNAUTHORIZED on 401", async () => {
 	const { fetch } = createMockFetch([
 		{ match: pathIs("/v1/users/me"), status: 401, body: unauthorizedError },
 	]);
-	const http = new HttpClient(resolveConfig({ apiKey: "bad", fetch }));
+	const http = createHttp(readConfig({ apiKey: "bad", fetch }));
 
 	await expect(http.request({ path: "/v1/users/me" })).rejects.toMatchObject({
 		name: "FreshSqueezyError",
@@ -32,7 +32,7 @@ test("HttpClient throws FreshSqueezyError with UNAUTHORIZED on 401", async () =>
 	});
 });
 
-test("HttpClient throws NOT_FOUND on 404 and preserves JSON:API detail", async () => {
+test("http throws NOT_FOUND on 404 and preserves JSON:API detail", async () => {
 	const { fetch } = createMockFetch([
 		{
 			match: pathIs("/v1/stores/9999"),
@@ -42,7 +42,7 @@ test("HttpClient throws NOT_FOUND on 404 and preserves JSON:API detail", async (
 			},
 		},
 	]);
-	const http = new HttpClient(resolveConfig({ apiKey: "k", fetch }));
+	const http = createHttp(readConfig({ apiKey: "k", fetch }));
 
 	await expect(http.getResource("/v1/stores/9999")).rejects.toMatchObject({
 		code: "NOT_FOUND",
@@ -51,7 +51,7 @@ test("HttpClient throws NOT_FOUND on 404 and preserves JSON:API detail", async (
 	});
 });
 
-test("HttpClient throws RATE_LIMITED on 429", async () => {
+test("http throws RATE_LIMITED on 429", async () => {
 	const { fetch } = createMockFetch([
 		{
 			match: pathIs("/v1/products"),
@@ -59,7 +59,7 @@ test("HttpClient throws RATE_LIMITED on 429", async () => {
 			body: { errors: [{ status: "429", title: "Too Many Requests" }] },
 		},
 	]);
-	const http = new HttpClient(resolveConfig({ apiKey: "k", fetch }));
+	const http = createHttp(readConfig({ apiKey: "k", fetch }));
 
 	await expect(http.request({ path: "/v1/products" })).rejects.toMatchObject({
 		code: "RATE_LIMITED",
@@ -68,11 +68,11 @@ test("HttpClient throws RATE_LIMITED on 429", async () => {
 	});
 });
 
-test("HttpClient falls back to HTTP_<status> when no JSON:API code is present", async () => {
+test("http falls back to HTTP_<status> when no JSON:API code is present", async () => {
 	const { fetch } = createMockFetch([
 		{ match: pathIs("/v1/boom"), status: 500, body: { errors: [] } },
 	]);
-	const http = new HttpClient(resolveConfig({ apiKey: "k", fetch }));
+	const http = createHttp(readConfig({ apiKey: "k", fetch }));
 
 	await expect(http.request({ path: "/v1/boom" })).rejects.toMatchObject({
 		code: "HTTP_500",
@@ -80,20 +80,20 @@ test("HttpClient falls back to HTTP_<status> when no JSON:API code is present", 
 	});
 });
 
-test("HttpClient maps network failures to NETWORK_ERROR", async () => {
+test("http maps network failures to NETWORK_ERROR", async () => {
 	const fetchImpl: typeof fetch = async () => {
 		throw new Error("ECONNRESET");
 	};
-	const http = new HttpClient(resolveConfig({ apiKey: "k", fetch: fetchImpl }));
+	const http = createHttp(readConfig({ apiKey: "k", fetch: fetchImpl }));
 
-	const err = await http
+	const thrown = await http
 		.request({ path: "/v1/users/me" })
-		.catch((error) => error);
-	expect(isFreshSqueezyError(err)).toBe(true);
-	expect((err as { code: string }).code).toBe("NETWORK_ERROR");
+		.catch((caught) => caught);
+	expect(isFreshSqueezyError(thrown)).toBe(true);
+	expect((thrown as { code: string }).code).toBe("NETWORK_ERROR");
 });
 
-test("HttpClient request sends a POST body as JSON and returns the parsed document", async () => {
+test("http request sends a POST body as JSON and returns the parsed document", async () => {
 	const createDoc = {
 		data: {
 			type: "customers",
@@ -104,7 +104,7 @@ test("HttpClient request sends a POST body as JSON and returns the parsed docume
 	const { fetch, calls } = createMockFetch([
 		{ match: pathIs("/v1/customers", "POST"), status: 201, body: createDoc },
 	]);
-	const http = new HttpClient(resolveConfig({ apiKey: "k", fetch }));
+	const http = createHttp(readConfig({ apiKey: "k", fetch }));
 
 	const doc = await http.request<typeof createDoc>({
 		method: "POST",
@@ -141,7 +141,7 @@ const pagedFetch = (
 	};
 };
 
-test("HttpClient request accepts empty success bodies", async () => {
+test("http request accepts empty success bodies", async () => {
 	const fetchImpl: typeof fetch = async (input, init) => {
 		const isInputAString = typeof input === "string";
 		const url = isInputAString ? input : (input as URL).toString();
@@ -150,14 +150,14 @@ test("HttpClient request accepts empty success bodies", async () => {
 		// null body — undici rejects non-null body with 204
 		return new Response(null, { status: 204 });
 	};
-	const http = new HttpClient(resolveConfig({ apiKey: "k", fetch: fetchImpl }));
+	const http = createHttp(readConfig({ apiKey: "k", fetch: fetchImpl }));
 
 	await expect(
 		http.request({ method: "DELETE", path: "/v1/webhooks/7" }),
 	).resolves.toBeUndefined();
 });
 
-test("HttpClient paginate() walks every page until lastPage and concatenates results", async () => {
+test("http paginate() walks every page until lastPage and concatenates results", async () => {
 	const fetchImpl = pagedFetch(
 		(page) => [
 			{ type: "products", id: `${page}a`, attributes: { name: `p${page}a` } },
@@ -165,14 +165,21 @@ test("HttpClient paginate() walks every page until lastPage and concatenates res
 		],
 		6,
 	);
-	const http = new HttpClient(resolveConfig({ apiKey: "k", fetch: fetchImpl }));
+	const http = createHttp(readConfig({ apiKey: "k", fetch: fetchImpl }));
 
-	const all = await http.paginate("/v1/products");
+	const all = await http.getAll("/v1/products");
 	expect(all).toHaveLength(6);
-	expect(all.map((r) => r.id)).toEqual(["1a", "1b", "2a", "2b", "3a", "3b"]);
+	expect(all.map((resource) => resource.id)).toEqual([
+		"1a",
+		"1b",
+		"2a",
+		"2b",
+		"3a",
+		"3b",
+	]);
 });
 
-test("HttpClient paginate() returns immediately when meta.page is absent", async () => {
+test("http paginate() returns immediately when meta.page is absent", async () => {
 	const { fetch, calls } = createMockFetch([
 		{
 			match: pathIs("/v1/stores"),
@@ -184,25 +191,25 @@ test("HttpClient paginate() returns immediately when meta.page is absent", async
 			},
 		},
 	]);
-	const http = new HttpClient(resolveConfig({ apiKey: "k", fetch }));
+	const http = createHttp(readConfig({ apiKey: "k", fetch }));
 
-	const all = await http.paginate("/v1/stores");
+	const all = await http.getAll("/v1/stores");
 	expect(all).toHaveLength(1);
 	expect(calls).toHaveLength(1);
 });
 
-test("HttpClient paginate() honors a caller-supplied starting page[number]", async () => {
+test("http paginate() honors a caller-supplied starting page[number]", async () => {
 	const fetchImpl = pagedFetch(
 		(page) => [{ type: "x", id: `${page}`, attributes: {} }],
 		3,
 	);
-	const http = new HttpClient(resolveConfig({ apiKey: "k", fetch: fetchImpl }));
+	const http = createHttp(readConfig({ apiKey: "k", fetch: fetchImpl }));
 
-	const all = await http.paginate("/v1/x", { "page[number]": 2 });
-	expect(all.map((r) => r.id)).toEqual(["2", "3"]);
+	const all = await http.getAll("/v1/x", { "page[number]": 2 });
+	expect(all.map((resource) => resource.id)).toEqual(["2", "3"]);
 });
 
-test("HttpClient serializes JSON:API bracket query params via URLSearchParams", async () => {
+test("http serializes JSON:API bracket query params via URLSearchParams", async () => {
 	const { fetch, calls } = createMockFetch([
 		{
 			match: ({ method, url }) =>
@@ -213,7 +220,7 @@ test("HttpClient serializes JSON:API bracket query params via URLSearchParams", 
 			body: { data: [] },
 		},
 	]);
-	const http = new HttpClient(resolveConfig({ apiKey: "k", fetch }));
+	const http = createHttp(readConfig({ apiKey: "k", fetch }));
 
 	await http.request({
 		path: "/v1/products",
@@ -224,11 +231,11 @@ test("HttpClient serializes JSON:API bracket query params via URLSearchParams", 
 	expect(calls[0]?.url).toContain("filter%5Bstore_id%5D=42");
 });
 
-test("HttpClient skips undefined query values", async () => {
+test("http skips undefined query values", async () => {
 	const { fetch, calls } = createMockFetch([
 		{ match: pathIs("/v1/products"), status: 200, body: { data: [] } },
 	]);
-	const http = new HttpClient(resolveConfig({ apiKey: "k", fetch }));
+	const http = createHttp(readConfig({ apiKey: "k", fetch }));
 
 	await http.request({
 		path: "/v1/products",

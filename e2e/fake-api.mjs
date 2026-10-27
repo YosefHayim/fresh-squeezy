@@ -1,72 +1,228 @@
-// Preloaded into the spawned CLI (`node --import`) so the real binary runs end to end
-// without network. Serves a tiny in-memory discount API (logs DELETEs to stderr) and a
-// 3,000-product list large enough to overflow a 64 KB stdout pipe buffer.
-const discounts = new Map([
-	["1", { code: "KEEPME", name: "Keep" }],
-	["2", { code: "NSAHTEST", name: "Test A" }],
-	["3", { code: "NSAHTEST2", name: "Test B" }],
-]);
+const RECOMMENDED_EVENTS = [
+	"order_created",
+	"order_refunded",
+	"subscription_created",
+	"subscription_updated",
+	"subscription_cancelled",
+	"subscription_resumed",
+	"subscription_expired",
+	"subscription_payment_success",
+	"subscription_payment_failed",
+];
 
-const json = (status, body) => {
-	const payload = JSON.stringify(body);
-	return new Response(payload, {
-		status,
-		headers: { "content-type": "application/vnd.api+json" },
+const variantOf = (id, productId, overrides) => ({
+	type: "variants",
+	id,
+	attributes: {
+		product_id: productId,
+		name: `Plan ${id}`,
+		slug: `plan-${id}`,
+		status: "published",
+		is_subscription: true,
+		interval: "month",
+		interval_count: 1,
+		has_free_trial: false,
+		trial_interval: null,
+		trial_interval_count: null,
+		price: 1900,
+		...overrides,
+	},
+});
+
+const discountOf = (id, storeId, overrides) => ({
+	type: "discounts",
+	id,
+	attributes: {
+		name: `Discount ${id}`,
+		code: `CODE${id}`,
+		amount: 20,
+		amount_type: "percent",
+		is_limited_to_products: false,
+		is_limited_redemptions: false,
+		max_redemptions: 0,
+		starts_at: null,
+		expires_at: "2099-12-31T23:59:59Z",
+		status: "published",
+		duration: "once",
+		store_id: storeId,
+		...overrides,
+	},
+});
+
+const TABLES = {
+	stores: [
+		{ type: "stores", id: "1", attributes: { name: "Store One", slug: "one" } },
+		{ type: "stores", id: "2", attributes: { name: "Store Two", slug: "two" } },
+	],
+	products: [
+		{
+			type: "products",
+			id: "100",
+			attributes: {
+				name: "Pro",
+				status: "published",
+				store_id: 1,
+				buy_now_url: "https://one.example.com/buy",
+			},
+		},
+		{
+			type: "products",
+			id: "200",
+			attributes: {
+				name: "Team",
+				status: "draft",
+				store_id: 2,
+				buy_now_url: "https://two.example.com/buy",
+			},
+		},
+	],
+	variants: [
+		variantOf("800", 100, {}),
+		variantOf("801", 100, { price: 0 }),
+		variantOf("802", 100, { interval_count: undefined }),
+		variantOf("900", 200, {}),
+	],
+	webhooks: [
+		{
+			type: "webhooks",
+			id: "50",
+			attributes: {
+				store_id: 1,
+				url: "https://good.example.com/hook",
+				events: RECOMMENDED_EVENTS,
+			},
+		},
+		{
+			type: "webhooks",
+			id: "51",
+			attributes: {
+				store_id: 2,
+				url: "https://two.example.com/hook",
+				events: ["order_created"],
+			},
+		},
+	],
+	discounts: [
+		discountOf("600", 1, {}),
+		discountOf("601", 1, { expires_at: "2020-01-01T00:00:00Z" }),
+		discountOf("610", 2, { status: "draft" }),
+	],
+	"license-keys": [
+		{
+			type: "license-keys",
+			id: "700",
+			attributes: {
+				store_id: 1,
+				key_short: "abcd",
+				status: "active",
+				expires_at: null,
+				activation_limit: 5,
+				instances_count: 1,
+				disabled: false,
+			},
+		},
+		{
+			type: "license-keys",
+			id: "710",
+			attributes: {
+				store_id: 2,
+				key_short: "wxyz",
+				status: "disabled",
+				expires_at: null,
+				activation_limit: null,
+				instances_count: 0,
+				disabled: true,
+			},
+		},
+	],
+};
+
+const jsonResponse = (status, payload) => {
+	const text = JSON.stringify(payload);
+	const headers = { "content-type": "application/vnd.api+json" };
+	return new Response(text, { status, headers });
+};
+
+const unauthorizedResponse = () =>
+	jsonResponse(401, {
+		errors: [
+			{
+				status: "401",
+				code: "unauthenticated",
+				title: "Unauthenticated",
+				detail: "Invalid API key",
+			},
+		],
+	});
+
+const notFoundResponse = (title) =>
+	jsonResponse(404, { errors: [{ status: "404", code: "not_found", title }] });
+
+const userResponse = () =>
+	jsonResponse(200, {
+		data: {
+			type: "users",
+			id: "9",
+			attributes: { name: "Dev", email: "dev@example.com" },
+		},
+		meta: { test_mode: true },
+	});
+
+const matchesFilter = (entry, filter) => {
+	const { name, value } = filter;
+	const isFilterAbsent = !value;
+	return isFilterAbsent || String(entry.attributes[name]) === value;
+};
+
+const listResponse = (table, url) => {
+	const storeFilter = {
+		name: "store_id",
+		value: url.searchParams.get("filter[store_id]"),
+	};
+	const productFilter = {
+		name: "product_id",
+		value: url.searchParams.get("filter[product_id]"),
+	};
+	const entries = table.filter(
+		(entry) =>
+			matchesFilter(entry, storeFilter) && matchesFilter(entry, productFilter),
+	);
+	return jsonResponse(200, {
+		data: entries,
+		meta: { page: { currentPage: 1, lastPage: 1 } },
 	});
 };
 
-const urlOfInput = (input) => {
-	const isInputAString = typeof input === "string";
-	return new URL(isInputAString ? input : (input.url ?? String(input)));
+const scenarioOf = (init) => {
+	const headers = new Headers(init?.headers);
+	const authorization = headers.get("authorization") ?? "";
+	return authorization.replace("Bearer ", "");
 };
 
 globalThis.fetch = async (input, init) => {
-	const url = urlOfInput(input);
-	const method = (init?.method ?? "GET").toUpperCase();
-	const isGet = method === "GET";
+	const isInputText = typeof input === "string";
+	const requestUrl = isInputText ? input : input.url;
+	const url = new URL(requestUrl);
+	const scenario = scenarioOf(init);
+	const isEveryCallRejected = scenario === "rejected-key";
+	if (isEveryCallRejected) return unauthorizedResponse();
+	const isIdentityCall =
+		url.pathname === "/v1/users/me" || url.pathname === "/v1/stores";
+	const isRevokedAfterConnect =
+		scenario === "revoked-after-connect" && !isIdentityCall;
+	if (isRevokedAfterConnect) return unauthorizedResponse();
 
-	const isDiscountList = isGet && url.pathname === "/v1/discounts";
-	if (isDiscountList) {
-		const discountList = [...discounts].map(([id, attributes]) => ({
-			type: "discounts",
-			id,
-			attributes: { store_id: 1, ...attributes },
-		}));
-		return json(200, {
-			data: discountList,
-			meta: { page: { currentPage: 1, lastPage: 1 } },
-		});
-	}
-
-	const isProductList = isGet && url.pathname === "/v1/products";
-	if (isProductList) {
-		const productList = Array.from({ length: 3000 }, (_, index) => ({
-			type: "products",
-			id: String(index),
-			attributes: {
-				store_id: 1,
-				name: `Product ${index} ${"x".repeat(60)}`,
-				status: "published",
-			},
-		}));
-		return json(200, {
-			data: productList,
-			meta: { page: { currentPage: 1, lastPage: 1 } },
-		});
-	}
-
-	const discountMatch = url.pathname.match(/^\/v1\/discounts\/(\d+)$/);
-	const isDiscountDelete = method === "DELETE" && discountMatch;
-	if (isDiscountDelete) {
-		const discountId = discountMatch[1];
-		process.stderr.write(`FAKE_DELETE ${discountId}\n`);
-		const wasDeleted = discounts.delete(discountId);
-		const notFoundBody = {
-			errors: [{ status: "404", code: "not_found", title: "Not found" }],
-		};
-		return wasDeleted ? json(200, {}) : json(404, notFoundBody);
-	}
-	return json(404, {
-		errors: [{ status: "404", code: "no_route", title: url.pathname }],
-	});
+	const isUserCall = url.pathname === "/v1/users/me";
+	if (isUserCall) return userResponse();
+	const match = url.pathname.match(/^\/v1\/([a-z-]+)(?:\/(\d+))?$/);
+	const table = match && TABLES[match[1]];
+	const isTableMissing = !table;
+	if (isTableMissing) return notFoundResponse(url.pathname);
+	const id = match[2];
+	const isListCall = id === undefined;
+	if (isListCall) return listResponse(table, url);
+	const found = table.find((entry) => entry.id === id);
+	const isEntryMissing = found === undefined;
+	if (isEntryMissing) return notFoundResponse(`${match[1]} ${id}`);
+	return jsonResponse(200, { data: found });
 };

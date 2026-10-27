@@ -3,21 +3,21 @@ import {
 	webhooksCollectionEmpty,
 	webhooksCollectionMissingEvents,
 } from "@e2e/fixtures/sandbox/data.js";
-import { makeClient, pathIsWithQuery } from "@e2e/mock-fetch.js";
+import { makeHttp, pathIsWithQuery } from "@e2e/mock-fetch.js";
 import { expect, test } from "vitest";
 import { validateWebhook } from "./webhook.js";
 
 const WEBHOOK_URL = "https://app.example.com/api/webhooks/lemon-squeezy";
 
 const validateAgainst = (storeWebhooks: unknown, url = WEBHOOK_URL) => {
-	const http = makeClient([
+	const http = makeHttp([
 		{
 			match: pathIsWithQuery("/v1/webhooks", { "filter[store_id]": "42" }),
 			status: 200,
 			body: storeWebhooks,
 		},
 	]);
-	return validateWebhook(http, "test", { storeId: 42, url });
+	return validateWebhook(http, "test", { storeId: "42", url });
 };
 
 test("validateWebhook passes when every recommended event is subscribed", async () => {
@@ -25,7 +25,7 @@ test("validateWebhook passes when every recommended event is subscribed", async 
 
 	expect(webhookValidation.ok).toBe(true);
 	expect(
-		webhookValidation.issues.filter((entry) => entry.severity === "error"),
+		webhookValidation.findings.filter((entry) => entry.severity === "error"),
 	).toHaveLength(0);
 });
 
@@ -35,7 +35,7 @@ test("validateWebhook flags missing recommended events as errors", async () => {
 	);
 
 	expect(webhookValidation.ok).toBe(false);
-	expect(webhookValidation.issues.map((entry) => entry.code)).toContain(
+	expect(webhookValidation.findings.map((entry) => entry.code)).toContain(
 		"WEBHOOK_EVENTS_MISSING",
 	);
 });
@@ -44,7 +44,7 @@ test("validateWebhook returns WEBHOOK_NOT_FOUND when the store has no matching w
 	const webhookValidation = await validateAgainst(webhooksCollectionEmpty);
 
 	expect(webhookValidation.ok).toBe(false);
-	expect(webhookValidation.issues[0]?.code).toBe("WEBHOOK_NOT_FOUND");
+	expect(webhookValidation.findings[0]?.code).toBe("WEBHOOK_NOT_FOUND");
 });
 
 test("validateWebhook normalizes trailing slashes when matching URLs", async () => {
@@ -69,6 +69,7 @@ test.each([
 		url,
 	);
 
-	const isNotFound = webhookValidation.issues[0]?.code === "WEBHOOK_NOT_FOUND";
+	const isNotFound =
+		webhookValidation.findings[0]?.code === "WEBHOOK_NOT_FOUND";
 	expect(isNotFound).toBe(!isMatch);
 });

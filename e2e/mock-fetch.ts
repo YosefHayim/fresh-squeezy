@@ -1,11 +1,10 @@
 import { storesCollection, userDoc } from "@e2e/fixtures/sandbox/data.js";
-import { vi } from "vitest";
 
-import { resolveConfig } from "@/shared/config.js";
-import { HttpClient } from "@/shared/http.js";
+import { readConfig } from "@/shared/config.js";
+import { createHttp } from "@/shared/http.js";
 
 export interface MockRoute {
-	match: (req: { method: string; url: string }) => boolean;
+	match: (request: { method: string; url: string }) => boolean;
 	status: number;
 	body: unknown;
 }
@@ -68,8 +67,8 @@ export const pathIs = (
 	expected: string,
 	method = "GET",
 ): MockRoute["match"] => {
-	return ({ method: m, url }) => {
-		const isMethodMatching = m === method;
+	return ({ method: requestMethod, url }) => {
+		const isMethodMatching = requestMethod === method;
 		const { pathname } = new URL(url);
 		return isMethodMatching && pathname === expected;
 	};
@@ -80,8 +79,8 @@ export const pathIsWithQuery = (
 	query: Record<string, string>,
 	method = "GET",
 ): MockRoute["match"] => {
-	return ({ method: m, url }) => {
-		const isMethodDifferent = m !== method;
+	return ({ method: requestMethod, url }) => {
+		const isMethodDifferent = requestMethod !== method;
 		if (isMethodDifferent) return false;
 		const parsed = new URL(url);
 		const isPathDifferent = parsed.pathname !== expected;
@@ -98,19 +97,10 @@ export const SIGNED_IN_ROUTES: MockRoute[] = [
 	{ match: pathIs("/v1/stores"), status: 200, body: storesCollection },
 ];
 
-export const stubFetch = (routes: MockRoute[]): MockFetchResult => {
-	const mock = createMockFetch(routes);
-	vi.stubGlobal("fetch", mock.fetch);
-	return mock;
-};
-
-export const silenceStdout = () =>
-	vi.spyOn(process.stdout, "write").mockImplementation(() => true);
-
-export const makeClient = (routes: MockRoute[]): HttpClient => {
+export const makeHttp = (routes: MockRoute[]) => {
 	const { fetch } = createMockFetch(routes);
-	const config = resolveConfig({ apiKey: "k", fetch });
-	return new HttpClient(config);
+	const config = readConfig({ apiKey: "k", fetch });
+	return createHttp(config);
 };
 
 export const route = (
@@ -123,10 +113,11 @@ export const route = (
 	body,
 });
 
-export const okRoute = (
-	match: MockRoute["match"],
-	body: unknown,
-): MockRoute => ({ match, status: 200, body });
+const okRoute = (match: MockRoute["match"], body: unknown): MockRoute => ({
+	match,
+	status: 200,
+	body,
+});
 
 export const storeListRoute = (
 	collection: string,
