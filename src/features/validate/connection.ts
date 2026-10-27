@@ -1,18 +1,18 @@
+import type { Mode } from "@/shared/config.js";
+import type { Http, JsonApiDocument } from "@/shared/http.js";
 import type {
-	AuthenticatedUserDocument,
 	StoreAttributes,
 	UserAttributes,
-} from "@/shared/attributes.js";
-import type { Mode, ValidationResult } from "@/shared/contracts.js";
-import type { HttpClient } from "@/shared/http.js";
+	UserMeta,
+} from "@/shared/lemon-squeezy-types.js";
+import { fetchSafely } from "./fetch-resource.js";
 import {
 	buildResult,
-	failedResult,
-	ISSUE_CODES,
-	type IssueRule,
-	issuesOf,
-} from "./issues.js";
-import { probeCollection } from "./probe.js";
+	FINDING_CODES,
+	type FindingRule,
+	findingsFrom,
+	type ValidationResult,
+} from "./findings.js";
 
 export interface ConnectionSummary {
 	user: UserAttributes;
@@ -22,9 +22,9 @@ export interface ConnectionSummary {
 	declaredMode: Mode;
 }
 
-export const resolveActualMode = (
-	testMode: boolean | undefined,
-): Mode | undefined => {
+type UserDocument = JsonApiDocument<UserAttributes> & { meta?: UserMeta };
+
+const modeOfTestFlag = (testMode: boolean | undefined) => {
 	const isTestKey = testMode === true;
 	const isLiveKey = testMode === false;
 	if (isTestKey) return "test";
@@ -32,12 +32,16 @@ export const resolveActualMode = (
 	return undefined;
 };
 
-const connectionIssueRules: IssueRule<ConnectionSummary>[] = [
+const isModeMismatch = ({ actualMode, declaredMode }: ConnectionSummary) =>
+	actualMode !== undefined && actualMode !== declaredMode;
+
+const hasNoStores = ({ storeCount }: ConnectionSummary) => storeCount === 0;
+
+const CONNECTION_RULES: FindingRule<ConnectionSummary>[] = [
 	{
-		code: ISSUE_CODES.MODE_MISMATCH,
+		code: FINDING_CODES.MODE_MISMATCH,
 		severity: "error",
-		isRaised: ({ actualMode, declaredMode }) =>
-			actualMode !== undefined && actualMode !== declaredMode,
+		when: isModeMismatch,
 		message: ({ actualMode, declaredMode }) =>
 			`API key is a ${actualMode}-mode key but was run with --mode ${declaredMode}.`,
 		suggestedFix: ({ actualMode, declaredMode }) =>
@@ -48,9 +52,9 @@ const connectionIssueRules: IssueRule<ConnectionSummary>[] = [
 		}),
 	},
 	{
-		code: ISSUE_CODES.STORE_NOT_FOUND,
+		code: FINDING_CODES.STORE_NOT_FOUND,
 		severity: "warning",
-		isRaised: ({ storeCount }) => storeCount === 0,
+		when: hasNoStores,
 		message: "API key authenticated but no stores are reachable.",
 		suggestedFix:
 			"Confirm the API key belongs to an account that owns at least one store.",
@@ -58,32 +62,28 @@ const connectionIssueRules: IssueRule<ConnectionSummary>[] = [
 ];
 
 export const validateConnection = async (
-	http: HttpClient,
+	http: Http,
 	mode: Mode,
 ): Promise<ValidationResult<ConnectionSummary>> => {
-	const fetched = await probeCollection(
-		async () => {
-			const userDocument = await http.request<AuthenticatedUserDocument>({
-				path: "/v1/users/me",
-			});
-			const stores = await http.paginate<StoreAttributes>("/v1/stores");
-			return { userDocument, stores };
-		},
-		{
-			unauthorized: {
-				code: ISSUE_CODES.AUTH_FAILED,
-				message: "API key rejected by Lemon Squeezy.",
-				suggestedFix:
-					"Regenerate the key at https://app.lemonsqueezy.com/settings/api.",
-			},
-		},
-	);
+	const fetched = await fetchSafely(async () => {
+		const userDocument = await http.request<UserDocument>({
+			path: "/v1/users/me",
+		});
+		const stores = await http.getAll<StoreAttributes>("/v1/stores");
+		return { userDocument, stores };
+	});
 
-	const isFetchFailed = !fetched.ok;
-	if (isFetchFailed) return failedResult("connection", mode, fetched.issue);
+	const isFetchFailed = fetched.kind === "failed";
+	if (isFetchFailed) {
+		return buildResult({
+			name: "connection",
+			mode,
+			findings: [fetched.finding],
+		});
+	}
 
-	const { userDocument, stores } = fetched.resource;
-	const actualMode = resolveActualMode(userDocument.meta?.test_mode);
+	const { userDocument, stores } = fetched.payload;
+	const actualMode = modeOfTestFlag(userDocument.meta?.test_mode);
 	const summary: ConnectionSummary = {
 		user: userDocument.data.attributes,
 		storeCount: stores.length,
@@ -91,7 +91,6 @@ export const validateConnection = async (
 		declaredMode: mode,
 		...(actualMode ? { actualMode } : {}),
 	};
-
-	const issues = issuesOf(connectionIssueRules, summary);
-	return buildResult("connection", mode, issues, summary);
+	const findings = findingsFrom(CONNECTION_RULES, summary);
+	return buildResult({ name: "connection", mode, findings, resource: summary });
 };

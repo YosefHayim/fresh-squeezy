@@ -1,40 +1,51 @@
-import type { WebhookAttributes } from "@/shared/attributes.js";
-import type { Mode, ResourceId, ValidationResult } from "@/shared/contracts.js";
-import type { HttpClient } from "@/shared/http.js";
-import {
-	OPTIONAL_WEBHOOK_EVENTS,
-	RECOMMENDED_WEBHOOK_EVENTS,
-} from "@/shared/support-manifest.js";
+import type { Mode } from "@/shared/config.js";
+import type { Http } from "@/shared/http.js";
+import type { WebhookAttributes } from "@/shared/lemon-squeezy-types.js";
+import { fetchCollection } from "./fetch-resource.js";
 import {
 	buildResult,
-	failedResult,
-	ISSUE_CODES,
-	type IssueRule,
-	issue,
-	issuesOf,
-} from "./issues.js";
-import { probeCollection } from "./probe.js";
+	FINDING_CODES,
+	type FindingRule,
+	findingsFrom,
+	type ValidationResult,
+} from "./findings.js";
 
-export interface WebhookValidationOptions {
-	storeId: ResourceId;
+export interface WebhookCheck {
+	storeId: string;
 	url: string;
 }
-
-const normalizeWebhookUrl = (raw: string): string => {
-	return raw.replace(/\/+$/, "").toLowerCase();
-};
-
-const sameWebhookUrl = (a: string, b: string): boolean => {
-	return normalizeWebhookUrl(a) === normalizeWebhookUrl(b);
-};
 
 interface WebhookEventGaps {
 	missingRecommended: string[];
 	missingOptional: string[];
 }
 
-const eventGapsOf = (attributes: WebhookAttributes): WebhookEventGaps => {
-	const subscribed = new Set(attributes.events);
+const RECOMMENDED_WEBHOOK_EVENTS = [
+	"order_created",
+	"order_refunded",
+	"subscription_created",
+	"subscription_updated",
+	"subscription_cancelled",
+	"subscription_resumed",
+	"subscription_expired",
+	"subscription_payment_success",
+	"subscription_payment_failed",
+] as const;
+
+const OPTIONAL_WEBHOOK_EVENTS = [
+	"customer_updated",
+	"affiliate_activated",
+	"license_key_created",
+	"license_key_updated",
+] as const;
+
+const normalizedUrlOf = (url: string) => url.replace(/\/+$/, "").toLowerCase();
+
+const isSameUrl = (left: string, right: string) =>
+	normalizedUrlOf(left) === normalizedUrlOf(right);
+
+const eventGapsOf = (webhook: WebhookAttributes): WebhookEventGaps => {
+	const subscribed = new Set(webhook.events);
 	const isUnsubscribed = (event: string) => !subscribed.has(event);
 	return {
 		missingRecommended: RECOMMENDED_WEBHOOK_EVENTS.filter(isUnsubscribed),
@@ -42,11 +53,17 @@ const eventGapsOf = (attributes: WebhookAttributes): WebhookEventGaps => {
 	};
 };
 
-const webhookIssueRules: IssueRule<WebhookEventGaps>[] = [
+const isMissingRecommended = ({ missingRecommended }: WebhookEventGaps) =>
+	missingRecommended.length > 0;
+
+const isMissingOptional = ({ missingOptional }: WebhookEventGaps) =>
+	missingOptional.length > 0;
+
+const WEBHOOK_RULES: FindingRule<WebhookEventGaps>[] = [
 	{
-		code: ISSUE_CODES.WEBHOOK_EVENTS_MISSING,
+		code: FINDING_CODES.WEBHOOK_EVENTS_MISSING,
 		severity: "error",
-		isRaised: ({ missingRecommended }) => missingRecommended.length > 0,
+		when: isMissingRecommended,
 		message: ({ missingRecommended }) =>
 			`Webhook is missing recommended events: ${missingRecommended.join(", ")}.`,
 		suggestedFix:
@@ -56,9 +73,9 @@ const webhookIssueRules: IssueRule<WebhookEventGaps>[] = [
 		}),
 	},
 	{
-		code: ISSUE_CODES.WEBHOOK_OPTIONAL_EVENTS,
+		code: FINDING_CODES.WEBHOOK_OPTIONAL_EVENTS,
 		severity: "info",
-		isRaised: ({ missingOptional }) => missingOptional.length > 0,
+		when: isMissingOptional,
 		message: ({ missingOptional }) =>
 			`Optional events not subscribed: ${missingOptional.join(", ")}.`,
 		context: ({ missingOptional }) => ({ missing: missingOptional.join(",") }),
@@ -66,45 +83,58 @@ const webhookIssueRules: IssueRule<WebhookEventGaps>[] = [
 ];
 
 export const validateWebhook = async (
-	http: HttpClient,
+	http: Http,
 	mode: Mode,
-	options: WebhookValidationOptions,
+	{ storeId, url }: WebhookCheck,
 ): Promise<ValidationResult<WebhookAttributes>> => {
-	const target = { label: options.url, url: options.url };
+	const fetched = await fetchCollection<WebhookAttributes>(http, {
+		path: "/v1/webhooks",
+		query: { "filter[store_id]": storeId },
+	});
+	const unregisteredTarget = { label: url, url };
 
-	const fetched = await probeCollection(() =>
-		http.paginate<WebhookAttributes>("/v1/webhooks", {
-			"filter[store_id]": String(options.storeId),
-		}),
-	);
-	const isFetchFailed = !fetched.ok;
+	const isFetchFailed = fetched.kind === "failed";
 	if (isFetchFailed) {
-		return failedResult("webhook", mode, fetched.issue, target);
+		return buildResult({
+			name: "webhook",
+			mode,
+			findings: [fetched.finding],
+			target: unregisteredTarget,
+		});
 	}
 
-	const match = fetched.resource.find((webhook) =>
-		sameWebhookUrl(webhook.attributes.url, options.url),
+	const webhook = fetched.payload.find((entry) =>
+		isSameUrl(entry.attributes.url, url),
 	);
-	const isWebhookMissing = !match;
+	const isWebhookMissing = webhook === undefined;
 	if (isWebhookMissing) {
-		const notFoundIssue = issue(
-			ISSUE_CODES.WEBHOOK_NOT_FOUND,
-			"error",
-			`No webhook registered for URL ${options.url} on store ${options.storeId}.`,
-			{
-				suggestedFix:
-					"Register the webhook in Lemon Squeezy (Settings → Webhooks) and subscribe to the recommended events.",
-				context: { storeId: String(options.storeId), url: options.url },
-			},
-		);
-		return failedResult("webhook", mode, notFoundIssue, target);
+		return buildResult({
+			name: "webhook",
+			mode,
+			findings: [
+				{
+					code: FINDING_CODES.WEBHOOK_NOT_FOUND,
+					severity: "error",
+					message: `No webhook registered for URL ${url} on store ${storeId}.`,
+					suggestedFix:
+						"Register the webhook in Lemon Squeezy (Settings → Webhooks) and subscribe to the recommended events.",
+					context: { storeId, url },
+				},
+			],
+			target: unregisteredTarget,
+		});
 	}
 
-	const eventGaps = eventGapsOf(match.attributes);
-	const issues = issuesOf(webhookIssueRules, eventGaps);
-	return buildResult("webhook", mode, issues, match.attributes, {
-		label: match.attributes.url,
-		id: match.id,
-		url: match.attributes.url,
+	const eventGaps = eventGapsOf(webhook.attributes);
+	return buildResult({
+		name: "webhook",
+		mode,
+		findings: findingsFrom(WEBHOOK_RULES, eventGaps),
+		resource: webhook.attributes,
+		target: {
+			label: webhook.attributes.url,
+			id: webhook.id,
+			url: webhook.attributes.url,
+		},
 	});
 };
