@@ -9,7 +9,8 @@ const DOCS_ORIGIN = "https://docs.lemonsqueezy.com";
 const INDEX_URL = `${DOCS_ORIGIN}/api/getting-started/requests`;
 
 const thisFile = fileURLToPath(import.meta.url);
-const repoRoot = resolve(dirname(thisFile), "../..");
+const thisFolder = dirname(thisFile);
+const repoRoot = resolve(thisFolder, "../..");
 const outputPath = resolve(repoRoot, "src/generated/lemonSqueezyApiTypes.ts");
 const updateMode = process.argv.includes("--update");
 
@@ -44,14 +45,16 @@ export const main = async () => {
 	for (const page of pages) {
 		const html = await fetchText(page.url);
 		const example = extractResourceExample(html, page.resourceType);
-		if (!example) continue;
+		const isExampleMissing = !example;
+		if (isExampleMissing) continue;
 		resources.push({
 			...page,
 			attributes: example.attributes ?? {},
 		});
 	}
 
-	if (resources.length === 0) {
+	const isThereNoResource = resources.length === 0;
+	if (isThereNoResource) {
 		throw new Error(
 			"No resource examples were discovered from Lemon Squeezy docs.",
 		);
@@ -59,28 +62,32 @@ export const main = async () => {
 
 	const generated = renderTypes(resources);
 
-	if (updateMode || !existsSync(outputPath)) {
-		await mkdir(dirname(outputPath), { recursive: true });
+	const isOutputMissing = !existsSync(outputPath);
+	const shouldWriteOutput = updateMode || isOutputMissing;
+	if (shouldWriteOutput) {
+		const outputFolder = dirname(outputPath);
+		await mkdir(outputFolder, { recursive: true });
 		await writeFile(outputPath, generated, "utf8");
-		console.log(`Generated ${outputPath}`);
-		console.log(`  resources: ${resources.length}`);
+		process.stdout.write(`Generated ${outputPath}\n`);
+		process.stdout.write(`  resources: ${resources.length}\n`);
 		return;
 	}
 
-	const current = await readFile(outputPath, "utf8");
-	if (current === generated) {
-		console.log(
-			`Generated API types are current (${resources.length} resources).`,
+	const currentTypes = await readFile(outputPath, "utf8");
+	const areTypesCurrent = currentTypes === generated;
+	if (areTypesCurrent) {
+		process.stdout.write(
+			`Generated API types are current (${resources.length} resources).\n`,
 		);
 		return;
 	}
 
 	process.exitCode = 1;
-	console.error("Generated API types are stale.");
-	console.error("Refresh with: pnpm generate:api-types");
+	process.stderr.write("Generated API types are stale.\n");
+	process.stderr.write("Refresh with: pnpm generate:api-types\n");
 };
 
-async function fetchText(url) {
+const fetchText = async (url) => {
 	const response = await fetch(url, {
 		headers: {
 			"user-agent":
@@ -88,90 +95,94 @@ async function fetchText(url) {
 			accept: "text/html,*/*",
 		},
 	});
-	if (!response.ok)
+	const isResponseFailed = !response.ok;
+	if (isResponseFailed)
 		throw new Error(`Fetch failed ${response.status} for ${url}`);
 	return response.text();
-}
+};
 
-export function discoverObjectPages(html) {
+const stripTags = (html) => {
+	const withoutTags = html.replace(/<[^>]+>/g, "");
+	return decodeHtml(withoutTags);
+};
+
+const decodeHtml = (value) =>
+	value
+		.replace(/&quot;/g, '"')
+		.replace(/&#34;/g, '"')
+		.replace(/&#39;/g, "'")
+		.replace(/&#x27;/g, "'")
+		.replace(/&amp;/g, "&")
+		.replace(/&lt;/g, "<")
+		.replace(/&gt;/g, ">")
+		.replace(/&nbsp;/g, " ")
+		.replace(/\\u003c/g, "<")
+		.replace(/\\u003e/g, ">");
+
+const pascal = (value) => value.charAt(0).toUpperCase() + value.slice(1);
+
+const camel = (value) =>
+	value
+		.split("-")
+		.map((part, index) => {
+			const isFirstPart = index === 0;
+			return isFirstPart ? part : pascal(part);
+		})
+		.join("");
+
+const singular = (value) => {
+	const isPluralIes = value.endsWith("ies");
+	if (isPluralIes) return `${value.slice(0, -3)}y`;
+	const isPluralS = value.endsWith("s");
+	if (isPluralS) return value.slice(0, -1);
+	return value;
+};
+
+const resourceName = (resourceType) => {
+	const singularType = singular(resourceType);
+	return RESOURCE_NAME_OVERRIDES[resourceType] ?? camel(singularType);
+};
+
+const resourceTypeFromUrl = (url) => {
+	const parsed = new URL(url);
+	const match = parsed.pathname.match(/^\/api\/([^/]+)\/the-[^/]+-object$/);
+	return match?.[1];
+};
+
+export const discoverObjectPages = (html) => {
 	const hrefs = [];
 	const seen = new Set();
 	const re = /href="([^"]*\/api\/[^"]+\/the-[^"]+-object)"/g;
-	let match;
-	// biome-ignore lint/suspicious/noAssignInExpressions: standard regex.exec() iteration idiom
-	while ((match = re.exec(html)) !== null) {
+	for (const match of html.matchAll(re)) {
 		const raw = decodeHtml(match[1]);
-		const url = raw.startsWith("http") ? raw : `${DOCS_ORIGIN}${raw}`;
+		const isAbsoluteUrl = raw.startsWith("http");
+		const url = isAbsoluteUrl ? raw : `${DOCS_ORIGIN}${raw}`;
 		const resourceType = resourceTypeFromUrl(url);
-		if (!resourceType || seen.has(resourceType)) continue;
+		const isUnusableType = !resourceType || seen.has(resourceType);
+		if (isUnusableType) continue;
 		seen.add(resourceType);
+		const name = resourceName(resourceType);
 		hrefs.push({
 			resourceType,
-			resourceName: resourceName(resourceType),
-			interfaceName: `Generated${pascal(resourceName(resourceType))}Attributes`,
+			resourceName: name,
+			interfaceName: `Generated${pascal(name)}Attributes`,
 			url,
 		});
 	}
 	return hrefs;
-}
+};
 
-function resourceTypeFromUrl(url) {
-	const parsed = new URL(url);
-	const match = parsed.pathname.match(/^\/api\/([^/]+)\/the-[^/]+-object$/);
-	return match?.[1];
-}
-
-export function extractResourceExample(html, expectedType) {
-	const blocks = extractJsonCodeBlocks(html);
-	for (const block of blocks) {
-		const parsed = parseJson(block);
-		if (
-			parsed &&
-			typeof parsed === "object" &&
-			!Array.isArray(parsed) &&
-			parsed.type === expectedType &&
-			parsed.attributes &&
-			typeof parsed.attributes === "object"
-		) {
-			return parsed;
-		}
-	}
-	return null;
-}
-
-function extractJsonCodeBlocks(html) {
-	const blocks = [];
+const extractJsonCodeBlocks = (html) => {
 	const re = /<code\b[^>]*data-language="json"[^>]*>([\s\S]*?)<\/code>/gi;
-	let match;
-	// biome-ignore lint/suspicious/noAssignInExpressions: standard regex.exec() iteration idiom
-	while ((match = re.exec(html)) !== null) {
-		blocks.push(stripTags(match[1]));
+	const blocks = [];
+	for (const match of html.matchAll(re)) {
+		const blockText = stripTags(match[1]);
+		blocks.push(blockText);
 	}
 	return blocks;
-}
+};
 
-function stripTags(html) {
-	return decodeHtml(html.replace(/<[^>]+>/g, ""));
-}
-
-function parseJson(value) {
-	const normalized = trimExtraClosingBraces(value);
-	try {
-		return JSON.parse(normalized);
-	} catch {
-		return null;
-	}
-}
-
-function trimExtraClosingBraces(value) {
-	let normalized = value.trim();
-	while (braceBalance(normalized) < 0 && normalized.endsWith("}")) {
-		normalized = normalized.slice(0, -1).trimEnd();
-	}
-	return normalized;
-}
-
-function braceBalance(value) {
+const braceBalance = (value) => {
 	let balance = 0;
 	let inString = false;
 	let escaped = false;
@@ -180,22 +191,156 @@ function braceBalance(value) {
 			escaped = false;
 			continue;
 		}
-		if (char === "\\") {
+		const isEscapeChar = char === "\\";
+		if (isEscapeChar) {
 			escaped = true;
 			continue;
 		}
-		if (char === '"') {
+		const isQuote = char === '"';
+		if (isQuote) {
 			inString = !inString;
 			continue;
 		}
 		if (inString) continue;
-		if (char === "{") balance += 1;
-		if (char === "}") balance -= 1;
+		const isOpeningBrace = char === "{";
+		const isClosingBrace = char === "}";
+		if (isOpeningBrace) balance += 1;
+		if (isClosingBrace) balance -= 1;
 	}
 	return balance;
-}
+};
 
-function renderTypes(resources) {
+const trimExtraClosingBraces = (value) => {
+	let normalized = value.trim();
+	const hasExtraClosingBrace = () =>
+		braceBalance(normalized) < 0 && normalized.endsWith("}");
+	while (hasExtraClosingBrace()) {
+		normalized = normalized.slice(0, -1).trimEnd();
+	}
+	return normalized;
+};
+
+const parseJson = (value) => {
+	const normalized = trimExtraClosingBraces(value);
+	try {
+		return JSON.parse(normalized);
+	} catch {
+		return null;
+	}
+};
+
+export const extractResourceExample = (html, expectedType) => {
+	const blocks = extractJsonCodeBlocks(html);
+	for (const block of blocks) {
+		const parsed = parseJson(block);
+		const isResourceObject =
+			parsed &&
+			typeof parsed === "object" &&
+			!Array.isArray(parsed) &&
+			parsed.type === expectedType &&
+			parsed.attributes &&
+			typeof parsed.attributes === "object";
+		if (isResourceObject) return parsed;
+	}
+	return null;
+};
+
+const isBooleanishKey = (key) => {
+	const hasBooleanPrefix = /^(is|has|enabled|disabled|refunded|cancelled)/.test(
+		key,
+	);
+	return hasBooleanPrefix || key === "test_mode";
+};
+
+const isStringOrNumberKey = (key) => /(^|_)(decimal|rate)(_|$)/.test(key);
+
+const nullFallbackType = (key) => {
+	if (isStringOrNumberKey(key)) return "string | number";
+	const isNumberKey =
+		/(^|_)(id|count|amount|price|fee|rate|total|tax|limit|quantity|mrr|sort)(_|$)/.test(
+			key,
+		);
+	if (isNumberKey) return "number";
+	const isDateKey = /(^|_)(date|at)(_|$)/.test(key);
+	if (isDateKey) return "string";
+	if (isBooleanishKey(key)) return "boolean";
+	const isTextKey =
+		/(^|_)(url|email|name|status|currency|country|region|city|interval|reason|brand|date|at)(_|$)/.test(
+			key,
+		);
+	if (isTextKey) return "string";
+	return "unknown";
+};
+
+const quoteProperty = (key) => {
+	const isPlainIdentifier = /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(key);
+	return isPlainIdentifier ? key : JSON.stringify(key);
+};
+
+const unique = (values) => {
+	const distinctValues = new Set(values);
+	return Array.from(distinctValues).sort();
+};
+
+const inferType = (value, key) => {
+	const isNullValue = value === null;
+	if (isNullValue) return `${nullFallbackType(key)} | null`;
+	const isStringOrNumber = isStringOrNumberKey(key);
+	const isStringValue = typeof value === "string";
+	if (isStringValue && isStringOrNumber) return "string | number | null";
+	if (isStringValue) return "string | null";
+	const isNumberValue = typeof value === "number";
+	if (isNumberValue && isStringOrNumber) return "string | number | null";
+	if (isNumberValue && isBooleanishKey(key)) return "boolean | number | null";
+	if (isNumberValue) return "number | null";
+	const isBooleanValue = typeof value === "boolean";
+	if (isBooleanValue) return "boolean | null";
+	const isArrayValue = Array.isArray(value);
+	if (isArrayValue) return inferArrayType(value, key);
+	const isObjectValue = typeof value === "object";
+	if (isObjectValue) return inferObjectType(value);
+	return "unknown";
+};
+
+const inferArrayType = (values, key) => {
+	const isUntypedArray = key === "tiers" || values.length === 0;
+	if (isUntypedArray) return "unknown";
+	const entryTypes = values.map((entry) => inferType(entry, key));
+	const types = unique(entryTypes);
+	return `Array<${types.join(" | ")}>`;
+};
+
+const inferObjectType = (value) => {
+	const entries = Object.entries(value);
+	const isObjectEmpty = entries.length === 0;
+	if (isObjectEmpty) return "Record<string, unknown>";
+	const body = entries
+		.sort(([a], [b]) => a.localeCompare(b))
+		.map(
+			([key, nested]) => `${quoteProperty(key)}?: ${inferType(nested, key)};`,
+		)
+		.join(" ");
+	return `{ ${body} } | null`;
+};
+
+const renderResourceInterface = (resource) => {
+	const lines = [`export interface ${resource.interfaceName} {`];
+	const entries = Object.entries(resource.attributes).sort(([a], [b]) =>
+		a.localeCompare(b),
+	);
+	const isAttributeListEmpty = entries.length === 0;
+	if (isAttributeListEmpty) {
+		lines.push("  [key: string]: unknown;");
+	} else {
+		for (const [key, value] of entries) {
+			lines.push(`  ${quoteProperty(key)}?: ${inferType(value, key)};`);
+		}
+	}
+	lines.push("}", "");
+	return lines;
+};
+
+const renderTypes = (resources) => {
 	const lines = [
 		"/* eslint-disable */",
 		"/**",
@@ -221,18 +366,8 @@ function renderTypes(resources) {
 	];
 
 	for (const resource of resources) {
-		lines.push(`export interface ${resource.interfaceName} {`);
-		const entries = Object.entries(resource.attributes).sort(([a], [b]) =>
-			a.localeCompare(b),
-		);
-		if (entries.length === 0) {
-			lines.push("  [key: string]: unknown;");
-		} else {
-			for (const [key, value] of entries) {
-				lines.push(`  ${quoteProperty(key)}?: ${inferType(value, key)};`);
-			}
-		}
-		lines.push("}", "");
+		const interfaceLines = renderResourceInterface(resource);
+		lines.push(...interfaceLines);
 	}
 
 	lines.push("export interface GeneratedLemonSqueezyFieldMap {");
@@ -249,126 +384,15 @@ function renderTypes(resources) {
 	lines.push("");
 
 	return `${lines.join("\n")}\n`;
-}
-
-function inferType(value, key) {
-	if (value === null) return `${nullFallbackType(key)} | null`;
-	if (typeof value === "string") {
-		return isStringOrNumberKey(key)
-			? "string | number | null"
-			: "string | null";
-	}
-	if (typeof value === "number") {
-		if (isStringOrNumberKey(key)) return "string | number | null";
-		return isBooleanishKey(key) ? "boolean | number | null" : "number | null";
-	}
-	if (typeof value === "boolean") return "boolean | null";
-	if (Array.isArray(value)) return inferArrayType(value, key);
-	if (typeof value === "object") return inferObjectType(value);
-	return "unknown";
-}
-
-function inferArrayType(values, key) {
-	if (key === "tiers") return "unknown";
-	if (values.length === 0) return "unknown";
-	const types = unique(values.map((entry) => inferType(entry, key)));
-	return `Array<${types.join(" | ")}>`;
-}
-
-function inferObjectType(value) {
-	const entries = Object.entries(value);
-	if (entries.length === 0) return "Record<string, unknown>";
-	const body = entries
-		.sort(([a], [b]) => a.localeCompare(b))
-		.map(
-			([key, nested]) => `${quoteProperty(key)}?: ${inferType(nested, key)};`,
-		)
-		.join(" ");
-	return `{ ${body} } | null`;
-}
-
-function nullFallbackType(key) {
-	if (isStringOrNumberKey(key)) return "string | number";
-	if (
-		/(^|_)(id|count|amount|price|fee|rate|total|tax|limit|quantity|mrr|sort)(_|$)/.test(
-			key,
-		)
-	) {
-		return "number";
-	}
-	if (/(^|_)(date|at)(_|$)/.test(key)) return "string";
-	if (isBooleanishKey(key)) return "boolean";
-	if (
-		/(^|_)(url|email|name|status|currency|country|region|city|interval|reason|brand|date|at)(_|$)/.test(
-			key,
-		)
-	) {
-		return "string";
-	}
-	return "unknown";
-}
-
-function isBooleanishKey(key) {
-	return (
-		/^(is|has|enabled|disabled|refunded|cancelled)/.test(key) ||
-		key === "test_mode"
-	);
-}
-
-function isStringOrNumberKey(key) {
-	return /(^|_)(decimal|rate)(_|$)/.test(key);
-}
-
-function resourceName(resourceType) {
-	return RESOURCE_NAME_OVERRIDES[resourceType] ?? camel(singular(resourceType));
-}
-
-function singular(value) {
-	if (value.endsWith("ies")) return `${value.slice(0, -3)}y`;
-	if (value.endsWith("s")) return value.slice(0, -1);
-	return value;
-}
-
-function pascal(value) {
-	return value.charAt(0).toUpperCase() + value.slice(1);
-}
-
-function camel(value) {
-	return value
-		.split("-")
-		.map((part, index) => (index === 0 ? part : pascal(part)))
-		.join("");
-}
-
-function quoteProperty(key) {
-	return /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(key) ? key : JSON.stringify(key);
-}
-
-function unique(values) {
-	return Array.from(new Set(values)).sort();
-}
-
-function decodeHtml(value) {
-	return value
-		.replace(/&quot;/g, '"')
-		.replace(/&#34;/g, '"')
-		.replace(/&#39;/g, "'")
-		.replace(/&#x27;/g, "'")
-		.replace(/&amp;/g, "&")
-		.replace(/&lt;/g, "<")
-		.replace(/&gt;/g, ">")
-		.replace(/&nbsp;/g, " ")
-		.replace(/\\u003c/g, "<")
-		.replace(/\\u003e/g, ">");
-}
+};
 
 const invokedAsCli =
 	process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (invokedAsCli) {
 	main().catch((err) => {
-		console.error(
-			err instanceof Error ? (err.stack ?? err.message) : String(err),
-		);
+		const isRealError = err instanceof Error;
+		const errorText = isRealError ? (err.stack ?? err.message) : String(err);
+		process.stderr.write(`${errorText}\n`);
 		process.exit(2);
 	});
 }
