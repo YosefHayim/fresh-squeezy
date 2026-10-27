@@ -16,8 +16,7 @@
 			"!**/src/generated",
 			"!**/.kiro",
 			"!**/downloads",
-			"!**/package.json",
-			"!**/pnpm-lock.yaml"
+			"!**/package.json"
 		]
 	}
 }
