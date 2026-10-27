@@ -58,7 +58,8 @@ export const renderEquivalentCommand = (input: {
 		parts.push("--parent-id", input.parentId);
 	}
 	const pickedIdList = input.picked.join(",");
-	if (!isEverythingPicked) parts.push("--ids", pickedIdList);
+	const isSubsetPicked = !isEverythingPicked;
+	if (isSubsetPicked) parts.push("--ids", pickedIdList);
 	parts.push("--yes");
 	const isLive = input.mode === "live";
 	if (isLive) parts.push("--mode", "live");
@@ -154,7 +155,8 @@ export const runManageCommand = async (): Promise<number> => {
 	} catch (err) {
 		const isCancel = isPromptCancel(err);
 		if (isCancel) throw err;
-		const message = err instanceof Error ? err.message : String(err);
+		const isNativeError = err instanceof Error;
+		const message = isNativeError ? err.message : String(err);
 		const errorScreen = renderCliError(message, ["fresh-squeezy ops --list"]);
 		process.stderr.write(errorScreen);
 		return 2;
