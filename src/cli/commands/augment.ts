@@ -137,10 +137,12 @@ import type {
   LatestLemonSqueezyResourceName,
   LatestFieldsFor,
   WithLatestLemonSqueezyFields,
+} from "fresh-squeezy/augmentations";
+import type {
   GeneratedLemonSqueezyFieldMap,
   GeneratedLemonSqueezyResourceName,
   GeneratedLemonSqueezyResourceType,
-} from "fresh-squeezy";
+} from "fresh-squeezy/api-types";
 
 /**
  * One-stop reference for resources fresh-squeezy has wider knowledge of
@@ -220,10 +222,12 @@ type AugmentResponse<T, Fields> = T extends {
   LatestCheckoutDataFields,
   LatestLemonSqueezyResourceName,
   LatestFieldsFor,
+} from "fresh-squeezy/augmentations";
+import type {
   GeneratedLemonSqueezyFieldMap,
   GeneratedLemonSqueezyResourceName,
   GeneratedLemonSqueezyResourceType,
-} from "fresh-squeezy";
+} from "fresh-squeezy/api-types";
 
 export type {
   WithLatestLemonSqueezyFields,
