@@ -47,7 +47,52 @@ pnpm check:standard     # code-standard check: health score and report link
 pnpm verify             # biome ci + code standard + tsc + vitest + build (pre-PR gate)
 ```
 
-Unit tests run against fixtures and are colocated as `<name>.test.ts`. End-to-end tests and the opt-in live smoke test live in `e2e/`. Recipes for adding a validator, a CLI command or a resource verb are in `CONTEXT.md`.
+Unit tests run against fixtures and are colocated as `<name>.test.ts`. End-to-end tests and the opt-in live smoke test live in `e2e/`. Recipes for adding a validator, a CLI command or a resource verb are in the Recipes section below.
+
+## Recipes
+
+### Add a validator
+
+1. If the resource has no `*Attributes` in `src/shared/attributes.ts`, add one (`extends Generated*Attributes`).
+2. Add issue codes to `ISSUE_CODES` in `src/features/validate/issues.ts`. They are public API, so keep them stable.
+3. Add `src/features/validate/<name>.ts`. For rich logic, write a pure `check<Name>(attributes): ValidationIssue[]`. Fetch with `http.getResource` or `http.paginate` inside `probeFetch` or `probeCollection`, and build the result with `buildResult`.
+4. Add its subpath: an `exports` entry in `package.json` (`./validate/<name>`) and an entry in `tsup.config.ts`.
+5. Unit-test the pure `check<Name>` with plain fixtures (`e2e/fixtures/sandbox/data.ts`). Test the async validator with `makeClient` and `createMockFetch`. If it uses a new endpoint, extend the live smoke test in `e2e/`.
+6. Wire it into `doctor()` if it belongs in the default sweep.
+7. Add a `VALIDATE_SUBCOMMANDS` row in `src/app/validate-command.ts` (`fresh-squeezy validate <name>`). If `init` or `doctor --all-resources` should find it, add an `OPTIONAL_VALIDATORS` row in `src/app/optional-validators.ts`.
+8. Update the README table.
+
+### Add a CLI command
+
+1. Add the handler in `src/app/<name>-command.ts` as `run<Verb>Command(options)` that returns an exit code.
+2. Register it on `program` in `src/cli.ts` with its commander flags.
+3. Keep the dual-mode contract: flags or no TTY never hang, the interactive path prompts with `@inquirer/prompts`, and both routes call the same `run<Verb>Command`.
+4. Add the verb to the bare-invocation menu (`pickLauncherAction` in `src/app/launcher-menu.ts`).
+5. Render through `src/app/render.ts` and support `--json`.
+
+### Add a resource verb
+
+Confirm the verb in the official docs. Add it to the resource's `RESOURCES` row in `src/features/ops/resource-registry.ts` (and a `*Attributes` in `src/shared/attributes.ts` for a new resource). Add the nested client method, add a row to `create-fresh-squeezy.test.ts`, and run `pnpm verify`.
+
+## Releasing
+
+Releases are automatic. When a PR merges into `main`, the `Release` workflow bumps `package.json`, tags the commit and creates the GitHub release, then `Publish Package` publishes to npm.
+
+- The bump is a patch by default. Add the `minor` or `major` label to the PR to change it.
+- Add the `no-release` label to skip the release.
+- If `src/shared/support-manifest.ts` changed, refresh the snapshot with `pnpm check:changelog -- --update` in the same PR.
+
+A nightly CI run smokes the live API with a test-mode key. Before a release, smoke the CLI by hand against a test-mode key: `npx fresh-squeezy` and `fresh-squeezy doctor --all-stores`.
+
+## Changelog drift
+
+The weekly `changelog-drift` workflow (Monday 06:00 UTC) opens an issue when the Lemon Squeezy changelog moves. It is advisory and never edits code.
+
+1. Read the "New entries" section of the issue: each entry has a date, heading and body excerpt.
+2. Decide per entry: codify as a check, acknowledge as out of scope, or skip if cosmetic.
+3. To codify or acknowledge, add a row to `ACKNOWLEDGED_CHANGELOG_ENTRIES` in `src/shared/support-manifest.ts` (date, one-line summary, action taken). When codifying, also wire the check in `src/features/validate/`.
+4. Refresh the snapshot so future runs start from the new baseline: `pnpm check:changelog -- --update`.
+5. Open a PR titled `chore(changelog): adopt YYYY-MM-DD entries` with both `src/shared/support-manifest.ts` and `src/features/upkeep/changelog-snapshot.json`, and close the drift issue from it (`Closes #123`).
 
 ## Commits
 

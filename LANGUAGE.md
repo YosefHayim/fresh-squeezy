@@ -1,26 +1,86 @@
-# LANGUAGE.md
+# LANGUAGE.md — fresh-squeezy
 
-Glossary — names only. The human ↔ agent bridge: use these exact terms in code, commits,
-issues, and PRs. Definitions plus aliases to avoid. Orientation lives in `CONTEXT.md`.
+The human↔agent glossary: names only. Use these exact terms in code, comments,
+commits, and docs; avoid the listed aliases. Orientation lives in `CONTEXT.md`.
 
-| Term                   | Definition                                                                                                                                                                                             | Avoid                                 |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------- |
-| **validator**          | A `validate<Resource>` function that fetches one resource and returns a `ValidationResult`.                                                                                                            | check (as a noun), rule, test         |
-| **check**              | The pure `check<Resource>(attributes)` half of a rich validator — assertions only, no I/O.                                                                                                             | validate (for the pure half)          |
-| **doctor**             | The composition that runs all configured validators into one `DoctorReport`.                                                                                                                           | healthcheck, audit, scan              |
-| **issue**              | One `ValidationIssue` — `{ code, severity, message }`. Not an error.                                                                                                                                   | error, failure, problem               |
-| **issue code**         | The stable string in `ISSUE_CODES` that CI switches on (e.g. `MODE_MISMATCH`). Renaming = major bump.                                                                                                  | error code, key                       |
-| **probe**              | The I/O wrapper (`probeFetch` / `probeCollection`) that catches a fetch throw and maps it to an issue.                                                                                                 | fetch wrapper, guard                  |
-| **mode**               | `"test"` or `"live"` — the key's environment. Declared vs actual (`meta.test_mode`) drives `MODE_MISMATCH`.                                                                                            | environment, stage, sandbox           |
-| **target**             | The `ValidationTarget` (label/id/url) a result points at, e.g. `store 42`.                                                                                                                             | subject, entity                       |
-| **resource**           | A Lemon Squeezy object type (store, product, variant, webhook…): its row in `RESOURCES` and its `*Attributes` type in `resources/`.                                                                    | endpoint, model                       |
-| **augmentation**       | A `Latest*Fields` `.d.ts` helper that adds changelog fields to the official SDK's types.                                                                                                               | patch, override, shim                 |
-| **support manifest**   | `src/support/manifest.ts` — locally reviewed webhook policy + acknowledged changelog entries.                                                                                                          | config, registry                      |
-| **drift**              | Divergence between the live Lemon Squeezy changelog and the committed snapshot.                                                                                                                        | diff, delta                           |
-| **FreshSqueezyError**  | The single error type (a plain `Error` with `code`/`status`/`detail`, made by `freshSqueezyErrorOf`, checked with `isFreshSqueezyError`) thrown by the HTTP layer and for programmer-errors.           | ApiError, HttpError                   |
-| **resource verb**      | One docs-backed operation on a resource (`get`, `create`, `cancel`, `refund`, …).                                                                                                                      | endpoint method, CRUD (when non-CRUD) |
-| **resourceRegistry**   | `src/resources/registry.ts` — implemented ops with `docsPath`, built from `RESOURCES` × `VERB_RULES`; what ships in CLI/client.                                                                        | OpenAPI, route table                  |
-| **optional validator** | A resource validator (product, webhook, discount, license key, subscription plan) that `init` and `doctor --all-resources` can add; one `OPTIONAL_VALIDATORS` row in `src/cli/optional-validators.ts`. | doctor target, resource check         |
-| **ops command**        | Hybrid CLI: `get\|list\|create\|update\|delete\|cancel\|refund\|generate-invoice\|current-usage <resource>`.                                                                                           | admin API, SDK call                   |
-| **write safety**       | Gates for mutate: delete/cancel/refund always; all writes in live; `--yes` or TTY confirm; never prompt non-TTY.                                                                                       | confirm flag only                     |
-| **body input**         | JSON:API document via `--body` / `--body-file` (not flag-per-field).                                                                                                                                   | form fields, query params             |
+## Checks
+
+**Validator**
+A `validate<Resource>` function that fetches one resource and returns a `ValidationResult`.
+_Avoid_: check (as a noun), rule, test.
+
+**Check**
+The pure `check<Resource>(attributes)` half of a validator: assertions only, no I/O.
+_Avoid_: validate (for the pure half).
+
+**Optional validator**
+A validator `init` and `doctor --all-resources` can add: product, webhook, discount, license key, subscription plan.
+_Avoid_: doctor target, resource check.
+
+**Doctor**
+The run of every configured validator into one `DoctorReport`.
+_Avoid_: healthcheck, audit, scan.
+
+**Issue**
+One `ValidationIssue`: `{ code, severity, message }`. Not an error.
+_Avoid_: error, failure, problem.
+
+**Issue code**
+The stable string in `ISSUE_CODES` that CI switches on, like `MODE_MISMATCH`. Renaming one is a major bump.
+_Avoid_: error code, key.
+
+**Probe**
+The wrapper (`probeFetch`, `probeCollection`) that turns a failed fetch into an issue.
+_Avoid_: fetch wrapper, guard.
+
+**Mode**
+`"test"` or `"live"`: the key's environment. Declared mode against `meta.test_mode` drives `MODE_MISMATCH`.
+_Avoid_: environment, stage, sandbox.
+
+**Target**
+The `ValidationTarget` (label, id, url) a result points at, like `store 42`.
+_Avoid_: subject, entity.
+
+## Ops
+
+**Resource**
+A Lemon Squeezy object type (store, product, variant, webhook...) with one `RESOURCES` row and one `*Attributes` type.
+_Avoid_: endpoint, model.
+
+**Resource verb**
+One docs-backed operation on a resource: `get`, `create`, `cancel`, `refund`...
+_Avoid_: endpoint method, CRUD (when not CRUD).
+
+**Resource registry**
+The `resourceRegistry` table of implemented resource verbs with their `docsPath`. It is what the CLI and the client ship.
+_Avoid_: OpenAPI, route table.
+
+**Ops command**
+A CLI command shaped `<verb> <resource>`, like `get store` or `refund order`.
+_Avoid_: admin API, SDK call.
+
+**Write safety**
+The gates on a write: delete, cancel and refund always confirm; every live write confirms; `--yes` or a TTY confirm; never a prompt without a TTY.
+_Avoid_: confirm flag only.
+
+**Body input**
+A JSON:API document passed with `--body` or `--body-file`, never one flag per field.
+_Avoid_: form fields, query params.
+
+**FreshSqueezyError**
+The one error type: a plain `Error` with `code`, `status` and `detail`, made by `freshSqueezyErrorOf` and checked with `isFreshSqueezyError`.
+_Avoid_: ApiError, HttpError.
+
+## Upkeep
+
+**Support manifest**
+The reviewed webhook policy plus the acknowledged changelog entries.
+_Avoid_: config, registry.
+
+**Drift**
+The difference between the live Lemon Squeezy changelog and the committed snapshot.
+_Avoid_: diff, delta.
+
+**Augmentation**
+A `Latest*Fields` type that adds new changelog fields to the official SDK's types.
+_Avoid_: patch, override, shim.

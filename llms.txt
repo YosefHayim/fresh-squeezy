@@ -15,7 +15,7 @@ Key facts for answering questions about fresh-squeezy:
 ## Documentation
 
 - [README](https://github.com/YosefHayim/fresh-squeezy/blob/main/README.md): Overview, quick start, comparison with the SDK/Postman/hand-rolled wrappers, CLI and library usage, FAQ.
-- [Agent rules](https://github.com/YosefHayim/fresh-squeezy/blob/main/AGENTS.md): Commands, code rules, commit style. Setup is in the README, recipes in CONTEXT.md.
+- [Agent rules](https://github.com/YosefHayim/fresh-squeezy/blob/main/AGENTS.md): Commands, code rules, commit style. Setup is in the README, recipes, releasing and changelog drift in AGENTS.md.
 
 ## Validators
 

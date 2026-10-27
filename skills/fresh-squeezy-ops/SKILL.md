@@ -140,7 +140,7 @@ HTTP failures throw a plain `Error` named `FreshSqueezyError` with `code` / `sta
 
 ### Adding a validator (separate recipe)
 
-See `CONTEXT.md` → “Add a validator”. Ops do not replace doctor.
+See `AGENTS.md` → “Recipes” → “Add a validator”. Ops do not replace doctor.
 
 ## Key files
 
