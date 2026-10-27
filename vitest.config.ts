@@ -1,11 +1,14 @@
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
+const e2eUrl = new URL("./e2e", import.meta.url);
+const srcUrl = new URL("./src", import.meta.url);
+
 export default defineConfig({
 	resolve: {
 		alias: {
-			"@e2e": fileURLToPath(new URL("./e2e", import.meta.url)),
-			"@": fileURLToPath(new URL("./src", import.meta.url)),
+			"@e2e": fileURLToPath(e2eUrl),
+			"@": fileURLToPath(srcUrl),
 		},
 	},
 	test: {
