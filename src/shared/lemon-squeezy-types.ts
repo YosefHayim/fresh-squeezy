@@ -162,6 +162,7 @@ export interface OrderFirstItem {
 	order_id?: number | null;
 	product_id: number;
 	variant_id: number;
+	price_id?: number | null;
 	product_name: string;
 	variant_name: string;
 	price: number;
@@ -224,12 +225,14 @@ export interface OrderItemAttributes {
 	order_id: number;
 	product_id: number;
 	variant_id: number;
+	price_id?: number | null;
 	product_name: string;
 	variant_name: string;
 	price: number;
 	quantity: number;
 	created_at?: string | null;
 	updated_at?: string | null;
+	test_mode?: boolean | null;
 }
 
 export interface SubscriptionPause {
