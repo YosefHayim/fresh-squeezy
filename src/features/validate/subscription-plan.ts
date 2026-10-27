@@ -148,9 +148,9 @@ const planIssueRules: IssueRule<PlanSubject>[] = [
 		code: ISSUE_CODES.PLAN_INVALID_INTERVAL,
 		severity: "error",
 		isRaised: ({ interval_count }) =>
-			interval_count === null || interval_count <= 0,
+			typeof interval_count !== "number" || interval_count <= 0,
 		message: (plan) =>
-			`Subscription variant has invalid interval_count: ${plan.interval_count}. Must be a positive integer.`,
+			`Subscription variant has invalid interval_count: ${plan.interval_count ?? "missing"}. Must be a positive integer.`,
 		suggestedFix:
 			"Set interval_count to a positive value (e.g. 1 for monthly, 2 for biweekly).",
 		context: (plan) => ({ intervalCount: plan.interval_count }),
