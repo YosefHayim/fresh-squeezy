@@ -4,7 +4,9 @@ import {
 	PUBLISHED_PRODUCT_DOC,
 	UNPUBLISHED_PRODUCT_DOC,
 	VARIANTS_COLLECTION_ALL_DRAFT,
+	VARIANTS_COLLECTION_DEFAULT_ONLY,
 	VARIANTS_COLLECTION_EMPTY,
+	VARIANTS_COLLECTION_PENDING_AND_DRAFT,
 	VARIANTS_COLLECTION_PUBLISHED,
 } from "@e2e/fixtures/sandbox/data.js";
 import { makeHttp, pathIs, pathIsWithQuery, route } from "@e2e/mock-fetch.js";
@@ -23,6 +25,15 @@ const publishedProductRoutes = (
 	},
 ];
 
+const validatePublishedProduct = (
+	variantsStatus: number,
+	variantsBody: unknown,
+) => {
+	const routes = publishedProductRoutes(variantsStatus, variantsBody);
+	const http = makeHttp(routes);
+	return validateProduct(http, "test", { productId: "100" });
+};
+
 test("validateProduct passes a published product with a published variant", async () => {
 	const http = makeHttp(
 		publishedProductRoutes(200, VARIANTS_COLLECTION_PUBLISHED),
@@ -35,6 +46,28 @@ test("validateProduct passes a published product with a published variant", asyn
 
 	expect(productValidation.ok).toBe(true);
 	expect(productValidation.findings).toHaveLength(0);
+});
+
+test("validateProduct passes a product whose only variant is the pending default variant", async () => {
+	const productValidation = await validatePublishedProduct(
+		200,
+		VARIANTS_COLLECTION_DEFAULT_ONLY,
+	);
+
+	expect(productValidation.ok).toBe(true);
+	expect(productValidation.findings).toHaveLength(0);
+});
+
+test("validateProduct flags VARIANT_UNPUBLISHED when a pending variant has only draft siblings", async () => {
+	const productValidation = await validatePublishedProduct(
+		200,
+		VARIANTS_COLLECTION_PENDING_AND_DRAFT,
+	);
+
+	expect(productValidation.ok).toBe(false);
+	expect(productValidation.findings.map((entry) => entry.code)).toContain(
+		"VARIANT_UNPUBLISHED",
+	);
 });
 
 test("validateProduct flags unpublished product and draft-only variants", async () => {
@@ -99,11 +132,10 @@ test("validateProduct returns PRODUCT_NOT_FOUND on 404", async () => {
 });
 
 test("validateProduct flags VARIANT_MISSING when no variants exist", async () => {
-	const http = makeHttp(publishedProductRoutes(200, VARIANTS_COLLECTION_EMPTY));
-
-	const productValidation = await validateProduct(http, "test", {
-		productId: "100",
-	});
+	const productValidation = await validatePublishedProduct(
+		200,
+		VARIANTS_COLLECTION_EMPTY,
+	);
 
 	expect(productValidation.ok).toBe(false);
 	expect(productValidation.findings.map((entry) => entry.code)).toContain(
@@ -112,12 +144,8 @@ test("validateProduct flags VARIANT_MISSING when no variants exist", async () =>
 });
 
 test("validateProduct soft-fails variant listing as a warning without failing the product check", async () => {
-	const http = makeHttp(
-		publishedProductRoutes(500, { errors: [{ detail: "upstream" }] }),
-	);
-
-	const productValidation = await validateProduct(http, "test", {
-		productId: "100",
+	const productValidation = await validatePublishedProduct(500, {
+		errors: [{ detail: "upstream" }],
 	});
 
 	expect(productValidation.ok).toBe(true);

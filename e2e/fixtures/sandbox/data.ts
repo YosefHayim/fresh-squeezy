@@ -123,6 +123,49 @@ export const VARIANTS_COLLECTION_PUBLISHED = {
 
 export const VARIANTS_COLLECTION_EMPTY = { data: [] };
 
+export const VARIANTS_COLLECTION_DEFAULT_ONLY = {
+	data: [
+		{
+			type: "variants",
+			id: "502",
+			attributes: {
+				product_id: 100,
+				name: "Default",
+				slug: "default",
+				status: "pending",
+				is_subscription: false,
+			},
+		},
+	],
+};
+
+export const VARIANTS_COLLECTION_PENDING_AND_DRAFT = {
+	data: [
+		{
+			type: "variants",
+			id: "503",
+			attributes: {
+				product_id: 100,
+				name: "Default",
+				slug: "default",
+				status: "pending",
+				is_subscription: false,
+			},
+		},
+		{
+			type: "variants",
+			id: "504",
+			attributes: {
+				product_id: 100,
+				name: "Draft",
+				slug: "draft",
+				status: "draft",
+				is_subscription: false,
+			},
+		},
+	],
+};
+
 export const VARIANTS_COLLECTION_ALL_DRAFT = {
 	data: [
 		{
