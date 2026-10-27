@@ -2,24 +2,22 @@
 
 <p align="center">
   <a href="https://github.com/YosefHayim/fresh-squeezy">
-    <img src="public/fresh-squeezy-hero.png" alt="fresh-squeezy — el doctor con enfoque en validación para tu configuración de Lemon Squeezy. Detecta errores de configuración de facturación y webhooks antes de que lleguen a producción." width="640" />
+    <img src="public/fresh-squeezy-hero.png" alt="fresh-squeezy — el cliente actualizado de Lemon Squeezy, más un doctor que revisa tu configuración de facturación." width="640" />
   </a>
 </p>
 
 <p align="center">
-  <strong>El doctor para tu configuración de Lemon Squeezy — detecta errores de configuración de facturación y webhooks antes de que lleguen a producción.</strong>
+  <strong>El cliente actualizado de Lemon Squeezy para TypeScript, más un doctor que detecta errores de configuración de facturación antes de que lleguen a producción.</strong>
 </p>
 
-<!-- Badges. tests count is static; bump it on major test-suite changes. -->
 <p align="center">
   <a href="https://www.npmjs.com/package/fresh-squeezy"><img src="https://img.shields.io/npm/v/fresh-squeezy?logo=npm&amp;color=cb3837" alt="npm version" /></a>
   <a href="https://www.npmjs.com/package/fresh-squeezy"><img src="https://img.shields.io/npm/dm/fresh-squeezy?logo=npm&amp;color=cb3837" alt="npm downloads per month" /></a>
   <a href="https://github.com/YosefHayim/fresh-squeezy/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/YosefHayim/fresh-squeezy/ci.yml?branch=main&amp;logo=github&amp;label=CI" alt="CI status" /></a>
   <a href="./LICENSE"><img src="https://img.shields.io/npm/l/fresh-squeezy?color=3fb950" alt="MIT license" /></a>
-  <img src="https://img.shields.io/node/v/fresh-squeezy?logo=node.js&amp;logoColor=white&amp;color=339933" alt="Node.js 20 or newer" />
+  <img src="https://img.shields.io/node/v/fresh-squeezy?logo=node.js&amp;logoColor=white&amp;color=339933" alt="Node.js 22 or newer" />
   <img src="https://img.shields.io/npm/types/fresh-squeezy?logo=typescript&amp;logoColor=white" alt="TypeScript types included" />
   <a href="https://packagephobia.com/result?p=fresh-squeezy"><img src="https://packagephobia.com/badge?p=fresh-squeezy" alt="install size" /></a>
-  <img src="https://img.shields.io/badge/tests-154%20passing-3fb950?logo=vitest&amp;logoColor=white" alt="154 tests passing" />
 </p>
 
 <p align="center">
@@ -30,246 +28,319 @@
   <a href="./README.pt-BR.md">Português</a>
 </p>
 
-> Las traducciones pueden estar desactualizadas. La versión canónica es el [README en inglés](./README.md).
-
 <p align="center">
-  <a href="#inicio-en-30-segundos">Inicio rápido</a> ·
-  <a href="#lo-que-detecta-y-que-postman-y-el-sdk-oficial-no-detectan">Lo que detecta</a> ·
-  <a href="#fresh-squeezy-frente-a-las-alternativas">Comparación</a> ·
-  <a href="#cli">CLI</a> ·
-  <a href="#biblioteca">Biblioteca</a> ·
-  <a href="#códigos-de-incidencia">Códigos de incidencia</a> ·
-  <a href="#faq">FAQ</a>
+  <a href="#instalación">Instalación</a> ·
+  <a href="#cliente">Cliente</a> ·
+  <a href="#doctor">Doctor</a> ·
+  <a href="#reemplazar-lemonsqueezylemonsqueezyjs">Reemplazar el SDK</a> ·
+  <a href="#actualizar-desde-03">Actualizar desde 0.3</a> ·
+  <a href="#mantener-los-tipos-al-día">Mantener los tipos al día</a> ·
+  <a href="#códigos-de-hallazgo">Códigos de hallazgo</a>
 </p>
 
 ---
 
-**fresh-squeezy** es una CLI y una biblioteca de TypeScript que valida tu integración de facturación de [Lemon Squeezy](https://www.lemonsqueezy.com/) — tiendas, productos, webhooks, descuentos, claves de licencia y planes de suscripción — y detecta errores de configuración antes de que lleguen a producción. Ejecútala como un único comando `doctor` localmente o en CI: devuelve [códigos de salida](#inicio-en-30-segundos) estables y JSON legible por máquina, y rastrea las desviaciones del [registro de cambios de la API de Lemon Squeezy](https://docs.lemonsqueezy.com/api/getting-started/changelog) que el SDK oficial aún no ha incorporado. Node 20+.
+**fresh-squeezy** son dos cosas para [Lemon Squeezy](https://www.lemonsqueezy.com/):
 
-## Inicio en 30 segundos
+1. **Un cliente tipado** que reemplaza a [`@lemonsqueezy/lemonsqueezy.js`](https://github.com/lmsqueezy/lemonsqueezy.js). El SDK oficial publicó por última vez la 4.0.0 el 2024-11-05; fresh-squeezy sigue el [registro de cambios de la API](https://docs.lemonsqueezy.com/api/getting-started/changelog). Cero dependencias en tiempo de ejecución, ESM y CJS.
+2. **Un doctor** que revisa una tienda antes de publicar: conexión y modo, tienda, productos, planes de suscripción, webhooks, descuentos y claves de licencia. Da códigos de hallazgo estables, códigos de salida estables y JSON para CI.
 
-```bash
-npx fresh-squeezy
-```
+Node 22 o superior.
 
-La primera ejecución agrega `fresh-squeezy` a las devDependencies cuando no está presente, y luego inicia la configuración guiada. No hay que copiar un ID de tienda desde el panel — la CLI descubre por sí misma las tiendas accesibles. Usa `npx fresh-squeezy --no-install` para ejecutar la configuración sin modificar `package.json`.
-
-| Salida | Significado                                                   |
-| ------ | ------------------------------------------------------------- |
-| `0`    | Todos los validadores pasaron                                 |
-| `1`    | Uno o más validadores reportaron incidencias de nivel `error` |
-| `2`    | Fatal (clave faltante, flags inválidos, fallo de red)         |
-| `130`  | El usuario canceló un flujo interactivo                       |
-
-## Lo que detecta y que Postman y el SDK oficial no detectan
-
-- **Clave de producción apuntando a staging.** `MODE_MISMATCH` se dispara cuando el verdadero `meta.test_mode` de la clave (registro de cambios de la API 2024-01-05) no coincide con el modo declarado. Doctor sale con 1. Ni el SDK ni un wrapper hecho a mano detectan esto por defecto.
-- **Discrepancias silenciosas de propiedad de tienda.** Productos, descuentos, claves de licencia y planes de suscripción cuyo `store_id` no coincide con la tienda a la que limitaste la ejecución. Códigos estables: `PRODUCT_WRONG_STORE`, `DISCOUNT_STORE_MISMATCH`, `LICENSE_KEY_STORE_MISMATCH`, `PLAN_STORE_MISMATCH`.
-- **Webhook suscrito a los eventos equivocados.** Comparación contra un manifiesto de eventos recomendados (ciclo de vida de pedidos/suscripciones, reembolsos) y eventos más recientes pero opcionales que el SDK no incluye.
-- **Desviación de la plataforma.** Una GitHub Action semanal calcula el hash del [registro de cambios de la API de Lemon Squeezy](https://docs.lemonsqueezy.com/api/getting-started/changelog) contra `src/features/upkeep/changelog-snapshot.json`, actualiza los tipos de la API derivados de la documentación y abre tareas de seguimiento cuando se necesitan decisiones de política. Las adiciones rastreadas incluyen `customer_updated` (2026-02-25), `payment_processor` en Subscription (2025-06-11), Affiliates + `affiliate_activated` (2025-01-21), `quantity` de los ítems de pedido (2024-12-06), estilos de checkout / `skip_trial` / `variant_quantities`, campos de reembolso de facturas de suscripción y `test_mode` en `/v1/users/me` (2024-01-05).
-- **El ping-pong entre Postman y el panel.** Una sola llamada a `doctor` reemplaza el ciclo de copiar IDs de la interfaz, pegarlos en archivos de entorno y verificar cada uno a mano.
-
-## fresh-squeezy frente a las alternativas
-
-Cómo se compara una verificación previa al lanzamiento típica de Lemon Squeezy entre las herramientas a las que un desarrollador recurriría de otro modo:
-
-| Capacidad                                                   | fresh-squeezy | SDK oficial |  Postman  | Wrapper hecho a mano |
-| ----------------------------------------------------------- | :-----------: | :---------: | :-------: | :------------------: |
-| Detección de discrepancia de modo / clave (`MODE_MISMATCH`) |      ✅       |     ❌      |    ❌     |          ❌          |
-| Verificaciones cruzadas de propiedad de tienda              |      ✅       |     ❌      |    ❌     |      ⚠️ manual       |
-| Comparación de cobertura de eventos de webhook              |      ✅       |     ❌      | ⚠️ manual |      ⚠️ manual       |
-| Validación de descuentos / claves de licencia / planes      |      ✅       |     ❌      |    ❌     |      ⚠️ manual       |
-| Rastreo de desviación del registro de cambios               |      ✅       |     ❌      |    ❌     |          ❌          |
-| Códigos de salida + JSON estables y listos para CI          |      ✅       |     ❌      |    ❌     |      ⚠️ manual       |
-| Barrido completo en un solo comando (`doctor`)              |      ✅       |     ❌      |    ❌     |          ❌          |
-| Respuestas de la API tipadas                                |      ✅       |     ✅      |    ❌     |      ⚠️ depende      |
-
-fresh-squeezy **no** es un reemplazo del SDK oficial — es la verificación previa que ejecutas _junto_ a él. Usa el SDK para hacer llamadas a la API; usa fresh-squeezy para comprobar que tu configuración es correcta antes de que esas llamadas lleguen a producción.
-
-## CLI
+## Instalación
 
 ```bash
-# First run: install as a dev dependency, then start guided setup
-npx fresh-squeezy
-
-# Guided setup only: reuse env values, pick a store, choose resource checks
-npx fresh-squeezy init
-
-# TTY: multi-select stores interactively, run doctor on each
-npx fresh-squeezy doctor
-
-# Full sweep across every reachable store and resource
-npx fresh-squeezy doctor --all-stores --all-resources
-
-# Machine-readable full sweep for CI
-npx fresh-squeezy doctor --all-stores --all-resources --json
-
-# Single validator, scoped to specific stores
-npx fresh-squeezy validate webhook \
-  --store-ids 12,34 \
-  --webhook-url https://app.example.com/api/webhooks/lemon-squeezy
+pnpm add fresh-squeezy
 ```
 
-Las tiendas se resuelven en este orden para cada comando con alcance de tienda: `--store-ids` explícito, luego `--all-stores`, luego una multiselección interactiva en una TTY, y por último una ejecución solo de conexión cuando no hay TTY ni flag (útil como verificación rápida en CI). `doctor` valida la conexión y el acceso a la tienda, además de cualquier flag de recurso explícito; agrega `--all-resources` para descubrir y validar todos los recursos compatibles en la(s) tienda(s) seleccionada(s).
+Define la clave una sola vez. El modo es `test` por defecto.
 
-## Biblioteca
+```bash
+LEMON_SQUEEZY_API_KEY=your-key
+LEMON_SQUEEZY_MODE=test
+LEMON_SQUEEZY_STORE_ID=12
+```
+
+`LEMON_SQUEEZY_STORE_ID` es opcional. Los mismos nombres funcionan como opciones de `createFreshSqueezy({ apiKey, mode, storeId, baseUrl })`.
+
+## Cliente
+
+El nombre del recurso elige los tipos. Los nombres de atributos usan snake_case, como los envía la API.
 
 ```ts
 import { createFreshSqueezy } from "fresh-squeezy";
 
-const lemon = createFreshSqueezy(); // reads LEMON_SQUEEZY_API_KEY, LEMON_SQUEEZY_MODE
+const freshSqueezy = createFreshSqueezy();
 
-const report = await lemon.doctor({
-	storeId: 12, // library is single-store per call
-	productId: 987,
-	webhookUrl: "https://app.example.com/api/webhooks/lemon-squeezy",
+const subscription = await freshSqueezy.get("subscriptions", "123");
+const paidOrders = await freshSqueezy.list("orders", { store_id: 1, status: "paid" });
+
+await freshSqueezy.create("checkouts", {
+	attributes: { checkout_data: { email: "ada@example.com" } },
+	relationships: { store: "1", variant: "2" },
 });
+await freshSqueezy.update("subscriptions", "123", { pause: { mode: "void" } });
+await freshSqueezy.remove("webhooks", "9");
+await freshSqueezy.cancelSubscription("123");
+await freshSqueezy.refund("orders", "55", 500);
+await freshSqueezy.generateInvoice("orders", "55", { name, address, city, state, zip_code, country });
+await freshSqueezy.currentUsage("77");
+```
 
-if (!report.ok) {
-	for (const result of report.results) {
-		for (const issue of result.issues) {
-			console.error(`[${issue.severity}] ${issue.code}: ${issue.message}`);
-		}
-	}
-	process.exit(1);
+- `list` lee todas las páginas. Los filtros se convierten en parámetros `filter[...]`.
+- Una llamada fallida lanza un `FreshSqueezyError` (un `Error` simple con `code`, `status` y `detail`). Compruébalo con `isFreshSqueezyError` de `fresh-squeezy/errors` y ramifica según `.code`.
+- El cliente solo tiene las llamadas que listan los [documentos de la API de Lemon Squeezy](https://docs.lemonsqueezy.com/api). Los productos, variantes y precios no tienen API de escritura, así que aquí tampoco hay escritura.
+
+La API de licencias no necesita clave de API y tiene su propio subpath:
+
+```ts
+import { activateLicense, validateLicense, deactivateLicense } from "fresh-squeezy/license";
+
+await activateLicense({ licenseKey, instanceName });
+await validateLicense({ licenseKey, instanceId }); // instanceId es opcional
+await deactivateLicense({ licenseKey, instanceId });
+```
+
+## Doctor
+
+```bash
+# Todas las tiendas a las que llega la clave
+npx fresh-squeezy doctor
+
+# Una tienda, más todos sus productos, planes, webhooks, descuentos y claves de licencia
+npx fresh-squeezy doctor --store-id 12 --all-resources
+
+# Dos tiendas, una URL de webhook, salida legible por máquina
+npx fresh-squeezy doctor --store-id 12 --store-id 34 \
+  --webhook-url https://app.example.com/api/webhooks/lemon-squeezy --json
+```
+
+| Opción | Significado |
+| --- | --- |
+| `--mode <test\|live>` | Modo a revisar. Por defecto: `LEMON_SQUEEZY_MODE`, si no `test` |
+| `--store-id <id>` | Tienda a revisar, repite para más. Por defecto: `LEMON_SQUEEZY_STORE_ID`, si no todas las tiendas |
+| `--all-resources` | Revisa también cada producto, plan, webhook, descuento y clave de licencia de cada tienda |
+| `--product-id <id>` | Producto a revisar, repite para más |
+| `--variant-id <id>` | Plan de suscripción a revisar, repite para más |
+| `--webhook-url <url>` | Webhook a revisar, repite para más |
+| `--discount-id <id>` | Descuento a revisar, repite para más |
+| `--license-key-id <id>` | Clave de licencia a revisar, repite para más |
+| `--json` | Imprime los informes como JSON |
+| `--help`, `--version` | Muestra la ayuda o la versión |
+
+El doctor lee `LEMON_SQUEEZY_API_KEY` del entorno o de un archivo `.env` en el directorio de trabajo. Nunca pregunta y nunca se queda colgado.
+
+| Salida | Significado |
+| --- | --- |
+| `0` | Todas las comprobaciones pasaron |
+| `1` | Una comprobación falló |
+| `2` | Opciones o configuración incorrectas (falta la clave, modo o flag inválido) |
+
+`--json` imprime un objeto:
+
+```json
+{
+  "ok": false,
+  "mode": "test",
+  "reports": [
+    {
+      "ok": false,
+      "mode": "test",
+      "results": [
+        {
+          "name": "discount",
+          "ok": false,
+          "mode": "test",
+          "target": { "label": "discount", "id": "77" },
+          "findings": [
+            {
+              "code": "DISCOUNT_EXPIRED",
+              "severity": "error",
+              "message": "...",
+              "suggestedFix": "..."
+            }
+          ]
+        }
+      ]
+    }
+  ]
 }
 ```
 
-Para ejecuciones multitienda en la capa de biblioteca, llama a `doctor()` en un bucle — la CLI hace exactamente esto. Decide según `issue.code` en la lógica de CI; los códigos son estables entre versiones menores.
+`reports` tiene un informe por tienda. Una comprobación es `ok` cuando no tiene hallazgos de nivel `error`.
 
-Tipos públicos: [`FreshSqueezyClient`](src/create-fresh-squeezy.ts), [`ValidationResult<T>`](src/shared/contracts.ts), [`DoctorReport`](src/shared/contracts.ts), interfaces de atributos de recursos bajo [`src/shared/attributes.ts`](src/shared/attributes.ts), tipos de objetos de Lemon Squeezy generados a partir de la documentación en [`src/shared/lemon-squeezy-api-types.ts`](src/shared/lemon-squeezy-api-types.ts), y helpers de aumento del registro de cambios en [`src/augmentations.ts`](src/augmentations.ts).
+### CI
 
-Para endpoints que aún no están envueltos, usa la vía de escape sin procesar:
+```yaml
+- name: Check Lemon Squeezy
+  run: npx fresh-squeezy doctor --all-resources --json
+  env:
+    LEMON_SQUEEZY_API_KEY: ${{ secrets.LEMON_SQUEEZY_API_KEY }}
+    LEMON_SQUEEZY_MODE: live
+```
+
+El paso falla con salida `1` o `2`. Una clave de producción apuntando a una tienda de prueba (o al revés) genera `MODE_MISMATCH`: el doctor compara el modo declarado con `meta.test_mode` de `/v1/users/me`.
+
+### Las comprobaciones desde TypeScript
+
+Cada comprobación devuelve un `ValidationResult` y nunca lanza excepciones.
 
 ```ts
-const user = await lemon.request({ path: "/v1/users/me" });
+const freshSqueezy = createFreshSqueezy({ mode: "live" });
+
+const connection = await freshSqueezy.validateConnection();
+const discount = await freshSqueezy.validateDiscount({ storeId: "12", discountId: "77" });
+const report = await freshSqueezy.doctor({ storeId: "12", allResources: true });
+const storeIds = await freshSqueezy.listStoreIds();
+
+for (const check of report.results) {
+	for (const finding of check.findings) {
+		console.error(`[${finding.severity}] ${finding.code}: ${finding.message}`);
+	}
+}
 ```
+
+Las comprobaciones: `validateConnection`, `validateStore`, `validateProduct`, `validateSubscriptionPlan`, `validateWebhook`, `validateDiscount`, `validateLicenseKey`, y `doctor`, que las ejecuta para una tienda. Los tipos de resultados y hallazgos vienen de `fresh-squeezy/findings`.
+
+## Reemplazar @lemonsqueezy/lemonsqueezy.js
+
+Cada función que exporta el SDK y la llamada de fresh-squeezy que la reemplaza. Estas diferencias valen para todas las filas:
+
+- `lemonSqueezySetup` pasa a ser `createFreshSqueezy`. No hay estado global: conserva el objeto que devuelve.
+- El SDK devuelve `{ statusCode, data, error }`. fresh-squeezy devuelve el recurso y lanza un `FreshSqueezyError` si falla.
+- Los atributos usan snake_case (`variant_id`), no camelCase (`variantId`). Los ids son cadenas.
+- `archiveCustomer` es `update("customers", id, { status: "archived" })`, como describe la [documentación de actualizar cliente](https://docs.lemonsqueezy.com/api/customers/update-customer).
+- Las funciones de licencia pasan a `fresh-squeezy/license`.
+
+| `@lemonsqueezy/lemonsqueezy.js` | `fresh-squeezy` |
+| ------------------------------- | --------------- |
+| `activateLicense` | `activateLicense({ licenseKey, instanceName })` from `fresh-squeezy/license` |
+| `archiveCustomer` | `update("customers", id, { status: "archived" })` |
+| `cancelSubscription` | `cancelSubscription(id)` |
+| `createCheckout` | `create("checkouts", { attributes, relationships: { store, variant } })` |
+| `createCustomer` | `create("customers", { attributes, relationships: { store: storeId } })` |
+| `createDiscount` | `create("discounts", { attributes, relationships: { store, variants } })` |
+| `createUsageRecord` | `create("usage-records", { attributes, relationships: { "subscription-item": id } })` |
+| `createWebhook` | `create("webhooks", { attributes, relationships: { store: storeId } })` |
+| `deactivateLicense` | `deactivateLicense({ licenseKey, instanceId })` from `fresh-squeezy/license` |
+| `deleteDiscount` | `remove("discounts", id)` |
+| `deleteWebhook` | `remove("webhooks", id)` |
+| `generateOrderInvoice` | `generateInvoice("orders", id, billing)` |
+| `generateSubscriptionInvoice` | `generateInvoice("subscription-invoices", id, billing)` |
+| `getAuthenticatedUser` | `get("users", "me")` |
+| `getCheckout` | `get("checkouts", id)` |
+| `getCustomer` | `get("customers", id)` |
+| `getDiscount` | `get("discounts", id)` |
+| `getDiscountRedemption` | `get("discount-redemptions", id)` |
+| `getFile` | `get("files", id)` |
+| `getLicenseKey` | `get("license-keys", id)` |
+| `getLicenseKeyInstance` | `get("license-key-instances", id)` |
+| `getOrder` | `get("orders", id)` |
+| `getOrderItem` | `get("order-items", id)` |
+| `getPrice` | `get("prices", id)` |
+| `getProduct` | `get("products", id)` |
+| `getStore` | `get("stores", id)` |
+| `getSubscription` | `get("subscriptions", id)` |
+| `getSubscriptionInvoice` | `get("subscription-invoices", id)` |
+| `getSubscriptionItem` | `get("subscription-items", id)` |
+| `getSubscriptionItemCurrentUsage` | `currentUsage(subscriptionItemId)` |
+| `getUsageRecord` | `get("usage-records", id)` |
+| `getVariant` | `get("variants", id)` |
+| `getWebhook` | `get("webhooks", id)` |
+| `issueOrderRefund` | `refund("orders", id, amount)` |
+| `issueSubscriptionInvoiceRefund` | `refund("subscription-invoices", id, amount)` |
+| `lemonSqueezySetup` | `createFreshSqueezy({ apiKey })` |
+| `listCheckouts` | `list("checkouts", filter)` |
+| `listCustomers` | `list("customers", filter)` |
+| `listDiscountRedemptions` | `list("discount-redemptions", filter)` |
+| `listDiscounts` | `list("discounts", filter)` |
+| `listFiles` | `list("files", filter)` |
+| `listLicenseKeyInstances` | `list("license-key-instances", filter)` |
+| `listLicenseKeys` | `list("license-keys", filter)` |
+| `listOrderItems` | `list("order-items", filter)` |
+| `listOrders` | `list("orders", filter)` |
+| `listPrices` | `list("prices", filter)` |
+| `listProducts` | `list("products", filter)` |
+| `listStores` | `list("stores", filter)` |
+| `listSubscriptionInvoices` | `list("subscription-invoices", filter)` |
+| `listSubscriptionItems` | `list("subscription-items", filter)` |
+| `listSubscriptions` | `list("subscriptions", filter)` |
+| `listUsageRecords` | `list("usage-records", filter)` |
+| `listVariants` | `list("variants", filter)` |
+| `listWebhooks` | `list("webhooks", filter)` |
+| `updateCustomer` | `update("customers", id, attributes)` |
+| `updateLicenseKey` | `update("license-keys", id, attributes)` |
+| `updateSubscription` | `update("subscriptions", id, attributes)` |
+| `updateSubscriptionItem` | `update("subscription-items", id, attributes)` |
+| `updateWebhook` | `update("webhooks", id, attributes)` |
+| `validateLicense` | `validateLicense({ licenseKey, instanceId })` from `fresh-squeezy/license` |
+
+Las 60 filas son todas las funciones que exporta `@lemonsqueezy/lemonsqueezy.js` 4.0.0.
 
 ## Actualizar desde 0.3
 
-Dos cambios incompatibles. El paquete ya no tiene barrel: `fresh-squeezy` exporta solo `createFreshSqueezy` (y los tipos de su cliente); cada otro módulo tiene su propio subpath. Y `FreshSqueezyError` ya no es una clase: es un `Error` simple con `name`, `code`, `status` y `detail`, creado con `freshSqueezyErrorOf` y comprobado con `isFreshSqueezyError`. Sigue ramificando por `.code`.
-
-Mapa de imports:
-
-| Before (`from "fresh-squeezy"`)                               | Now                                                                                                                                    |
-| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `createFreshSqueezy`, `FreshSqueezyClient`, `FreshSqueezyOps` | `fresh-squeezy`                                                                                                                        |
-| `FreshSqueezyError`                                           | `fresh-squeezy/errors`                                                                                                                 |
-| config helpers                                                | `fresh-squeezy/config`                                                                                                                 |
-| `ValidationResult`, `DoctorReport`, shared types              | `fresh-squeezy/types`                                                                                                                  |
-| `Generated*` Lemon Squeezy types                              | `fresh-squeezy/api-types`                                                                                                              |
-| resource attribute interfaces                                 | `fresh-squeezy/resources/attributes`                                                                                                   |
-| resource registry (`invokeOp`, ...)                           | `fresh-squeezy/resources/registry`                                                                                                     |
-| validators                                                    | `fresh-squeezy/validate/connection`, `discount`, `doctor`, `license-key`, `product`, `issues`, `store`, `subscription-plan`, `webhook` |
-| webhook policy, supported resources                           | `fresh-squeezy/manifest`                                                                                                               |
-| `Latest*` helpers                                             | `fresh-squeezy/augmentations`                                                                                                          |
-
-Imports y comprobación del error:
+- Los comandos ops y el registro de verbos ya no existen. Usa el [cliente](#cliente).
+- `init`, `manage`, los subcomandos `validate`, las augmentations y el menú del lanzador ya no existen. El único comando es `fresh-squeezy doctor`, y solo acepta opciones.
+- `--store-ids a,b` ahora es `--store-id a --store-id b`. Sin tienda indicada, el doctor revisa todas las tiendas, así que `--all-stores` es el valor por defecto.
+- Los issues ahora son hallazgos: `ISSUE_CODES` es `FINDING_CODES`, `issue.code` es `finding.code` y la clave JSON `issues` es `findings`. Los códigos no cambian, salvo `STORE_NOT_OWNED`, que se eliminó (nada lo generaba).
+- Los subpaths exportados ahora son `.`, `./config`, `./errors`, `./findings`, `./types` y `./license`.
+- Node 22 o superior. Las dependencias en tiempo de ejecución desaparecieron.
 
 ```ts
-// before
-import {
-	createFreshSqueezy,
-	validateStore,
-	FreshSqueezyError,
-} from "fresh-squeezy";
-if (error instanceof FreshSqueezyError) console.error(error.code);
-
-// after
-import { createFreshSqueezy } from "fresh-squeezy";
+// antes
 import { validateStore } from "fresh-squeezy/validate/store";
-import { isFreshSqueezyError } from "fresh-squeezy/errors";
-if (isFreshSqueezyError(error)) console.error(error.code);
+if (result.issues.length > 0) console.error(result.issues[0].code);
+
+// después
+import { createFreshSqueezy } from "fresh-squeezy";
+const freshSqueezy = createFreshSqueezy();
+const result = await freshSqueezy.validateStore("12");
+if (result.findings.length > 0) console.error(result.findings[0].code);
 ```
 
-## Sandbox frente a producción
+## Mantener los tipos al día
 
-Lemon Squeezy sirve ambos modos desde el mismo host de API; el modo se determina por la clave. `fresh-squeezy` compara el modo declarado contra `meta.test_mode` de `/v1/users/me`. Discrepancia = `MODE_MISMATCH`, doctor sale con 1 — la forma más rápida de detectar una clave de producción apuntando a staging antes de que cause daño.
+El workflow `lemon-squeezy-changelog` se ejecuta el día 1 y el 15 de cada mes. Cuando la entrada más reciente del [registro de cambios de la API](https://docs.lemonsqueezy.com/api/getting-started/changelog) aún no tiene issue, abre uno con la etiqueta `changelog-drift`.
 
-```ts
-const lemon = createFreshSqueezy({ mode: "test" });
-const result = await lemon.validateConnection();
-result.mode; // "test" (declared)
-result.resource?.actualMode; // "live" — alarm bell
-```
+Para arreglarlo, lee la entrada, edita a mano `src/shared/lemon-squeezy-types.ts` y el cliente, agrega una prueba y cierra el issue. Un agente puede encargarse del issue.
 
-El valor por defecto de la CLI es `--mode test`. Anúlalo con `--mode live`. La configuración guiada pide confirmación explícita antes de continuar con una clave de modo live detectada. Para verificaciones nocturnas de desviación de la plataforma en CI, ejecuta `pnpm test:live` con `LEMON_SQUEEZY_LIVE_SMOKE=1` y una clave de modo test.
-
-## Variables de entorno
-
-| Variable                 | Requerida | Propósito                                                                  |
-| ------------------------ | --------- | -------------------------------------------------------------------------- |
-| `LEMON_SQUEEZY_API_KEY`  | sí        | Token Bearer (biblioteca + CLI)                                            |
-| `LEMON_SQUEEZY_MODE`     | no        | `test` (por defecto) o `live`                                              |
-| `LEMON_SQUEEZY_STORE_ID` | no        | Valor por defecto de conveniencia para `client.doctor()` — solo biblioteca |
-
-La CLI no lee `LEMON_SQUEEZY_STORE_ID`; usa `--store-ids` o `--all-stores` para que la selección de tienda siga siendo explícita en cada comando.
-
-## Códigos de incidencia
-
-Decide según `issue.code` en CI — todos los códigos son estables entre versiones menores. Los más comunes:
-
-| Código                                                               | Significado                                                       |
-| -------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| `AUTH_FAILED`                                                        | Clave de API inválida o faltante                                  |
-| `MODE_MISMATCH`                                                      | El modo declarado no coincide con el `meta.test_mode` de la clave |
-| `STORE_NOT_FOUND` / `STORE_NOT_OWNED`                                | ID de tienda inválido o propiedad de otra cuenta                  |
-| `PRODUCT_UNPUBLISHED` / `PRODUCT_WRONG_STORE` / `PRODUCT_NO_BUY_URL` | El producto no puede aceptar checkout                             |
-| `WEBHOOK_NOT_FOUND` / `WEBHOOK_EVENTS_MISSING`                       | URL de webhook no registrada o con suscripción insuficiente       |
-
-## Referencia
-
-Validadores — cada uno devuelve un `ValidationResult` estable:
-
-- **`validateConnection`** — accesibilidad, validez de la clave, presencia de tienda, modo declarado frente al real. [→ código fuente](src/features/validate/connection.ts)
-- **`validateStore`** — el ID de tienda existe y es propiedad de la cuenta de la clave. [→ código fuente](src/features/validate/store.ts)
-- **`validateProduct`** — publicado, en la tienda esperada, tiene variantes activas y una URL de compra. [→ código fuente](src/features/validate/product.ts)
-- **`validateWebhook`** — URL de webhook registrada y suscrita a los eventos recomendados. [→ código fuente](src/features/validate/webhook.ts)
-- **`validateDiscount`** — activo, dentro de la ventana, importe válido, propiedad de tienda coincide. [→ código fuente](src/features/validate/discount.ts)
-- **`validateLicenseKey`** — habilitada, no expirada, activaciones disponibles, propiedad de tienda coincide. [→ código fuente](src/features/validate/license-key.ts)
-- **`validateSubscriptionPlan`** — tipo de suscripción, intervalo válido, precio distinto de cero, prueba consistente. [→ código fuente](src/features/validate/subscription-plan.ts)
-- **`doctor`** — compone lo anterior en un único `DoctorReport`. [→ código fuente](src/features/validate/doctor.ts)
-
-La cobertura de recursos se genera a partir de la documentación de objetos de Lemon Squeezy, por lo que la mayoría de los campos recién documentados no necesitan una edición manual:
+En un repositorio público, GitHub desactiva los workflows programados tras 60 días sin actividad. Vuelve a activarlo con:
 
 ```bash
-pnpm generate:api-types
-pnpm check:api-types
+gh workflow enable lemon-squeezy-changelog
 ```
 
-## FAQ
+## Códigos de hallazgo
 
-### ¿Cómo verifico si mi webhook de Lemon Squeezy está suscrito a los eventos correctos?
+Ramifica según `finding.code` en CI. Los códigos son estables entre versiones menores.
 
-Ejecuta `npx fresh-squeezy validate webhook --store-ids <id> --webhook-url <url>`. fresh-squeezy compara los eventos suscritos de tu webhook contra un manifiesto de eventos recomendados de pedidos/suscripciones/reembolsos y reporta `WEBHOOK_EVENTS_MISSING` para las brechas, o `WEBHOOK_NOT_FOUND` si la URL no está registrada en absoluto.
+| Código | Significado |
+| --- | --- |
+| `AUTH_FAILED` | Clave de API inválida o ausente |
+| `MODE_MISMATCH` | El modo declarado no coincide con el `meta.test_mode` de la clave |
+| `STORE_NOT_FOUND` | No se encontró el ID de tienda para esta clave |
+| `PRODUCT_UNPUBLISHED` / `PRODUCT_WRONG_STORE` / `PRODUCT_NO_BUY_URL` | El producto no puede aceptar un checkout |
+| `PLAN_INVALID_INTERVAL` / `PLAN_FREE_PRICE` | El plan de suscripción tiene un intervalo inválido o no tiene precio |
+| `WEBHOOK_NOT_FOUND` / `WEBHOOK_EVENTS_MISSING` | La URL del webhook no está registrada o faltan eventos |
+| `DISCOUNT_EXPIRED` / `DISCOUNT_REDEMPTIONS_EXHAUSTED` | El descuento no se puede usar |
+| `LICENSE_KEY_DISABLED` / `LICENSE_KEY_EXPIRED` | La clave de licencia no se puede activar |
 
-### ¿Cómo detecto una clave de producción de Lemon Squeezy apuntando a una tienda de prueba (staging)?
-
-Esa es la verificación `MODE_MISMATCH`. fresh-squeezy compara el modo que declaraste (`--mode` o `LEMON_SQUEEZY_MODE`) contra el `meta.test_mode` real de la clave obtenido de `/v1/users/me`. Cuando no coinciden, `doctor` sale con 1 — así que una clave de producción usada por accidente en un despliegue de staging (o viceversa) falla la verificación antes de llegar a los usuarios.
-
-### ¿Funciona fresh-squeezy en CI?
-
-Sí. Ejecuta `npx fresh-squeezy doctor --all-stores --all-resources --json` para un barrido completo legible por máquina. Devuelve [códigos de salida](#inicio-en-30-segundos) estables (`0` correcto, `1` errores de validación, `2` fatal) y cadenas `issue.code` estables sobre las que puedes hacer aserciones. No requiere TTY — sin flags de tienda recurre a una verificación rápida solo de conexión.
-
-### ¿Es fresh-squeezy un reemplazo del SDK oficial de Lemon Squeezy?
-
-No. El [SDK oficial](https://github.com/lmsqueezy/lemonsqueezy.js) hace las llamadas a la API; fresh-squeezy es la verificación previa que comprueba que tu configuración es correcta _antes_ de que esas llamadas lleguen a producción. Son complementarios — consulta la [tabla comparativa](#fresh-squeezy-frente-a-las-alternativas).
-
-### ¿Qué es la "desviación del registro de cambios" y por qué debería importarme?
-
-Lemon Squeezy lanza cambios en la API (nuevos eventos, nuevos campos, nuevos recursos) más rápido de lo que los SDK cliente los adoptan. fresh-squeezy rastrea el [registro de cambios oficial](https://docs.lemonsqueezy.com/api/getting-started/changelog) contra una instantánea versionada mediante una GitHub Action semanal, de modo que los eventos de webhook o campos de respuesta recién recomendados afloran como trabajo accionable en lugar de quedar sin validar en silencio.
-
-### ¿Puedo usar fresh-squeezy como biblioteca en lugar de la CLI?
-
-Sí. `import { createFreshSqueezy } from "fresh-squeezy"` y llama a `doctor()` o a cualquier validador individual. Cada validador devuelve un `ValidationResult` tipado y estable sobre el que puedes ramificar — consulta [Biblioteca](#biblioteca).
-
-### ¿Qué recursos de Lemon Squeezy puede validar?
-
-Conexión/autenticación, tiendas, productos (y variantes), webhooks, descuentos, claves de licencia y planes de suscripción. Agrega `--all-resources` para descubrir y validar todos los recursos compatibles en la(s) tienda(s) seleccionada(s). Lista completa en la [referencia](#referencia).
+La lista completa es `FINDING_CODES` en `fresh-squeezy/findings`.
 
 ## Contribuir
 
-Consulta [README.md](./README.md#contributing). Clona, `pnpm install`, `pnpm test`. El proyecto busca mantenerse pequeño y aburrido — con enfoque en validación, una sola capa HTTP y un contrato `issue.code` estable.
+Requisitos: Node.js 22+ y pnpm 10.
+
+```bash
+git clone https://github.com/YosefHayim/fresh-squeezy.git
+cd fresh-squeezy
+pnpm install
+pnpm verify
+```
+
+Lee [PROJECT.md](./PROJECT.md) para los objetivos y no objetivos, [AGENTS.md](./AGENTS.md) para los comandos, reglas y recetas, y [CONTEXT.md](./CONTEXT.md) para la forma del código.
+
+Al abrir un issue, incluye la versión de `fresh-squeezy`, la versión de Node, el modo, una reproducción mínima y la salida `--json` del doctor sin la clave.
 
 ## Colaboradores
 
