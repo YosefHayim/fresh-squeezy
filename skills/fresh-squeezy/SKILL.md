@@ -1,12 +1,11 @@
 ---
-
 name: fresh-squeezy
 description: >
-Use fresh-squeezy for Lemon Squeezy: run the doctor to check a store before it ships,
-and call the typed TypeScript client to read or change Lemon Squeezy data (it replaces
-@lemonsqueezy/lemonsqueezy.js). Trigger when integrating Lemon Squeezy, checking a
-billing setup or CI gate, reading or changing stores, products, orders, subscriptions,
-discounts, webhooks, checkouts or license keys, or fixing a doctor finding.
+  Use fresh-squeezy for Lemon Squeezy: run the doctor to check a store before it ships,
+  and call the typed TypeScript client to read or change Lemon Squeezy data (it replaces
+  @lemonsqueezy/lemonsqueezy.js). Trigger when integrating Lemon Squeezy, checking a
+  billing setup or CI gate, reading or changing stores, products, orders, subscriptions,
+  discounts, webhooks, checkouts or license keys, or fixing a doctor finding.
 ---
 
 # fresh-squeezy
@@ -38,7 +37,10 @@ import { createFreshSqueezy } from "fresh-squeezy";
 const freshSqueezy = createFreshSqueezy(); // reads LEMON_SQUEEZY_API_KEY, LEMON_SQUEEZY_MODE
 
 const subscription = await freshSqueezy.get("subscriptions", "123");
-const paidOrders = await freshSqueezy.list("orders", { store_id: 1, status: "paid" });
+const paidOrders = await freshSqueezy.list("orders", {
+	store_id: 1,
+	status: "paid",
+});
 
 await freshSqueezy.create("checkouts", {
 	attributes: { checkout_data: { email: "ada@example.com" } },
@@ -61,7 +63,11 @@ await freshSqueezy.currentUsage("77");
 It needs no API key.
 
 ```ts
-import { activateLicense, validateLicense, deactivateLicense } from "fresh-squeezy/license";
+import {
+	activateLicense,
+	validateLicense,
+	deactivateLicense,
+} from "fresh-squeezy/license";
 
 await activateLicense({ licenseKey, instanceName });
 await validateLicense({ licenseKey, instanceId });

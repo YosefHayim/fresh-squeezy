@@ -73,7 +73,10 @@ import { createFreshSqueezy } from "fresh-squeezy";
 const freshSqueezy = createFreshSqueezy();
 
 const subscription = await freshSqueezy.get("subscriptions", "123");
-const paidOrders = await freshSqueezy.list("orders", { store_id: 1, status: "paid" });
+const paidOrders = await freshSqueezy.list("orders", {
+	store_id: 1,
+	status: "paid",
+});
 
 await freshSqueezy.create("checkouts", {
 	attributes: { checkout_data: { email: "ada@example.com" } },
@@ -83,7 +86,14 @@ await freshSqueezy.update("subscriptions", "123", { pause: { mode: "void" } });
 await freshSqueezy.remove("webhooks", "9");
 await freshSqueezy.cancelSubscription("123");
 await freshSqueezy.refund("orders", "55", 500);
-await freshSqueezy.generateInvoice("orders", "55", { name, address, city, state, zip_code, country });
+await freshSqueezy.generateInvoice("orders", "55", {
+	name,
+	address,
+	city,
+	state,
+	zip_code,
+	country,
+});
 await freshSqueezy.currentUsage("77");
 ```
 
@@ -94,7 +104,11 @@ await freshSqueezy.currentUsage("77");
 A API de licenças não precisa de chave de API e tem seu próprio subpath:
 
 ```ts
-import { activateLicense, validateLicense, deactivateLicense } from "fresh-squeezy/license";
+import {
+	activateLicense,
+	validateLicense,
+	deactivateLicense,
+} from "fresh-squeezy/license";
 
 await activateLicense({ licenseKey, instanceName });
 await validateLicense({ licenseKey, instanceId }); // instanceId é opcional
@@ -115,55 +129,55 @@ npx fresh-squeezy doctor --store-id 12 --store-id 34 \
   --webhook-url https://app.example.com/api/webhooks/lemon-squeezy --json
 ```
 
-| Opção | Significado |
-| --- | --- |
-| `--mode <test\|live>` | Modo a conferir. Padrão: `LEMON_SQUEEZY_MODE`, senão `test` |
-| `--store-id <id>` | Loja a conferir, repita para mais. Padrão: `LEMON_SQUEEZY_STORE_ID`, senão todas as lojas |
-| `--all-resources` | Confere também cada produto, plano, webhook, desconto e chave de licença de cada loja |
-| `--product-id <id>` | Produto a conferir, repita para mais |
-| `--variant-id <id>` | Plano de assinatura a conferir, repita para mais |
-| `--webhook-url <url>` | Webhook a conferir, repita para mais |
-| `--discount-id <id>` | Desconto a conferir, repita para mais |
-| `--license-key-id <id>` | Chave de licença a conferir, repita para mais |
-| `--json` | Imprime os relatórios em JSON |
-| `--help`, `--version` | Mostra a ajuda ou a versão |
+| Opção                   | Significado                                                                               |
+| ----------------------- | ----------------------------------------------------------------------------------------- |
+| `--mode <test\|live>`   | Modo a conferir. Padrão: `LEMON_SQUEEZY_MODE`, senão `test`                               |
+| `--store-id <id>`       | Loja a conferir, repita para mais. Padrão: `LEMON_SQUEEZY_STORE_ID`, senão todas as lojas |
+| `--all-resources`       | Confere também cada produto, plano, webhook, desconto e chave de licença de cada loja     |
+| `--product-id <id>`     | Produto a conferir, repita para mais                                                      |
+| `--variant-id <id>`     | Plano de assinatura a conferir, repita para mais                                          |
+| `--webhook-url <url>`   | Webhook a conferir, repita para mais                                                      |
+| `--discount-id <id>`    | Desconto a conferir, repita para mais                                                     |
+| `--license-key-id <id>` | Chave de licença a conferir, repita para mais                                             |
+| `--json`                | Imprime os relatórios em JSON                                                             |
+| `--help`, `--version`   | Mostra a ajuda ou a versão                                                                |
 
 O doctor lê `LEMON_SQUEEZY_API_KEY` do ambiente ou de um arquivo `.env` no diretório de trabalho. Ele nunca pergunta nada e nunca trava.
 
-| Saída | Significado |
-| --- | --- |
-| `0` | Todas as verificações passaram |
-| `1` | Uma verificação falhou |
-| `2` | Opções ou configuração erradas (chave ausente, modo ou flag inválido) |
+| Saída | Significado                                                           |
+| ----- | --------------------------------------------------------------------- |
+| `0`   | Todas as verificações passaram                                        |
+| `1`   | Uma verificação falhou                                                |
+| `2`   | Opções ou configuração erradas (chave ausente, modo ou flag inválido) |
 
 `--json` imprime um objeto:
 
 ```json
 {
-  "ok": false,
-  "mode": "test",
-  "reports": [
-    {
-      "ok": false,
-      "mode": "test",
-      "results": [
-        {
-          "name": "discount",
-          "ok": false,
-          "mode": "test",
-          "target": { "label": "discount", "id": "77" },
-          "findings": [
-            {
-              "code": "DISCOUNT_EXPIRED",
-              "severity": "error",
-              "message": "...",
-              "suggestedFix": "..."
-            }
-          ]
-        }
-      ]
-    }
-  ]
+	"ok": false,
+	"mode": "test",
+	"reports": [
+		{
+			"ok": false,
+			"mode": "test",
+			"results": [
+				{
+					"name": "discount",
+					"ok": false,
+					"mode": "test",
+					"target": { "label": "discount", "id": "77" },
+					"findings": [
+						{
+							"code": "DISCOUNT_EXPIRED",
+							"severity": "error",
+							"message": "...",
+							"suggestedFix": "..."
+						}
+					]
+				}
+			]
+		}
+	]
 }
 ```
 
@@ -189,7 +203,10 @@ Cada verificação devolve um `ValidationResult` e nunca lança exceção.
 const freshSqueezy = createFreshSqueezy({ mode: "live" });
 
 const connection = await freshSqueezy.validateConnection();
-const discount = await freshSqueezy.validateDiscount({ storeId: "12", discountId: "77" });
+const discount = await freshSqueezy.validateDiscount({
+	storeId: "12",
+	discountId: "77",
+});
 const report = await freshSqueezy.doctor({ storeId: "12", allResources: true });
 const storeIds = await freshSqueezy.listStoreIds();
 
@@ -212,68 +229,68 @@ Cada função que o SDK exporta e a chamada do fresh-squeezy que a substitui. Es
 - `archiveCustomer` é `update("customers", id, { status: "archived" })`, como descreve a [documentação de atualizar cliente](https://docs.lemonsqueezy.com/api/customers/update-customer).
 - As funções de licença foram para `fresh-squeezy/license`.
 
-| `@lemonsqueezy/lemonsqueezy.js` | `fresh-squeezy` |
-| ------------------------------- | --------------- |
-| `activateLicense` | `activateLicense({ licenseKey, instanceName })` from `fresh-squeezy/license` |
-| `archiveCustomer` | `update("customers", id, { status: "archived" })` |
-| `cancelSubscription` | `cancelSubscription(id)` |
-| `createCheckout` | `create("checkouts", { attributes, relationships: { store, variant } })` |
-| `createCustomer` | `create("customers", { attributes, relationships: { store: storeId } })` |
-| `createDiscount` | `create("discounts", { attributes, relationships: { store, variants } })` |
-| `createUsageRecord` | `create("usage-records", { attributes, relationships: { "subscription-item": id } })` |
-| `createWebhook` | `create("webhooks", { attributes, relationships: { store: storeId } })` |
-| `deactivateLicense` | `deactivateLicense({ licenseKey, instanceId })` from `fresh-squeezy/license` |
-| `deleteDiscount` | `remove("discounts", id)` |
-| `deleteWebhook` | `remove("webhooks", id)` |
-| `generateOrderInvoice` | `generateInvoice("orders", id, billing)` |
-| `generateSubscriptionInvoice` | `generateInvoice("subscription-invoices", id, billing)` |
-| `getAuthenticatedUser` | `get("users", "me")` |
-| `getCheckout` | `get("checkouts", id)` |
-| `getCustomer` | `get("customers", id)` |
-| `getDiscount` | `get("discounts", id)` |
-| `getDiscountRedemption` | `get("discount-redemptions", id)` |
-| `getFile` | `get("files", id)` |
-| `getLicenseKey` | `get("license-keys", id)` |
-| `getLicenseKeyInstance` | `get("license-key-instances", id)` |
-| `getOrder` | `get("orders", id)` |
-| `getOrderItem` | `get("order-items", id)` |
-| `getPrice` | `get("prices", id)` |
-| `getProduct` | `get("products", id)` |
-| `getStore` | `get("stores", id)` |
-| `getSubscription` | `get("subscriptions", id)` |
-| `getSubscriptionInvoice` | `get("subscription-invoices", id)` |
-| `getSubscriptionItem` | `get("subscription-items", id)` |
-| `getSubscriptionItemCurrentUsage` | `currentUsage(subscriptionItemId)` |
-| `getUsageRecord` | `get("usage-records", id)` |
-| `getVariant` | `get("variants", id)` |
-| `getWebhook` | `get("webhooks", id)` |
-| `issueOrderRefund` | `refund("orders", id, amount)` |
-| `issueSubscriptionInvoiceRefund` | `refund("subscription-invoices", id, amount)` |
-| `lemonSqueezySetup` | `createFreshSqueezy({ apiKey })` |
-| `listCheckouts` | `list("checkouts", filter)` |
-| `listCustomers` | `list("customers", filter)` |
-| `listDiscountRedemptions` | `list("discount-redemptions", filter)` |
-| `listDiscounts` | `list("discounts", filter)` |
-| `listFiles` | `list("files", filter)` |
-| `listLicenseKeyInstances` | `list("license-key-instances", filter)` |
-| `listLicenseKeys` | `list("license-keys", filter)` |
-| `listOrderItems` | `list("order-items", filter)` |
-| `listOrders` | `list("orders", filter)` |
-| `listPrices` | `list("prices", filter)` |
-| `listProducts` | `list("products", filter)` |
-| `listStores` | `list("stores", filter)` |
-| `listSubscriptionInvoices` | `list("subscription-invoices", filter)` |
-| `listSubscriptionItems` | `list("subscription-items", filter)` |
-| `listSubscriptions` | `list("subscriptions", filter)` |
-| `listUsageRecords` | `list("usage-records", filter)` |
-| `listVariants` | `list("variants", filter)` |
-| `listWebhooks` | `list("webhooks", filter)` |
-| `updateCustomer` | `update("customers", id, attributes)` |
-| `updateLicenseKey` | `update("license-keys", id, attributes)` |
-| `updateSubscription` | `update("subscriptions", id, attributes)` |
-| `updateSubscriptionItem` | `update("subscription-items", id, attributes)` |
-| `updateWebhook` | `update("webhooks", id, attributes)` |
-| `validateLicense` | `validateLicense({ licenseKey, instanceId })` from `fresh-squeezy/license` |
+| `@lemonsqueezy/lemonsqueezy.js`   | `fresh-squeezy`                                                                       |
+| --------------------------------- | ------------------------------------------------------------------------------------- |
+| `activateLicense`                 | `activateLicense({ licenseKey, instanceName })` from `fresh-squeezy/license`          |
+| `archiveCustomer`                 | `update("customers", id, { status: "archived" })`                                     |
+| `cancelSubscription`              | `cancelSubscription(id)`                                                              |
+| `createCheckout`                  | `create("checkouts", { attributes, relationships: { store, variant } })`              |
+| `createCustomer`                  | `create("customers", { attributes, relationships: { store: storeId } })`              |
+| `createDiscount`                  | `create("discounts", { attributes, relationships: { store, variants } })`             |
+| `createUsageRecord`               | `create("usage-records", { attributes, relationships: { "subscription-item": id } })` |
+| `createWebhook`                   | `create("webhooks", { attributes, relationships: { store: storeId } })`               |
+| `deactivateLicense`               | `deactivateLicense({ licenseKey, instanceId })` from `fresh-squeezy/license`          |
+| `deleteDiscount`                  | `remove("discounts", id)`                                                             |
+| `deleteWebhook`                   | `remove("webhooks", id)`                                                              |
+| `generateOrderInvoice`            | `generateInvoice("orders", id, billing)`                                              |
+| `generateSubscriptionInvoice`     | `generateInvoice("subscription-invoices", id, billing)`                               |
+| `getAuthenticatedUser`            | `get("users", "me")`                                                                  |
+| `getCheckout`                     | `get("checkouts", id)`                                                                |
+| `getCustomer`                     | `get("customers", id)`                                                                |
+| `getDiscount`                     | `get("discounts", id)`                                                                |
+| `getDiscountRedemption`           | `get("discount-redemptions", id)`                                                     |
+| `getFile`                         | `get("files", id)`                                                                    |
+| `getLicenseKey`                   | `get("license-keys", id)`                                                             |
+| `getLicenseKeyInstance`           | `get("license-key-instances", id)`                                                    |
+| `getOrder`                        | `get("orders", id)`                                                                   |
+| `getOrderItem`                    | `get("order-items", id)`                                                              |
+| `getPrice`                        | `get("prices", id)`                                                                   |
+| `getProduct`                      | `get("products", id)`                                                                 |
+| `getStore`                        | `get("stores", id)`                                                                   |
+| `getSubscription`                 | `get("subscriptions", id)`                                                            |
+| `getSubscriptionInvoice`          | `get("subscription-invoices", id)`                                                    |
+| `getSubscriptionItem`             | `get("subscription-items", id)`                                                       |
+| `getSubscriptionItemCurrentUsage` | `currentUsage(subscriptionItemId)`                                                    |
+| `getUsageRecord`                  | `get("usage-records", id)`                                                            |
+| `getVariant`                      | `get("variants", id)`                                                                 |
+| `getWebhook`                      | `get("webhooks", id)`                                                                 |
+| `issueOrderRefund`                | `refund("orders", id, amount)`                                                        |
+| `issueSubscriptionInvoiceRefund`  | `refund("subscription-invoices", id, amount)`                                         |
+| `lemonSqueezySetup`               | `createFreshSqueezy({ apiKey })`                                                      |
+| `listCheckouts`                   | `list("checkouts", filter)`                                                           |
+| `listCustomers`                   | `list("customers", filter)`                                                           |
+| `listDiscountRedemptions`         | `list("discount-redemptions", filter)`                                                |
+| `listDiscounts`                   | `list("discounts", filter)`                                                           |
+| `listFiles`                       | `list("files", filter)`                                                               |
+| `listLicenseKeyInstances`         | `list("license-key-instances", filter)`                                               |
+| `listLicenseKeys`                 | `list("license-keys", filter)`                                                        |
+| `listOrderItems`                  | `list("order-items", filter)`                                                         |
+| `listOrders`                      | `list("orders", filter)`                                                              |
+| `listPrices`                      | `list("prices", filter)`                                                              |
+| `listProducts`                    | `list("products", filter)`                                                            |
+| `listStores`                      | `list("stores", filter)`                                                              |
+| `listSubscriptionInvoices`        | `list("subscription-invoices", filter)`                                               |
+| `listSubscriptionItems`           | `list("subscription-items", filter)`                                                  |
+| `listSubscriptions`               | `list("subscriptions", filter)`                                                       |
+| `listUsageRecords`                | `list("usage-records", filter)`                                                       |
+| `listVariants`                    | `list("variants", filter)`                                                            |
+| `listWebhooks`                    | `list("webhooks", filter)`                                                            |
+| `updateCustomer`                  | `update("customers", id, attributes)`                                                 |
+| `updateLicenseKey`                | `update("license-keys", id, attributes)`                                              |
+| `updateSubscription`              | `update("subscriptions", id, attributes)`                                             |
+| `updateSubscriptionItem`          | `update("subscription-items", id, attributes)`                                        |
+| `updateWebhook`                   | `update("webhooks", id, attributes)`                                                  |
+| `validateLicense`                 | `validateLicense({ licenseKey, instanceId })` from `fresh-squeezy/license`            |
 
 As 60 linhas são todas as funções que o `@lemonsqueezy/lemonsqueezy.js` 4.0.0 exporta.
 
@@ -314,16 +331,16 @@ gh workflow enable lemon-squeezy-changelog
 
 Ramifique por `finding.code` no CI. Os códigos são estáveis entre versões menores.
 
-| Código | Significado |
-| --- | --- |
-| `AUTH_FAILED` | Chave de API inválida ou ausente |
-| `MODE_MISMATCH` | O modo declarado não bate com o `meta.test_mode` da chave |
-| `STORE_NOT_FOUND` | ID de loja não encontrado para esta chave |
-| `PRODUCT_UNPUBLISHED` / `PRODUCT_WRONG_STORE` / `PRODUCT_NO_BUY_URL` | O produto não consegue receber um checkout |
-| `PLAN_INVALID_INTERVAL` / `PLAN_FREE_PRICE` | O plano de assinatura tem intervalo inválido ou não tem preço |
-| `WEBHOOK_NOT_FOUND` / `WEBHOOK_EVENTS_MISSING` | A URL do webhook não está registrada ou faltam eventos |
-| `DISCOUNT_EXPIRED` / `DISCOUNT_REDEMPTIONS_EXHAUSTED` | O desconto não pode ser usado |
-| `LICENSE_KEY_DISABLED` / `LICENSE_KEY_EXPIRED` | A chave de licença não pode ser ativada |
+| Código                                                               | Significado                                                   |
+| -------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `AUTH_FAILED`                                                        | Chave de API inválida ou ausente                              |
+| `MODE_MISMATCH`                                                      | O modo declarado não bate com o `meta.test_mode` da chave     |
+| `STORE_NOT_FOUND`                                                    | ID de loja não encontrado para esta chave                     |
+| `PRODUCT_UNPUBLISHED` / `PRODUCT_WRONG_STORE` / `PRODUCT_NO_BUY_URL` | O produto não consegue receber um checkout                    |
+| `PLAN_INVALID_INTERVAL` / `PLAN_FREE_PRICE`                          | O plano de assinatura tem intervalo inválido ou não tem preço |
+| `WEBHOOK_NOT_FOUND` / `WEBHOOK_EVENTS_MISSING`                       | A URL do webhook não está registrada ou faltam eventos        |
+| `DISCOUNT_EXPIRED` / `DISCOUNT_REDEMPTIONS_EXHAUSTED`                | O desconto não pode ser usado                                 |
+| `LICENSE_KEY_DISABLED` / `LICENSE_KEY_EXPIRED`                       | A chave de licença não pode ser ativada                       |
 
 A lista completa é `FINDING_CODES` em `fresh-squeezy/findings`.
 
