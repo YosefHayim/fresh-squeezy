@@ -340,7 +340,7 @@ const renderResourceInterface = (resource) => {
 	return lines;
 };
 
-const renderTypes = (resources) => {
+export const renderTypes = (resources) => {
 	const lines = [
 		"/* eslint-disable */",
 		"/**",
