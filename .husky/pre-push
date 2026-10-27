@@ -1,1 +1,1 @@
-pnpm check:ci && pnpm check:api-types && pnpm typecheck
+pnpm check:ci && pnpm check:standard && pnpm check:api-types && pnpm typecheck

@@ -28,9 +28,9 @@ Rules only this repo has:
 - **Ops:** docs-backed only (docs.lemonsqueezy.com/api). `src/resources/registry.ts` holds one `RESOURCES` row per resource; `VERB_RULES` maps each verb to one HTTP call and a docs slug, from which `docsPath` is built (`DOCS_PATH_EXCEPTIONS` lists the pages that break the pattern). Never invent product, variant or price writes. CLI verbs and the nested client both call `invokeOp`.
 - **Tables:** one table per repeated list (`RESOURCES`, `VALIDATE_SUBCOMMANDS`, `OPTIONAL_VALIDATORS`). Add a row, do not re-list in other files.
 - **Public API:** no barrels. Each public module is its own `package.json` `exports` subpath and its own `tsup.config.ts` entry; the entry keys are the public subpath names. `fresh-squeezy` itself exports only `createFreshSqueezy`. No compatibility shims: rewrite callers.
-- **Scripts contract:** same names as the sibling repos: `dev`, `build`, `cli`, `test`, `test:watch`, `test:coverage`, `typecheck`, `lint`, `lint:fix`, `format`, `check:ci`, `verify`. Variants nest with `:`. One `verify` gate (`check:ci`, `typecheck`, `test`, `build`), never re-split. Local-only scripts go in `scripts/dev/`, which stays gitignored.
+- **Scripts contract:** same names as the sibling repos: `dev`, `build`, `cli`, `test`, `test:watch`, `test:coverage`, `typecheck`, `lint`, `lint:fix`, `format`, `check:ci`, `check:standard`, `verify`. Variants nest with `:`. One `verify` gate (`check:ci`, `check:standard`, `typecheck`, `test`, `build`), never re-split. Local-only scripts go in `scripts/dev/`, which stays gitignored.
 - **CLI:** bare command in a TTY opens the action menu; flags or no TTY never prompt and never hang; both routes call the same command function. Exit codes `0`, `1`, `2`, `130`. Live or destructive ops need `--yes` or a TTY confirm; `--all` / `--ids` bulk ops confirm once and exit `1` on partial failure. After a build: `pnpm cli` runs `node dist/cli.js`.
-- **CI and hooks:** CI runs test and build. Lint, the API-types check and typecheck run in the husky pre-push hook, so a new worktree needs `pnpm install` before its first push.
+- **CI and hooks:** CI runs the code standard check (Node 24, which code-standard needs), test and build. Lint, the code standard check, the API-types check and typecheck run in the husky pre-push hook, so a new worktree needs `pnpm install` before its first push.
 - **Skill:** the agent skill lives in `skills/fresh-squeezy-ops/SKILL.md`.
 
 ## Commands
@@ -43,7 +43,8 @@ pnpm test:live          # live API smoke, needs LEMON_SQUEEZY_LIVE_SMOKE=1
 pnpm build              # tsup, emits dist/
 pnpm dev                # tsup --watch
 pnpm check:changelog    # diff the Lemon Squeezy changelog against the snapshot
-pnpm verify             # biome ci + tsc + vitest + build (pre-PR gate)
+pnpm check:standard     # code-standard check: health score and report link
+pnpm verify             # biome ci + code standard + tsc + vitest + build (pre-PR gate)
 ```
 
 Unit tests run against fixtures and are colocated as `<name>.test.ts`. End-to-end tests and the opt-in live smoke test live in `e2e/`. Recipes for adding a validator, a CLI command or a resource verb are in `CONTEXT.md`.
