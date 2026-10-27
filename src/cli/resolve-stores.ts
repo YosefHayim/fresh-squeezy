@@ -37,38 +37,32 @@ export const resolveStores = async (
 	client: FreshSqueezyClient,
 	input: ResolveStoresInput,
 ): Promise<ResolveStoresOutput> => {
-	if (input.storeIds && input.storeIds.length > 0) {
-		return { storeIds: dedupe(input.storeIds), skipped: false };
+	const givenStoreIds = input.storeIds ?? [];
+	const areStoreIdsGiven = givenStoreIds.length > 0;
+	if (areStoreIdsGiven) {
+		return { storeIds: dedupe(givenStoreIds), skipped: false };
 	}
 
 	if (input.allStores) {
-		const ids = await fetchReachableStoreIds(client);
-		if (ids.length === 0) {
-			throw freshSqueezyErrorOf({
-				code: "NO_STORES",
-				message: "No stores reachable with this API key.",
-			});
-		}
+		const ids = await fetchNonEmptyStoreIds(client);
 		return { storeIds: ids, skipped: false };
 	}
 
-	if (!input.isInteractive) {
+	const isNonInteractive = !input.isInteractive;
+	if (isNonInteractive) {
 		return { storeIds: [], skipped: true };
 	}
 
-	const ids = await fetchReachableStoreIds(client);
-	if (ids.length === 0) {
-		throw freshSqueezyErrorOf({
-			code: "NO_STORES",
-			message: "No stores reachable with this API key.",
-		});
-	}
-	if (ids.length === 1) {
+	const ids = await fetchNonEmptyStoreIds(client);
+	const isThereOnlyOneStore = ids.length === 1;
+	if (isThereOnlyOneStore) {
 		return { storeIds: ids, skipped: false };
 	}
 
-	const picked = await pickStores(await listStoreChoices(client));
-	if (picked.length === 0) {
+	const storeChoices = await listStoreChoices(client);
+	const picked = await pickStores(storeChoices);
+	const isNoStorePicked = picked.length === 0;
+	if (isNoStorePicked) {
 		throw freshSqueezyErrorOf({
 			code: "NO_SELECTION",
 			message: "No store selected. Pick at least one to continue.",
@@ -77,26 +71,40 @@ export const resolveStores = async (
 	return { storeIds: picked, skipped: false };
 };
 
+const fetchNonEmptyStoreIds = async (
+	client: FreshSqueezyClient,
+): Promise<string[]> => {
+	const ids = await fetchReachableStoreIds(client);
+	const areThereNoStores = ids.length === 0;
+	if (areThereNoStores) {
+		throw freshSqueezyErrorOf({
+			code: "NO_STORES",
+			message: "No stores reachable with this API key.",
+		});
+	}
+	return ids;
+};
+
 const fetchReachableStoreIds = async (
 	client: FreshSqueezyClient,
 ): Promise<string[]> => {
 	const connection = await client.validateConnection();
-	if (!connection.ok) {
-		const authIssue = connection.issues.find(
-			(entry) => entry.code === "AUTH_FAILED",
-		);
-		if (authIssue) {
-			throw freshSqueezyErrorOf({
-				code: "AUTH_FAILED",
-				message: authIssue.message,
-			});
-		}
+	const authIssue = connection.issues.find(
+		(entry) => entry.code === "AUTH_FAILED",
+	);
+	const isAuthFailure = !connection.ok && Boolean(authIssue);
+	if (isAuthFailure) {
+		throw freshSqueezyErrorOf({
+			code: "AUTH_FAILED",
+			message: authIssue?.message ?? "",
+		});
 	}
 	return connection.resource?.storeIds ?? [];
 };
 
 const dedupe = (values: string[]): string[] => {
-	return Array.from(
-		new Set(values.map((value) => value.trim()).filter(Boolean)),
-	);
+	const trimmedValues = values.map((value) => value.trim());
+	const nonEmptyValues = trimmedValues.filter(Boolean);
+	const uniqueValues = new Set(nonEmptyValues);
+	return Array.from(uniqueValues);
 };

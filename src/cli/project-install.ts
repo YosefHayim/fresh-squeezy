@@ -45,19 +45,22 @@ interface PackageJson {
 export const ensureFreshSqueezyDevDependency = async (
 	options: EnsureProjectInstallOptions = {},
 ): Promise<ProjectInstallResult> => {
-	if (options.skipInstall) {
+	const isInstallSkipped = Boolean(options.skipInstall);
+	if (isInstallSkipped) {
 		return { status: "skipped" };
 	}
 
 	const cwd = options.cwd ?? process.cwd();
 	const packageJsonPath = await findPackageJson(cwd);
-	if (!packageJsonPath) {
+	const isThereNoPackageJson = !packageJsonPath;
+	if (isThereNoPackageJson) {
 		return { status: "no-package-json" };
 	}
 
 	const projectDir = path.dirname(packageJsonPath);
 	const manifest = await readPackageJson(packageJsonPath);
-	if (manifest.name === PACKAGE_NAME) {
+	const isSelfPackage = manifest.name === PACKAGE_NAME;
+	if (isSelfPackage) {
 		return { status: "self-package", projectDir, packageJsonPath };
 	}
 
@@ -71,18 +74,24 @@ export const ensureFreshSqueezyDevDependency = async (
 		};
 	}
 
-	const packageSpec = options.packageVersion
+	const isPackageVersionGiven = Boolean(options.packageVersion);
+	const packageSpec = isPackageVersionGiven
 		? `${PACKAGE_NAME}@${options.packageVersion}`
 		: PACKAGE_NAME;
 	const command = buildInstallCommand(packageManager, packageSpec);
 	const executable = command[0];
-	if (!executable) throw new Error("No package manager command resolved.");
+	const isThereNoExecutable = !executable;
+	if (isThereNoExecutable) {
+		throw new Error("No package manager command resolved.");
+	}
 
 	const runCommand = options.runCommand ?? runPackageCommand;
-	const code = await runCommand(executable, command.slice(1), {
+	const installArgs = command.slice(1);
+	const code = await runCommand(executable, installArgs, {
 		cwd: projectDir,
 	});
-	if (code !== 0) {
+	const hasInstallFailed = code !== 0;
+	if (hasInstallFailed) {
 		throw new Error(`${command.join(" ")} failed with exit code ${code}`);
 	}
 
@@ -103,7 +112,8 @@ const findPackageJson = async (cwd: string): Promise<string | undefined> => {
 		if (await pathExists(candidate)) return candidate;
 
 		const parent = path.dirname(current);
-		if (parent === current) return undefined;
+		const isAtFilesystemRoot = parent === current;
+		if (isAtFilesystemRoot) return undefined;
 		current = parent;
 	}
 };
@@ -118,14 +128,18 @@ const readPackageJson = async (
 const detectPackageManager = async (
 	projectDir: string,
 ): Promise<PackageManager> => {
-	if (await pathExists(path.join(projectDir, "pnpm-lock.yaml"))) return "pnpm";
-	if (await pathExists(path.join(projectDir, "yarn.lock"))) return "yarn";
-	if (
-		(await pathExists(path.join(projectDir, "bun.lock"))) ||
-		(await pathExists(path.join(projectDir, "bun.lockb")))
-	) {
-		return "bun";
-	}
+	const pnpmLockPath = path.join(projectDir, "pnpm-lock.yaml");
+	const yarnLockPath = path.join(projectDir, "yarn.lock");
+	const bunLockPath = path.join(projectDir, "bun.lock");
+	const bunBinaryLockPath = path.join(projectDir, "bun.lockb");
+	const hasPnpmLock = await pathExists(pnpmLockPath);
+	if (hasPnpmLock) return "pnpm";
+	const hasYarnLock = await pathExists(yarnLockPath);
+	if (hasYarnLock) return "yarn";
+	const hasBunLock = await pathExists(bunLockPath);
+	const hasBunBinaryLock = await pathExists(bunBinaryLockPath);
+	const hasAnyBunLock = hasBunLock || hasBunBinaryLock;
+	if (hasAnyBunLock) return "bun";
 	return "npm";
 };
 
@@ -142,9 +156,12 @@ const buildInstallCommand = (
 	packageManager: PackageManager,
 	packageSpec: string,
 ): string[] => {
-	if (packageManager === "pnpm") return ["pnpm", "add", "-D", packageSpec];
-	if (packageManager === "yarn") return ["yarn", "add", "-D", packageSpec];
-	if (packageManager === "bun") return ["bun", "add", "-d", packageSpec];
+	const isPnpm = packageManager === "pnpm";
+	const isYarn = packageManager === "yarn";
+	const isBun = packageManager === "bun";
+	if (isPnpm) return ["pnpm", "add", "-D", packageSpec];
+	if (isYarn) return ["yarn", "add", "-D", packageSpec];
+	if (isBun) return ["bun", "add", "-d", packageSpec];
 	return ["npm", "install", "--save-dev", packageSpec];
 };
 

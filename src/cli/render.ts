@@ -18,7 +18,11 @@ const divider = chalk.dim("•");
 
 export const renderBrandHeader = (title: string, subtitle?: string): string => {
 	const lines = [`${brand} ${divider} ${chalk.bold(title)}`];
-	if (subtitle) lines.push(chalk.dim(subtitle));
+	const isThereSubtitle = Boolean(subtitle);
+	if (isThereSubtitle) {
+		const dimSubtitle = chalk.dim(subtitle);
+		lines.push(dimSubtitle);
+	}
 	lines.push("");
 	return lines.join("\n");
 };
@@ -29,8 +33,10 @@ export const renderStep = (
 	title: string,
 	detail?: string,
 ): string => {
-	const suffix = detail ? ` ${chalk.dim(detail)}` : "";
-	const prefix = index > 1 ? "\n" : "";
+	const isThereDetail = Boolean(detail);
+	const isNotFirstStep = index > 1;
+	const suffix = isThereDetail ? ` ${chalk.dim(detail)}` : "";
+	const prefix = isNotFirstStep ? "\n" : "";
 	return `${prefix}${chalk.yellow("●")} ${chalk.dim(`${index}/${total}`)} ${chalk.bold(title)}${suffix}\n`;
 };
 
@@ -39,7 +45,8 @@ export const renderDetected = (
 	value: string,
 	source?: string,
 ): string => {
-	const suffix = source ? ` ${chalk.dim(`from ${source}`)}` : "";
+	const isThereSource = Boolean(source);
+	const suffix = isThereSource ? ` ${chalk.dim(`from ${source}`)}` : "";
 	return `  ${chalk.green("✓")} ${chalk.bold(label)} ${value}${suffix}\n`;
 };
 
@@ -75,17 +82,20 @@ export const renderCancelMessage = (): string => {
 	return `${chalk.dim("fresh-squeezy cancelled.")}\n`;
 };
 
-export const renderResult = (result: ValidationResult): string => {
+export const renderResult = (validation: ValidationResult): string => {
 	const lines: string[] = [];
-	const badge = result.ok ? chalk.green("PASS") : chalk.red("FAIL");
-	const mode = chalk.dim(`[${result.mode}]`);
-	const target = renderTarget(result.target);
-	const suffix = target ? ` ${chalk.dim(target)}` : "";
-	lines.push(`${badge} ${mode} ${chalk.bold(result.name)}${suffix}`);
+	const badge = validation.ok ? chalk.green("PASS") : chalk.red("FAIL");
+	const mode = chalk.dim(`[${validation.mode}]`);
+	const target = renderTarget(validation.target);
+	const isThereTarget = target !== "";
+	const suffix = isThereTarget ? ` ${chalk.dim(target)}` : "";
+	lines.push(`${badge} ${mode} ${chalk.bold(validation.name)}${suffix}`);
 
-	for (const issue of result.issues) {
-		lines.push(`  ${renderIssueLine(issue)}`);
-		if (issue.suggestedFix) {
+	for (const issue of validation.issues) {
+		const issueLine = renderIssueLine(issue);
+		lines.push(`  ${issueLine}`);
+		const isThereSuggestedFix = Boolean(issue.suggestedFix);
+		if (isThereSuggestedFix) {
 			lines.push(`    ${chalk.dim("fix:")} ${issue.suggestedFix}`);
 		}
 	}
@@ -94,10 +104,13 @@ export const renderResult = (result: ValidationResult): string => {
 };
 
 const renderTarget = (target: ValidationTarget | undefined): string => {
-	if (!target) return "";
+	const isThereNoTarget = !target;
+	if (isThereNoTarget) return "";
 	const parts = [target.label];
-	if (target.id) parts.push(`id ${target.id}`);
-	if (target.url && target.url !== target.label) parts.push(target.url);
+	const isThereTargetId = Boolean(target.id);
+	if (isThereTargetId) parts.push(`id ${target.id}`);
+	const isTargetUrlNew = Boolean(target.url) && target.url !== target.label;
+	if (isTargetUrlNew) parts.push(target.url as string);
 	return parts.join(" - ");
 };
 
@@ -105,23 +118,25 @@ export const renderReport = (report: DoctorReport): string => {
 	const header = report.ok
 		? chalk.green.bold("fresh-squeezy doctor: OK")
 		: chalk.red.bold("fresh-squeezy doctor: FAILED");
-	const failed = report.results.filter((result) => !result.ok).length;
-	const summary =
-		failed === 0
-			? chalk.dim(`${report.results.length} checks passed`)
-			: chalk.dim(`${failed}/${report.results.length} checks failed`);
+	const failed = report.results.filter((validation) => !validation.ok).length;
+	const areAllChecksPassing = failed === 0;
+	const summary = areAllChecksPassing
+		? chalk.dim(`${report.results.length} checks passed`)
+		: chalk.dim(`${failed}/${report.results.length} checks failed`);
 	const body = report.results.map(renderResult).join("\n\n");
 	return `${header} ${chalk.dim(`(mode: ${report.mode})`)}\n${summary}\n\n${body}`;
 };
 
 const renderIssueLine = (issue: ValidationIssue): string => {
-	const label =
-		issue.severity === "error"
-			? chalk.red("✗ error")
-			: issue.severity === "warning"
-				? chalk.yellow("! warn ")
-				: chalk.blue("i info ");
-	return `${label} ${chalk.gray(`[${issue.code}]`)} ${issue.message}`;
+	const errorLabel = chalk.red("✗ error");
+	const warningLabel = chalk.yellow("! warn ");
+	const infoLabel = chalk.blue("i info ");
+	const isError = issue.severity === "error";
+	const isWarning = issue.severity === "warning";
+	const severityLabel = isWarning ? warningLabel : infoLabel;
+	const label = isError ? errorLabel : severityLabel;
+	const issueCode = chalk.gray(`[${issue.code}]`);
+	return `${label} ${issueCode} ${issue.message}`;
 };
 
 export const renderCliError = (
@@ -130,7 +145,8 @@ export const renderCliError = (
 ): string => {
 	const lines = [`fresh-squeezy: ${message}`];
 
-	if (hints.length > 0) {
+	const areThereHints = hints.length > 0;
+	if (areThereHints) {
 		lines.push("", "Try:");
 		for (const hint of hints) {
 			lines.push(`  ${hint}`);
@@ -141,20 +157,25 @@ export const renderCliError = (
 };
 
 export const getDoctorHints = (err: unknown): string[] => {
-	if (!isFreshSqueezyError(err)) return [];
+	const isNotFreshSqueezyError = !isFreshSqueezyError(err);
+	if (isNotFreshSqueezyError) return [];
 
-	if (err.code === "MISSING_API_KEY") {
+	const isApiKeyMissing = err.code === "MISSING_API_KEY";
+	const isModeInvalid = err.code === "INVALID_MODE";
+	const areStoresMissing = err.code === "NO_STORES";
+
+	if (isApiKeyMissing) {
 		return MISSING_API_KEY_HINTS;
 	}
 
-	if (err.code === "INVALID_MODE") {
+	if (isModeInvalid) {
 		return [
 			"fresh-squeezy doctor --mode test",
 			"fresh-squeezy doctor --mode live",
 		];
 	}
 
-	if (err.code === "NO_STORES") {
+	if (areStoresMissing) {
 		return [
 			"Check that the API key belongs to an account with a Lemon Squeezy store.",
 		];
