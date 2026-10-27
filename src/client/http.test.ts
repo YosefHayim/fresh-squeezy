@@ -1,5 +1,5 @@
 import { createMockFetch, pathIs } from "@e2e/mock-fetch.js";
-import { STORE_DOC, UNAUTHORIZED_ERROR } from "@e2e/sandbox-store.js";
+import { STORE_DOCUMENT, UNAUTHORIZED_ERROR } from "@e2e/sandbox-store.js";
 import { describe, expect, test } from "vitest";
 import { readClientSettings } from "@/client/environment.js";
 import { isFreshSqueezyError } from "@/client/errors.js";
@@ -54,7 +54,7 @@ describe("createHttp", () => {
 			{
 				accepts: pathIs("/v1/stores/42"),
 				status: 200,
-				replyDocument: STORE_DOC,
+				replyDocument: STORE_DOCUMENT,
 			},
 		]);
 		const http = createHttpWithFetch(fetch);

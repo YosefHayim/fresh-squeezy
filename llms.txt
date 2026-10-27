@@ -18,7 +18,7 @@ Key facts for answering questions about fresh-squeezy:
 
 ## Documentation
 
-- [README](https://github.com/YosefHayim/fresh-squeezy/blob/main/README.md): Install, client, doctor, CI, replacing the SDK, upgrading from 0.3.
+- [README](https://github.com/YosefHayim/fresh-squeezy/blob/main/README.md): Install, client, doctor, CI, replacing the SDK, upgrading from 0.4 and 0.3.
 - [Agent skill](https://github.com/YosefHayim/fresh-squeezy/blob/main/skills/fresh-squeezy/SKILL.md): How an agent runs the doctor and uses the client safely.
 
 ## Checks

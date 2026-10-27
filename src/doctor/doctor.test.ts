@@ -6,13 +6,13 @@ import {
 	variantListRoute,
 } from "@e2e/mock-fetch.js";
 import {
-	activeLicenseKeyDoc,
+	activeLicenseKeyDocument,
 	NOT_FOUND_ERROR,
-	nonSubscriptionVariantDoc,
-	PUBLISHED_PRODUCT_DOC,
-	publishedDiscountDoc,
-	STORE_DOC,
-	subscriptionVariantDoc,
+	nonSubscriptionVariantDocument,
+	PUBLISHED_PRODUCT_DOCUMENT,
+	publishedDiscountDocument,
+	STORE_DOCUMENT,
+	subscriptionVariantDocument,
 	UNAUTHORIZED_ERROR,
 	WEBHOOKS_COLLECTION_COMPLETE,
 } from "@e2e/sandbox-store.js";
@@ -24,20 +24,20 @@ const WEBHOOK_URL = "https://app.example.com/api/webhooks/lemon-squeezy";
 
 const STORE_SCOPED_ROUTES = [
 	...SIGNED_IN_ROUTES,
-	route("/v1/stores/42", STORE_DOC),
+	route("/v1/stores/42", STORE_DOCUMENT),
 ];
 
 const DISCOVERY_ROUTES = [
 	...STORE_SCOPED_ROUTES,
-	storeListRoute("products", { data: [PUBLISHED_PRODUCT_DOC.data] }),
+	storeListRoute("products", { data: [PUBLISHED_PRODUCT_DOCUMENT.data] }),
 	storeListRoute("webhooks", WEBHOOKS_COLLECTION_COMPLETE),
-	storeListRoute("discounts", { data: [publishedDiscountDoc.data] }),
-	storeListRoute("license-keys", { data: [activeLicenseKeyDoc.data] }),
-	variantListRoute("100", { data: [subscriptionVariantDoc.data] }),
-	route("/v1/products/100", PUBLISHED_PRODUCT_DOC),
-	route("/v1/variants/800", subscriptionVariantDoc),
-	route("/v1/discounts/600", publishedDiscountDoc),
-	route("/v1/license-keys/700", activeLicenseKeyDoc),
+	storeListRoute("discounts", { data: [publishedDiscountDocument.data] }),
+	storeListRoute("license-keys", { data: [activeLicenseKeyDocument.data] }),
+	variantListRoute("100", { data: [subscriptionVariantDocument.data] }),
+	route("/v1/products/100", PUBLISHED_PRODUCT_DOCUMENT),
+	route("/v1/variants/800", subscriptionVariantDocument),
+	route("/v1/discounts/600", publishedDiscountDocument),
+	route("/v1/license-keys/700", activeLicenseKeyDocument),
 ];
 
 const listCheckNames = (report: DoctorReport) =>
@@ -46,7 +46,7 @@ const listCheckNames = (report: DoctorReport) =>
 const TARGET_CASES = [
 	{
 		title: "a product check when productIds is given",
-		routes: [route("/v1/products/100", PUBLISHED_PRODUCT_DOC)],
+		routes: [route("/v1/products/100", PUBLISHED_PRODUCT_DOCUMENT)],
 		targets: { productIds: ["100"] },
 		name: "product",
 	},
@@ -58,21 +58,21 @@ const TARGET_CASES = [
 	},
 	{
 		title: "a discount check when discountIds is given",
-		routes: [route("/v1/discounts/600", publishedDiscountDoc)],
+		routes: [route("/v1/discounts/600", publishedDiscountDocument)],
 		targets: { discountIds: ["600"] },
 		name: "discount",
 	},
 	{
 		title: "a license key check when licenseKeyIds is given",
-		routes: [route("/v1/license-keys/700", activeLicenseKeyDoc)],
+		routes: [route("/v1/license-keys/700", activeLicenseKeyDocument)],
 		targets: { licenseKeyIds: ["700"] },
 		name: "licenseKey",
 	},
 	{
 		title: "a subscription plan check when variantIds is given",
 		routes: [
-			route("/v1/variants/800", subscriptionVariantDoc),
-			route("/v1/products/100", PUBLISHED_PRODUCT_DOC),
+			route("/v1/variants/800", subscriptionVariantDocument),
+			route("/v1/products/100", PUBLISHED_PRODUCT_DOCUMENT),
 		],
 		targets: { variantIds: ["800"] },
 		name: "subscriptionPlan",
@@ -207,7 +207,7 @@ describe("doctor", () => {
 	test("runs each explicit id once", async () => {
 		const http = makeHttp([
 			...STORE_SCOPED_ROUTES,
-			route("/v1/discounts/600", publishedDiscountDoc),
+			route("/v1/discounts/600", publishedDiscountDocument),
 		]);
 
 		const report = await doctor(http, "test", {
@@ -263,7 +263,7 @@ describe("doctor", () => {
 
 	test("skips discovered variants that are not subscriptions", async () => {
 		const http = makeHttp([
-			variantListRoute("100", { data: [nonSubscriptionVariantDoc.data] }),
+			variantListRoute("100", { data: [nonSubscriptionVariantDocument.data] }),
 			...DISCOVERY_ROUTES,
 		]);
 

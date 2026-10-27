@@ -1,4 +1,4 @@
-import { STORES_COLLECTION, USER_DOC } from "@e2e/sandbox-store.js";
+import { STORES_COLLECTION, USER_DOCUMENT } from "@e2e/sandbox-store.js";
 
 import { readClientSettings } from "@/client/environment.js";
 import { createHttp } from "@/client/http.js";
@@ -98,7 +98,11 @@ export const pathIsWithQuery = (
 };
 
 export const SIGNED_IN_ROUTES: MockRoute[] = [
-	{ accepts: pathIs("/v1/users/me"), status: 200, replyDocument: USER_DOC },
+	{
+		accepts: pathIs("/v1/users/me"),
+		status: 200,
+		replyDocument: USER_DOCUMENT,
+	},
 	{
 		accepts: pathIs("/v1/stores"),
 		status: 200,

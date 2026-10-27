@@ -1,12 +1,12 @@
 import { makeHttp, route } from "@e2e/mock-fetch.js";
 import {
-	activeLicenseKeyDoc,
-	atLimitLicenseKeyDoc,
-	disabledLicenseKeyDoc,
-	expiredLicenseKeyDoc,
+	activeLicenseKeyDocument,
+	atLimitLicenseKeyDocument,
+	disabledLicenseKeyDocument,
+	expiredLicenseKeyDocument,
 	NOT_FOUND_ERROR,
 	UNAUTHORIZED_ERROR,
-	wrongStoreLicenseKeyDoc,
+	wrongStoreLicenseKeyDocument,
 } from "@e2e/sandbox-store.js";
 import { describe, expect, test } from "vitest";
 import { validateLicenseKey } from "./license-key.js";
@@ -14,14 +14,14 @@ import { validateLicenseKey } from "./license-key.js";
 const LICENSE_KEY_ID = "700";
 const FUTURE_DATE = "2099-12-31T23:59:59Z";
 
-type LicenseKeyReply = typeof activeLicenseKeyDoc;
+type LicenseKeyReply = typeof activeLicenseKeyDocument;
 
 const createLicenseKeyReply = (
 	overrides: Partial<LicenseKeyReply["data"]["attributes"]>,
 ): LicenseKeyReply => ({
 	data: {
-		...activeLicenseKeyDoc.data,
-		attributes: { ...activeLicenseKeyDoc.data.attributes, ...overrides },
+		...activeLicenseKeyDocument.data,
+		attributes: { ...activeLicenseKeyDocument.data.attributes, ...overrides },
 	},
 });
 
@@ -37,7 +37,7 @@ const checkLicenseKeyReply = (reply: unknown, status = 200) => {
 
 describe("validateLicenseKey", () => {
 	test("passes an active key under its activation limit and describes its target", async () => {
-		const reply = activeLicenseKeyDoc;
+		const reply = activeLicenseKeyDocument;
 
 		const report = await checkLicenseKeyReply(reply);
 
@@ -70,7 +70,7 @@ describe("validateLicenseKey", () => {
 	});
 
 	test("flags a disabled key as an error", async () => {
-		const reply = disabledLicenseKeyDoc;
+		const reply = disabledLicenseKeyDocument;
 
 		const report = await checkLicenseKeyReply(reply);
 
@@ -81,7 +81,7 @@ describe("validateLicenseKey", () => {
 	});
 
 	test("flags an expired key as an error", async () => {
-		const reply = expiredLicenseKeyDoc;
+		const reply = expiredLicenseKeyDocument;
 
 		const report = await checkLicenseKeyReply(reply);
 
@@ -105,7 +105,7 @@ describe("validateLicenseKey", () => {
 	});
 
 	test("warns when the key is at its activation limit", async () => {
-		const reply = atLimitLicenseKeyDoc;
+		const reply = atLimitLicenseKeyDocument;
 
 		const report = await checkLicenseKeyReply(reply);
 
@@ -140,7 +140,7 @@ describe("validateLicenseKey", () => {
 	});
 
 	test("flags a key from another store as an error", async () => {
-		const reply = wrongStoreLicenseKeyDoc;
+		const reply = wrongStoreLicenseKeyDocument;
 
 		const report = await checkLicenseKeyReply(reply);
 

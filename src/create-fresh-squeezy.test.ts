@@ -1,10 +1,10 @@
 import { createMockFetch, route, SIGNED_IN_ROUTES } from "@e2e/mock-fetch.js";
-import { STORE_DOC } from "@e2e/sandbox-store.js";
+import { STORE_DOCUMENT } from "@e2e/sandbox-store.js";
 import { describe, expect, test } from "vitest";
 import { createFreshSqueezy } from "./create-fresh-squeezy.js";
 
 const createTestFreshSqueezy = (storeId?: string) => {
-	const routes = [...SIGNED_IN_ROUTES, route("/v1/stores/42", STORE_DOC)];
+	const routes = [...SIGNED_IN_ROUTES, route("/v1/stores/42", STORE_DOCUMENT)];
 	const { fetch, calls } = createMockFetch(routes);
 	const freshSqueezy = createFreshSqueezy({ apiKey: "k", storeId, fetch });
 	return { freshSqueezy, calls };

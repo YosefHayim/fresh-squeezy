@@ -294,16 +294,20 @@ SDK 导出的每个函数,以及替换它的 fresh-squeezy 调用。以下差异
 
 这 60 行就是 `@lemonsqueezy/lemonsqueezy.js` 4.0.0 导出的全部函数。
 
+## 从 0.4 升级
+
+- 名称变更:`fresh-squeezy/config` 变为 `fresh-squeezy/environment`,`readConfig` 变为 `readClientSettings`,`Config` 变为 `ClientSettings`,`FreshSqueezyConfig` 变为 `FreshSqueezySettings`,`readEnvApiKey` 变为 `readApiKeyFromEnvironment`,`buildCheckReport` 变为 `createCheckReport`,`buildFreshSqueezyError` 变为 `createFreshSqueezyError`,`CreateInput` 变为 `NewResources`,`UpdateInput` 变为 `UpdateAttributes`。`RelationshipName` 已移除。
+- `LEMON_SQUEEZY_MODE` 和 `LEMON_SQUEEZY_STORE_ID` 已删除:请使用 `mode` 和 `storeId` 选项,或 `--mode` 和 `--store-id` 标志。
+
 ## 从 0.3 升级
 
 - 结果改名为检查:`ValidationResult` 改为 `CheckReport`，`ValidationTarget` 改为 `CheckTarget`，`DoctorOptions` 改为 `DoctorTargets`，`buildResult` 改为 `buildCheckReport`，`DoctorReport` 的键 `results` 改为 `checks`。
-- `ENV_KEYS` 已移除。环境变量只剩机密 `LEMON_SQUEEZY_TEST_API_KEY` 和 `LEMON_SQUEEZY_LIVE_API_KEY`。`LEMON_SQUEEZY_MODE` 和 `LEMON_SQUEEZY_STORE_ID` 已删除:请使用 `mode` 和 `storeId` 选项,或 `--mode` 和 `--store-id` 标志。
+- `ENV_KEYS` 已移除。环境变量是 `LEMON_SQUEEZY_TEST_API_KEY`、`LEMON_SQUEEZY_LIVE_API_KEY`、`LEMON_SQUEEZY_MODE` 和 `LEMON_SQUEEZY_STORE_ID`。
 - ops 命令和动词注册表已移除。请使用[客户端](#客户端)。
 - `init`、`manage`、`validate` 子命令、augmentation 和启动菜单已移除。唯一的命令是 `fresh-squeezy doctor`,只接受参数。
 - `--store-ids a,b` 改为 `--store-id a --store-id b`。未指定店铺时 doctor 检查所有店铺,所以 `--all-stores` 是默认行为。
 - issue 改称 finding:`ISSUE_CODES` 变为 `FINDING_CODES`,`issue.code` 变为 `finding.code`,JSON 键 `issues` 变为 `findings`。代码本身不变,但 `STORE_NOT_OWNED` 已移除(没有任何地方触发它)。
-- 子路径导出现在是 `.`、`./environment`、`./errors`、`./findings`、`./types` 和 `./license`。
-- 名称变更:`fresh-squeezy/config` 变为 `fresh-squeezy/environment`,`readConfig` 变为 `readClientSettings`,`Config` 变为 `ClientSettings`,`FreshSqueezyConfig` 变为 `FreshSqueezySettings`,`readEnvApiKey` 变为 `readApiKeyFromEnvironment`,`buildFreshSqueezyError` 变为 `createFreshSqueezyError`,`CreateInput` 变为 `NewResources`,`UpdateInput` 变为 `UpdateAttributes`。`RelationshipName` 已移除。
+- 子路径导出现在是 `.`、`./config`、`./errors`、`./findings`、`./types` 和 `./license`。
 - 需要 Node 22 或更高版本。运行时依赖已全部移除。
 
 ```ts

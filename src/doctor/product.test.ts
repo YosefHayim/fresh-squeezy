@@ -1,10 +1,10 @@
 import { makeHttp, route, variantListRoute } from "@e2e/mock-fetch.js";
 import {
 	NOT_FOUND_ERROR,
-	PRODUCT_ON_WRONG_STORE_DOC,
-	PUBLISHED_PRODUCT_DOC,
+	PRODUCT_ON_WRONG_STORE_DOCUMENT,
+	PUBLISHED_PRODUCT_DOCUMENT,
 	UNAUTHORIZED_ERROR,
-	UNPUBLISHED_PRODUCT_DOC,
+	UNPUBLISHED_PRODUCT_DOCUMENT,
 	VARIANTS_COLLECTION_ALL_DRAFT,
 	VARIANTS_COLLECTION_DEFAULT_ONLY,
 	VARIANTS_COLLECTION_EMPTY,
@@ -22,7 +22,7 @@ const createPublishedProductRoutes = (
 		...variantListRoute("100", variantsReplyDocument),
 		status: variantsStatus,
 	};
-	return [route("/v1/products/100", PUBLISHED_PRODUCT_DOC), variantsRoute];
+	return [route("/v1/products/100", PUBLISHED_PRODUCT_DOCUMENT), variantsRoute];
 };
 
 const validatePublishedProduct = (
@@ -80,7 +80,7 @@ describe("validateProduct", () => {
 
 	test("flags an unpublished product, a missing buy URL and draft-only variants", async () => {
 		const http = makeHttp([
-			route("/v1/products/101", UNPUBLISHED_PRODUCT_DOC),
+			route("/v1/products/101", UNPUBLISHED_PRODUCT_DOCUMENT),
 			variantListRoute("101", VARIANTS_COLLECTION_ALL_DRAFT),
 		]);
 
@@ -103,7 +103,7 @@ describe("validateProduct", () => {
 
 	test("flags a product on another store when expectedStoreId differs", async () => {
 		const http = makeHttp([
-			route("/v1/products/102", PRODUCT_ON_WRONG_STORE_DOC),
+			route("/v1/products/102", PRODUCT_ON_WRONG_STORE_DOCUMENT),
 			variantListRoute("102", VARIANTS_COLLECTION_PUBLISHED),
 		]);
 
@@ -118,7 +118,7 @@ describe("validateProduct", () => {
 
 	test("skips the store check when no expectedStoreId is given", async () => {
 		const http = makeHttp([
-			route("/v1/products/102", PRODUCT_ON_WRONG_STORE_DOC),
+			route("/v1/products/102", PRODUCT_ON_WRONG_STORE_DOCUMENT),
 			variantListRoute("102", VARIANTS_COLLECTION_PUBLISHED),
 		]);
 

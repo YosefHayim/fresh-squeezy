@@ -1,8 +1,8 @@
 import { makeHttp, route, SIGNED_IN_ROUTES } from "@e2e/mock-fetch.js";
 import {
-	LIVE_USER_DOC,
+	LIVE_USER_DOCUMENT,
 	UNAUTHORIZED_ERROR,
-	USER_DOC,
+	USER_DOCUMENT,
 } from "@e2e/sandbox-store.js";
 import { describe, expect, test } from "vitest";
 import { validateConnection } from "./connection.js";
@@ -10,7 +10,7 @@ import { validateConnection } from "./connection.js";
 const STORES_ROUTE_ONLY = SIGNED_IN_ROUTES.slice(1);
 
 const LIVE_ROUTES = [
-	route("/v1/users/me", LIVE_USER_DOC),
+	route("/v1/users/me", LIVE_USER_DOCUMENT),
 	...STORES_ROUTE_ONLY,
 ];
 
@@ -29,7 +29,7 @@ describe("validateConnection", () => {
 
 	test("warns when no stores are reachable", async () => {
 		const http = makeHttp([
-			route("/v1/users/me", USER_DOC),
+			route("/v1/users/me", USER_DOCUMENT),
 			route("/v1/stores", { data: [] }),
 		]);
 
@@ -77,7 +77,7 @@ describe("validateConnection", () => {
 	});
 
 	test("skips the mode check when meta.test_mode is absent", async () => {
-		const userDocumentWithoutMeta = { data: USER_DOC.data };
+		const userDocumentWithoutMeta = { data: USER_DOCUMENT.data };
 		const http = makeHttp([
 			route("/v1/users/me", userDocumentWithoutMeta),
 			...STORES_ROUTE_ONLY,
@@ -94,7 +94,10 @@ describe("validateConnection", () => {
 	});
 
 	test("skips the mode check when meta.test_mode is not a boolean", async () => {
-		const userDocumentWithNullMode = { ...USER_DOC, meta: { test_mode: null } };
+		const userDocumentWithNullMode = {
+			...USER_DOCUMENT,
+			meta: { test_mode: null },
+		};
 		const http = makeHttp([
 			route("/v1/users/me", userDocumentWithNullMode),
 			...STORES_ROUTE_ONLY,

@@ -294,16 +294,20 @@ Cada función que exporta el SDK y la llamada de fresh-squeezy que la reemplaza.
 
 Las 60 filas son todas las funciones que exporta `@lemonsqueezy/lemonsqueezy.js` 4.0.0.
 
+## Actualizar desde 0.4
+
+- Nombres nuevos: `fresh-squeezy/config` es `fresh-squeezy/environment`, `readConfig` es `readClientSettings`, `Config` es `ClientSettings`, `FreshSqueezyConfig` es `FreshSqueezySettings`, `readEnvApiKey` es `readApiKeyFromEnvironment`, `buildCheckReport` es `createCheckReport`, `buildFreshSqueezyError` es `createFreshSqueezyError`, `CreateInput` es `NewResources`, `UpdateInput` es `UpdateAttributes`. `RelationshipName` se eliminó.
+- `LEMON_SQUEEZY_MODE` y `LEMON_SQUEEZY_STORE_ID` se eliminaron: usa las opciones `mode` y `storeId` o los flags `--mode` y `--store-id`.
+
 ## Actualizar desde 0.3
 
 - Los resultados ahora son checks: `ValidationResult` es `CheckReport`, `ValidationTarget` es `CheckTarget`, `DoctorOptions` es `DoctorTargets`, `buildResult` es `buildCheckReport`, y la clave `results` de `DoctorReport` es `checks`.
-- `ENV_KEYS` ya no existe. Las únicas variables de entorno son los secretos `LEMON_SQUEEZY_TEST_API_KEY` y `LEMON_SQUEEZY_LIVE_API_KEY`. `LEMON_SQUEEZY_MODE` y `LEMON_SQUEEZY_STORE_ID` se eliminaron: usa las opciones `mode` y `storeId` o los flags `--mode` y `--store-id`.
+- `ENV_KEYS` ya no existe. Las variables de entorno son `LEMON_SQUEEZY_TEST_API_KEY`, `LEMON_SQUEEZY_LIVE_API_KEY`, `LEMON_SQUEEZY_MODE` y `LEMON_SQUEEZY_STORE_ID`.
 - Los comandos ops y el registro de verbos ya no existen. Usa el [cliente](#cliente).
 - `init`, `manage`, los subcomandos `validate`, las augmentations y el menú del lanzador ya no existen. El único comando es `fresh-squeezy doctor`, y solo acepta opciones.
 - `--store-ids a,b` ahora es `--store-id a --store-id b`. Sin tienda indicada, el doctor revisa todas las tiendas, así que `--all-stores` es el valor por defecto.
 - Los issues ahora son hallazgos: `ISSUE_CODES` es `FINDING_CODES`, `issue.code` es `finding.code` y la clave JSON `issues` es `findings`. Los códigos no cambian, salvo `STORE_NOT_OWNED`, que se eliminó (nada lo generaba).
-- Los subpaths exportados ahora son `.`, `./environment`, `./errors`, `./findings`, `./types` y `./license`.
-- Nombres nuevos: `fresh-squeezy/config` es `fresh-squeezy/environment`, `readConfig` es `readClientSettings`, `Config` es `ClientSettings`, `FreshSqueezyConfig` es `FreshSqueezySettings`, `readEnvApiKey` es `readApiKeyFromEnvironment`, `buildFreshSqueezyError` es `createFreshSqueezyError`, `CreateInput` es `NewResources`, `UpdateInput` es `UpdateAttributes`. `RelationshipName` se eliminó.
+- Los subpaths exportados ahora son `.`, `./config`, `./errors`, `./findings`, `./types` y `./license`.
 - Node 22 o superior. Las dependencias en tiempo de ejecución desaparecieron.
 
 ```ts

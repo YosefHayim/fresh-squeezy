@@ -1,15 +1,15 @@
 import { makeHttp, route } from "@e2e/mock-fetch.js";
 import {
-	draftDiscountDoc,
-	exhaustedDiscountDoc,
-	expiredDiscountDoc,
-	futureDiscountDoc,
-	invalidPercentDiscountDoc,
+	draftDiscountDocument,
+	exhaustedDiscountDocument,
+	expiredDiscountDocument,
+	futureDiscountDocument,
+	invalidPercentDiscountDocument,
 	NOT_FOUND_ERROR,
-	publishedDiscountDoc,
+	publishedDiscountDocument,
 	UNAUTHORIZED_ERROR,
-	wrongStoreDiscountDoc,
-	zeroAmountDiscountDoc,
+	wrongStoreDiscountDocument,
+	zeroAmountDiscountDocument,
 } from "@e2e/sandbox-store.js";
 import { describe, expect, test } from "vitest";
 import { validateDiscount } from "./discount.js";
@@ -18,14 +18,14 @@ const DISCOUNT_ID = "600";
 const PAST_DATE = "2020-01-01T00:00:00Z";
 const FUTURE_DATE = "2099-12-31T23:59:59Z";
 
-type DiscountReply = typeof publishedDiscountDoc;
+type DiscountReply = typeof publishedDiscountDocument;
 
 const createDiscountReply = (
 	overrides: Partial<DiscountReply["data"]["attributes"]>,
 ): DiscountReply => ({
 	data: {
-		...publishedDiscountDoc.data,
-		attributes: { ...publishedDiscountDoc.data.attributes, ...overrides },
+		...publishedDiscountDocument.data,
+		attributes: { ...publishedDiscountDocument.data.attributes, ...overrides },
 	},
 });
 
@@ -42,7 +42,7 @@ const listCodes = (findings: { code: string }[]) =>
 
 describe("validateDiscount", () => {
 	test("passes a valid published discount and describes its target", async () => {
-		const reply = publishedDiscountDoc;
+		const reply = publishedDiscountDocument;
 
 		const report = await checkDiscountReply(reply);
 
@@ -78,7 +78,7 @@ describe("validateDiscount", () => {
 	});
 
 	test("warns about a draft discount", async () => {
-		const reply = draftDiscountDoc;
+		const reply = draftDiscountDocument;
 
 		const report = await checkDiscountReply(reply);
 
@@ -89,7 +89,7 @@ describe("validateDiscount", () => {
 	});
 
 	test("flags an expired discount as an error", async () => {
-		const reply = expiredDiscountDoc;
+		const reply = expiredDiscountDocument;
 
 		const report = await checkDiscountReply(reply);
 
@@ -111,7 +111,7 @@ describe("validateDiscount", () => {
 	});
 
 	test("warns about a discount that has not started yet", async () => {
-		const reply = futureDiscountDoc;
+		const reply = futureDiscountDocument;
 
 		const report = await checkDiscountReply(reply);
 
@@ -130,7 +130,7 @@ describe("validateDiscount", () => {
 	});
 
 	test("warns when limited redemptions are used up", async () => {
-		const reply = exhaustedDiscountDoc;
+		const reply = exhaustedDiscountDocument;
 
 		const report = await checkDiscountReply(reply);
 
@@ -152,7 +152,7 @@ describe("validateDiscount", () => {
 	});
 
 	test("flags a percent discount over 100 as an error", async () => {
-		const reply = invalidPercentDiscountDoc;
+		const reply = invalidPercentDiscountDocument;
 
 		const report = await checkDiscountReply(reply);
 
@@ -177,7 +177,7 @@ describe("validateDiscount", () => {
 	});
 
 	test("flags an amount of zero or less as an error", async () => {
-		const reply = zeroAmountDiscountDoc;
+		const reply = zeroAmountDiscountDocument;
 
 		const report = await checkDiscountReply(reply);
 
@@ -188,7 +188,7 @@ describe("validateDiscount", () => {
 	});
 
 	test("flags a discount from another store as an error", async () => {
-		const reply = wrongStoreDiscountDoc;
+		const reply = wrongStoreDiscountDocument;
 
 		const report = await checkDiscountReply(reply);
 

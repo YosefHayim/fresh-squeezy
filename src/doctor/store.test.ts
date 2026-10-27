@@ -1,11 +1,11 @@
 import { makeHttp, route } from "@e2e/mock-fetch.js";
-import { NOT_FOUND_ERROR, STORE_DOC } from "@e2e/sandbox-store.js";
+import { NOT_FOUND_ERROR, STORE_DOCUMENT } from "@e2e/sandbox-store.js";
 import { describe, expect, test } from "vitest";
 import { validateStore } from "./store.js";
 
 describe("validateStore", () => {
 	test("returns ok for a reachable store", async () => {
-		const http = makeHttp([route("/v1/stores/42", STORE_DOC)]);
+		const http = makeHttp([route("/v1/stores/42", STORE_DOCUMENT)]);
 
 		const storeReport = await validateStore(http, "test", "42");
 

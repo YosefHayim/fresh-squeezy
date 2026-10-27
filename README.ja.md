@@ -294,16 +294,20 @@ SDK がエクスポートするすべての関数と、それを置き換える 
 
 この 60 行が `@lemonsqueezy/lemonsqueezy.js` 4.0.0 のエクスポートするすべての関数です。
 
+## 0.4 からのアップグレード
+
+- 名前の変更: `fresh-squeezy/config` は `fresh-squeezy/environment`、`readConfig` は `readClientSettings`、`Config` は `ClientSettings`、`FreshSqueezyConfig` は `FreshSqueezySettings`、`readEnvApiKey` は `readApiKeyFromEnvironment`、`buildCheckReport` は `createCheckReport`、`buildFreshSqueezyError` は `createFreshSqueezyError`、`CreateInput` は `NewResources`、`UpdateInput` は `UpdateAttributes` です。`RelationshipName` は削除されました。
+- `LEMON_SQUEEZY_MODE` と `LEMON_SQUEEZY_STORE_ID` は削除されました。`mode` と `storeId` のオプション、または `--mode` と `--store-id` フラグを使います。
+
 ## 0.3 からのアップグレード
 
 - 結果は check になりました。`ValidationResult` は `CheckReport`、`ValidationTarget` は `CheckTarget`、`DoctorOptions` は `DoctorTargets`、`buildResult` は `buildCheckReport`、`DoctorReport` のキー `results` は `checks` です。
-- `ENV_KEYS` はなくなりました。環境変数は秘密の `LEMON_SQUEEZY_TEST_API_KEY` と `LEMON_SQUEEZY_LIVE_API_KEY` だけです。`LEMON_SQUEEZY_MODE` と `LEMON_SQUEEZY_STORE_ID` は削除されました。`mode` と `storeId` のオプション、または `--mode` と `--store-id` フラグを使います。
+- `ENV_KEYS` はなくなりました。環境変数は `LEMON_SQUEEZY_TEST_API_KEY`、`LEMON_SQUEEZY_LIVE_API_KEY`、`LEMON_SQUEEZY_MODE`、`LEMON_SQUEEZY_STORE_ID` です。
 - ops コマンドと verb レジストリは削除されました。[クライアント](#クライアント)を使ってください。
 - `init`、`manage`、`validate` サブコマンド、augmentation、ランチャーメニューは削除されました。コマンドは `fresh-squeezy doctor` だけで、フラグのみを受け付けます。
 - `--store-ids a,b` は `--store-id a --store-id b` になりました。ストアを指定しない場合、doctor はすべてのストアをチェックするため、`--all-stores` が既定です。
 - issue は finding になりました。`ISSUE_CODES` は `FINDING_CODES`、`issue.code` は `finding.code`、JSON のキー `issues` は `findings` です。コードは変わりませんが、`STORE_NOT_OWNED` は削除されました(どこからも発生していませんでした)。
-- サブパスのエクスポートは `.`、`./environment`、`./errors`、`./findings`、`./types`、`./license` になりました。
-- 名前の変更: `fresh-squeezy/config` は `fresh-squeezy/environment`、`readConfig` は `readClientSettings`、`Config` は `ClientSettings`、`FreshSqueezyConfig` は `FreshSqueezySettings`、`readEnvApiKey` は `readApiKeyFromEnvironment`、`buildFreshSqueezyError` は `createFreshSqueezyError`、`CreateInput` は `NewResources`、`UpdateInput` は `UpdateAttributes` です。`RelationshipName` は削除されました。
+- サブパスのエクスポートは `.`、`./config`、`./errors`、`./findings`、`./types`、`./license` になりました。
 - Node 22 以上が必要です。ランタイム依存はなくなりました。
 
 ```ts

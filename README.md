@@ -294,16 +294,20 @@ Every function the SDK exports, and the fresh-squeezy call that replaces it. Dif
 
 The 60 rows are every function exported by `@lemonsqueezy/lemonsqueezy.js` 4.0.0.
 
+## Upgrading from 0.4
+
+- Renames: `fresh-squeezy/config` is `fresh-squeezy/environment`, `readConfig` is `readClientSettings`, `Config` is `ClientSettings`, `FreshSqueezyConfig` is `FreshSqueezySettings`, `readEnvApiKey` is `readApiKeyFromEnvironment`, `buildCheckReport` is `createCheckReport`, `buildFreshSqueezyError` is `createFreshSqueezyError`, `CreateInput` is `NewResources`, `UpdateInput` is `UpdateAttributes`. `RelationshipName` is removed.
+- `LEMON_SQUEEZY_MODE` and `LEMON_SQUEEZY_STORE_ID` are removed: use the `mode` and `storeId` options or the `--mode` and `--store-id` flags.
+
 ## Upgrading from 0.3
 
 - Results are checks: `ValidationResult` is `CheckReport`, `ValidationTarget` is `CheckTarget`, `DoctorOptions` is `DoctorTargets`, `buildResult` is `buildCheckReport`, and the `DoctorReport` key `results` is `checks`.
-- `ENV_KEYS` is gone. The only env vars are the secrets `LEMON_SQUEEZY_TEST_API_KEY` and `LEMON_SQUEEZY_LIVE_API_KEY`. `LEMON_SQUEEZY_MODE` and `LEMON_SQUEEZY_STORE_ID` are removed: use the `mode` and `storeId` options or the `--mode` and `--store-id` flags.
+- `ENV_KEYS` is gone. The env vars are `LEMON_SQUEEZY_TEST_API_KEY`, `LEMON_SQUEEZY_LIVE_API_KEY`, `LEMON_SQUEEZY_MODE` and `LEMON_SQUEEZY_STORE_ID`.
 - The ops commands and the verb registry are gone. Use the [client](#client).
 - `init`, `manage`, the `validate` subcommands, the augmentations and the launcher menu are gone. The only command is `fresh-squeezy doctor`, and it takes flags only.
 - `--store-ids a,b` is now `--store-id a --store-id b`. With no store given, the doctor checks every store, so `--all-stores` is the default.
 - Issues are findings: `ISSUE_CODES` is `FINDING_CODES`, `issue.code` is `finding.code`, and the JSON key `issues` is `findings`. The codes are unchanged, except `STORE_NOT_OWNED`, which is removed (nothing raised it).
-- The subpath exports are now `.`, `./environment`, `./errors`, `./findings`, `./types` and `./license`.
-- Renames: `fresh-squeezy/config` is `fresh-squeezy/environment`, `readConfig` is `readClientSettings`, `Config` is `ClientSettings`, `FreshSqueezyConfig` is `FreshSqueezySettings`, `readEnvApiKey` is `readApiKeyFromEnvironment`, `buildFreshSqueezyError` is `createFreshSqueezyError`, `CreateInput` is `NewResources`, `UpdateInput` is `UpdateAttributes`. `RelationshipName` is removed.
+- The subpath exports are now `.`, `./config`, `./errors`, `./findings`, `./types` and `./license`.
 - Node 22 or newer. The runtime dependencies are gone.
 
 ```ts
