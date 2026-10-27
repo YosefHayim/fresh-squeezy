@@ -20,10 +20,10 @@ import {
 import {
 	renderBrandHeader,
 	renderCancelMessage,
-	renderCliError,
 	renderDetected,
 	renderReport,
 	renderStep,
+	writeNeedsTerminalError,
 } from "@/app/render.js";
 import { listStoreChoices, type StoreChoice } from "@/app/resolve-stores.js";
 import {
@@ -57,14 +57,7 @@ export const runInitCommand = async (
 const runInitFlow = async (options: InitCommandOptions): Promise<number> => {
 	const isNonInteractive = options.isInteractive === false;
 	if (isNonInteractive) {
-		const needsTerminalError = renderCliError(
-			"`fresh-squeezy init` requires an interactive terminal.",
-			[
-				"fresh-squeezy doctor --all-stores",
-				"fresh-squeezy validate connection",
-			],
-		);
-		process.stderr.write(needsTerminalError);
+		writeNeedsTerminalError("`fresh-squeezy init`");
 		return 2;
 	}
 
@@ -164,12 +157,12 @@ const runInitFlow = async (options: InitCommandOptions): Promise<number> => {
 	const envFileName = options.envFile ?? ".env";
 	const workingDirectory = process.cwd();
 	const envPath = path.resolve(workingDirectory, envFileName);
-	const checkNames = listValidatorNames(validatorIds);
+	const validatorNames = listValidatorNames(validatorIds);
 	const setupSummary = renderSetupSummary({
 		envPath,
 		mode,
 		storeId,
-		checkNames,
+		validatorNames,
 	});
 	process.stdout.write(setupSummary);
 	const shouldWrite = await confirmWriteEnvFile(envPath);
@@ -179,7 +172,7 @@ const runInitFlow = async (options: InitCommandOptions): Promise<number> => {
 		process.stdout.write(wroteMessage);
 	}
 
-	const checkList = checkNames.join(", ");
+	const checkList = validatorNames.join(", ");
 	const runningMessage = chalk.dim(`\nRunning doctor (${checkList})...\n\n`);
 	process.stdout.write(runningMessage);
 	const report = await client.doctor({ storeId, ...validatorIds });
@@ -192,10 +185,8 @@ const runInitFlow = async (options: InitCommandOptions): Promise<number> => {
 const resolveStoreSelection = async (
 	stores: StoreChoice[],
 ): Promise<string> => {
-	const [only, ...others] = stores;
-	const hasOnlyOneStore = others.length === 0;
-	const isThereOnlyOneStore = Boolean(only) && hasOnlyOneStore;
-	const isThereAChoiceToMake = !only || !isThereOnlyOneStore;
+	const [only] = stores;
+	const isThereAChoiceToMake = stores.length !== 1 || !only;
 	if (isThereAChoiceToMake) return pickStore(stores);
 
 	const storeLabel = `${only.name} (${only.slug})`;
@@ -207,10 +198,7 @@ const resolveStoreSelection = async (
 const resolveApiKey = async (): Promise<string> => {
 	const envApiKey = readEnvApiKey();
 	const isApiKeyMissing = !envApiKey;
-	if (isApiKeyMissing) {
-		const answers = await askForApiKey();
-		return answers.apiKey;
-	}
+	if (isApiKeyMissing) return askForApiKey();
 
 	const usingEnvMessage = chalk.dim(
 		`Using ${ENV_KEYS.apiKey} from environment.\n`,
@@ -301,7 +289,7 @@ const renderSetupSummary = (input: {
 	envPath: string;
 	mode: Mode;
 	storeId: string;
-	checkNames: string[];
+	validatorNames: string[];
 }): string => {
 	const readyStep = renderStep(
 		5,
@@ -317,7 +305,7 @@ const renderSetupSummary = (input: {
 		readyStep,
 		`  ${modeLabel}   ${input.mode}`,
 		`  ${storeLabel}  ${input.storeId}`,
-		`  ${checksLabel} ${input.checkNames.join(", ")}`,
+		`  ${checksLabel} ${input.validatorNames.join(", ")}`,
 		`  ${envLabel}    ${input.envPath}`,
 		"",
 	].join("\n");
@@ -364,22 +352,12 @@ const writeEnvFile = async (
 	await fs.writeFile(envPath, `${trimmedLines}\n`, { encoding: "utf8" });
 };
 
-const isMissingFileError = (err: unknown): boolean => {
-	const isObjectError = Boolean(err) && typeof err === "object";
-	return (
-		isObjectError && err !== null && "code" in err && err.code === "ENOENT"
-	);
-};
-
-const readEnvFile = async (envPath: string): Promise<string> => {
-	try {
-		return await fs.readFile(envPath, "utf8");
-	} catch (err) {
-		const isMissingFile = isMissingFileError(err);
+const readEnvFile = (envPath: string): Promise<string> =>
+	fs.readFile(envPath, "utf8").catch((err: NodeJS.ErrnoException) => {
+		const isMissingFile = err.code === "ENOENT";
 		if (isMissingFile) return "";
 		throw err;
-	}
-};
+	});
 
 const renderDiscoverySummary = (
 	choices: DiscoveredChoices,

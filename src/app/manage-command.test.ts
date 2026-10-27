@@ -1,4 +1,4 @@
-import { createMockFetch, pathIs } from "@e2e/mock-fetch.js";
+import { createMockFetch, pathIs, stubFetch } from "@e2e/mock-fetch.js";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 vi.mock("@/app/prompts.js", () => ({
@@ -120,12 +120,11 @@ afterEach(() => {
 });
 
 const stubApi = (items: unknown[]) => {
-	const mock = createMockFetch([
+	const mock = stubFetch([
 		{ match: pathIs("/v1/discounts"), status: 200, body: list(items) },
 		{ match: pathIs("/v1/discounts/1", "DELETE"), status: 200, body: {} },
 		{ match: pathIs("/v1/discounts/2", "DELETE"), status: 200, body: {} },
 	]);
-	vi.stubGlobal("fetch", mock.fetch);
 	return mock;
 };
 
@@ -173,14 +172,13 @@ test("asks for a parent id on nested lists", async () => {
 		verb: "refund",
 	});
 	vi.mocked(askParentId).mockResolvedValue("9");
-	const mock = createMockFetch([
+	const mock = stubFetch([
 		{
 			match: pathIs("/v1/subscription-invoices"),
 			status: 200,
 			body: list([]),
 		},
 	]);
-	vi.stubGlobal("fetch", mock.fetch);
 
 	const code = await runManageCommand();
 
@@ -192,7 +190,7 @@ test("asks for a parent id on nested lists", async () => {
 });
 
 test("returns 1 when an item fails", async () => {
-	const mock = createMockFetch([
+	const _mock = stubFetch([
 		{
 			match: pathIs("/v1/discounts"),
 			status: 200,
@@ -206,7 +204,6 @@ test("returns 1 when an item fails", async () => {
 			},
 		},
 	]);
-	vi.stubGlobal("fetch", mock.fetch);
 	vi.mocked(pickBulkTargets).mockResolvedValue(["1"]);
 	vi.mocked(confirmResourceOp).mockResolvedValue(true);
 

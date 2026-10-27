@@ -6,7 +6,7 @@ import {
 	pickBulkTargets,
 	pickManageOperation,
 } from "@/app/prompts.js";
-import { renderCliError } from "@/app/render.js";
+import { OPS_LIST_HINTS, writeCliFailure } from "@/app/render.js";
 import { resolveStores } from "@/app/resolve-stores.js";
 import {
 	createFreshSqueezy,
@@ -14,6 +14,7 @@ import {
 } from "@/create-fresh-squeezy.js";
 import {
 	findResourceVerb,
+	type ResourceVerbSpec,
 	resourceRegistry,
 } from "@/features/ops/resource-registry.js";
 import { resolveConfig } from "@/shared/config.js";
@@ -30,7 +31,7 @@ import {
 } from "./bulk-ops.js";
 
 export const listManageOperations = (): ManageOperationChoice[] => {
-	const isManageable = (spec: (typeof resourceRegistry)[number]): boolean => {
+	const isManageable = (spec: ResourceVerbSpec): boolean => {
 		const listVerb = findResourceVerb(spec.resource, "list");
 		const hasListVerb = Boolean(listVerb);
 		return supportsBulk(spec) && hasListVerb;
@@ -114,10 +115,7 @@ export const runManageCommand = async (): Promise<number> => {
 
 		let exitCode = 0;
 		for (const scope of scopes) {
-			const targets = await collectBulkTargets(http, spec, {
-				all: true,
-				...scope,
-			});
+			const targets = await collectBulkTargets(http, spec, scope);
 			const areThereNoTargets = targets.length === 0;
 			if (areThereNoTargets) {
 				const storeNote = scope.storeId ? ` in store ${scope.storeId}` : "";
@@ -158,10 +156,7 @@ export const runManageCommand = async (): Promise<number> => {
 	} catch (err) {
 		const isCancel = isPromptCancel(err);
 		if (isCancel) throw err;
-		const isNativeError = err instanceof Error;
-		const message = isNativeError ? err.message : String(err);
-		const errorScreen = renderCliError(message, ["fresh-squeezy ops --list"]);
-		process.stderr.write(errorScreen);
+		writeCliFailure(err, { hints: OPS_LIST_HINTS });
 		return 2;
 	}
 };

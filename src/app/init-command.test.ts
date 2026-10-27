@@ -13,7 +13,13 @@ import {
 	variantsCollectionPublished,
 	webhooksCollectionComplete,
 } from "@e2e/fixtures/sandbox/data.js";
-import { createMockFetch, pathIs, pathIsWithQuery } from "@e2e/mock-fetch.js";
+import {
+	type MockRoute,
+	pathIs,
+	pathIsWithQuery,
+	silenceStdout,
+	stubFetch,
+} from "@e2e/mock-fetch.js";
 import { checkbox, confirm, input, password, select } from "@inquirer/prompts";
 import { afterEach, expect, test, vi } from "vitest";
 import { ENV_KEYS } from "@/shared/config.js";
@@ -26,6 +32,12 @@ vi.mock("@inquirer/prompts", () => ({
 	confirm: vi.fn(),
 	input: vi.fn(),
 }));
+
+const initRoutes = (user = userDoc): MockRoute[] => [
+	{ match: pathIs("/v1/users/me"), status: 200, body: user },
+	{ match: pathIs("/v1/stores"), status: 200, body: storesCollection },
+	{ match: pathIs("/v1/stores/42"), status: 200, body: storeDoc },
+];
 
 type PromptConfig = {
 	message?: string;
@@ -56,10 +68,8 @@ test("runInitCommand runs every optional doctor validator selected during setup"
 		.mockResolvedValueOnce(["800"]);
 	vi.mocked(confirm).mockResolvedValueOnce(false);
 
-	const { fetch } = createMockFetch([
-		{ match: pathIs("/v1/users/me"), status: 200, body: userDoc },
-		{ match: pathIs("/v1/stores"), status: 200, body: storesCollection },
-		{ match: pathIs("/v1/stores/42"), status: 200, body: storeDoc },
+	stubFetch([
+		...initRoutes(),
 		{
 			match: pathIsWithQuery("/v1/products", { "filter[store_id]": "42" }),
 			status: 200,
@@ -106,10 +116,7 @@ test("runInitCommand runs every optional doctor validator selected during setup"
 			body: subscriptionVariantDoc,
 		},
 	]);
-	vi.stubGlobal("fetch", fetch);
-	const stdout = vi
-		.spyOn(process.stdout, "write")
-		.mockImplementation(() => true);
+	const stdout = silenceStdout();
 
 	const code = await runInitCommand();
 
@@ -162,18 +169,15 @@ test("runInitCommand keeps manual and skip out of the discovered resource checkb
 	vi.mocked(input).mockResolvedValueOnce("https://custom.example.com/webhook");
 	vi.mocked(confirm).mockResolvedValueOnce(false);
 
-	const { fetch } = createMockFetch([
-		{ match: pathIs("/v1/users/me"), status: 200, body: userDoc },
-		{ match: pathIs("/v1/stores"), status: 200, body: storesCollection },
-		{ match: pathIs("/v1/stores/42"), status: 200, body: storeDoc },
+	stubFetch([
+		...initRoutes(),
 		{
 			match: pathIsWithQuery("/v1/webhooks", { "filter[store_id]": "42" }),
 			status: 200,
 			body: webhooksCollectionComplete,
 		},
 	]);
-	vi.stubGlobal("fetch", fetch);
-	vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+	silenceStdout();
 
 	const code = await runInitCommand();
 
@@ -217,10 +221,8 @@ test("runInitCommand allows multiple discovered resources for one selected check
 		.mockResolvedValueOnce(["100", "101"]);
 	vi.mocked(confirm).mockResolvedValueOnce(false);
 
-	const { fetch } = createMockFetch([
-		{ match: pathIs("/v1/users/me"), status: 200, body: userDoc },
-		{ match: pathIs("/v1/stores"), status: 200, body: storesCollection },
-		{ match: pathIs("/v1/stores/42"), status: 200, body: storeDoc },
+	stubFetch([
+		...initRoutes(),
 		{
 			match: pathIsWithQuery("/v1/products", { "filter[store_id]": "42" }),
 			status: 200,
@@ -243,10 +245,7 @@ test("runInitCommand allows multiple discovered resources for one selected check
 			body: variantsCollectionPublished,
 		},
 	]);
-	vi.stubGlobal("fetch", fetch);
-	const stdout = vi
-		.spyOn(process.stdout, "write")
-		.mockImplementation(() => true);
+	const stdout = silenceStdout();
 
 	const code = await runInitCommand();
 
@@ -262,15 +261,8 @@ test("runInitCommand uses env API key and auto-detects live mode without prompti
 	vi.mocked(confirm).mockResolvedValueOnce(true).mockResolvedValueOnce(false);
 	vi.mocked(checkbox).mockResolvedValueOnce([]);
 
-	const { fetch } = createMockFetch([
-		{ match: pathIs("/v1/users/me"), status: 200, body: liveUserDoc },
-		{ match: pathIs("/v1/stores"), status: 200, body: storesCollection },
-		{ match: pathIs("/v1/stores/42"), status: 200, body: storeDoc },
-	]);
-	vi.stubGlobal("fetch", fetch);
-	const stdout = vi
-		.spyOn(process.stdout, "write")
-		.mockImplementation(() => true);
+	stubFetch([...initRoutes(liveUserDoc)]);
+	const stdout = silenceStdout();
 
 	const code = await runInitCommand();
 
@@ -287,12 +279,8 @@ test("runInitCommand stops before live-mode setup when the user does not confirm
 	vi.stubEnv(ENV_KEYS.apiKey, "k_live_env");
 	vi.mocked(confirm).mockResolvedValueOnce(false);
 
-	const { fetch } = createMockFetch([
-		{ match: pathIs("/v1/users/me"), status: 200, body: liveUserDoc },
-		{ match: pathIs("/v1/stores"), status: 200, body: storesCollection },
-	]);
-	vi.stubGlobal("fetch", fetch);
-	vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+	stubFetch([...initRoutes(liveUserDoc)]);
+	silenceStdout();
 	const stderr = vi
 		.spyOn(process.stderr, "write")
 		.mockImplementation(() => true);
@@ -336,13 +324,8 @@ test("runInitCommand preserves unrelated env file entries when writing setup val
 	vi.mocked(checkbox).mockResolvedValueOnce([]);
 	vi.mocked(confirm).mockResolvedValueOnce(true);
 
-	const { fetch } = createMockFetch([
-		{ match: pathIs("/v1/users/me"), status: 200, body: userDoc },
-		{ match: pathIs("/v1/stores"), status: 200, body: storesCollection },
-		{ match: pathIs("/v1/stores/42"), status: 200, body: storeDoc },
-	]);
-	vi.stubGlobal("fetch", fetch);
-	vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+	stubFetch([...initRoutes()]);
+	silenceStdout();
 
 	try {
 		const code = await runInitCommand({ envFile });

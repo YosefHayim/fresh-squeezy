@@ -13,6 +13,8 @@ export const MISSING_API_KEY_HINTS = [
 	`export ${ENV_KEYS.apiKey}=ls_live_or_test_key`,
 ];
 
+export const OPS_LIST_HINTS = ["fresh-squeezy ops --list"];
+
 const brand = chalk.green.bold("fresh-squeezy");
 const divider = chalk.dim("•");
 
@@ -154,6 +156,45 @@ export const renderCliError = (
 	}
 
 	return `${lines.join("\n")}\n`;
+};
+
+export const errorMessageOf = (err: unknown): string => {
+	const isNativeError = err instanceof Error;
+	return isNativeError ? err.message : String(err);
+};
+
+interface CliFailureOptions {
+	hints: string[];
+	json?: boolean;
+}
+
+export const writeCliFailure = (
+	err: unknown,
+	options: CliFailureOptions,
+): void => {
+	const message = errorMessageOf(err);
+	const isTextRequested = !options.json;
+	if (isTextRequested) {
+		const failureScreen = renderCliError(message, options.hints);
+		process.stderr.write(failureScreen);
+		return;
+	}
+	const isKnownError = isFreshSqueezyError(err);
+	const code = isKnownError ? err.code : "UNKNOWN";
+	const status = isKnownError ? (err.status ?? null) : null;
+	const failureJson = JSON.stringify({
+		ok: false,
+		error: { code, message, status },
+	});
+	process.stderr.write(`${failureJson}\n`);
+};
+
+export const writeNeedsTerminalError = (subject: string): void => {
+	const needsTerminalScreen = renderCliError(
+		`${subject} requires an interactive terminal.`,
+		["fresh-squeezy doctor --all-stores", "fresh-squeezy validate connection"],
+	);
+	process.stderr.write(needsTerminalScreen);
 };
 
 export const getDoctorHints = (err: unknown): string[] => {

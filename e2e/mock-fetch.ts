@@ -1,3 +1,6 @@
+import { storesCollection, userDoc } from "@e2e/fixtures/sandbox/data.js";
+import { vi } from "vitest";
+
 export interface MockRoute {
 	match: (req: { method: string; url: string }) => boolean;
 	status: number;
@@ -86,3 +89,17 @@ export const pathIsWithQuery = (
 		);
 	};
 };
+
+export const SIGNED_IN_ROUTES: MockRoute[] = [
+	{ match: pathIs("/v1/users/me"), status: 200, body: userDoc },
+	{ match: pathIs("/v1/stores"), status: 200, body: storesCollection },
+];
+
+export const stubFetch = (routes: MockRoute[]): MockFetchResult => {
+	const mock = createMockFetch(routes);
+	vi.stubGlobal("fetch", mock.fetch);
+	return mock;
+};
+
+export const silenceStdout = () =>
+	vi.spyOn(process.stdout, "write").mockImplementation(() => true);

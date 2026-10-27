@@ -1,3 +1,4 @@
+import { errorMessageOf } from "@/app/render.js";
 import type { FreshSqueezyClient } from "@/create-fresh-squeezy.js";
 import type {
 	DiscountAttributes,
@@ -7,21 +8,7 @@ import type {
 	WebhookAttributes,
 } from "@/shared/attributes.js";
 import type { JsonApiResource } from "@/shared/contracts.js";
-
-export type OptionalValidatorName =
-	| "product"
-	| "webhook"
-	| "discount"
-	| "license-key"
-	| "subscription-plan";
-
-export interface OptionalValidatorIds {
-	productIds?: string[];
-	webhookUrls?: string[];
-	discountIds?: string[];
-	licenseKeyIds?: string[];
-	variantIds?: string[];
-}
+import { splitCsv } from "./csv-values.js";
 
 interface ResourceChoice {
 	label: string;
@@ -37,15 +24,22 @@ export type DiscoveredChoices = Partial<
 	Record<OptionalValidatorName, ResourceChoiceGroup>
 >;
 
+export type OptionalValidatorName =
+	(typeof OPTIONAL_VALIDATORS)[number]["name"];
+
+export type OptionalValidatorIds = {
+	[Row in (typeof OPTIONAL_VALIDATORS)[number] as Row["field"]]?: string[];
+};
+
 interface DiscoveryContext {
 	client: FreshSqueezyClient;
 	storeId: string;
 	listProducts: () => Promise<JsonApiResource<ProductAttributes>[]>;
 }
 
-export interface OptionalValidator {
-	name: OptionalValidatorName;
-	field: keyof OptionalValidatorIds;
+interface OptionalValidatorRow {
+	name: string;
+	field: string;
 	resultName: string;
 	label: string;
 	menuLabel: string;
@@ -55,11 +49,6 @@ export interface OptionalValidator {
 	discover: (context: DiscoveryContext) => Promise<ResourceChoiceGroup>;
 }
 
-const errorMessage = (err: unknown): string => {
-	const isError = err instanceof Error;
-	return isError ? err.message : String(err);
-};
-
 const listChoices = async <TAttributes>(
 	load: () => Promise<unknown>,
 	toChoice: (item: JsonApiResource<TAttributes>) => ResourceChoice,
@@ -68,7 +57,7 @@ const listChoices = async <TAttributes>(
 		const items = (await load()) as JsonApiResource<TAttributes>[];
 		return { choices: items.map(toChoice) };
 	} catch (err) {
-		return { choices: [], error: errorMessage(err) };
+		return { choices: [], error: errorMessageOf(err) };
 	}
 };
 
@@ -98,7 +87,7 @@ const discoverSubscriptionPlans = async ({
 		}
 		return { choices };
 	} catch (err) {
-		return { choices, error: errorMessage(err) };
+		return { choices, error: errorMessageOf(err) };
 	}
 };
 
@@ -111,14 +100,11 @@ const isHttpUrl = (value: string): boolean => {
 };
 
 const validateWebhookUrls = (value: string): true | string => {
-	const urls = value
-		.split(",")
-		.map((entry) => entry.trim())
-		.filter(Boolean);
+	const urls = splitCsv(value);
 	return urls.every(isHttpUrl) ? true : "Enter valid webhook URLs.";
 };
 
-export const OPTIONAL_VALIDATORS: OptionalValidator[] = [
+export const OPTIONAL_VALIDATORS = [
 	{
 		name: "product",
 		field: "productIds",
@@ -195,7 +181,10 @@ export const OPTIONAL_VALIDATORS: OptionalValidator[] = [
 		manualNoun: "Subscription plan variant IDs",
 		discover: discoverSubscriptionPlans,
 	},
-];
+] as const satisfies readonly OptionalValidatorRow[];
+
+export type OptionalValidator = OptionalValidatorRow &
+	(typeof OPTIONAL_VALIDATORS)[number];
 
 export const discoverChoices = async (
 	client: FreshSqueezyClient,

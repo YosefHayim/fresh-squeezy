@@ -1,9 +1,10 @@
+import { storeDoc } from "@e2e/fixtures/sandbox/data.js";
 import {
-	storeDoc,
-	storesCollection,
-	userDoc,
-} from "@e2e/fixtures/sandbox/data.js";
-import { createMockFetch, pathIs } from "@e2e/mock-fetch.js";
+	pathIs,
+	SIGNED_IN_ROUTES,
+	silenceStdout,
+	stubFetch,
+} from "@e2e/mock-fetch.js";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { ENV_KEYS } from "@/shared/config.js";
 import { runValidateCommand } from "./validate-command.js";
@@ -17,12 +18,8 @@ afterEach(() => {
 });
 
 test("runValidateCommand runs the connection validator and exits 0 on success", async () => {
-	const { fetch } = createMockFetch([
-		{ match: pathIs("/v1/users/me"), status: 200, body: userDoc },
-		{ match: pathIs("/v1/stores"), status: 200, body: storesCollection },
-	]);
-	vi.stubGlobal("fetch", fetch);
-	vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+	stubFetch([...SIGNED_IN_ROUTES]);
+	silenceStdout();
 
 	const code = await runValidateCommand("connection", {
 		mode: "test",
@@ -32,7 +29,7 @@ test("runValidateCommand runs the connection validator and exits 0 on success", 
 	expect(code).toBe(0);
 });
 
-test("runValidateCommand requires --store-ids or --all-stores for `validate store` in non-interactive mode", async () => {
+test("runValidateCommand requires a store selection for the store validator in non-interactive mode", async () => {
 	const stderr = vi
 		.spyOn(process.stderr, "write")
 		.mockImplementation(() => true);
@@ -47,7 +44,7 @@ test("runValidateCommand requires --store-ids or --all-stores for `validate stor
 });
 
 test("runValidateCommand runs the store validator per --store-ids entry", async () => {
-	const { fetch, calls } = createMockFetch([
+	const { calls } = stubFetch([
 		{ match: pathIs("/v1/stores/42"), status: 200, body: storeDoc },
 		{
 			match: pathIs("/v1/stores/43"),
@@ -55,10 +52,7 @@ test("runValidateCommand runs the store validator per --store-ids entry", async 
 			body: { data: { ...storeDoc.data, id: "43" } },
 		},
 	]);
-	vi.stubGlobal("fetch", fetch);
-	const stdout = vi
-		.spyOn(process.stdout, "write")
-		.mockImplementation(() => true);
+	const stdout = silenceStdout();
 
 	const code = await runValidateCommand("store", {
 		mode: "test",
@@ -76,13 +70,11 @@ test("runValidateCommand runs the store validator per --store-ids entry", async 
 });
 
 test("runValidateCommand resolves every reachable store when --all-stores is passed", async () => {
-	const { fetch } = createMockFetch([
-		{ match: pathIs("/v1/users/me"), status: 200, body: userDoc },
-		{ match: pathIs("/v1/stores"), status: 200, body: storesCollection },
+	stubFetch([
+		...SIGNED_IN_ROUTES,
 		{ match: pathIs("/v1/stores/42"), status: 200, body: storeDoc },
 	]);
-	vi.stubGlobal("fetch", fetch);
-	vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+	silenceStdout();
 
 	const code = await runValidateCommand("store", {
 		mode: "test",

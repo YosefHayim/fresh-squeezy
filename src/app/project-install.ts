@@ -15,8 +15,6 @@ type ProjectInstallStatus =
 
 export interface ProjectInstallResult {
 	status: ProjectInstallStatus;
-	projectDir?: string;
-	packageJsonPath?: string;
 	packageManager?: PackageManager;
 	command?: string[];
 }
@@ -61,17 +59,12 @@ export const ensureFreshSqueezyDevDependency = async (
 	const manifest = await readPackageJson(packageJsonPath);
 	const isSelfPackage = manifest.name === PACKAGE_NAME;
 	if (isSelfPackage) {
-		return { status: "self-package", projectDir, packageJsonPath };
+		return { status: "self-package" };
 	}
 
 	const packageManager = await detectPackageManager(projectDir);
 	if (hasFreshSqueezy(manifest)) {
-		return {
-			status: "already-present",
-			projectDir,
-			packageJsonPath,
-			packageManager,
-		};
+		return { status: "already-present", packageManager };
 	}
 
 	const isPackageVersionGiven = Boolean(options.packageVersion);
@@ -79,14 +72,8 @@ export const ensureFreshSqueezyDevDependency = async (
 		? `${PACKAGE_NAME}@${options.packageVersion}`
 		: PACKAGE_NAME;
 	const command = buildInstallCommand(packageManager, packageSpec);
-	const executable = command[0];
-	const isThereNoExecutable = !executable;
-	if (isThereNoExecutable) {
-		throw new Error("No package manager command resolved.");
-	}
-
+	const [executable, ...installArgs] = command;
 	const runCommand = options.runCommand ?? runPackageCommand;
-	const installArgs = command.slice(1);
 	const code = await runCommand(executable, installArgs, {
 		cwd: projectDir,
 	});
@@ -95,13 +82,7 @@ export const ensureFreshSqueezyDevDependency = async (
 		throw new Error(`${command.join(" ")} failed with exit code ${code}`);
 	}
 
-	return {
-		status: "installed",
-		projectDir,
-		packageJsonPath,
-		packageManager,
-		command,
-	};
+	return { status: "installed", packageManager, command };
 };
 
 const findPackageJson = async (cwd: string): Promise<string | undefined> => {
@@ -125,68 +106,65 @@ const readPackageJson = async (
 	return JSON.parse(raw) as PackageJson;
 };
 
+const LOCKFILES: [file: string, manager: PackageManager][] = [
+	["pnpm-lock.yaml", "pnpm"],
+	["yarn.lock", "yarn"],
+	["bun.lock", "bun"],
+	["bun.lockb", "bun"],
+];
+
+const INSTALL_ARGS: Record<PackageManager, string[]> = {
+	pnpm: ["add", "-D"],
+	yarn: ["add", "-D"],
+	bun: ["add", "-d"],
+	npm: ["install", "--save-dev"],
+};
+
 const detectPackageManager = async (
 	projectDir: string,
 ): Promise<PackageManager> => {
-	const pnpmLockPath = path.join(projectDir, "pnpm-lock.yaml");
-	const yarnLockPath = path.join(projectDir, "yarn.lock");
-	const bunLockPath = path.join(projectDir, "bun.lock");
-	const bunBinaryLockPath = path.join(projectDir, "bun.lockb");
-	const hasPnpmLock = await pathExists(pnpmLockPath);
-	if (hasPnpmLock) return "pnpm";
-	const hasYarnLock = await pathExists(yarnLockPath);
-	if (hasYarnLock) return "yarn";
-	const hasBunLock = await pathExists(bunLockPath);
-	const hasBunBinaryLock = await pathExists(bunBinaryLockPath);
-	const hasAnyBunLock = hasBunLock || hasBunBinaryLock;
-	if (hasAnyBunLock) return "bun";
+	for (const [file, manager] of LOCKFILES) {
+		const lockPath = path.join(projectDir, file);
+		const isLockfilePresent = await pathExists(lockPath);
+		if (isLockfilePresent) return manager;
+	}
 	return "npm";
 };
 
-const hasFreshSqueezy = (manifest: PackageJson): boolean => {
-	return [
+const hasFreshSqueezy = (manifest: PackageJson): boolean =>
+	[
 		manifest.dependencies,
 		manifest.devDependencies,
 		manifest.optionalDependencies,
 		manifest.peerDependencies,
 	].some((section) => section?.[PACKAGE_NAME] !== undefined);
-};
 
 const buildInstallCommand = (
 	packageManager: PackageManager,
 	packageSpec: string,
-): string[] => {
-	const isPnpm = packageManager === "pnpm";
-	const isYarn = packageManager === "yarn";
-	const isBun = packageManager === "bun";
-	if (isPnpm) return ["pnpm", "add", "-D", packageSpec];
-	if (isYarn) return ["yarn", "add", "-D", packageSpec];
-	if (isBun) return ["bun", "add", "-d", packageSpec];
-	return ["npm", "install", "--save-dev", packageSpec];
-};
+): [string, ...string[]] => [
+	packageManager,
+	...INSTALL_ARGS[packageManager],
+	packageSpec,
+];
 
 const runPackageCommand = (
 	command: string,
 	args: string[],
 	options: { cwd: string },
-): Promise<number> => {
-	return new Promise((resolve, reject) => {
+): Promise<number> =>
+	new Promise((resolve, reject) => {
 		const child = spawn(command, args, {
 			cwd: options.cwd,
 			stdio: "inherit",
-			shell: false,
 		});
 
 		child.on("error", reject);
 		child.on("close", (code) => resolve(code ?? 1));
 	});
-};
 
-const pathExists = async (filePath: string): Promise<boolean> => {
-	try {
-		await fs.access(filePath);
-		return true;
-	} catch {
-		return false;
-	}
-};
+const pathExists = (filePath: string): Promise<boolean> =>
+	fs.access(filePath).then(
+		() => true,
+		() => false,
+	);

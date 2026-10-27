@@ -2,6 +2,7 @@ import type { FreshSqueezyClient } from "@/create-fresh-squeezy.js";
 import type { StoreAttributes } from "@/shared/attributes.js";
 import type { JsonApiResource } from "@/shared/contracts.js";
 import { freshSqueezyErrorOf } from "@/shared/errors.js";
+import { uniqueValues } from "./csv-values.js";
 import { pickStores } from "./prompts.js";
 
 export interface ResolveStoresInput {
@@ -40,7 +41,7 @@ export const resolveStores = async (
 	const givenStoreIds = input.storeIds ?? [];
 	const areStoreIdsGiven = givenStoreIds.length > 0;
 	if (areStoreIdsGiven) {
-		return { storeIds: dedupe(givenStoreIds), skipped: false };
+		return { storeIds: uniqueValues(givenStoreIds), skipped: false };
 	}
 
 	if (input.allStores) {
@@ -100,11 +101,4 @@ const fetchReachableStoreIds = async (
 		});
 	}
 	return connection.resource?.storeIds ?? [];
-};
-
-const dedupe = (values: string[]): string[] => {
-	const trimmedValues = values.map((value) => value.trim());
-	const nonEmptyValues = trimmedValues.filter(Boolean);
-	const uniqueValues = new Set(nonEmptyValues);
-	return Array.from(uniqueValues);
 };

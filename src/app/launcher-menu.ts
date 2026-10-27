@@ -9,6 +9,7 @@ import {
 	pickLauncherAction,
 } from "@/app/prompts.js";
 import {
+	errorMessageOf,
 	renderBrandHeader,
 	renderCancelMessage,
 	renderCommandExamples,
@@ -21,7 +22,6 @@ import { runInitCommand } from "./init-command.js";
 import { runManageCommand } from "./manage-command.js";
 
 export interface LauncherCommandOptions {
-	isInteractive: boolean;
 	install?: boolean;
 	packageVersion?: string;
 }
@@ -29,9 +29,6 @@ export interface LauncherCommandOptions {
 export const runLauncherCommand = async (
 	options: LauncherCommandOptions,
 ): Promise<number> => {
-	const isNotInteractive = !options.isInteractive;
-	if (isNotInteractive) return 2;
-
 	try {
 		const brandHeader = renderBrandHeader(
 			"Project bootstrap",
@@ -53,8 +50,7 @@ export const runLauncherCommand = async (
 		const installSummary = renderProjectInstallResult(installResult);
 		process.stdout.write(installSummary);
 
-		// No key yet → the only useful next step is guided setup, so skip the menu.
-		// With a key configured, open the interactive front door and route the choice.
+		// A missing key skips the menu: guided setup is the only useful next step.
 		const envApiKey = readEnvApiKey();
 		const isApiKeyMissing = !envApiKey;
 		if (isApiKeyMissing) return startGuidedSetup();
@@ -67,8 +63,7 @@ export const runLauncherCommand = async (
 			process.stderr.write(cancelMessage);
 			return 130;
 		}
-		const isErrorInstance = err instanceof Error;
-		const message = isErrorInstance ? err.message : String(err);
+		const message = errorMessageOf(err);
 		const failureHeadline = chalk.red("fresh-squeezy bootstrap failed:");
 		process.stderr.write(`${failureHeadline} ${message}\n\n`);
 		const commandExamples = renderCommandExamples();
@@ -106,39 +101,35 @@ const startGuidedSetup = (): Promise<number> => {
 	return runInitCommand({ isInteractive: true });
 };
 
+const PROJECT_INSTALL_LINES: Record<
+	Exclude<ProjectInstallResult["status"], "installed">,
+	string
+> = {
+	"already-present": renderDetected(
+		"Dev dependency",
+		"fresh-squeezy",
+		"package.json",
+	),
+	"self-package": renderDetected(
+		"Project",
+		"fresh-squeezy source repo",
+		"package.json",
+	),
+	skipped: chalk.dim("  Skipped dev dependency install (--no-install).\n"),
+	"no-package-json": chalk.yellow(
+		"  No package.json found; running without installing a dev dependency.\n",
+	),
+};
+
 const renderProjectInstallResult = (
 	installOutcome: ProjectInstallResult,
 ): string => {
-	const isInstalled = installOutcome.status === "installed";
-	if (isInstalled) {
-		const packageManager = installOutcome.packageManager ?? "npm";
-		return renderDetected(
-			"Dev dependency",
-			"fresh-squeezy",
-			`${packageManager} install`,
-		);
-	}
-
-	const isAlreadyPresent = installOutcome.status === "already-present";
-	if (isAlreadyPresent) {
-		return renderDetected("Dev dependency", "fresh-squeezy", "package.json");
-	}
-
-	const isSelfPackage = installOutcome.status === "self-package";
-	if (isSelfPackage) {
-		return renderDetected(
-			"Project",
-			"fresh-squeezy source repo",
-			"package.json",
-		);
-	}
-
-	const isSkipped = installOutcome.status === "skipped";
-	if (isSkipped) {
-		return chalk.dim("  Skipped dev dependency install (--no-install).\n");
-	}
-
-	return chalk.yellow(
-		"  No package.json found; running without installing a dev dependency.\n",
+	const { status, packageManager = "npm" } = installOutcome;
+	const isNotInstalled = status !== "installed";
+	if (isNotInstalled) return PROJECT_INSTALL_LINES[status];
+	return renderDetected(
+		"Dev dependency",
+		"fresh-squeezy",
+		`${packageManager} install`,
 	);
 };
