@@ -7,23 +7,26 @@ import {
 	variantsCollectionEmpty,
 	variantsCollectionPublished,
 } from "@e2e/fixtures/sandbox/data.js";
-import { makeClient, pathIs, pathIsWithQuery } from "@e2e/mock-fetch.js";
+import { makeClient, pathIs, pathIsWithQuery, route } from "@e2e/mock-fetch.js";
 import { expect, test } from "vitest";
 import { validateProduct } from "./product.js";
 
+const publishedProductRoutes = (
+	variantsStatus: number,
+	variantsBody: unknown,
+) => [
+	route("/v1/products/100", publishedProductDoc),
+	{
+		match: pathIsWithQuery("/v1/variants", { "filter[product_id]": "100" }),
+		status: variantsStatus,
+		body: variantsBody,
+	},
+];
+
 test("validateProduct passes a published product with a published variant", async () => {
-	const http = makeClient([
-		{
-			match: pathIs("/v1/products/100"),
-			status: 200,
-			body: publishedProductDoc,
-		},
-		{
-			match: pathIsWithQuery("/v1/variants", { "filter[product_id]": "100" }),
-			status: 200,
-			body: variantsCollectionPublished,
-		},
-	]);
+	const http = makeClient(
+		publishedProductRoutes(200, variantsCollectionPublished),
+	);
 
 	const productValidation = await validateProduct(http, "test", {
 		productId: 100,
@@ -96,18 +99,7 @@ test("validateProduct returns PRODUCT_NOT_FOUND on 404", async () => {
 });
 
 test("validateProduct flags VARIANT_MISSING when no variants exist", async () => {
-	const http = makeClient([
-		{
-			match: pathIs("/v1/products/100"),
-			status: 200,
-			body: publishedProductDoc,
-		},
-		{
-			match: pathIsWithQuery("/v1/variants", { "filter[product_id]": "100" }),
-			status: 200,
-			body: variantsCollectionEmpty,
-		},
-	]);
+	const http = makeClient(publishedProductRoutes(200, variantsCollectionEmpty));
 
 	const productValidation = await validateProduct(http, "test", {
 		productId: 100,
@@ -120,18 +112,9 @@ test("validateProduct flags VARIANT_MISSING when no variants exist", async () =>
 });
 
 test("validateProduct soft-fails variant listing as a warning without failing the product check", async () => {
-	const http = makeClient([
-		{
-			match: pathIs("/v1/products/100"),
-			status: 200,
-			body: publishedProductDoc,
-		},
-		{
-			match: pathIsWithQuery("/v1/variants", { "filter[product_id]": "100" }),
-			status: 500,
-			body: { errors: [{ detail: "upstream" }] },
-		},
-	]);
+	const http = makeClient(
+		publishedProductRoutes(500, { errors: [{ detail: "upstream" }] }),
+	);
 
 	const productValidation = await validateProduct(http, "test", {
 		productId: 100,

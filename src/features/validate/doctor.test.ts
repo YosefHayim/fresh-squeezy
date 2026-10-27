@@ -3,20 +3,15 @@ import {
 	publishedDiscountDoc,
 	publishedProductDoc,
 	storeDoc,
-	storesCollection,
 	subscriptionVariantDoc,
 	unauthorizedError,
-	userDoc,
 } from "@e2e/fixtures/sandbox/data.js";
-import { makeClient, pathIs } from "@e2e/mock-fetch.js";
+import { makeClient, route, SIGNED_IN_ROUTES } from "@e2e/mock-fetch.js";
 import { expect, test } from "vitest";
 import { doctor } from "./doctor.js";
 
 test("doctor skips validators for targets that are not configured", async () => {
-	const http = makeClient([
-		{ match: pathIs("/v1/users/me"), status: 200, body: userDoc },
-		{ match: pathIs("/v1/stores"), status: 200, body: storesCollection },
-	]);
+	const http = makeClient(SIGNED_IN_ROUTES);
 
 	const report = await doctor(http, "test");
 
@@ -24,81 +19,51 @@ test("doctor skips validators for targets that are not configured", async () => 
 	expect(report.results[0]?.name).toBe("connection");
 });
 
-test("doctor runs discount validator when discountId is provided", async () => {
-	const http = makeClient([
-		{ match: pathIs("/v1/users/me"), status: 200, body: userDoc },
-		{ match: pathIs("/v1/stores"), status: 200, body: storesCollection },
-		{ match: pathIs("/v1/stores/42"), status: 200, body: storeDoc },
-		{
-			match: pathIs("/v1/discounts/600"),
-			status: 200,
-			body: publishedDiscountDoc,
-		},
-	]);
+const storeScopedRoutes = [
+	...SIGNED_IN_ROUTES,
+	route("/v1/stores/42", storeDoc),
+];
 
-	const report = await doctor(http, "test", {
-		storeId: 42,
-		discountIds: [600],
-	});
+const targetCases = [
+	{
+		title: "discount validator when discountId is provided",
+		routes: [route("/v1/discounts/600", publishedDiscountDoc)],
+		options: { discountIds: [600] },
+		name: "discount",
+	},
+	{
+		title: "license key validator when licenseKeyId is provided",
+		routes: [route("/v1/license-keys/700", activeLicenseKeyDoc)],
+		options: { licenseKeyIds: [700] },
+		name: "licenseKey",
+	},
+	{
+		title: "subscription plan validator when variantId is provided",
+		routes: [
+			route("/v1/variants/800", subscriptionVariantDoc),
+			route("/v1/products/100", publishedProductDoc),
+		],
+		options: { variantIds: [800] },
+		name: "subscriptionPlan",
+	},
+];
 
-	expect(report.ok).toBe(true);
-	expect(report.results.some((r) => r.name === "discount")).toBe(true);
-});
+test.each(targetCases)(
+	"doctor runs $title",
+	async ({ routes, options, name }) => {
+		const http = makeClient([...storeScopedRoutes, ...routes]);
 
-test("doctor runs license key validator when licenseKeyId is provided", async () => {
-	const http = makeClient([
-		{ match: pathIs("/v1/users/me"), status: 200, body: userDoc },
-		{ match: pathIs("/v1/stores"), status: 200, body: storesCollection },
-		{ match: pathIs("/v1/stores/42"), status: 200, body: storeDoc },
-		{
-			match: pathIs("/v1/license-keys/700"),
-			status: 200,
-			body: activeLicenseKeyDoc,
-		},
-	]);
+		const report = await doctor(http, "test", { storeId: 42, ...options });
 
-	const report = await doctor(http, "test", {
-		storeId: 42,
-		licenseKeyIds: [700],
-	});
-
-	expect(report.ok).toBe(true);
-	expect(report.results.some((r) => r.name === "licenseKey")).toBe(true);
-});
-
-test("doctor runs subscription plan validator when variantId is provided", async () => {
-	const http = makeClient([
-		{ match: pathIs("/v1/users/me"), status: 200, body: userDoc },
-		{ match: pathIs("/v1/stores"), status: 200, body: storesCollection },
-		{ match: pathIs("/v1/stores/42"), status: 200, body: storeDoc },
-		{
-			match: pathIs("/v1/variants/800"),
-			status: 200,
-			body: subscriptionVariantDoc,
-		},
-		{
-			match: pathIs("/v1/products/100"),
-			status: 200,
-			body: publishedProductDoc,
-		},
-	]);
-
-	const report = await doctor(http, "test", { storeId: 42, variantIds: [800] });
-
-	expect(report.ok).toBe(true);
-	expect(report.results.some((r) => r.name === "subscriptionPlan")).toBe(true);
-});
+		expect(report.ok).toBe(true);
+		expect(report.results.some((entry) => entry.name === name)).toBe(true);
+	},
+);
 
 test("doctor includes discount failure in overall ok", async () => {
 	const http = makeClient([
-		{ match: pathIs("/v1/users/me"), status: 200, body: userDoc },
-		{ match: pathIs("/v1/stores"), status: 200, body: storesCollection },
-		{ match: pathIs("/v1/stores/42"), status: 200, body: storeDoc },
-		{
-			match: pathIs("/v1/discounts/9999"),
-			status: 404,
-			body: unauthorizedError,
-		},
+		...storeScopedRoutes,
+		route("/v1/discounts/9999", unauthorizedError, 404),
 	]);
 
 	const report = await doctor(http, "test", {

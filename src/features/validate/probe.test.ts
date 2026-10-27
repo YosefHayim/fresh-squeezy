@@ -2,6 +2,15 @@ import { expect, test } from "vitest";
 import { freshSqueezyErrorOf } from "@/shared/errors.js";
 import { checkStoreOwnership, mapErrorToIssue, probeFetch } from "./probe.js";
 
+const probeThrowing = (thrown: Error) => {
+	return probeFetch(
+		async () => {
+			throw thrown;
+		},
+		{ code: "X_NOT_FOUND", message: "x" },
+	);
+};
+
 test("probeFetch returns the resource on success", async () => {
 	const probeOutcome = await probeFetch(async () => ({ id: 1 }), {
 		code: "PRODUCT_NOT_FOUND",
@@ -48,15 +57,12 @@ test("probeFetch maps a NETWORK_ERROR to ISSUE_CODES.NETWORK_ERROR", async () =>
 });
 
 test("probeFetch maps any other FreshSqueezyError to UNKNOWN with status + code context", async () => {
-	const probeOutcome = await probeFetch(
-		async () => {
-			throw freshSqueezyErrorOf({
-				code: "RATE_LIMITED",
-				status: 429,
-				message: "slow down",
-			});
-		},
-		{ code: "X_NOT_FOUND", message: "x" },
+	const probeOutcome = await probeThrowing(
+		freshSqueezyErrorOf({
+			code: "RATE_LIMITED",
+			status: 429,
+			message: "slow down",
+		}),
 	);
 	expect(probeOutcome.ok).toBe(false);
 	if (probeOutcome.ok) return;
@@ -68,12 +74,7 @@ test("probeFetch maps any other FreshSqueezyError to UNKNOWN with status + code 
 });
 
 test("probeFetch maps non-FreshSqueezyError to UNKNOWN with the error message", async () => {
-	const probeOutcome = await probeFetch(
-		async () => {
-			throw new Error("oops");
-		},
-		{ code: "X_NOT_FOUND", message: "x" },
-	);
+	const probeOutcome = await probeThrowing(new Error("oops"));
 	expect(probeOutcome.ok).toBe(false);
 	if (probeOutcome.ok) return;
 	expect(probeOutcome.issue.code).toBe("UNKNOWN");

@@ -122,6 +122,25 @@ test("HttpClient request sends a POST body as JSON and returns the parsed docume
 	expect(calls[0]?.body).toContain("ada@example.com");
 });
 
+const pagedFetch = (
+	itemsOfPage: (page: number) => unknown[],
+	total: number,
+): typeof fetch => {
+	return async (input) => {
+		const isInputAString = typeof input === "string";
+		const url = isInputAString ? input : (input as URL).toString();
+		const page = Number(new URL(url).searchParams.get("page[number]") ?? 1);
+		const pageBody = {
+			data: itemsOfPage(page),
+			meta: { page: { currentPage: page, lastPage: 3, total } },
+		};
+		return new Response(JSON.stringify(pageBody), {
+			status: 200,
+			headers: { "content-type": "application/vnd.api+json" },
+		});
+	};
+};
+
 test("HttpClient request accepts empty success bodies", async () => {
 	const fetchImpl: typeof fetch = async (input, init) => {
 		const isInputAString = typeof input === "string";
@@ -139,22 +158,13 @@ test("HttpClient request accepts empty success bodies", async () => {
 });
 
 test("HttpClient paginate() walks every page until lastPage and concatenates results", async () => {
-	const fetchImpl: typeof fetch = async (input) => {
-		const isInputAString = typeof input === "string";
-		const url = isInputAString ? input : (input as URL).toString();
-		const page = Number(new URL(url).searchParams.get("page[number]") ?? 1);
-		const pageBody = {
-			data: [
-				{ type: "products", id: `${page}a`, attributes: { name: `p${page}a` } },
-				{ type: "products", id: `${page}b`, attributes: { name: `p${page}b` } },
-			],
-			meta: { page: { currentPage: page, lastPage: 3, total: 6 } },
-		};
-		return new Response(JSON.stringify(pageBody), {
-			status: 200,
-			headers: { "content-type": "application/vnd.api+json" },
-		});
-	};
+	const fetchImpl = pagedFetch(
+		(page) => [
+			{ type: "products", id: `${page}a`, attributes: { name: `p${page}a` } },
+			{ type: "products", id: `${page}b`, attributes: { name: `p${page}b` } },
+		],
+		6,
+	);
 	const http = new HttpClient(resolveConfig({ apiKey: "k", fetch: fetchImpl }));
 
 	const all = await http.paginate("/v1/products");
@@ -182,19 +192,10 @@ test("HttpClient paginate() returns immediately when meta.page is absent", async
 });
 
 test("HttpClient paginate() honors a caller-supplied starting page[number]", async () => {
-	const fetchImpl: typeof fetch = async (input) => {
-		const isInputAString = typeof input === "string";
-		const url = isInputAString ? input : (input as URL).toString();
-		const page = Number(new URL(url).searchParams.get("page[number]") ?? 1);
-		const pageBody = {
-			data: [{ type: "x", id: `${page}`, attributes: {} }],
-			meta: { page: { currentPage: page, lastPage: 3, total: 3 } },
-		};
-		return new Response(JSON.stringify(pageBody), {
-			status: 200,
-			headers: { "content-type": "application/vnd.api+json" },
-		});
-	};
+	const fetchImpl = pagedFetch(
+		(page) => [{ type: "x", id: `${page}`, attributes: {} }],
+		3,
+	);
 	const http = new HttpClient(resolveConfig({ apiKey: "k", fetch: fetchImpl }));
 
 	const all = await http.paginate("/v1/x", { "page[number]": 2 });

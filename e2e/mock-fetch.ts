@@ -112,3 +112,13 @@ export const makeClient = (routes: MockRoute[]): HttpClient => {
 	const config = resolveConfig({ apiKey: "k", fetch });
 	return new HttpClient(config);
 };
+
+export const route = (
+	path: string,
+	body: unknown,
+	status = 200,
+): MockRoute => ({
+	match: pathIs(path),
+	status,
+	body,
+});
