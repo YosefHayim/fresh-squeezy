@@ -14,6 +14,7 @@ const LIMIT_REACHED_BODY = {
 	activated: false,
 	error: "This license key has reached the activation limit.",
 };
+const NOT_FOUND_BODY = { valid: false, error: "license_key not found." };
 
 const stubFetch = (status: number, responseText: string) => {
 	const fetchStub = vi.fn(async () => new Response(responseText, { status }));
@@ -113,6 +114,17 @@ test("a 4xx answer with a JSON body is returned with its error", async () => {
 
 	expect(activation.activated).toBe(false);
 	expect(activation.error).toBe(LIMIT_REACHED_BODY.error);
+});
+
+test("a 404 for an unknown key comes back with no license_key or meta", async () => {
+	stubFetch(404, JSON.stringify(NOT_FOUND_BODY));
+
+	const validation = await validateLicense({ licenseKey: LICENSE_KEY });
+
+	expect(validation.valid).toBe(false);
+	expect(validation.error).toBe(NOT_FOUND_BODY.error);
+	expect(validation.license_key).toBeUndefined();
+	expect(validation.meta).toBeUndefined();
 });
 
 test("an answer with no JSON body throws a FreshSqueezyError", async () => {

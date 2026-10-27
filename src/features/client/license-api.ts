@@ -31,8 +31,8 @@ export interface LicenseMeta {
 
 interface LicenseResponse {
 	error: string | null;
-	license_key: LicenseKeyInfo;
-	meta: LicenseMeta;
+	license_key?: LicenseKeyInfo;
+	meta?: LicenseMeta;
 }
 
 export interface ActivateLicenseResponse extends LicenseResponse {
@@ -42,7 +42,7 @@ export interface ActivateLicenseResponse extends LicenseResponse {
 
 export interface ValidateLicenseResponse extends LicenseResponse {
 	valid: boolean;
-	instance: LicenseInstanceInfo | null;
+	instance?: LicenseInstanceInfo | null;
 }
 
 export interface DeactivateLicenseResponse extends LicenseResponse {
