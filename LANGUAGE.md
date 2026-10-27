@@ -74,7 +74,7 @@ _Avoid_: ApiError, HttpError.
 ## Upkeep
 
 **Support manifest**
-The reviewed webhook policy plus the acknowledged changelog entries.
+The reviewed webhook policy: the recommended and optional webhook events.
 _Avoid_: config, registry.
 
 **Drift**

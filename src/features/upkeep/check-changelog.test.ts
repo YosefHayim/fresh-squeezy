@@ -7,23 +7,15 @@ import {
 	toIsoDate,
 } from "./check-changelog.mjs";
 
-test("DATE_RE matches ISO dates", () => {
-	expect("2026-02-25".match(DATE_RE)?.[0]).toBe("2026-02-25");
-});
-
-test("DATE_RE matches long-form dates with ordinal suffix (the format Lemon Squeezy renders)", () => {
-	for (const sample of [
-		"February 25th, 2026",
-		"January 1st, 2025",
-		"March 2nd, 2024",
-		"September 3rd, 2024",
-	]) {
-		expect(sample.match(DATE_RE)?.[0], `should match ${sample}`).toBe(sample);
-	}
-});
-
-test("DATE_RE matches long-form dates without ordinal suffix", () => {
-	expect("June 11, 2025".match(DATE_RE)?.[0]).toBe("June 11, 2025");
+test.each([
+	"2026-02-25",
+	"February 25th, 2026",
+	"January 1st, 2025",
+	"March 2nd, 2024",
+	"September 3rd, 2024",
+	"June 11, 2025",
+])("DATE_RE matches %s", (sample) => {
+	expect(sample.match(DATE_RE)?.[0]).toBe(sample);
 });
 
 test("DATE_RE does not match unrelated text", () => {
@@ -70,24 +62,17 @@ test("extractEntries ignores headings whose text does not contain a date", () =>
 	expect(entries[0].heading).toBe("February 25th, 2026");
 });
 
-test("toIsoDate passes ISO dates through unchanged", () => {
-	expect(toIsoDate("2026-02-25")).toBe("2026-02-25");
-});
-
-test("toIsoDate converts long-form dates with ordinal suffixes", () => {
-	expect(toIsoDate("February 25th, 2026")).toBe("2026-02-25");
-	expect(toIsoDate("January 1st, 2025")).toBe("2025-01-01");
-	expect(toIsoDate("September 3rd, 2024")).toBe("2024-09-03");
-});
-
-test("toIsoDate converts long-form dates without ordinal suffixes", () => {
-	expect(toIsoDate("June 11, 2025")).toBe("2025-06-11");
-});
-
-test("toIsoDate returns null for unparseable inputs", () => {
-	expect(toIsoDate("unknown")).toBeNull();
-	expect(toIsoDate("not a date")).toBeNull();
-	expect(toIsoDate("")).toBeNull();
+test.each([
+	["2026-02-25", "2026-02-25"],
+	["February 25th, 2026", "2026-02-25"],
+	["January 1st, 2025", "2025-01-01"],
+	["September 3rd, 2024", "2024-09-03"],
+	["June 11, 2025", "2025-06-11"],
+	["unknown", null],
+	["not a date", null],
+	["", null],
+])("toIsoDate turns %j into %j", (raw, expected) => {
+	expect(toIsoDate(raw)).toBe(expected);
 });
 
 test("diffEntries returns current entries that are absent from previous", () => {

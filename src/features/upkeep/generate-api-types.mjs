@@ -2,55 +2,34 @@
 
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { fetchText, runWhenInvokedDirectly } from "./script-support.mjs";
 
 const DOCS_ORIGIN = "https://docs.lemonsqueezy.com";
 const INDEX_URL = `${DOCS_ORIGIN}/api/getting-started/requests`;
 
-const thisFile = fileURLToPath(import.meta.url);
-const thisFolder = dirname(thisFile);
-const repoRoot = resolve(thisFolder, "../../..");
-const outputPath = resolve(repoRoot, "src/shared/lemon-squeezy-api-types.ts");
+const outputUrl = new URL(
+	"../../shared/lemon-squeezy-api-types.ts",
+	import.meta.url,
+);
+const outputPath = fileURLToPath(outputUrl);
 const updateMode = process.argv.includes("--update");
 
-const RESOURCE_NAME_OVERRIDES = {
-	users: "user",
-	stores: "store",
-	customers: "customer",
-	products: "product",
-	variants: "variant",
-	prices: "price",
-	files: "file",
-	orders: "order",
-	"order-items": "orderItem",
-	subscriptions: "subscription",
-	"subscription-invoices": "subscriptionInvoice",
-	"subscription-items": "subscriptionItem",
-	"usage-records": "usageRecord",
-	discounts: "discount",
-	"discount-redemptions": "discountRedemption",
-	"license-keys": "licenseKey",
-	"license-key-instances": "licenseKeyInstance",
-	checkouts: "checkout",
-	webhooks: "webhook",
-	affiliates: "affiliate",
-};
+const USER_AGENT =
+	"fresh-squeezy-api-type-generator/0.1 (+https://github.com/YosefHayim/fresh-squeezy)";
 
-export const main = async () => {
-	const indexHtml = await fetchText(INDEX_URL);
+const loadResources = async () => {
+	const indexHtml = await fetchText(INDEX_URL, USER_AGENT);
 	const pages = discoverObjectPages(indexHtml);
 	const resources = [];
 
 	for (const page of pages) {
-		const html = await fetchText(page.url);
+		const html = await fetchText(page.url, USER_AGENT);
 		const example = extractResourceExample(html, page.resourceType);
 		const isExampleMissing = !example;
 		if (isExampleMissing) continue;
-		resources.push({
-			...page,
-			attributes: example.attributes ?? {},
-		});
+		resources.push({ ...page, attributes: example.attributes ?? {} });
 	}
 
 	const isThereNoResource = resources.length === 0;
@@ -59,9 +38,10 @@ export const main = async () => {
 			"No resource examples were discovered from Lemon Squeezy docs.",
 		);
 	}
+	return resources;
+};
 
-	const generated = renderTypes(resources);
-
+const writeOrCompare = async (generated, resourceCount) => {
 	const isOutputMissing = !existsSync(outputPath);
 	const shouldWriteOutput = updateMode || isOutputMissing;
 	if (shouldWriteOutput) {
@@ -69,7 +49,7 @@ export const main = async () => {
 		await mkdir(outputFolder, { recursive: true });
 		await writeFile(outputPath, generated, "utf8");
 		process.stdout.write(`Generated ${outputPath}\n`);
-		process.stdout.write(`  resources: ${resources.length}\n`);
+		process.stdout.write(`  resources: ${resourceCount}\n`);
 		return;
 	}
 
@@ -77,7 +57,7 @@ export const main = async () => {
 	const areTypesCurrent = currentTypes === generated;
 	if (areTypesCurrent) {
 		process.stdout.write(
-			`Generated API types are current (${resources.length} resources).\n`,
+			`Generated API types are current (${resourceCount} resources).\n`,
 		);
 		return;
 	}
@@ -87,18 +67,10 @@ export const main = async () => {
 	process.stderr.write("Refresh with: pnpm generate:api-types\n");
 };
 
-const fetchText = async (url) => {
-	const response = await fetch(url, {
-		headers: {
-			"user-agent":
-				"fresh-squeezy-api-type-generator/0.1 (+https://github.com/YosefHayim/fresh-squeezy)",
-			accept: "text/html,*/*",
-		},
-	});
-	const isResponseFailed = !response.ok;
-	if (isResponseFailed)
-		throw new Error(`Fetch failed ${response.status} for ${url}`);
-	return response.text();
+export const main = async () => {
+	const resources = await loadResources();
+	const generated = renderTypes(resources);
+	await writeOrCompare(generated, resources.length);
 };
 
 const stripTags = (html) => {
@@ -140,7 +112,7 @@ const singular = (value) => {
 
 const resourceName = (resourceType) => {
 	const singularType = singular(resourceType);
-	return RESOURCE_NAME_OVERRIDES[resourceType] ?? camel(singularType);
+	return camel(singularType);
 };
 
 const resourceTypeFromUrl = (url) => {
@@ -182,51 +154,17 @@ const extractJsonCodeBlocks = (html) => {
 	return blocks;
 };
 
-const braceBalance = (value) => {
-	let balance = 0;
-	let inString = false;
-	let escaped = false;
-	for (const char of value) {
-		if (escaped) {
-			escaped = false;
-			continue;
-		}
-		const isEscapeChar = char === "\\";
-		if (isEscapeChar) {
-			escaped = true;
-			continue;
-		}
-		const isQuote = char === '"';
-		if (isQuote) {
-			inString = !inString;
-			continue;
-		}
-		if (inString) continue;
-		const isOpeningBrace = char === "{";
-		const isClosingBrace = char === "}";
-		if (isOpeningBrace) balance += 1;
-		if (isClosingBrace) balance -= 1;
-	}
-	return balance;
-};
-
-const trimExtraClosingBraces = (value) => {
-	let normalized = value.trim();
-	const hasExtraClosingBrace = () =>
-		braceBalance(normalized) < 0 && normalized.endsWith("}");
-	while (hasExtraClosingBrace()) {
-		normalized = normalized.slice(0, -1).trimEnd();
-	}
-	return normalized;
-};
-
+// Docs HTML sometimes ends with stray closing braces; trim them until the JSON parses.
 const parseJson = (value) => {
-	const normalized = trimExtraClosingBraces(value);
-	try {
-		return JSON.parse(normalized);
-	} catch {
-		return null;
+	let candidate = value.trim();
+	while (candidate.endsWith("}")) {
+		try {
+			return JSON.parse(candidate);
+		} catch {
+			candidate = candidate.slice(0, -1).trimEnd();
+		}
 	}
+	return null;
 };
 
 export const extractResourceExample = (html, expectedType) => {
@@ -265,7 +203,7 @@ const nullFallbackType = (key) => {
 	if (isDateKey) return "string";
 	if (isBooleanishKey(key)) return "boolean";
 	const isTextKey =
-		/(^|_)(url|email|name|status|currency|country|region|city|interval|reason|brand|date|at)(_|$)/.test(
+		/(^|_)(url|email|name|status|currency|country|region|city|interval|reason|brand)(_|$)/.test(
 			key,
 		);
 	if (isTextKey) return "string";
@@ -340,7 +278,7 @@ const renderResourceInterface = (resource) => {
 	return lines;
 };
 
-const renderTypes = (resources) => {
+export const renderTypes = (resources) => {
 	const lines = [
 		"/* eslint-disable */",
 		"/**",
@@ -386,13 +324,4 @@ const renderTypes = (resources) => {
 	return `${lines.join("\n")}\n`;
 };
 
-const invokedAsCli =
-	process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
-if (invokedAsCli) {
-	main().catch((err) => {
-		const isRealError = err instanceof Error;
-		const errorText = isRealError ? (err.stack ?? err.message) : String(err);
-		process.stderr.write(`${errorText}\n`);
-		process.exit(2);
-	});
-}
+runWhenInvokedDirectly(import.meta.url, main);
