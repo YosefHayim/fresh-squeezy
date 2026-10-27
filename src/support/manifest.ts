@@ -1,34 +1,8 @@
-import { GENERATED_LEMON_SQUEEZY_RESOURCES } from "../generated/lemonSqueezyApiTypes.js";
+import { GENERATED_LEMON_SQUEEZY_RESOURCES } from "@/generated/lemonSqueezyApiTypes.js";
 
-/**
- * Support manifest: the locally reviewed source of truth for what
- * fresh-squeezy explicitly understands on the Lemon Squeezy platform.
- *
- * Resource/type coverage is generated from Lemon Squeezy object docs with
- * `pnpm generate:api-types`. Validator policy remains reviewed here:
- * when the platform adds new webhook events or behavior, bump the entries
- * below and re-snapshot the changelog page with
- * `pnpm check:changelog -- --update`.
- *
- * Changelog source: https://docs.lemonsqueezy.com/api/getting-started/changelog
- * Last reviewed:    2026-05-07
- */
 
-/** Resources fresh-squeezy understands today, generated from object docs. */
 export const SUPPORTED_RESOURCES = GENERATED_LEMON_SQUEEZY_RESOURCES;
 
-/**
- * Webhook events fresh-squeezy expects a production integration to subscribe to
- * at minimum. Consumers can still subscribe to more; the validator only flags
- * missing ones from this list.
- *
- * Rationale:
- *   - `order_*` covers one-off purchases and refunds.
- *   - `subscription_*` covers the recurring-billing lifecycle.
- *   - `subscription_payment_*` covers dunning / retry loops.
- *
- * Confirmed present in the Lemon Squeezy webhook topic list as of 2026-04-24.
- */
 export const RECOMMENDED_WEBHOOK_EVENTS = [
   "order_created",
   "order_refunded",
@@ -41,22 +15,6 @@ export const RECOMMENDED_WEBHOOK_EVENTS = [
   "subscription_payment_failed",
 ] as const;
 
-/**
- * Newer or integration-specific events surfaced as info-level suggestions
- * rather than errors. Missing these is common and not necessarily a
- * misconfiguration.
- *
- * Per-entry changelog provenance (source:
- * https://docs.lemonsqueezy.com/api/getting-started/changelog):
- *
- *   - `customer_updated` — added 2026-02-25. Fires when a customer record
- *     changes (e.g. email, marketing consent). Needed if the app mirrors
- *     customer data locally.
- *   - `affiliate_activated` — added 2025-01-21 alongside the affiliates
- *     endpoints. Only relevant if the store has an affiliate program.
- *   - `license_key_created` / `license_key_updated` — License API events.
- *     Only relevant when variants have `has_license_keys: true`.
- */
 export const OPTIONAL_WEBHOOK_EVENTS = [
   "customer_updated",
   "affiliate_activated",
@@ -64,14 +22,6 @@ export const OPTIONAL_WEBHOOK_EVENTS = [
   "license_key_updated",
 ] as const;
 
-/**
- * Platform additions we have read and decided *not* to validate against yet,
- * documented here so maintainers see the deliberate gap during review.
- *
- * Tracked so the drift workflow has an "expected state" to compare against:
- * if the changelog page changes and none of these items explain it, the diff
- * is probably something new that needs a manifest update.
- */
 export const ACKNOWLEDGED_CHANGELOG_ENTRIES = [
   {
     date: "2026-07-29",

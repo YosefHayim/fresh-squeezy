@@ -1,6 +1,6 @@
-import type { HttpClient } from "../core/http.js";
-import type { Mode, ValidationIssue, ValidationResult } from "../core/types.js";
-import type { ProductAttributes, SubscriptionVariantAttributes } from "../resources/attributes.js";
+import type { HttpClient } from "@/core/http.js";
+import type { Mode, ValidationIssue, ValidationResult } from "@/core/types.js";
+import type { ProductAttributes, SubscriptionVariantAttributes } from "@/resources/attributes.js";
 import { ISSUE_CODES, buildResult, issue } from "./issues.js";
 import { checkStoreOwnership, probeFetch } from "./probe.js";
 
@@ -9,7 +9,6 @@ export interface SubscriptionPlanValidationOptions {
   variantId: string | number;
 }
 
-/** Summary of a subscription plan variant's validated state. */
 export interface SubscriptionPlanSummary {
   variantId: string;
   interval: string | null;
@@ -21,17 +20,6 @@ export interface SubscriptionPlanSummary {
 
 const VALID_INTERVALS = new Set(["day", "week", "month", "year"]);
 
-/**
- * Validate a Lemon Squeezy "subscription plan", which is a variant with
- * `is_subscription: true`. Checks that the variant is actually a subscription,
- * has a valid billing interval, and that trial settings are consistent.
- *
- * Store cross-check requires fetching the parent product to read its
- * `store_id`. This is an extra network hop but catches the common mistake of
- * passing a variant ID from one store while targeting another. Accept the
- * `storeId` as advisory — if the product fetch fails the cross-check is
- * silently skipped rather than blocking the entire validation.
- */
 export const validateSubscriptionPlan = async (
   http: HttpClient,
   mode: Mode,
@@ -103,13 +91,6 @@ export const validateSubscriptionPlan = async (
   });
 };
 
-/**
- * Pure attribute assertions for a subscription variant: that it is actually a
- * subscription, has a valid interval / interval_count, is not free-priced, has
- * consistent trial settings, and is not a draft. The store cross-check needs a
- * second fetch and stays in `validateSubscriptionPlan`; everything here runs on
- * plain data, so the rules are unit-testable without a mock fetch.
- */
 export const checkSubscriptionPlan = (
   attrs: SubscriptionVariantAttributes,
   options: { variantId: string | number },

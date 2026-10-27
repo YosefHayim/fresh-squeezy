@@ -1,13 +1,13 @@
-import { freshSqueezyErrorOf } from "../core/errors.js";
-import type { HttpClient } from "../core/http.js";
-import type { DoctorReport, Mode, ValidationResult } from "../core/types.js";
+import { freshSqueezyErrorOf } from "@/core/errors.js";
+import type { HttpClient } from "@/core/http.js";
+import type { DoctorReport, Mode, ValidationResult } from "@/core/types.js";
 import type {
   DiscountAttributes,
   LicenseKeyAttributes,
   ProductAttributes,
   StoreAttributes,
   WebhookAttributes,
-} from "../resources/attributes.js";
+} from "@/resources/attributes.js";
 import { type ConnectionSummary, validateConnection } from "./connection.js";
 import { type DiscountValidationOptions, validateDiscount } from "./discount.js";
 import { type LicenseKeyValidationOptions, validateLicenseKey } from "./licenseKey.js";
@@ -19,10 +19,6 @@ import {
 } from "./subscriptionPlan.js";
 import { type WebhookValidationOptions, validateWebhook } from "./webhook.js";
 
-/**
- * Optional targets for the doctor run. If a target is omitted, its validator
- * is skipped — consumers only pay for what they configure.
- */
 export interface DoctorOptions {
   storeId?: string | number;
   productId?: string | number;
@@ -37,15 +33,6 @@ export interface DoctorOptions {
   variantIds?: Array<string | number>;
 }
 
-/**
- * The set of validator functions doctor composes.
- *
- * Exposed as an injectable seam so tests can exercise composition order,
- * short-circuiting on connection failure, and option propagation without
- * setting up an HTTP route table for every validator. Production callers
- * normally rely on `DEFAULT_VALIDATORS`, which wires in the real
- * implementations from each `validate/*` module.
- */
 export interface DoctorValidators {
   connection: (http: HttpClient, mode: Mode) => Promise<ValidationResult<ConnectionSummary>>;
   store: (
@@ -80,7 +67,6 @@ export interface DoctorValidators {
   ) => Promise<ValidationResult>;
 }
 
-/** Default wiring used by `doctor` when no overrides are provided. */
 export const DEFAULT_VALIDATORS: DoctorValidators = {
   connection: validateConnection,
   store: validateStore,
@@ -91,17 +77,6 @@ export const DEFAULT_VALIDATORS: DoctorValidators = {
   subscriptionPlan: validateSubscriptionPlan,
 };
 
-/**
- * Compose every configured validator into a single report. This is the
- * primary entry point for CI pre-flight runs: one call, one structured result,
- * one exit code decision.
- *
- * Order is meaningful. Connection runs first because downstream validators
- * have nothing useful to say if the API key is broken.
- *
- * The optional `validators` parameter lets tests inject fakes without a fetch
- * mock; production callers omit it and get `DEFAULT_VALIDATORS`.
- */
 export const doctor = async (
   http: HttpClient,
   mode: Mode,
@@ -158,10 +133,6 @@ export const doctor = async (
   return { ok: results.every((entry) => entry.ok), mode, results };
 };
 
-/**
- * Fail fast when store-scoped targets are set without `storeId`. Without this,
- * doctor would silently skip those validators and report a false-positive ok.
- */
 const assertOptionsCoherent = (options: DoctorOptions): void => {
   if (options.storeId !== undefined) return;
 

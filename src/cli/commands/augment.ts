@@ -2,45 +2,14 @@ import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
-/**
- * Options for `fresh-squeezy types:augment`.
- *
- * All paths are CLI-friendly defaults: the command runs in the consumer's
- * CWD, reads their `package.json`, and writes the augmentation `.d.ts`
- * next to it (or wherever they redirect with `--out`).
- */
 export interface AugmentCommandOptions {
-  /** Project root. Defaults to `process.cwd()`. */
   cwd?: string;
-  /** Output path for the augmentation file. Defaults to `lemonsqueezy.augment.d.ts`. */
   out?: string;
-  /** Suppress "no SDK detected" message and emit the generic file anyway. */
   force?: boolean;
 }
 
-/**
- * Two flavours of file we emit.
- *
- * - `with-sdk` — the consumer has `@lemonsqueezy/lemonsqueezy.js` installed.
- *   The file imports types from the SDK and intersects them with our
- *   `Latest*Fields`. Consumers reach the augmented type via
- *   `LemonSqueezyAugmented["subscription"]`.
- *
- * - `generic` — the consumer's resource types are home-rolled or come from
- *   another SDK. The file re-exports `WithLatestLemonSqueezyFields<T, R>`
- *   so consumers can wire their own base type.
- */
 type Flavour = "with-sdk" | "generic";
 
-/**
- * Generate a `.d.ts` file in the consumer's project so their existing
- * Lemon Squeezy resource types pick up fields fresh-squeezy already knows
- * about (per the changelog audit in `src/support/manifest.ts`).
- *
- * Writes a single file. Idempotent: re-running overwrites with the
- * current version, so a CI step can safely regenerate after each
- * fresh-squeezy upgrade. Returns 0 on success, 2 on I/O failure.
- */
 export const runAugmentCommand = async (options: AugmentCommandOptions = {}): Promise<number> => {
   const cwd = options.cwd ?? process.cwd();
   const outPath = resolve(cwd, options.out ?? "lemonsqueezy.augment.d.ts");

@@ -6,36 +6,20 @@ import type {
   ResolvedConfig,
 } from "./types.js";
 
-/**
- * Stable FreshSqueezyError.code values for common HTTP status codes.
- * Unlisted statuses fall through to the JSON:API error `code` or `HTTP_<status>`.
- */
 const HTTP_STATUS_CODES = {
   401: "UNAUTHORIZED",
   404: "NOT_FOUND",
   429: "RATE_LIMITED",
 } as const;
 
-/**
- * Options for a single HTTP request.
- *
- * `path` is a Lemon Squeezy API path starting with `/v1/...`. The `query`
- * record is serialized via `URLSearchParams` (JSON:API bracket keys such as
- * `filter[store_id]` are accepted as-is and percent-encoded in the final URL).
- */
 export interface RequestOptions {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
   path: string;
   query?: Record<string, string | number | undefined>;
-  /** JSON:API document or other request body; stringified when present. */
   body?: unknown;
   signal?: AbortSignal;
 }
 
-/**
- * Lemon Squeezy JSON:API error object. Kept loose because the API occasionally
- * includes extra keys; the fields we surface are the stable ones.
- */
 interface JsonApiError {
   status?: string;
   code?: string;
@@ -43,18 +27,6 @@ interface JsonApiError {
   detail?: string;
 }
 
-/**
- * Low-level HTTP client. Callers usually go through resource/validator helpers,
- * but this is also exposed as the public escape hatch so consumers can reach
- * endpoints fresh-squeezy does not wrap yet.
- *
- * Responsibilities kept in this one place (the single transport chokepoint):
- *   - auth header injection
- *   - query string serialization (JSON:API bracket keys via URLSearchParams)
- *   - response parsing + error normalization
- *   - surfacing HTTP status in `FreshSqueezyError`
- *   - walking paginated collections
- */
 export class HttpClient {
   constructor(private readonly config: ResolvedConfig) {}
 
@@ -94,28 +66,11 @@ export class HttpClient {
     return parsed as T;
   }
 
-  /**
-   * Fetch a single JSON:API resource and return its `data` object.
-   */
   async getResource<TAttr>(path: string): Promise<JsonApiResource<TAttr>> {
     const doc = await this.request<JsonApiDocument<TAttr>>({ path });
     return doc.data;
   }
 
-  /**
-   * Walk a JSON:API collection across every page and concatenate the
-   * results. Lemon Squeezy returns 25 items per page by default; without
-   * pagination, validators silently miss anything past the first page (e.g.
-   * `validateWebhook` on a store with 26+ webhooks would falsely report
-   * `WEBHOOK_NOT_FOUND` for any webhook on page 2).
-   *
-   * Stops as soon as `meta.page.lastPage` is reached. Falls back to a
-   * single-page fetch if the API does not surface page metadata.
-   *
-   * Caller-supplied `page[number]` is honored as the starting page; we
-   * advance from there. `page[size]` is left untouched so callers can tune
-   * batch size (max 100 per Lemon Squeezy docs).
-   */
   async paginate<TAttr>(
     path: string,
     query?: RequestOptions["query"],

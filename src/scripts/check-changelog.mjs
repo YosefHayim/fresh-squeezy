@@ -1,21 +1,4 @@
 #!/usr/bin/env node
-/**
- * Drift check for the Lemon Squeezy API changelog.
- *
- * Why this exists: the docs page can change before our static
- * `src/support/manifest.ts` catches up. This script fetches the changelog,
- * normalizes obviously-volatile noise (scripts, styles, whitespace), hashes
- * the result, and compares against a snapshot committed to the repo.
- *
- * On drift, the script exits 1 and prints a summary with a structured diff
- * of new entries; the weekly `changelog-drift` workflow turns that into a
- * GitHub issue so a maintainer can review, update the manifest, and
- * re-snapshot.
- *
- * Usage:
- *   node src/scripts/check-changelog.mjs            # check, exit 1 on drift
- *   node src/scripts/check-changelog.mjs --update   # refresh snapshot on disk
- */
 
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
@@ -31,17 +14,10 @@ const snapshotPath = resolve(repoRoot, "src/support/changelog-snapshot.json");
 
 const updateMode = process.argv.includes("--update");
 
-/**
- * Date patterns commonly used in changelog headings. Accepts ISO
- * (`2026-02-25`) and the long form Lemon Squeezy actually renders
- * (`February 25th, 2026` — note the ordinal suffix), so the structured
- * diff in the drift issue actually lists new entries instead of falling
- * back to "no diff available".
- */
 export const DATE_RE =
   /\d{4}-\d{2}-\d{2}|(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4}/i;
 
-async function main() {
+const main = async () => {
   const html = await fetchText(CHANGELOG_URL);
   const normalized = normalize(html);
   const currentEntries = extractEntries(normalized);
@@ -107,7 +83,7 @@ async function main() {
       await appendGithubOutput("diff_b64", b64);
     }
   }
-}
+};
 
 async function fetchText(url) {
   const response = await fetch(url, {
@@ -122,19 +98,6 @@ async function fetchText(url) {
   return response.text();
 }
 
-/**
- * Strip volatile noise so the snapshot is stable across site rebuilds.
- *
- * The raw HTML is a Next.js page full of Tailwind class strings and asset
- * hashes that churn whenever the docs site redeploys. We isolate the
- * changelog body (`<main>` if present, else the full doc), drop scripts /
- * styles / comments, and collapse whitespace. Tags themselves are kept so
- * `extractEntries()` can still find `<hN>` headings for the drift diff.
- *
- * The hash is computed from the extracted entries
- * (`canonicalize(extractEntries(normalized))`), not the raw markup, so
- * structural class-name churn does not flip the hash on its own.
- */
 function normalize(html) {
   return isolateMain(html)
     .replace(/<script[\s\S]*?<\/script>/gi, "")
@@ -144,11 +107,6 @@ function normalize(html) {
     .trim();
 }
 
-/**
- * Strip the `<main>` wrapper if present so we hash the changelog body, not
- * the navigation chrome. Falls back to the whole document if the marker
- * disappears in a future redesign.
- */
 function isolateMain(html) {
   const match = html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i);
   return match ? match[1] : html;
@@ -169,11 +127,7 @@ async function appendGithubOutput(key, value) {
   await writeFile(path, line, { flag: "a", encoding: "utf8" });
 }
 
-/**
- * Remove HTML tags and decode common entities for plain-text excerpts.
- * Used only for the drift diff body, not for hashing.
- */
-function stripTags(html) {
+const stripTags = (html) => {
   return html
     .replace(/<[^>]+>/g, "")
     .replace(/&amp;/g, "&")
@@ -184,13 +138,8 @@ function stripTags(html) {
     .replace(/&#x27;/g, "'")
     .replace(/&nbsp;/g, " ")
     .trim();
-}
+};
 
-/**
- * Split normalized changelog HTML into structured entries by locating
- * heading elements whose text contains a date pattern. Each entry
- * includes the date, heading text, and a plain-text body excerpt.
- */
 export function extractEntries(html) {
   if (!html) return [];
 
@@ -245,12 +194,6 @@ const MONTHS = {
   december: "12",
 };
 
-/**
- * Convert a heading date — either ISO (`2026-02-25`) or long form
- * (`February 25th, 2026`) — to a sortable ISO string. Returns `null` if the
- * date can't be parsed; that pushes such entries to the end of the
- * newest-first sort.
- */
 export function toIsoDate(raw) {
   if (!raw || raw === "unknown") return null;
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
@@ -264,42 +207,21 @@ export function toIsoDate(raw) {
   return `${m[3]}-${month}-${day}`;
 }
 
-/**
- * Reduce an entry list to a stable string for hashing. Hashes the
- * heading + excerpt of each entry — order-stable because `extractEntries`
- * sorts newest-first. A new entry, an edited excerpt, or a removed entry
- * all flip the hash; cosmetic HTML / class-name changes do not.
- */
 function canonicalize(entries) {
   return JSON.stringify(entries.map((e) => ({ heading: e.heading, excerpt: e.excerpt })));
 }
 
-/**
- * Read entries from a previous snapshot, supporting both the new structured
- * format (`entries` array) and the legacy HTML-blob format (`html` field).
- * Lets the drift workflow keep working through the rollout that flipped
- * the snapshot shape.
- */
 function previousSnapshotEntries(previous) {
   if (Array.isArray(previous?.entries)) return previous.entries;
   if (typeof previous?.html === "string") return extractEntries(previous.html);
   return [];
 }
 
-/**
- * Return entries present in `current` but absent from `previous`,
- * matched by heading text. Headings are unique enough for changelog
- * entries to avoid false negatives.
- */
 export function diffEntries(previous, current) {
   const prevHeadings = new Set(previous.map((e) => e.heading));
   return current.filter((e) => !prevHeadings.has(e.heading));
 }
 
-/**
- * Render a list of new changelog entries as markdown for both stdout
- * and the GitHub issue body.
- */
 function formatDiff(newEntries) {
   if (newEntries.length === 0) return "";
   return newEntries

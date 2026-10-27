@@ -1,17 +1,9 @@
-import { freshSqueezyErrorOf } from "../core/errors.js";
-import type { HttpClient, RequestOptions } from "../core/http.js";
-import type { JsonApiDocument } from "../core/types.js";
+import { freshSqueezyErrorOf } from "@/core/errors.js";
+import type { HttpClient, RequestOptions } from "@/core/http.js";
+import type { JsonApiDocument } from "@/core/types.js";
 import type { UserAttributes } from "./attributes.js";
 
-/**
- * Docs-backed ops matrix for Lemon Squeezy.
- *
- * Only verbs that exist at https://docs.lemonsqueezy.com/api are listed.
- * Catalog resources (products, variants, prices, files, stores, …) are
- * read-only. CI changelog scrape may propose gaps; this registry is what ships.
- */
 
-/** CLI / client verb tokens, including non-CRUD LS actions. */
 export type OpVerb =
   | "get"
   | "list"
@@ -23,34 +15,15 @@ export type OpVerb =
   | "generate-invoice"
   | "current-usage";
 
-/**
- * One implemented, documented operation.
- *
- * @remarks `docsPath` is the path under `/api/` on the LS docs site.
- */
 export interface ResourceVerbSpec {
-  /** CLI resource token (singular), e.g. `webhook`. */
   resource: string;
   verb: OpVerb;
-  /** Docs path fragment, e.g. `webhooks/create-webhook`. */
   docsPath: string;
-  /** Requires --yes or TTY confirm always (delete/cancel/refund). */
   destructive?: boolean;
   body?: "required" | "optional" | "none";
-  /**
-   * How list/get resolve the primary id filter.
-   * - `id` — --id
-   * - `store` — --store-ids (first) or store filter
-   * - `parent` — --parent-id (subscription, order, product, …)
-   */
   idRole?: "id" | "store" | "parent" | "none";
 }
 
-/**
- * Arguments for a single resource op invocation.
- *
- * One named input type — not a bag of unrelated returns.
- */
 export interface InvokeOpArgs {
   id?: string | number;
   storeId?: string | number;
@@ -60,15 +33,12 @@ export interface InvokeOpArgs {
 
 interface VerbRule {
   method: NonNullable<RequestOptions["method"]>;
-  /** Appended to `/v1/<resource>s`; `{id}` is replaced by `--id`. */
   path: string;
-  /** Docs page slug; `{r}` is replaced by the resource name. */
   docs: string;
   body: NonNullable<ResourceVerbSpec["body"]>;
   destructive?: true;
 }
 
-/** Every Lemon Squeezy verb always maps to the same HTTP call shape and docs page name. */
 const VERB_RULES: Record<OpVerb, VerbRule> = {
   get: { method: "GET", path: "/{id}", docs: "retrieve-{r}", body: "none" },
   list: { method: "GET", path: "", docs: "list-all-{r}s", body: "none" },
@@ -97,13 +67,8 @@ const VERB_RULES: Record<OpVerb, VerbRule> = {
   },
 };
 
-/** `listScope` is what filters `list`: `"store"` → `--store-ids`, a resource → `--parent-id`. */
 type ResourceRow = [resource: string, verbs: OpVerb[], listScope?: string];
 
-/**
- * Implemented ops per resource, in the order `ops --list` prints them. Do not
- * register fantasy endpoints (e.g. product create).
- */
 const RESOURCES: ResourceRow[] = [
   ["user", ["get"]],
   ["store", ["get", "list"]],
@@ -127,7 +92,6 @@ const RESOURCES: ResourceRow[] = [
   ["affiliate", ["get", "list"], "store"],
 ];
 
-/** The one docs page that breaks the `generate-{r}-invoice` naming pattern. */
 const DOCS_PATH_EXCEPTIONS: Record<string, string> = {
   "subscription-invoice:generate-invoice": "subscription-invoices/generate-subscription-invoice",
 };
@@ -157,20 +121,10 @@ const toSpec = (resource: string, verb: OpVerb, listScope?: string): ResourceVer
   };
 };
 
-/**
- * Implemented ops, one entry per documented resource verb. Keep in sync with
- * the nested client in `createFreshSqueezy`.
- */
 export const resourceRegistry: readonly ResourceVerbSpec[] = RESOURCES.flatMap(
   ([resource, verbs, listScope]) => verbs.map((verb) => toSpec(resource, verb, listScope)),
 );
 
-/**
- * Normalize a CLI resource token to the singular registry key.
- *
- * @param resource - Raw token (`products`, `order_items`, `webhook`).
- * @returns Canonical singular resource name used in `resourceRegistry`.
- */
 export const normalizeResourceName = (resource: string): string => {
   const normalized = resource.replace(/_/g, "-").toLowerCase();
   // naive singular for simple plurals; leave tokens like "status" alone
@@ -180,33 +134,15 @@ export const normalizeResourceName = (resource: string): string => {
   return normalized;
 };
 
-/**
- * Look up a registry entry.
- *
- * @param resource - CLI resource token.
- * @param verb - Op verb.
- * @returns The spec, or undefined when not implemented / not in LS API.
- */
 export const findResourceVerb = (resource: string, verb: string): ResourceVerbSpec | undefined => {
   const key = normalizeResourceName(resource);
   return resourceRegistry.find((entry) => entry.resource === key && entry.verb === verb);
 };
 
-/**
- * Unique resource names that have at least one verb.
- *
- * @returns Sorted resource tokens for help text / menus.
- */
 export const listRegisteredResources = (): string[] => {
   return [...new Set(resourceRegistry.map((entry) => entry.resource))].sort();
 };
 
-/**
- * All verbs registered for a resource (empty when unknown).
- *
- * @param resource - CLI resource token (plural or singular).
- * @returns Sorted verb list for help / menus.
- */
 export const listRegisteredVerbs = (resource: string): OpVerb[] => {
   const key = normalizeResourceName(resource);
   return resourceRegistry
@@ -268,24 +204,6 @@ const requestBody = (rule: VerbRule, args: InvokeOpArgs): unknown => {
   return undefined;
 };
 
-/**
- * Run a docs-backed resource verb: look it up in `resourceRegistry`, then make
- * the one HTTP call its verb rule describes.
- *
- * @param http - Shared API client.
- * @param resource - CLI resource token (`webhook`, `product`, …).
- * @param verb - Op verb (`get`, `create`, `refund`, …).
- * @param args - Ids / body for the call.
- * @returns The JSON:API `data` (resource or list), the whole document for
- * endpoints that return only `meta` (invoices, usage), or undefined after a delete.
- * @throws {FreshSqueezyError} When the verb is unknown, an argument is missing, or HTTP fails.
- *
- * @example
- * ```ts
- * const product = await invokeOp(http, "product", "get", { id: 42 });
- * // GET /v1/products/42
- * ```
- */
 export const invokeOp = async (
   http: HttpClient,
   resource: string,

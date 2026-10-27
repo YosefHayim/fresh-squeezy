@@ -1,14 +1,14 @@
 import chalk from "chalk";
-import { ENV_KEYS } from "../../core/config.js";
-import { type ProjectInstallResult, ensureFreshSqueezyDevDependency } from "../projectInstall.js";
-import { type LauncherAction, isPromptCancel, pickLauncherAction } from "../prompts.js";
+import { ENV_KEYS } from "@/core/config.js";
+import { type ProjectInstallResult, ensureFreshSqueezyDevDependency } from "@/cli/projectInstall.js";
+import { type LauncherAction, isPromptCancel, pickLauncherAction } from "@/cli/prompts.js";
 import {
   renderBrandHeader,
   renderCancelMessage,
   renderCommandExamples,
   renderDetected,
   renderStep,
-} from "../render.js";
+} from "@/cli/render.js";
 import { runDoctorCommand } from "./doctor.js";
 import { runInitCommand } from "./init.js";
 import { runManageCommand } from "./manage.js";
@@ -55,12 +55,6 @@ export const runLauncherCommand = async (options: LauncherCommandOptions): Promi
   }
 };
 
-/**
- * Route a front-door menu choice to the same command handlers the flag-driven
- * CLI uses. `doctor` runs interactively so store selection falls through to the
- * TTY multi-select; `manage` opens the bulk resource picker; `examples` prints the copy/paste cheatsheet; `exit` is a
- * clean no-op.
- */
 const routeLauncherAction = async (action: LauncherAction): Promise<number> => {
   switch (action) {
     case "init":

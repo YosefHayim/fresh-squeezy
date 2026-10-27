@@ -1,4 +1,4 @@
-import type { JsonApiDocument } from "../core/types.js";
+import type { JsonApiDocument } from "@/core/types.js";
 import type {
   GeneratedAffiliateAttributes,
   GeneratedCheckoutAttributes,
@@ -20,20 +20,9 @@ import type {
   GeneratedUserAttributes,
   GeneratedVariantAttributes,
   GeneratedWebhookAttributes,
-} from "../generated/lemonSqueezyApiTypes.js";
+} from "@/generated/lemonSqueezyApiTypes.js";
 
-/**
- * Typed attributes for every Lemon Squeezy object fresh-squeezy touches.
- *
- * Each `*Attributes` extends the docs-generated `Generated*Attributes` and
- * tightens the fields validators rely on. Ops return `unknown`; narrow with
- * these, e.g. `(await lemon.orders.get(1)) as JsonApiResource<OrderAttributes>`.
- */
 
-/**
- * Subset of the Lemon Squeezy `users` resource attributes we rely on.
- * Full schema at https://docs.lemonsqueezy.com/api/users.
- */
 export interface UserAttributes extends GeneratedUserAttributes {
   name: string;
   email: string;
@@ -44,31 +33,12 @@ export interface UserAttributes extends GeneratedUserAttributes {
   updatedAt?: string;
 }
 
-/**
- * Document-level metadata on `/v1/users/me`.
- *
- * `test_mode` was added to the endpoint on 2024-01-05 (per the Lemon Squeezy
- * API changelog: https://docs.lemonsqueezy.com/api/getting-started/changelog).
- * It reports whether the *key* being used is a test-mode key, independent of
- * what the caller declared. The connection validator compares this against
- * the caller's declared mode to catch the common "prod key in staging"
- * (or vice versa) misconfiguration.
- */
 export interface UserMeta {
   test_mode?: boolean;
 }
 
-/**
- * Authenticated-user document with the `data` + `meta` block preserved.
- * The connection validator needs the meta flag, so it reads the full
- * `/v1/users/me` document rather than just `data`.
- */
 export type AuthenticatedUserDocument = JsonApiDocument<UserAttributes> & { meta?: UserMeta };
 
-/**
- * Subset of store attributes fresh-squeezy reads.
- * Full schema at https://docs.lemonsqueezy.com/api/stores.
- */
 export interface StoreAttributes extends GeneratedStoreAttributes {
   name: string;
   slug: string;
@@ -81,10 +51,6 @@ export interface StoreAttributes extends GeneratedStoreAttributes {
   updated_at?: string;
 }
 
-/**
- * Subset of product attributes we need for validation. `status` drives the
- * "unpublished product" check; `store_id` drives ownership checks.
- */
 export interface ProductAttributes extends GeneratedProductAttributes {
   name: string;
   slug: string;
@@ -104,10 +70,6 @@ export interface VariantLink {
   url: string;
 }
 
-/**
- * Variant attributes used by the product validator to detect
- * variant/price drift from the product they belong to.
- */
 export interface VariantAttributes extends GeneratedVariantAttributes {
   product_id: number;
   name: string;
@@ -125,25 +87,12 @@ export interface VariantAttributes extends GeneratedVariantAttributes {
   interval?: string | null;
   interval_count?: number | null;
   sort?: number;
-  /**
-   * Hosted-checkout-style links keyed by purpose. Added 2024-06-09 — older
-   * SDK and validator versions don't surface this field, so consumers had
-   * to read `meta.product_links` manually before. Optional because the
-   * field is absent on older variants.
-   */
   links?: VariantLink[] | Record<string, string>;
   created_at?: string;
   updated_at?: string;
   test_mode?: boolean;
 }
 
-/**
- * Extended variant attributes for subscription plan validation. In Lemon
- * Squeezy, "subscription plans" live as variants with `is_subscription: true`.
- * These fields are only present on subscription variants and are checked by
- * the subscription plan validator to catch misconfigured trial periods,
- * zero-price plans, and invalid billing intervals.
- */
 export interface SubscriptionVariantAttributes extends VariantAttributes {
   is_subscription: boolean;
   interval: string | null;
@@ -154,23 +103,12 @@ export interface SubscriptionVariantAttributes extends VariantAttributes {
   price: number;
 }
 
-/**
- * Subset of Lemon Squeezy price attributes. Prices are nested under
- * variants in the API surface; consumers that read them directly via
- * `client.request<PriceAttributes>()` get a typed response that includes
- * the setup-fee fields the official SDK does not yet surface.
- *
- * Field provenance:
- *   - `setup_fee_enabled`, `setup_fee` — added 2024-01-21.
- *   - `unit_price_decimal` — added 2024-01-15.
- */
 export interface PriceAttributes extends GeneratedPriceAttributes {
   variant_id: number;
   category: "one_time" | "subscription" | "lead_magnet" | "pwyw";
   scheme: "standard" | "package" | "graduated" | "volume";
   usage_aggregation?: string | null;
   unit_price?: number;
-  /** Added 2024-01-15. Decimal string for sub-cent accuracy. */
   unit_price_decimal?: string | null;
   package_size?: number;
   tiers?: unknown;
@@ -181,19 +119,12 @@ export interface PriceAttributes extends GeneratedPriceAttributes {
   min_price?: number | null;
   suggested_price?: number | null;
   tax_code?: string;
-  /** Added 2024-01-21. */
   setup_fee_enabled?: boolean | null;
-  /** Added 2024-01-21. Setup fee in cents, paired with `setup_fee_enabled`. */
   setup_fee?: number | null;
   created_at?: string;
   updated_at?: string;
 }
 
-/**
- * Lemon Squeezy file attributes, generated from the public object docs.
- * Exposed so consumers can type file-resource escape-hatch calls without
- * waiting for a hand-written validator.
- */
 export interface FileAttributes extends GeneratedFileAttributes {}
 
 export type CustomerStatus =
@@ -208,11 +139,6 @@ export interface CustomerUrls {
   customer_portal?: string | null;
 }
 
-/**
- * Lemon Squeezy customer attributes. The customer portal URL was called out
- * in the 2023-09-19 changelog and is useful for apps linking users back to
- * billing without another API shape.
- */
 export interface CustomerAttributes extends GeneratedCustomerAttributes {
   store_id: number;
   name: string;
@@ -250,23 +176,6 @@ export interface OrderFirstItem {
   updated_at?: string;
 }
 
-/**
- * Subset of Lemon Squeezy order attributes fresh-squeezy understands.
- *
- * fresh-squeezy does not (yet) validate orders — the type is exported so
- * consumers using the raw `client.request<OrderAttributes>()` escape hatch
- * get a typed response that includes platform additions the official SDK
- * has not yet picked up.
- *
- * Field provenance against the changelog
- * (https://docs.lemonsqueezy.com/api/getting-started/changelog):
- *
- *   - `status: "fraudulent"` — added 2024-09-10. Indicates a manual fraud
- *     flag; treat as terminal and refund or chargeback as appropriate.
- *   - `refunded_amount`, `refunded_amount_usd`, `refunded_amount_formatted`
- *     — added 2024-08-07. Useful for consumers reconciling partial refunds.
- *   - `tax_inclusive` — added 2024-02-05.
- */
 export interface OrderAttributes extends GeneratedOrderAttributes {
   store_id: number;
   customer_id?: number;
@@ -308,10 +217,6 @@ export interface OrderAttributes extends GeneratedOrderAttributes {
   test_mode?: boolean;
 }
 
-/**
- * Order item attributes. `quantity` was added to the documented object in
- * the 2024-12-06 changelog and is needed for multi-quantity reconciliation.
- */
 export interface OrderItemAttributes extends GeneratedOrderItemAttributes {
   order_id: number;
   product_id: number;
@@ -324,17 +229,10 @@ export interface OrderItemAttributes extends GeneratedOrderItemAttributes {
   updated_at?: string;
 }
 
-/**
- * URLs Lemon Squeezy attaches to a subscription so consumers can deep-link
- * users to billing pages. The set has grown over time; we keep optional
- * fields for forward-compatibility.
- */
 export interface SubscriptionUrls {
   update_payment_method?: string;
   customer_portal?: string;
-  /** Added 2024-02-20: lets consumers offer "manage subscription" without an extra round-trip. */
   update_customer_portal?: string | null;
-  /** Current API examples also surface this key name for PayPal update flows. */
   customer_portal_update_subscription?: string | null;
 }
 
@@ -352,20 +250,6 @@ export interface SubscriptionItemSummary {
   updated_at?: string;
 }
 
-/**
- * Subset of subscription attributes. fresh-squeezy does not (yet) validate
- * subscriptions — this type is exported so consumers using the raw
- * `client.request<SubscriptionAttributes>()` escape hatch get a typed
- * response that includes platform additions the official SDK has not yet
- * picked up.
- *
- * Field provenance against the changelog:
- *   - `payment_processor` — added 2025-06-11.
- *   - `urls.update_customer_portal` — added 2024-02-20.
- *   - `tax_inclusive` — invoice-only in current API docs; retained here as
- *     a compatibility field for consumers that previously normalised
- *     subscription and subscription invoice payloads together.
- */
 export interface SubscriptionAttributes extends GeneratedSubscriptionAttributes {
   store_id: number;
   customer_id: number;
@@ -381,7 +265,6 @@ export interface SubscriptionAttributes extends GeneratedSubscriptionAttributes 
   status_formatted: string;
   card_brand?: string | null;
   card_last_four?: string | null;
-  /** Added 2025-06-11. Identifies which payment provider processed the transaction. */
   payment_processor?: "stripe" | "lemonsqueezy" | "paypal" | string;
   pause?: SubscriptionPause | null;
   cancelled?: boolean;
@@ -394,7 +277,6 @@ export interface SubscriptionAttributes extends GeneratedSubscriptionAttributes 
   created_at?: string;
   updated_at?: string;
   test_mode?: boolean;
-  /** Compatibility field for older fresh-squeezy consumers; prefer SubscriptionInvoiceAttributes.tax_inclusive. */
   tax_inclusive?: boolean;
 }
 
@@ -407,29 +289,12 @@ export interface SubscriptionItemAttributes extends GeneratedSubscriptionItemAtt
   updated_at?: string;
 }
 
-/**
- * Attributes accepted by the update subscription item endpoint. The proration
- * controls were added in the 2024-02-12 changelog.
- */
 export interface SubscriptionItemUpdateAttributes {
   quantity?: number;
   invoice_immediately?: boolean;
   disable_prorations?: boolean;
 }
 
-/**
- * Build a JSON:API update body for a subscription item (quantity / proration).
- *
- * @param subscriptionItemId - Item id embedded in the document.
- * @param attributes - Fields accepted by the update endpoint.
- * @returns A single JSON:API document (not multiple loose objects).
- *
- * @example
- * ```ts
- * const body = buildSubscriptionItemUpdateBody(1, { quantity: 3 });
- * await lemon.subscriptionItems.update(1, body);
- * ```
- */
 export const buildSubscriptionItemUpdateBody = (
   subscriptionItemId: string | number,
   attributes: SubscriptionItemUpdateAttributes,
@@ -451,10 +316,6 @@ export interface SubscriptionInvoiceUrls {
   invoice_url?: string;
 }
 
-/**
- * Subscription invoice attributes, including fields added across the
- * changelog: customer identity, tax inclusion, and partial refund amounts.
- */
 export interface SubscriptionInvoiceAttributes extends GeneratedSubscriptionInvoiceAttributes {
   store_id: number;
   subscription_id: number;
@@ -502,10 +363,6 @@ export interface UsageRecordAttributes extends GeneratedUsageRecordAttributes {
   updated_at?: string;
 }
 
-/**
- * Subset of Lemon Squeezy discount attributes used by the discount validator.
- * Full schema at https://docs.lemonsqueezy.com/api/discounts.
- */
 export interface DiscountAttributes extends GeneratedDiscountAttributes {
   name: string;
   code: string;
@@ -535,10 +392,6 @@ export interface DiscountRedemptionAttributes extends GeneratedDiscountRedemptio
   updated_at?: string;
 }
 
-/**
- * Subset of Lemon Squeezy license-key attributes used by the license key
- * validator. Full schema at https://docs.lemonsqueezy.com/api/license-keys.
- */
 export interface LicenseKeyAttributes extends GeneratedLicenseKeyAttributes {
   key_short: string;
   status: "active" | "inactive" | "expired" | "disabled";
@@ -612,9 +465,7 @@ export interface CheckoutOptions {
   desc?: boolean;
   discount?: boolean;
   subscription_preview?: boolean;
-  /** Added 2024-03-28. */
   skip_trial?: boolean;
-  /** Deprecated 2024-09-04; keep typed so old payloads still compile. */
   dark?: boolean;
   background_color?: string;
   headings_color?: string;
@@ -645,7 +496,6 @@ export interface CheckoutData {
   tax_number?: string;
   discount_code?: string;
   custom?: Record<string, unknown>;
-  /** Added 2023-08-23 for multi-variant checkout quantities. */
   variant_quantities?: CheckoutVariantQuantity[];
 }
 
@@ -681,11 +531,6 @@ export interface CheckoutAttributes extends GeneratedCheckoutAttributes {
   test_mode?: boolean;
 }
 
-/**
- * Subset of webhook attributes we read. `events` is an ordered list of
- * subscribed event names; the validator cross-references these against the
- * support manifest to catch missing subscriptions.
- */
 export interface WebhookAttributes extends GeneratedWebhookAttributes {
   store_id: number;
   url: string;
@@ -698,10 +543,6 @@ export interface WebhookAttributes extends GeneratedWebhookAttributes {
 
 export type AffiliateStatus = "active" | "pending" | "disabled";
 
-/**
- * Affiliate attributes added with the 2025-01-21 Affiliates API surface.
- * No validator consumes these yet; they type `lemon.affiliates.*` results.
- */
 export interface AffiliateAttributes extends GeneratedAffiliateAttributes {
   store_id: number;
   user_id: number;

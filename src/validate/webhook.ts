@@ -1,23 +1,15 @@
-import type { HttpClient } from "../core/http.js";
-import type { Mode, ValidationIssue, ValidationResult } from "../core/types.js";
-import type { WebhookAttributes } from "../resources/attributes.js";
-import { OPTIONAL_WEBHOOK_EVENTS, RECOMMENDED_WEBHOOK_EVENTS } from "../support/manifest.js";
+import type { HttpClient } from "@/core/http.js";
+import type { Mode, ValidationIssue, ValidationResult } from "@/core/types.js";
+import type { WebhookAttributes } from "@/resources/attributes.js";
+import { OPTIONAL_WEBHOOK_EVENTS, RECOMMENDED_WEBHOOK_EVENTS } from "@/support/manifest.js";
 import { ISSUE_CODES, buildResult, issue } from "./issues.js";
 import { probeCollection } from "./probe.js";
 
 export interface WebhookValidationOptions {
   storeId: string | number;
-  /** The public URL your app exposes for Lemon Squeezy to POST to. */
   url: string;
 }
 
-/**
- * Compare two webhook URLs ignoring trailing slashes and casing.
- *
- * Lemon Squeezy strips trailing slashes when persisting a webhook, but users
- * often paste the trailing-slash form into their config. `validateWebhook`
- * relies on this rule to match a configured URL against the registered list.
- */
 export const sameWebhookUrl = (a: string, b: string): boolean => {
   return normalizeWebhookUrl(a) === normalizeWebhookUrl(b);
 };
@@ -26,14 +18,6 @@ const normalizeWebhookUrl = (raw: string): string => {
   return raw.replace(/\/+$/, "").toLowerCase();
 };
 
-/**
- * Confirm a webhook matching `options.url` is registered against the given
- * store, and cross-reference its subscribed events against the support
- * manifest's recommended + optional lists.
- *
- * Missing recommended events = error. Missing optional events = info, because
- * not every integration needs them.
- */
 export const validateWebhook = async (
   http: HttpClient,
   mode: Mode,

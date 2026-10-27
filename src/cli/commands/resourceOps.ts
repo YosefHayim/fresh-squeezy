@@ -1,17 +1,17 @@
 import { readFileSync } from "node:fs";
-import { resolveConfig } from "../../core/config.js";
-import { freshSqueezyErrorOf, isFreshSqueezyError } from "../../core/errors.js";
-import { HttpClient } from "../../core/http.js";
-import type { Mode } from "../../core/types.js";
+import { resolveConfig } from "@/core/config.js";
+import { freshSqueezyErrorOf, isFreshSqueezyError } from "@/core/errors.js";
+import { HttpClient } from "@/core/http.js";
+import type { Mode } from "@/core/types.js";
 import {
   type OpVerb,
   findResourceVerb,
   invokeOp,
   listRegisteredResources,
   resourceRegistry,
-} from "../../resources/registry.js";
-import { confirmResourceOp } from "../prompts.js";
-import { renderCliError } from "../render.js";
+} from "@/resources/registry.js";
+import { confirmResourceOp } from "@/cli/prompts.js";
+import { renderCliError } from "@/cli/render.js";
 import {
   type BulkSelector,
   collectBulkTargets,
@@ -19,11 +19,8 @@ import {
   previewTargets,
   renderBulkSummary,
   supportsBulk,
-} from "./bulkOps.js";
+} from "./bulk-ops.js";
 
-/**
- * Options for hybrid resource ops (get/list/create/…/refund).
- */
 export interface ResourceOpCommandOptions {
   resource: string;
   verb: OpVerb | string;
@@ -37,35 +34,12 @@ export interface ResourceOpCommandOptions {
   json?: boolean;
   isInteractive?: boolean;
   listCatalog?: boolean;
-  /** Bulk: apply the verb to every listed item. */
   all?: boolean;
-  /** Bulk: apply the verb to these ids. */
   ids?: string[];
-  /** Bulk: with `all`, keep only items whose text attributes contain this. */
   match?: string;
-  /** Bulk: show targets, send nothing. */
   dryRun?: boolean;
 }
 
-/**
- * Run a docs-backed resource op from the CLI.
- *
- * Dual-mode: non-TTY never prompts; live writes and destructive verbs need
- * `--yes` or TTY confirm.
- *
- * @param options - Verb, resource, flags, body sources.
- * @returns Process exit code (0 success, 1 bulk partial failure, 2 fatal/usage).
- *
- * @example
- * ```ts
- * await runResourceOpCommand({
- *   verb: "get",
- *   resource: "product",
- *   id: "42",
- *   json: true,
- * });
- * ```
- */
 export const runResourceOpCommand = async (options: ResourceOpCommandOptions): Promise<number> => {
   if (options.listCatalog) {
     writeCatalog(options.json ?? false);
@@ -145,11 +119,6 @@ export const runResourceOpCommand = async (options: ResourceOpCommandOptions): P
   }
 };
 
-/**
- * Print the implemented ops matrix (docs-backed).
- *
- * @param asJson - Machine-readable when true.
- */
 const writeCatalog = (asJson: boolean): void => {
   if (asJson) {
     process.stdout.write(
@@ -183,11 +152,6 @@ const writeCatalog = (asJson: boolean): void => {
 
 type VerbSpec = NonNullable<ReturnType<typeof findResourceVerb>>;
 
-/**
- * Reject flag combinations that make no sense before any network call.
- *
- * @returns An error message, or undefined when the flags are consistent.
- */
 const validateBulkFlags = (
   spec: VerbSpec,
   options: ResourceOpCommandOptions,
@@ -207,11 +171,6 @@ const validateBulkFlags = (
   return undefined;
 };
 
-/**
- * Bulk path: resolve targets, confirm once, apply, report.
- *
- * @returns 0 when every item succeeded (or dry run), 1 on partial failure, 2 when declined.
- */
 const runBulk = async (
   http: HttpClient,
   spec: VerbSpec,

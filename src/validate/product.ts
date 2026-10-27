@@ -1,20 +1,14 @@
-import type { HttpClient } from "../core/http.js";
-import type { Mode, ValidationIssue, ValidationResult } from "../core/types.js";
-import type { ProductAttributes, VariantAttributes } from "../resources/attributes.js";
+import type { HttpClient } from "@/core/http.js";
+import type { Mode, ValidationIssue, ValidationResult } from "@/core/types.js";
+import type { ProductAttributes, VariantAttributes } from "@/resources/attributes.js";
 import { ISSUE_CODES, buildResult, issue } from "./issues.js";
 import { checkStoreOwnership, probeCollection, probeFetch } from "./probe.js";
 
 export interface ProductValidationOptions {
   productId: string | number;
-  /** Optional: confirm the product belongs to this store. */
   expectedStoreId?: string | number;
 }
 
-/**
- * Validate a product's publish state, store ownership, and that it has at
- * least one published variant. Surfaces the most common misconfigurations
- * caught in the wild (unpublished product, wrong store, missing variants).
- */
 export const validateProduct = async (
   http: HttpClient,
   mode: Mode,
@@ -80,12 +74,6 @@ export const validateProduct = async (
   });
 };
 
-/**
- * Pure attribute assertions for a product: store ownership, publish state, and
- * hosted-checkout availability. The variant-population rule needs a second
- * fetch and stays in `validateProduct`; everything here runs on plain data, so
- * the rules are unit-testable without a mock fetch.
- */
 export const checkProduct = (
   attrs: ProductAttributes,
   options: { expectedStoreId?: string | number } = {},

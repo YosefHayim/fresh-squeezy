@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, test } from "vitest";
 import { type FreshSqueezyClient, createFreshSqueezy } from "./createFreshSqueezy.js";
 
 const clientWithLog = (): { lemon: FreshSqueezyClient; calls: string[] } => {
@@ -15,7 +15,7 @@ const clientWithLog = (): { lemon: FreshSqueezyClient; calls: string[] } => {
 const BODY = { data: { type: "x" } };
 
 describe("createFreshSqueezy nested ops", () => {
-  it.each<[string, (lemon: FreshSqueezyClient) => Promise<unknown>, string]>([
+  test.each<[string, (lemon: FreshSqueezyClient) => Promise<unknown>, string]>([
     ["users.me", (l) => l.users.me(), "GET /v1/users/me"],
     ["stores.get", (l) => l.stores.get(1), "GET /v1/stores/1"],
     ["stores.list", (l) => l.stores.list(), "GET /v1/stores?page[number]=1"],

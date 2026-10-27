@@ -1,8 +1,8 @@
-import { freshSqueezyErrorOf, isFreshSqueezyError } from "../../core/errors.js";
-import type { Mode, ValidationResult } from "../../core/types.js";
-import { type FreshSqueezyClient, createFreshSqueezy } from "../../createFreshSqueezy.js";
-import { MISSING_API_KEY_HINTS, renderCliError, renderResult } from "../render.js";
-import { resolveStores } from "../resolveStores.js";
+import { freshSqueezyErrorOf, isFreshSqueezyError } from "@/core/errors.js";
+import type { Mode, ValidationResult } from "@/core/types.js";
+import { type FreshSqueezyClient, createFreshSqueezy } from "@/createFreshSqueezy.js";
+import { MISSING_API_KEY_HINTS, renderCliError, renderResult } from "@/cli/render.js";
+import { resolveStores } from "@/cli/resolveStores.js";
 
 export interface ValidateCommandOptions {
   mode?: Mode;
@@ -17,13 +17,10 @@ export interface ValidateCommandOptions {
   isInteractive?: boolean;
 }
 
-/** Everything one `fresh-squeezy validate <target>` subcommand needs: flags, help, hints, and the run. */
 export interface ValidateSubcommandSpec {
   description: string;
-  /** `multi`: `--store-ids` + `--all-stores`, one result per store. `ownership`: first `--store-ids` is cross-checked. */
   stores: "none" | "multi" | "ownership";
   storeIdsHelp?: string;
-  /** The resource id flag commander requires, and its help text. */
   required?: [flag: string, description: string];
   examples: string[];
   run: (
@@ -44,7 +41,6 @@ const required = <T>(value: T | undefined, message: string): T => {
 const requiredStoreId = (options: ValidateCommandOptions, target: string): string =>
   required(options.storeIds?.[0], `--store-ids is required for \`validate ${target}\`.`);
 
-/** Flag → TTY pick; non-interactive runs without a store flag fail instead of guessing. */
 const resolveStoresForSubcommand = async (
   client: FreshSqueezyClient,
   target: string,
@@ -64,7 +60,6 @@ const resolveStoresForSubcommand = async (
   return resolved.storeIds;
 };
 
-/** The `validate` subcommands, in the order `fresh-squeezy validate --help` lists them. */
 export const VALIDATE_SUBCOMMANDS = {
   connection: {
     description: "Check that the API key authenticates",
@@ -188,15 +183,6 @@ const writeResults = (
   return list.every((result) => result.ok) ? 0 : 1;
 };
 
-/**
- * `fresh-squeezy validate <target>` — run one validator. Store-scoped targets
- * reuse the same store resolution the `doctor` command uses, so a single
- * `--store-ids` flag or interactive pick works across every subcommand.
- *
- * Connection runs once (no stores needed). Store/webhook loop per resolved
- * store. Product runs once because a product ID identifies a single resource;
- * the `--store-ids` value (if any) is used for the cross-store ownership check.
- */
 export const runValidateCommand = async (
   target: ValidateSubcommand,
   options: ValidateCommandOptions,

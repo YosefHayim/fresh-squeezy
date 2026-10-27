@@ -1,21 +1,17 @@
-import { freshSqueezyErrorOf } from "../../core/errors.js";
-import type { HttpClient } from "../../core/http.js";
-import { type ResourceVerbSpec, findResourceVerb, invokeOp } from "../../resources/registry.js";
+import { freshSqueezyErrorOf } from "@/core/errors.js";
+import type { HttpClient } from "@/core/http.js";
+import { type ResourceVerbSpec, findResourceVerb, invokeOp } from "@/resources/registry.js";
 
-/** One resource the bulk run will act on. */
 export interface BulkTarget {
   id: string;
-  /** Human label (code, name, url) shown in confirms and results. */
   label: string;
 }
 
-/** Per-item outcome of a bulk run. */
 interface BulkResult extends BulkTarget {
   ok: boolean;
   error?: string;
 }
 
-/** Aggregate outcome of a bulk run. */
 export interface BulkSummary {
   dryRun: boolean;
   total: number;
@@ -24,7 +20,6 @@ export interface BulkSummary {
   results: BulkResult[];
 }
 
-/** Selector flags that choose which resources a bulk run touches. */
 export interface BulkSelector {
   all?: boolean;
   ids?: string[];
@@ -33,22 +28,9 @@ export interface BulkSelector {
   parentId?: string;
 }
 
-/**
- * Whether a registry spec can run in bulk: write verbs that act on one id
- * (delete / cancel / refund) and have a matching `list` to enumerate from.
- *
- * @param spec - Registry entry for the verb.
- * @returns True when `--all` / `--ids` make sense for this op.
- */
 export const supportsBulk = (spec: ResourceVerbSpec): boolean =>
   Boolean(spec.destructive) && spec.idRole === "id";
 
-/**
- * Pick a readable label from a JSON:API resource (code, name, url, …).
- *
- * @param item - Resource returned by `list`.
- * @returns The best label, falling back to the id.
- */
 const describeBulkTarget = (item: {
   id: string | number;
   attributes?: Record<string, unknown>;
@@ -62,9 +44,6 @@ const describeBulkTarget = (item: {
   return { id, label: id };
 };
 
-/**
- * Case-insensitive substring match against every string attribute.
- */
 const matchesText = (item: { attributes?: Record<string, unknown> }, text: string): boolean => {
   const needle = text.toLowerCase();
   return Object.values(item.attributes ?? {}).some(
@@ -72,21 +51,6 @@ const matchesText = (item: { attributes?: Record<string, unknown> }, text: strin
   );
 };
 
-/**
- * Resolve the targets of a bulk run: explicit `--ids`, or every item from the
- * resource's `list` (all pages), optionally narrowed by `--match`.
- *
- * @param http - Shared API client.
- * @param spec - Registry entry for the write verb.
- * @param selector - Which resources to touch, plus the list scope.
- * @returns Targets in API order.
- * @throws {FreshSqueezyError} `MISSING_ARG` when list scope is missing, `UNKNOWN_OP` without a list op.
- *
- * @example
- * ```ts
- * const targets = await collectBulkTargets(http, spec, { all: true, storeId: "1" });
- * ```
- */
 export const collectBulkTargets = async (
   http: HttpClient,
   spec: ResourceVerbSpec,
@@ -126,22 +90,6 @@ export const collectBulkTargets = async (
     .map(describeBulkTarget);
 };
 
-/**
- * Apply the write verb to each target. Keeps going after a failure so one bad
- * id never blocks the rest; with `dryRun` nothing is sent.
- *
- * @param http - Shared API client.
- * @param spec - Registry entry for the write verb.
- * @param targets - Resources to act on.
- * @param opts - `dryRun` skips writes; `body` is forwarded to every call.
- * @returns Per-item results and totals.
- *
- * @example
- * ```ts
- * const summary = await executeBulk(http, spec, targets, { dryRun: false });
- * if (summary.failed > 0) process.exitCode = 1;
- * ```
- */
 export const executeBulk = async (
   http: HttpClient,
   spec: ResourceVerbSpec,
@@ -170,24 +118,12 @@ export const executeBulk = async (
   return { dryRun, total: results.length, succeeded: results.length - failed, failed, results };
 };
 
-/**
- * Short preview of target labels for confirm prompts.
- *
- * @param targets - Resources about to be touched.
- * @param max - Labels to show before eliding.
- */
 export const previewTargets = (targets: BulkTarget[], max = 5): string => {
   const shown = targets.slice(0, max).map((t) => t.label);
   const more = targets.length - shown.length;
   return more > 0 ? `${shown.join(", ")}, … +${more} more` : shown.join(", ");
 };
 
-/**
- * Render a bulk summary for terminal output.
- *
- * @param spec - Registry entry for the write verb.
- * @param summary - Result of `executeBulk`.
- */
 export const renderBulkSummary = (spec: ResourceVerbSpec, summary: BulkSummary): string => {
   if (summary.total === 0) return `No ${spec.resource} items matched — nothing to ${spec.verb}.\n`;
   const verb = summary.dryRun ? `would ${spec.verb}` : spec.verb;

@@ -1,8 +1,3 @@
-/**
- * Minimal fetch mock used across unit tests. A route map maps a matcher over
- * (method, path) to a response body + status. Tests can assert which paths
- * were hit via the returned `calls` array.
- */
 
 export interface MockRoute {
   match: (req: { method: string; url: string }) => boolean;

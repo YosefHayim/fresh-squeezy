@@ -1,9 +1,9 @@
 import { readFileSync } from "node:fs";
 import { Command } from "commander";
 import dotenv from "dotenv";
-import { freshSqueezyErrorOf } from "../core/errors.js";
-import type { Mode } from "../core/types.js";
-import type { OpVerb } from "../resources/registry.js";
+import { freshSqueezyErrorOf } from "@/core/errors.js";
+import type { Mode } from "@/core/types.js";
+import type { OpVerb } from "@/resources/registry.js";
 import { runAugmentCommand } from "./commands/augment.js";
 import { type DoctorCommandOptions, runDoctorCommand } from "./commands/doctor.js";
 import { runInitCommand } from "./commands/init.js";
@@ -18,15 +18,6 @@ import {
 } from "./commands/validate.js";
 import { renderCliError } from "./render.js";
 
-/**
- * CLI entry. Wires commander subcommands to their handlers. Each handler
- * returns an exit code; the wrapper below sets it as `process.exitCode`.
- *
- * Store resolution is a CLI concern: `--store-ids 1,2,3` (CSV) for scripts,
- * `--all-stores` for "run against every reachable store", or interactive
- * multi-select when stdin is a TTY and neither flag is supplied. The library
- * API deliberately stays single-store-per-call.
- */
 
 dotenv.config();
 
@@ -92,7 +83,6 @@ interface ResourceOpCliOpts {
   dryRun?: boolean;
 }
 
-/** `process.exitCode`, not `process.exit()`: exiting early cuts off stdout piped past 64 KB. */
 const exitWith = async (code: Promise<number> | number): Promise<void> => {
   process.exitCode = await code;
 };
@@ -280,7 +270,6 @@ program
 
 const BULK_VERBS: readonly OpVerb[] = ["delete", "cancel", "refund"];
 
-/** Per-verb `--help` footer; bulk verbs get --all/--ids/--dry-run examples. */
 const opHelpText = (verb: OpVerb): string => {
   if (!BULK_VERBS.includes(verb)) {
     return `\nExample:\n  fresh-squeezy ${verb} <resource> --id 42 --json\n`;

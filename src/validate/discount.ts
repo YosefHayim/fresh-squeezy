@@ -1,6 +1,6 @@
-import type { HttpClient } from "../core/http.js";
-import type { Mode, ValidationIssue, ValidationResult } from "../core/types.js";
-import type { DiscountAttributes } from "../resources/attributes.js";
+import type { HttpClient } from "@/core/http.js";
+import type { Mode, ValidationIssue, ValidationResult } from "@/core/types.js";
+import type { DiscountAttributes } from "@/resources/attributes.js";
 import { ISSUE_CODES, buildResult, issue } from "./issues.js";
 import { checkStoreOwnership, probeFetch } from "./probe.js";
 
@@ -9,18 +9,6 @@ export interface DiscountValidationOptions {
   discountId: string | number;
 }
 
-/**
- * Validate a Lemon Squeezy discount code. Catches the most common
- * misconfigurations: draft discounts that can't be redeemed, expired or
- * not-yet-active windows, invalid amounts (negative or >100% for percent
- * type), and store ownership mismatches.
- *
- * The redemption exhaustion check is deliberately conservative (v1): it only
- * flags when `is_limited_redemptions` is true and `max_redemptions` is zero,
- * because a full redemption count fetch against
- * `/v1/discount-redemptions?filter[discount_id]=` is YAGNI until a consumer
- * asks for it.
- */
 export const validateDiscount = async (
   http: HttpClient,
   mode: Mode,
@@ -52,11 +40,6 @@ export const validateDiscount = async (
   });
 };
 
-/**
- * Pure attribute assertions for a discount: store ownership, draft/expiry/
- * activation windows, redemption exhaustion, and amount validity. No I/O, so
- * the rules are unit-testable with plain data.
- */
 export const checkDiscount = (
   attrs: DiscountAttributes,
   options: { storeId: string | number },

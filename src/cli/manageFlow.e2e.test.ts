@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { createMockFetch, pathIs } from "../../tests/helpers/mockFetch.js";
 
 // Only the inquirer layer and project install are mocked: launcher → menu →
@@ -50,7 +50,7 @@ describe("Manage resources flow (launcher → delete discounts)", () => {
     vi.restoreAllMocks();
   });
 
-  it("deletes every discount the user selects and prints the scriptable command", async () => {
+  test("deletes every discount the user selects and prints the scriptable command", async () => {
     const mock = createMockFetch([
       {
         match: pathIs("/v1/discounts"),

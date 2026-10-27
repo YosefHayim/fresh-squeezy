@@ -3,12 +3,8 @@ import type {
   ValidationResult,
   ValidationSeverity,
   ValidationTarget,
-} from "../core/types.js";
+} from "@/core/types.js";
 
-/**
- * Stable issue codes. Consumers may switch on these in CI — do not rename
- * without a major version bump.
- */
 export const ISSUE_CODES = {
   AUTH_FAILED: "AUTH_FAILED",
   MODE_MISMATCH: "MODE_MISMATCH",
@@ -46,10 +42,6 @@ export const ISSUE_CODES = {
   UNKNOWN: "UNKNOWN",
 } as const;
 
-/**
- * Build a `ValidationIssue` with defaults for the common case.
- * Extracted so every validator produces consistently shaped issues.
- */
 export const issue = (
   code: string,
   severity: ValidationSeverity,
@@ -62,17 +54,10 @@ export const issue = (
   return base;
 };
 
-/**
- * Fold an issue list into a boolean. Used by every validator so `ok` is
- * computed the same way everywhere.
- */
 export const isOk = (issues: ValidationIssue[]): boolean => {
   return !issues.some((entry) => entry.severity === "error");
 };
 
-/**
- * Compose a `ValidationResult` with the `ok` flag derived from issues.
- */
 export const buildResult = <T>(
   name: string,
   mode: ValidationResult["mode"],

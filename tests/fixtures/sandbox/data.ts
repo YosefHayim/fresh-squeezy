@@ -1,18 +1,3 @@
-/**
- * Sandbox fixtures captured against a Lemon Squeezy test-mode store.
- * Keep them deterministic — no timestamps that drift, no counters.
- *
- * Sections (grep `// ==` to jump):
- *   == users ==          userDoc, liveUserDoc
- *   == stores ==         storesCollection, storeDoc
- *   == products ==       publishedProductDoc, unpublishedProductDoc, productOnWrongStoreDoc
- *   == variants ==       variantsCollection*
- *   == webhooks ==       webhooksCollection*
- *   == discounts ==      *DiscountDoc
- *   == license keys ==   *LicenseKeyDoc
- *   == subscription variants ==  *VariantDoc (subscription-shaped)
- *   == errors ==         unauthorizedError, notFoundError
- */
 
 // == users ==
 

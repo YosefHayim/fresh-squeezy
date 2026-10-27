@@ -9,13 +9,6 @@ import {
   type ResourceChoiceGroup,
 } from "./optionalValidators.js";
 
-/**
- * Interactive prompts used by `fresh-squeezy init`.
- *
- * Isolated from the command handler so the command stays focused on the flow
- * (ask → detect → confirm → write) and prompts can be unit-tested by mocking
- * `@inquirer/prompts` without pulling in the full commander program.
- */
 
 export interface InitAnswers {
   apiKey: string;
@@ -84,12 +77,6 @@ export const pickStore = async (
   });
 };
 
-/**
- * Multi-select store picker used by `doctor` and `validate` when no
- * `--store-ids` / `--all-stores` flag is supplied and stdin is a TTY.
- * The first store is pre-checked so hitting Enter without toggling still
- * picks something — callers enforce the "at least one" rule.
- */
 export const pickStores = async (
   choices: { id: string; name: string; slug: string }[],
 ): Promise<string[]> => {
@@ -197,17 +184,6 @@ export const confirmWriteEnvFile = async (filePath: string): Promise<boolean> =>
   });
 };
 
-/**
- * Confirm a destructive or live-mode resource op before mutating.
- *
- * @param message - Prompt shown to the operator.
- * @returns Whether the user confirmed.
- *
- * @example
- * ```ts
- * const ok = await confirmResourceOp("Delete webhook 12?");
- * ```
- */
 export const confirmResourceOp = async (message: string): Promise<boolean> => {
   return confirm({
     message,
@@ -227,18 +203,11 @@ export const isPromptCancel = (error: unknown): boolean => {
   return error.name === "ExitPromptError";
 };
 
-/** One bulk-capable operation offered by the "Manage resources" menu. */
 export interface ManageOperationChoice {
   resource: string;
   verb: string;
 }
 
-/**
- * Pick which destructive op to run (e.g. `delete discount`).
- *
- * @param ops - Registry-backed operations that can run in bulk.
- * @returns The chosen operation.
- */
 export const pickManageOperation = async (
   ops: ManageOperationChoice[],
 ): Promise<ManageOperationChoice> => {
@@ -249,11 +218,6 @@ export const pickManageOperation = async (
   });
 };
 
-/**
- * Ask for the parent resource id that scopes a nested list (order, subscription, …).
- *
- * @param resource - Resource being listed, used in the prompt text.
- */
 export const askParentId = async (resource: string): Promise<string> => {
   const value = await input({
     message: `Parent id to list ${resource} items from:`,
@@ -263,14 +227,6 @@ export const askParentId = async (resource: string): Promise<string> => {
   return value.trim();
 };
 
-/**
- * Multi-select the items to act on. Nothing is pre-checked so a stray Enter
- * cannot select everything; `a` toggles all.
- *
- * @param verb - Verb shown in the prompt.
- * @param items - Candidate items with a display label.
- * @returns Ids of the picked items.
- */
 export const pickBulkTargets = async (
   verb: string,
   items: { id: string; label: string }[],

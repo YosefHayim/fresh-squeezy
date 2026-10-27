@@ -22,14 +22,6 @@ import {
 } from "./validate/subscriptionPlan.js";
 import { type WebhookValidationOptions, validateWebhook } from "./validate/webhook.js";
 
-/**
- * Nested resource namespaces for docs-backed Lemon Squeezy ops.
- *
- * Every method routes through `invokeOp` + `resourceRegistry` (docsPath required).
- * Methods exist only when the official API documents them — no product/variant create.
- * Ops return JSON:API payloads as `unknown`; callers narrow or use resource helpers.
- * Failures throw `FreshSqueezyError` (branch on `.code`).
- */
 export interface FreshSqueezyOps {
   users: {
     me: () => Promise<unknown>;
@@ -130,15 +122,9 @@ export interface FreshSqueezyOps {
   };
 }
 
-/**
- * The public client. Validators stay flat; ops live under nested namespaces
- * that mirror docs-backed resources (see `resourceRegistry`).
- */
 export interface FreshSqueezyClient extends FreshSqueezyOps {
-  /** Resolved mode (test or live). Surfaced so consumers can log it. */
   readonly mode: Mode;
 
-  /** Raw HTTP escape hatch for endpoints fresh-squeezy does not wrap. */
   request<T = unknown>(options: RequestOptions): Promise<T>;
 
   validateConnection(): Promise<ValidationResult<ConnectionSummary>>;
@@ -154,36 +140,13 @@ export interface FreshSqueezyClient extends FreshSqueezyOps {
   validateSubscriptionPlan(
     options: SubscriptionPlanValidationOptions,
   ): Promise<ValidationResult<SubscriptionPlanSummary>>;
-  /**
-   * Compose configured validators into one report.
-   * Defaults `storeId` from client config when the call omits it.
-   */
   doctor(options?: DoctorOptions): Promise<DoctorReport>;
 }
 
-/**
- * Create a fresh-squeezy client. Zero-config usage reads
- * `LEMON_SQUEEZY_API_KEY`, `LEMON_SQUEEZY_STORE_ID`, and `LEMON_SQUEEZY_MODE`
- * from `process.env`.
- *
- * @param config - Optional overrides for key, mode, store, fetch.
- * @returns Client with validators + nested docs-backed ops.
- * @throws {FreshSqueezyError} When config is invalid (missing key, bad mode).
- *
- * @example
- * ```ts
- * const lemon = createFreshSqueezy();
- * const report = await lemon.doctor();
- * if (!report.ok) process.exit(1);
- * const product = await lemon.products.get(42);
- * const webhook = await lemon.webhooks.create({ data: { type: "webhooks", … } });
- * ```
- */
 export const createFreshSqueezy = (config: FreshSqueezyConfig = {}): FreshSqueezyClient => {
   const resolved = resolveConfig(config);
   const http = new HttpClient(resolved);
 
-  /** Dispatch a registry-backed op; never invents endpoints outside `resourceRegistry`. */
   const op = (resource: string, verb: OpVerb, args: InvokeOpArgs = {}) =>
     invokeOp(http, resource, verb, args);
 

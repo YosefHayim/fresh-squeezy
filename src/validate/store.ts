@@ -1,14 +1,9 @@
-import type { HttpClient } from "../core/http.js";
-import type { Mode, ValidationResult } from "../core/types.js";
-import type { StoreAttributes } from "../resources/attributes.js";
+import type { HttpClient } from "@/core/http.js";
+import type { Mode, ValidationResult } from "@/core/types.js";
+import type { StoreAttributes } from "@/resources/attributes.js";
 import { ISSUE_CODES, buildResult } from "./issues.js";
 import { probeFetch } from "./probe.js";
 
-/**
- * Verify a store exists and is reachable with the current API key. A 404
- * typically means the key belongs to a different account, not that the store
- * is gone — the suggested fix reflects that.
- */
 export const validateStore = async (
   http: HttpClient,
   mode: Mode,

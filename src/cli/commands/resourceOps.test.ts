@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { createMockFetch, pathIs } from "../../../tests/helpers/mockFetch.js";
 
 vi.mock("@inquirer/prompts", () => ({
@@ -72,7 +72,7 @@ describe("runResourceOpCommand bulk flags", () => {
     body: {},
   });
 
-  it("--all lists every page then deletes each item", async () => {
+  test("--all lists every page then deletes each item", async () => {
     const mock = stub([
       {
         match: ({ method, url }) =>
@@ -122,7 +122,7 @@ describe("runResourceOpCommand bulk flags", () => {
     expect(envelope.results.map((r: { label: string }) => r.label)).toEqual(["A", "B"]);
   });
 
-  it("--dry-run sends no writes and needs no --yes", async () => {
+  test("--dry-run sends no writes and needs no --yes", async () => {
     const mock = stub([
       {
         match: pathIs("/v1/discounts"),
@@ -145,7 +145,7 @@ describe("runResourceOpCommand bulk flags", () => {
     expect(JSON.parse(out)).toMatchObject({ dryRun: true, total: 2, succeeded: 2 });
   });
 
-  it("--ids skips list and deletes exactly those ids", async () => {
+  test("--ids skips list and deletes exactly those ids", async () => {
     const mock = stub([emptyDelete("7"), emptyDelete("8")]);
 
     const code = await runResourceOpCommand({
@@ -163,7 +163,7 @@ describe("runResourceOpCommand bulk flags", () => {
     ]);
   });
 
-  it("--match keeps only items containing the text (case-insensitive)", async () => {
+  test("--match keeps only items containing the text (case-insensitive)", async () => {
     const mock = stub([
       {
         match: pathIs("/v1/discounts"),
@@ -187,7 +187,7 @@ describe("runResourceOpCommand bulk flags", () => {
     expect(mock.calls.filter((c) => c.method === "DELETE")).toHaveLength(1);
   });
 
-  it("falls back to LEMON_SQUEEZY_STORE_ID for --all scope", async () => {
+  test("falls back to LEMON_SQUEEZY_STORE_ID for --all scope", async () => {
     process.env.LEMON_SQUEEZY_STORE_ID = "42";
     const mock = stub([{ match: pathIs("/v1/discounts"), status: 200, body: listBody([]) }]);
 
@@ -204,7 +204,7 @@ describe("runResourceOpCommand bulk flags", () => {
     expect(JSON.parse(out)).toMatchObject({ total: 0, ok: true });
   });
 
-  it("returns 1 and reports per-item errors on partial failure", async () => {
+  test("returns 1 and reports per-item errors on partial failure", async () => {
     stub([
       {
         match: pathIs("/v1/discounts"),
@@ -237,7 +237,7 @@ describe("runResourceOpCommand bulk flags", () => {
     expect(envelope.results[1].error).toBeTruthy();
   });
 
-  it("refuses non-interactive bulk without --yes and sends nothing", async () => {
+  test("refuses non-interactive bulk without --yes and sends nothing", async () => {
     const mock = stub([
       { match: pathIs("/v1/discounts"), status: 200, body: listBody([discount("1", "A")]) },
     ]);
@@ -256,7 +256,7 @@ describe("runResourceOpCommand bulk flags", () => {
     expect(mock.calls.some((c) => c.method === "DELETE")).toBe(false);
   });
 
-  it("asks once with count and labels when interactive, and honors a No", async () => {
+  test("asks once with count and labels when interactive, and honors a No", async () => {
     const mock = stub([
       {
         match: pathIs("/v1/discounts"),
@@ -282,7 +282,7 @@ describe("runResourceOpCommand bulk flags", () => {
     expect(mock.calls.some((c) => c.method === "DELETE")).toBe(false);
   });
 
-  it("errors when --all has no store scope", async () => {
+  test("errors when --all has no store scope", async () => {
     stub([]);
     const code = await runResourceOpCommand({
       verb: "delete",
@@ -295,7 +295,7 @@ describe("runResourceOpCommand bulk flags", () => {
     expect(err).toContain("MISSING_ARG");
   });
 
-  it.each([
+  test.each([
     ["--all with --ids", { all: true, ids: ["1"] }, "either --all or --ids"],
     ["--all with --id", { all: true, id: "1" }, "--id targets one resource"],
     ["--match without --all", { ids: ["1"], match: "x" }, "--match needs --all"],
@@ -314,7 +314,7 @@ describe("runResourceOpCommand bulk flags", () => {
     expect(err).toContain(message);
   });
 
-  it("rejects --all on verbs that are not delete/cancel/refund", async () => {
+  test("rejects --all on verbs that are not delete/cancel/refund", async () => {
     stub([]);
     const code = await runResourceOpCommand({
       verb: "list",

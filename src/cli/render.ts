@@ -1,12 +1,12 @@
 import chalk from "chalk";
-import { ENV_KEYS } from "../core/config.js";
-import { isFreshSqueezyError } from "../core/errors.js";
+import { ENV_KEYS } from "@/core/config.js";
+import { isFreshSqueezyError } from "@/core/errors.js";
 import type {
   DoctorReport,
   ValidationIssue,
   ValidationResult,
   ValidationTarget,
-} from "../core/types.js";
+} from "@/core/types.js";
 
 export const MISSING_API_KEY_HINTS = [
   "fresh-squeezy init",
@@ -68,11 +68,6 @@ export const renderCancelMessage = (): string => {
   return `${chalk.dim("fresh-squeezy cancelled.")}\n`;
 };
 
-/**
- * Human-readable pretty-printer for a validation result. Keeps color logic in
- * one place so doctor/validate commands share formatting and consumers can
- * redirect stdout without ANSI codes leaking through (chalk auto-detects TTY).
- */
 export const renderResult = (result: ValidationResult): string => {
   const lines: string[] = [];
   const badge = result.ok ? chalk.green("PASS") : chalk.red("FAIL");

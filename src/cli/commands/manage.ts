@@ -1,9 +1,9 @@
-import { resolveConfig } from "../../core/config.js";
-import { freshSqueezyErrorOf } from "../../core/errors.js";
-import { HttpClient } from "../../core/http.js";
-import type { Mode } from "../../core/types.js";
-import { createFreshSqueezy } from "../../createFreshSqueezy.js";
-import { findResourceVerb, resourceRegistry } from "../../resources/registry.js";
+import { resolveConfig } from "@/core/config.js";
+import { freshSqueezyErrorOf } from "@/core/errors.js";
+import { HttpClient } from "@/core/http.js";
+import type { Mode } from "@/core/types.js";
+import { createFreshSqueezy } from "@/createFreshSqueezy.js";
+import { findResourceVerb, resourceRegistry } from "@/resources/registry.js";
 import {
   type ManageOperationChoice,
   askParentId,
@@ -11,9 +11,9 @@ import {
   isPromptCancel,
   pickBulkTargets,
   pickManageOperation,
-} from "../prompts.js";
-import { renderCliError } from "../render.js";
-import { resolveStores } from "../resolveStores.js";
+} from "@/cli/prompts.js";
+import { renderCliError } from "@/cli/render.js";
+import { resolveStores } from "@/cli/resolveStores.js";
 import {
   type BulkTarget,
   collectBulkTargets,
@@ -21,33 +21,13 @@ import {
   previewTargets,
   renderBulkSummary,
   supportsBulk,
-} from "./bulkOps.js";
+} from "./bulk-ops.js";
 
-/**
- * Operations the menu offers: every destructive, id-based registry op that also
- * has a `list` to enumerate from.
- *
- * @returns Resource/verb pairs in registry order.
- */
 export const listManageOperations = (): ManageOperationChoice[] =>
   resourceRegistry
     .filter((spec) => supportsBulk(spec) && findResourceVerb(spec.resource, "list"))
     .map((spec) => ({ resource: spec.resource, verb: spec.verb }));
 
-/**
- * Build the flag-driven command that reproduces an interactive selection, so
- * the menu teaches the scriptable form.
- *
- * @param input - What was chosen and where.
- * @returns A copy/paste `fresh-squeezy …` command.
- *
- * @example
- * ```ts
- * renderEquivalentCommand({ verb: "delete", resource: "discount", mode: "test",
- *   storeId: "1", picked: ["7"], total: 3 });
- * // fresh-squeezy delete discount --ids 7 --yes
- * ```
- */
 export const renderEquivalentCommand = (input: {
   verb: string;
   resource: string;
@@ -70,18 +50,6 @@ export const renderEquivalentCommand = (input: {
   return parts.join(" ");
 };
 
-/**
- * Interactive "Manage resources": pick an op, a store, the items, confirm once,
- * run it through the same bulk executor the `--all` / `--ids` flags use.
- *
- * @returns 0 ok, 1 some items failed, 2 setup/API error. Prompt cancels propagate
- * to the launcher, which maps them to 130.
- *
- * @example
- * ```ts
- * const code = await runManageCommand();
- * ```
- */
 export const runManageCommand = async (): Promise<number> => {
   try {
     const client = createFreshSqueezy();

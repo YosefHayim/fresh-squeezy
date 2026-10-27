@@ -1,19 +1,4 @@
 #!/usr/bin/env node
-/**
- * Generate a docs-derived Lemon Squeezy API type map.
- *
- * The changelog tells us *that* something changed, but the object docs are the
- * most useful structured source for *what fields exist now*. This script:
- *
- *   1. Discovers every `/api/.../the-...-object` page from the docs nav.
- *   2. Extracts the JSON resource example from each page.
- *   3. Infers a broad, optional TypeScript attributes interface.
- *   4. Writes `src/generated/lemonSqueezyApiTypes.ts`.
- *
- * Usage:
- *   node src/scripts/generate-api-types.mjs            # check generated file
- *   node src/scripts/generate-api-types.mjs --update   # refresh generated file
- */
 
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -51,7 +36,7 @@ const RESOURCE_NAME_OVERRIDES = {
   affiliates: "affiliate",
 };
 
-export async function main() {
+export const main = async () => {
   const indexHtml = await fetchText(INDEX_URL);
   const pages = discoverObjectPages(indexHtml);
   const resources = [];
@@ -89,7 +74,7 @@ export async function main() {
   process.exitCode = 1;
   console.error("Generated API types are stale.");
   console.error("Refresh with: pnpm generate:api-types");
-}
+};
 
 async function fetchText(url) {
   const response = await fetch(url, {

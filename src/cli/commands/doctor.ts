@@ -1,14 +1,14 @@
-import { isFreshSqueezyError } from "../../core/errors.js";
-import type { DoctorReport, Mode } from "../../core/types.js";
-import { type FreshSqueezyClient, createFreshSqueezy } from "../../createFreshSqueezy.js";
+import { isFreshSqueezyError } from "@/core/errors.js";
+import type { DoctorReport, Mode } from "@/core/types.js";
+import { type FreshSqueezyClient, createFreshSqueezy } from "@/createFreshSqueezy.js";
 import {
   OPTIONAL_VALIDATORS,
   type OptionalValidatorIds,
   type ResourceChoiceGroup,
   discoverChoices,
-} from "../optionalValidators.js";
-import { getDoctorHints, renderCliError, renderReport } from "../render.js";
-import { resolveStores } from "../resolveStores.js";
+} from "@/cli/optionalValidators.js";
+import { getDoctorHints, renderCliError, renderReport } from "@/cli/render.js";
+import { resolveStores } from "@/cli/resolveStores.js";
 
 export interface DoctorCommandOptions {
   mode?: Mode;
@@ -24,23 +24,12 @@ export interface DoctorCommandOptions {
   isInteractive?: boolean;
 }
 
-/**
- * Aggregate payload emitted when `--json` is set. When a single store is
- * resolved, `reports` still contains one entry — consumers always see an
- * array so JSON parsers don't need two code paths.
- */
 interface DoctorJsonOutput {
   ok: boolean;
   mode: Mode;
   reports: DoctorReport[];
 }
 
-/**
- * `fresh-squeezy doctor` — run every validator across each resolved store and
- * emit one combined exit code. Store resolution (flag → --all-stores → TTY
- * prompt → connection-only) lives in resolveStores so validate commands can
- * reuse it.
- */
 export const runDoctorCommand = async (options: DoctorCommandOptions): Promise<number> => {
   try {
     const client = createFreshSqueezy({ mode: options.mode });
@@ -140,11 +129,6 @@ const resolveValidatorIds = async (
 const hasExplicitResourceSelection = (options: DoctorCommandOptions): boolean =>
   Object.values(explicitValidatorIds(options)).some((ids) => ids !== undefined);
 
-/**
- * Fallback when no store could be resolved and we are not interactive.
- * Running connection-only gives CI a useful signal ("key works") without
- * silently pretending everything is fine.
- */
 const runConnectionOnly = async (
   client: FreshSqueezyClient,
   options: DoctorCommandOptions,

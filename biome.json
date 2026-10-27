@@ -1,5 +1,6 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.6.3/schema.json",
+  "extends": ["code-standard/biome"],
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -18,25 +19,5 @@
       "!**/package.json",
       "!**/pnpm-lock.yaml"
     ]
-  },
-  "assist": { "actions": { "source": { "organizeImports": "on" } } },
-  "formatter": {
-    "enabled": true,
-    "indentStyle": "space",
-    "indentWidth": 2,
-    "lineWidth": 100
-  },
-  "javascript": {
-    "formatter": {
-      "quoteStyle": "double",
-      "semicolons": "always",
-      "trailingCommas": "all"
-    }
-  },
-  "linter": {
-    "enabled": true,
-    "rules": {
-      "preset": "recommended"
-    }
   }
 }

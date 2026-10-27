@@ -1,6 +1,6 @@
-import type { HttpClient } from "../core/http.js";
-import type { Mode, ValidationIssue, ValidationResult } from "../core/types.js";
-import type { LicenseKeyAttributes } from "../resources/attributes.js";
+import type { HttpClient } from "@/core/http.js";
+import type { Mode, ValidationIssue, ValidationResult } from "@/core/types.js";
+import type { LicenseKeyAttributes } from "@/resources/attributes.js";
 import { ISSUE_CODES, buildResult, issue } from "./issues.js";
 import { checkStoreOwnership, probeFetch } from "./probe.js";
 
@@ -9,12 +9,6 @@ export interface LicenseKeyValidationOptions {
   licenseKeyId: string | number;
 }
 
-/**
- * Validate a Lemon Squeezy license key. Surfaces disabled keys, expired
- * keys, keys at their activation limit, and store ownership mismatches — the
- * four states most likely to cause "why can't my customer activate?"
- * support tickets.
- */
 export const validateLicenseKey = async (
   http: HttpClient,
   mode: Mode,
@@ -55,11 +49,6 @@ export const validateLicenseKey = async (
   );
 };
 
-/**
- * Pure attribute assertions for a license key: store ownership, disabled/
- * expired state, and activation-limit exhaustion. No I/O, so the rules are
- * unit-testable with plain data.
- */
 export const checkLicenseKey = (
   attrs: LicenseKeyAttributes,
   options: { storeId: string | number },

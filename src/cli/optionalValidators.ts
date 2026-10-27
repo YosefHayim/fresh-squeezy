@@ -1,14 +1,13 @@
-import type { JsonApiResource } from "../core/types.js";
-import type { FreshSqueezyClient } from "../createFreshSqueezy.js";
+import type { JsonApiResource } from "@/core/types.js";
+import type { FreshSqueezyClient } from "@/createFreshSqueezy.js";
 import type {
   DiscountAttributes,
   LicenseKeyAttributes,
   ProductAttributes,
   SubscriptionVariantAttributes,
   WebhookAttributes,
-} from "../resources/attributes.js";
+} from "@/resources/attributes.js";
 
-/** An optional validator `init` and `doctor --all-resources` can add on top of connection + store. */
 export type OptionalValidatorName =
   | "product"
   | "webhook"
@@ -16,7 +15,6 @@ export type OptionalValidatorName =
   | "license-key"
   | "subscription-plan";
 
-/** The `doctor()` options the optional validators fill. */
 export interface OptionalValidatorIds {
   productIds?: string[];
   webhookUrls?: string[];
@@ -35,25 +33,20 @@ export interface ResourceChoiceGroup {
   error?: string;
 }
 
-/** Discovered candidates per selected validator; unselected validators are absent. */
 export type DiscoveredChoices = Partial<Record<OptionalValidatorName, ResourceChoiceGroup>>;
 
 interface DiscoveryContext {
   client: FreshSqueezyClient;
   storeId: string;
-  /** Shared so product and subscription-plan discovery list products once. */
   listProducts: () => Promise<JsonApiResource<ProductAttributes>[]>;
 }
 
-/** Everything the CLI needs to offer, discover, prompt for, and report one optional validator. */
 export interface OptionalValidator {
   name: OptionalValidatorName;
   field: keyof OptionalValidatorIds;
-  /** `ValidationResult.name` of this validator's results. */
   resultName: string;
   label: string;
   menuLabel: string;
-  /** Plural noun in "Pick … to validate:" and "No … selected." */
   noun: string;
   manualNoun: string;
   validate?: (value: string) => true | string;
@@ -74,7 +67,6 @@ const listChoices = async <TAttributes>(
   }
 };
 
-/** Keeps the plans found before a variant listing fails, alongside the error. */
 const discoverSubscriptionPlans = async ({
   client,
   listProducts,
@@ -117,7 +109,6 @@ const validateWebhookUrls = (value: string): true | string => {
   return urls.every(isHttpUrl) ? true : "Enter valid webhook URLs.";
 };
 
-/** The optional validators, in the order they are offered, discovered, and reported. */
 export const OPTIONAL_VALIDATORS: OptionalValidator[] = [
   {
     name: "product",
@@ -197,10 +188,6 @@ export const OPTIONAL_VALIDATORS: OptionalValidator[] = [
   },
 ];
 
-/**
- * List candidates for each selected validator in one store. A failed listing
- * becomes that group's `error` instead of failing the run.
- */
 export const discoverChoices = async (
   client: FreshSqueezyClient,
   storeId: string,

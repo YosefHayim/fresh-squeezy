@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { createMockFetch, pathIs } from "../../../tests/helpers/mockFetch.js";
 
 vi.mock("../prompts.js", () => ({
@@ -29,33 +29,31 @@ const list = (items: unknown[]) => ({
   meta: { page: { currentPage: 1, lastPage: 1 } },
 });
 
-describe("listManageOperations", () => {
-  it("offers only destructive id-based ops that have a list", () => {
-    const ops = listManageOperations().map((o) => `${o.verb} ${o.resource}`);
-    expect(ops).toEqual(
-      expect.arrayContaining(["delete discount", "delete webhook", "cancel subscription"]),
-    );
-    expect(ops).not.toContain("get product");
-    expect(ops).not.toContain("create webhook");
-  });
+test("listManageOperations offers only destructive id-based ops that have a list", () => {
+  const ops = listManageOperations().map((o) => `${o.verb} ${o.resource}`);
+  expect(ops).toEqual(
+    expect.arrayContaining(["delete discount", "delete webhook", "cancel subscription"]),
+  );
+  expect(ops).not.toContain("get product");
+  expect(ops).not.toContain("create webhook");
 });
 
 describe("renderEquivalentCommand", () => {
   const base = { verb: "delete", resource: "discount", mode: "test" as const, total: 3 };
 
-  it("uses --all when everything was picked", () => {
+  test("uses --all when everything was picked", () => {
     expect(renderEquivalentCommand({ ...base, storeId: "12", picked: ["1", "2", "3"] })).toBe(
       "fresh-squeezy delete discount --all --store-ids 12 --yes",
     );
   });
 
-  it("uses --ids for a subset and marks live mode", () => {
+  test("uses --ids for a subset and marks live mode", () => {
     expect(
       renderEquivalentCommand({ ...base, mode: "live", storeId: "12", picked: ["2", "3"] }),
     ).toBe("fresh-squeezy delete discount --ids 2,3 --yes --mode live");
   });
 
-  it("carries a parent id for nested lists", () => {
+  test("carries a parent id for nested lists", () => {
     expect(
       renderEquivalentCommand({
         ...base,
@@ -110,7 +108,7 @@ describe("runManageCommand", () => {
     return mock;
   };
 
-  it("deletes the picked subset after one confirm and prints the equivalent command", async () => {
+  test("deletes the picked subset after one confirm and prints the equivalent command", async () => {
     const mock = stubApi([discount("1", "AAA"), discount("2", "BBB")]);
     vi.mocked(pickBulkTargets).mockResolvedValue(["2"]);
     vi.mocked(confirmResourceOp).mockResolvedValue(true);
@@ -126,7 +124,7 @@ describe("runManageCommand", () => {
     expect(out).toContain("fresh-squeezy delete discount --ids 2 --yes");
   });
 
-  it("changes nothing when the confirm is declined", async () => {
+  test("changes nothing when the confirm is declined", async () => {
     const mock = stubApi([discount("1", "AAA")]);
     vi.mocked(pickBulkTargets).mockResolvedValue(["1"]);
     vi.mocked(confirmResourceOp).mockResolvedValue(false);
@@ -138,7 +136,7 @@ describe("runManageCommand", () => {
     expect(out).toContain("nothing changed");
   });
 
-  it("reports when there is nothing to manage and never prompts for items", async () => {
+  test("reports when there is nothing to manage and never prompts for items", async () => {
     stubApi([]);
     const code = await runManageCommand();
     expect(code).toBe(0);
@@ -146,7 +144,7 @@ describe("runManageCommand", () => {
     expect(pickBulkTargets).not.toHaveBeenCalled();
   });
 
-  it("asks for a parent id on nested lists", async () => {
+  test("asks for a parent id on nested lists", async () => {
     vi.mocked(pickManageOperation).mockResolvedValue({
       resource: "subscription-invoice",
       verb: "refund",
@@ -164,7 +162,7 @@ describe("runManageCommand", () => {
     expect(new URL(mock.calls[0].url).searchParams.get("filter[subscription_id]")).toBe("9");
   });
 
-  it("returns 1 when an item fails", async () => {
+  test("returns 1 when an item fails", async () => {
     const mock = createMockFetch([
       { match: pathIs("/v1/discounts"), status: 200, body: list([discount("1", "AAA")]) },
       {
@@ -181,7 +179,7 @@ describe("runManageCommand", () => {
     expect(out).toContain("1 failed");
   });
 
-  it("maps API errors to a readable message and exit 2", async () => {
+  test("maps API errors to a readable message and exit 2", async () => {
     vi.stubGlobal(
       "fetch",
       createMockFetch([
@@ -197,7 +195,7 @@ describe("runManageCommand", () => {
     expect(err).toContain("fresh-squeezy:");
   });
 
-  it("lets a prompt cancel propagate so the launcher can exit 130", async () => {
+  test("lets a prompt cancel propagate so the launcher can exit 130", async () => {
     const cancel = Object.assign(new Error("User force closed"), { name: "ExitPromptError" });
     vi.mocked(pickManageOperation).mockRejectedValue(cancel);
     await expect(runManageCommand()).rejects.toBe(cancel);

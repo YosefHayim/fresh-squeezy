@@ -1,17 +1,17 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import chalk from "chalk";
-import { ENV_KEYS } from "../../core/config.js";
-import type { Mode, ValidationResult } from "../../core/types.js";
-import { type FreshSqueezyClient, createFreshSqueezy } from "../../createFreshSqueezy.js";
-import type { ConnectionSummary } from "../../validate/connection.js";
+import { ENV_KEYS } from "@/core/config.js";
+import type { Mode, ValidationResult } from "@/core/types.js";
+import { type FreshSqueezyClient, createFreshSqueezy } from "@/createFreshSqueezy.js";
+import type { ConnectionSummary } from "@/validate/connection.js";
 import {
   type DiscoveredChoices,
   OPTIONAL_VALIDATORS,
   type OptionalValidatorIds,
   type OptionalValidatorName,
   discoverChoices,
-} from "../optionalValidators.js";
+} from "@/cli/optionalValidators.js";
 import {
   askForApiKey,
   askForValidatorIds,
@@ -20,7 +20,7 @@ import {
   isPromptCancel,
   pickStore,
   selectOptionalValidators,
-} from "../prompts.js";
+} from "@/cli/prompts.js";
 import {
   renderBrandHeader,
   renderCancelMessage,
@@ -28,26 +28,14 @@ import {
   renderDetected,
   renderReport,
   renderStep,
-} from "../render.js";
-import { type StoreChoice, listStoreChoices } from "../resolveStores.js";
+} from "@/cli/render.js";
+import { type StoreChoice, listStoreChoices } from "@/cli/resolveStores.js";
 
 export interface InitCommandOptions {
   envFile?: string;
   isInteractive?: boolean;
 }
 
-/**
- * `fresh-squeezy init` — interactive onboarding. Walks the user through the
- * fastest path from "I have an API key" to "my integration is verified":
- *
- *  1. Read API key from env or ask for it if missing.
- *  2. List reachable stores via `/v1/stores`, let the user pick one.
- *  3. Ask which resource-specific validators should run now.
- *  4. Optionally persist credentials to `.env`.
- *  5. Run `doctor()` against the chosen config and print the report.
- *
- * Returns an exit code so the CLI wrapper can set it as `process.exitCode`.
- */
 export const runInitCommand = async (options: InitCommandOptions = {}): Promise<number> => {
   try {
     return await runInitFlow(options);
@@ -152,7 +140,6 @@ const resolveApiKey = async (): Promise<string> => {
   return answers.apiKey;
 };
 
-/** A client built for the key's real mode, plus the connection result that detected it. */
 interface DetectedConnection {
   client: FreshSqueezyClient;
   connection: ValidationResult<ConnectionSummary>;
