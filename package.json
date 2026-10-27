@@ -1,7 +1,7 @@
 {
   "name": "fresh-squeezy",
   "version": "0.3.5",
-  "description": "Dual-mode Lemon Squeezy ops + doctor: validate billing setup, and run docs-backed API ops (webhooks, discounts, checkouts, subscriptions, refunds, …) from CLI or TypeScript.",
+  "description": "Checks that your Lemon Squeezy store is ready to take payments, from the CLI or TypeScript, plus a small typed client for the Lemon Squeezy API.",
   "keywords": [
     "lemon-squeezy",
     "lemonsqueezy",
@@ -12,7 +12,6 @@
     "discounts",
     "license-keys",
     "cli",
-    "validator",
     "doctor",
     "ci",
     "typescript",
@@ -35,90 +34,25 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
-    "./errors": {
-      "types": "./dist/errors.d.ts",
-      "import": "./dist/errors.js",
-      "require": "./dist/errors.cjs"
-    },
     "./config": {
       "types": "./dist/config.d.ts",
       "import": "./dist/config.js",
       "require": "./dist/config.cjs"
     },
+    "./errors": {
+      "types": "./dist/errors.d.ts",
+      "import": "./dist/errors.js",
+      "require": "./dist/errors.cjs"
+    },
+    "./findings": {
+      "types": "./dist/findings.d.ts",
+      "import": "./dist/findings.js",
+      "require": "./dist/findings.cjs"
+    },
     "./types": {
       "types": "./dist/types.d.ts",
       "import": "./dist/types.js",
       "require": "./dist/types.cjs"
-    },
-    "./api-types": {
-      "types": "./dist/api-types.d.ts",
-      "import": "./dist/api-types.js",
-      "require": "./dist/api-types.cjs"
-    },
-    "./resources/attributes": {
-      "types": "./dist/resources/attributes.d.ts",
-      "import": "./dist/resources/attributes.js",
-      "require": "./dist/resources/attributes.cjs"
-    },
-    "./resources/registry": {
-      "types": "./dist/resources/registry.d.ts",
-      "import": "./dist/resources/registry.js",
-      "require": "./dist/resources/registry.cjs"
-    },
-    "./validate/connection": {
-      "types": "./dist/validate/connection.d.ts",
-      "import": "./dist/validate/connection.js",
-      "require": "./dist/validate/connection.cjs"
-    },
-    "./validate/discount": {
-      "types": "./dist/validate/discount.d.ts",
-      "import": "./dist/validate/discount.js",
-      "require": "./dist/validate/discount.cjs"
-    },
-    "./validate/doctor": {
-      "types": "./dist/validate/doctor.d.ts",
-      "import": "./dist/validate/doctor.js",
-      "require": "./dist/validate/doctor.cjs"
-    },
-    "./validate/license-key": {
-      "types": "./dist/validate/license-key.d.ts",
-      "import": "./dist/validate/license-key.js",
-      "require": "./dist/validate/license-key.cjs"
-    },
-    "./validate/product": {
-      "types": "./dist/validate/product.d.ts",
-      "import": "./dist/validate/product.js",
-      "require": "./dist/validate/product.cjs"
-    },
-    "./validate/issues": {
-      "types": "./dist/validate/issues.d.ts",
-      "import": "./dist/validate/issues.js",
-      "require": "./dist/validate/issues.cjs"
-    },
-    "./validate/store": {
-      "types": "./dist/validate/store.d.ts",
-      "import": "./dist/validate/store.js",
-      "require": "./dist/validate/store.cjs"
-    },
-    "./validate/subscription-plan": {
-      "types": "./dist/validate/subscription-plan.d.ts",
-      "import": "./dist/validate/subscription-plan.js",
-      "require": "./dist/validate/subscription-plan.cjs"
-    },
-    "./validate/webhook": {
-      "types": "./dist/validate/webhook.d.ts",
-      "import": "./dist/validate/webhook.js",
-      "require": "./dist/validate/webhook.cjs"
-    },
-    "./manifest": {
-      "types": "./dist/manifest.d.ts",
-      "import": "./dist/manifest.js",
-      "require": "./dist/manifest.cjs"
-    },
-    "./augmentations": {
-      "types": "./dist/augmentations.d.ts",
-      "import": "./dist/augmentations.js",
-      "require": "./dist/augmentations.cjs"
     }
   },
   "bin": {
@@ -130,7 +64,7 @@
     "LICENSE"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
     "build": "tsup",
@@ -147,21 +81,13 @@
     "check:ci": "biome ci .",
     "check:standard": "code-standard check --repo .",
     "verify": "pnpm check:ci && pnpm check:standard && pnpm typecheck && pnpm test && pnpm build",
-    "check:changelog": "node src/features/upkeep/check-changelog.mjs",
-    "generate:api-types": "node src/features/upkeep/generate-api-types.mjs --update",
-    "check:api-types": "node src/features/upkeep/generate-api-types.mjs",
     "prepublishOnly": "pnpm typecheck && pnpm test && pnpm build",
     "prepare": "husky"
   },
-  "dependencies": {
-    "@inquirer/prompts": "^8.5.2",
-    "chalk": "^5.3.0",
-    "commander": "^12.1.0",
-    "dotenv": "^16.4.5"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@biomejs/biome": "2.6.3",
-    "@types/node": "^20.14.0",
+    "@types/node": "^22.0.0",
     "@vitest/coverage-v8": "^2.1.0",
     "code-standard": "0.3.0",
     "husky": "^9.1.7",

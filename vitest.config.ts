@@ -24,9 +24,7 @@ export default defineConfig({
 			exclude: [
 				"**/*.test.ts",
 				"src/cli.ts",
-				"src/app/prompts.ts",
-				"src/app/init-command.ts",
-				"src/shared/contracts.ts",
+				"src/shared/lemon-squeezy-types.ts",
 				"**/*.d.ts",
 			],
 			thresholds: {
