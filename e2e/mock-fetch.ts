@@ -9,43 +9,49 @@ export interface MockFetchResult {
 	calls: Array<{ method: string; url: string; body?: string }>;
 }
 
+const API_CONTENT_TYPE = { "content-type": "application/vnd.api+json" };
+
+const urlOfInput = (input: Parameters<typeof fetch>[0]): string => {
+	const isInputAString = typeof input === "string";
+	if (isInputAString) return input;
+	const isInputAUrl = input instanceof URL;
+	if (isInputAUrl) return input.toString();
+	return input.url;
+};
+
 export const createMockFetch = (routes: MockRoute[]): MockFetchResult => {
 	const calls: MockFetchResult["calls"] = [];
 
 	const mock: typeof fetch = async (input, init) => {
-		const url =
-			typeof input === "string"
-				? input
-				: input instanceof URL
-					? input.toString()
-					: input.url;
+		const url = urlOfInput(input);
 		const method = (init?.method ?? "GET").toUpperCase();
-		const body = typeof init?.body === "string" ? init.body : undefined;
+		const isBodyAString = typeof init?.body === "string";
+		const body = isBodyAString ? (init?.body as string) : undefined;
 		calls.push({ method, url, body });
 
 		const route = routes.find((entry) => entry.match({ method, url }));
-		if (!route) {
-			return new Response(
-				JSON.stringify({
-					errors: [
-						{
-							status: "404",
-							code: "no_route",
-							title: "No mock route",
-							detail: url,
-						},
-					],
-				}),
-				{
-					status: 404,
-					headers: { "content-type": "application/vnd.api+json" },
-				},
-			);
+		const isRouteMissing = !route;
+		if (isRouteMissing) {
+			const noRouteBody = JSON.stringify({
+				errors: [
+					{
+						status: "404",
+						code: "no_route",
+						title: "No mock route",
+						detail: url,
+					},
+				],
+			});
+			return new Response(noRouteBody, {
+				status: 404,
+				headers: API_CONTENT_TYPE,
+			});
 		}
 
-		return new Response(JSON.stringify(route.body), {
+		const routeBody = JSON.stringify(route.body);
+		return new Response(routeBody, {
 			status: route.status,
-			headers: { "content-type": "application/vnd.api+json" },
+			headers: API_CONTENT_TYPE,
 		});
 	};
 
@@ -56,8 +62,11 @@ export const pathIs = (
 	expected: string,
 	method = "GET",
 ): MockRoute["match"] => {
-	return ({ method: m, url }) =>
-		m === method && new URL(url).pathname === expected;
+	return ({ method: m, url }) => {
+		const isMethodMatching = m === method;
+		const { pathname } = new URL(url);
+		return isMethodMatching && pathname === expected;
+	};
 };
 
 export const pathIsWithQuery = (
@@ -66,10 +75,13 @@ export const pathIsWithQuery = (
 	method = "GET",
 ): MockRoute["match"] => {
 	return ({ method: m, url }) => {
-		if (m !== method) return false;
+		const isMethodDifferent = m !== method;
+		if (isMethodDifferent) return false;
 		const parsed = new URL(url);
-		if (parsed.pathname !== expected) return false;
-		return Object.entries(query).every(
+		const isPathDifferent = parsed.pathname !== expected;
+		if (isPathDifferent) return false;
+		const queryEntries = Object.entries(query);
+		return queryEntries.every(
 			([key, value]) => parsed.searchParams.get(key) === value,
 		);
 	};

@@ -31,15 +31,16 @@ interface JsonApiError {
 }
 
 export class HttpClient {
-	constructor(private readonly config: ResolvedConfig) {}
+	constructor(readonly config: ResolvedConfig) {}
 
 	async request<T>(options: RequestOptions): Promise<T> {
-		const url = this.requestUrl(options.path, options.query);
+		const url = requestUrlOf(this.config, options.path, options.query);
 		const headers: Record<string, string> = {
 			Authorization: `Bearer ${this.config.apiKey}`,
 			Accept: "application/vnd.api+json",
 		};
-		if (options.body !== undefined) {
+		const hasBody = options.body !== undefined;
+		if (hasBody) {
 			headers["Content-Type"] = "application/vnd.api+json";
 		}
 
@@ -48,23 +49,24 @@ export class HttpClient {
 			httpResponse = await this.config.fetch(url, {
 				method: options.method ?? "GET",
 				headers,
-				body:
-					options.body === undefined ? undefined : JSON.stringify(options.body),
+				body: hasBody ? JSON.stringify(options.body) : undefined,
 				signal: options.signal,
 			});
 		} catch (cause) {
+			const isCauseAnError = cause instanceof Error;
 			throw freshSqueezyErrorOf({
 				code: "NETWORK_ERROR",
-				message:
-					cause instanceof Error ? cause.message : "Network request failed",
+				message: isCauseAnError ? cause.message : "Network request failed",
 				detail: cause,
 			});
 		}
 
 		const text = await httpResponse.text();
-		const parsed = text.length > 0 ? parseJsonBody(text) : undefined;
+		const isBodyPresent = text.length > 0;
+		const parsed = isBodyPresent ? parseJsonBody(text) : undefined;
 
-		if (!httpResponse.ok) {
+		const isResponseFailed = !httpResponse.ok;
+		if (isResponseFailed) {
 			throw apiError(httpResponse.status, parsed);
 		}
 
@@ -93,22 +95,29 @@ export class HttpClient {
 			all.push(...doc.data);
 
 			const lastPage = doc.meta?.page?.lastPage;
-			if (lastPage === undefined || pageNumber >= lastPage) return all;
+			const isLastPageReached =
+				lastPage === undefined || pageNumber >= lastPage;
+			if (isLastPageReached) return all;
 			pageNumber += 1;
 		}
 	}
-
-	private requestUrl(path: string, query?: RequestOptions["query"]): string {
-		const url = new URL(path, this.config.baseUrl);
-		if (query) {
-			for (const [key, value] of Object.entries(query)) {
-				if (value === undefined) continue;
-				url.searchParams.append(key, String(value));
-			}
-		}
-		return url.toString();
-	}
 }
+
+const requestUrlOf = (
+	config: ResolvedConfig,
+	path: string,
+	query?: RequestOptions["query"],
+): string => {
+	const url = new URL(path, config.baseUrl);
+	const queryEntries = Object.entries(query ?? {});
+	for (const [key, value] of queryEntries) {
+		const isValueMissing = value === undefined;
+		if (isValueMissing) continue;
+		const queryValue = String(value);
+		url.searchParams.append(key, queryValue);
+	}
+	return url.toString();
+};
 
 const parseJsonBody = (text: string): unknown => {
 	try {
@@ -131,9 +140,11 @@ const apiError = (status: number, responseBody: unknown): FreshSqueezyError => {
 };
 
 const extractJsonApiErrors = (responseBody: unknown): JsonApiError[] => {
-	if (!responseBody || typeof responseBody !== "object") return [];
+	const isBodyNotAnObject = !responseBody || typeof responseBody !== "object";
+	if (isBodyNotAnObject) return [];
 	const errors = (responseBody as { errors?: unknown }).errors;
-	if (!Array.isArray(errors)) return [];
+	const isErrorsNotAnArray = !Array.isArray(errors);
+	if (isErrorsNotAnArray) return [];
 	return errors.filter(
 		(entry): entry is JsonApiError =>
 			typeof entry === "object" && entry !== null,

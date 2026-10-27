@@ -21,7 +21,8 @@ export const resolveConfig = (
 	input: FreshSqueezyConfig = {},
 ): ResolvedConfig => {
 	const apiKey = input.apiKey ?? process.env[ENV_KEYS.apiKey];
-	if (!apiKey) {
+	const isApiKeyMissing = !apiKey;
+	if (isApiKeyMissing) {
 		throw freshSqueezyErrorOf({
 			code: "MISSING_API_KEY",
 			message: `No API key provided. Pass \`apiKey\` or set ${ENV_KEYS.apiKey}.`,
@@ -33,9 +34,11 @@ export const resolveConfig = (
 	);
 	const storeIdRaw = input.storeId ?? process.env[ENV_KEYS.storeId];
 
+	const isStoreIdMissing = storeIdRaw == null;
+
 	return {
 		apiKey,
-		storeId: storeIdRaw == null ? undefined : String(storeIdRaw),
+		storeId: isStoreIdMissing ? undefined : String(storeIdRaw),
 		mode,
 		baseUrl: input.baseUrl ?? DEFAULT_BASE_URL,
 		fetch: input.fetch ?? globalThis.fetch,
@@ -43,7 +46,8 @@ export const resolveConfig = (
 };
 
 const normalizeMode = (value: string): Mode => {
-	if (value === "test" || value === "live") return value;
+	const isKnownMode = value === "test" || value === "live";
+	if (isKnownMode) return value;
 	throw freshSqueezyErrorOf({
 		code: "INVALID_MODE",
 		message: `Mode must be "test" or "live", got "${value}".`,

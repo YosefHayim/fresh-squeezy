@@ -13,7 +13,8 @@ export const freshSqueezyErrorOf = (fields: {
 	detail?: unknown;
 }): FreshSqueezyError => {
 	const { code, message, status, detail } = fields;
-	return Object.assign(new Error(message), {
+	const error = new Error(message);
+	return Object.assign(error, {
 		name: "FreshSqueezyError" as const,
 		code,
 		status,

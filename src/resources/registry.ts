@@ -126,8 +126,10 @@ const USER_ME_PATH = "/v1/users/me";
 const listIdRole = (
 	listScope: string | undefined,
 ): ResourceVerbSpec["idRole"] => {
-	if (!listScope) return "none";
-	return listScope === "store" ? "store" : "parent";
+	const isListUnscoped = !listScope;
+	if (isListUnscoped) return "none";
+	const isStoreScoped = listScope === "store";
+	return isStoreScoped ? "store" : "parent";
 };
 
 const toSpec = (
@@ -139,17 +141,19 @@ const toSpec = (
 	const docsPath =
 		DOCS_PATH_EXCEPTIONS[`${resource}:${verb}`] ??
 		`${resource}s/${rule.docs.replaceAll("{r}", resource)}`;
-	let idRole: ResourceVerbSpec["idRole"] = rule.path.includes("{id}")
-		? "id"
-		: "none";
-	if (verb === "list") idRole = listIdRole(listScope);
-	if (resource === "user") idRole = "none";
+	const hasIdInPath = rule.path.includes("{id}");
+	let idRole: ResourceVerbSpec["idRole"] = hasIdInPath ? "id" : "none";
+	const isListVerb = verb === "list";
+	if (isListVerb) idRole = listIdRole(listScope);
+	const isUserResource = resource === "user";
+	if (isUserResource) idRole = "none";
+	const isDestructive = rule.destructive;
 	return {
 		resource,
 		verb,
 		docsPath,
 		body: rule.body,
-		...(rule.destructive ? { destructive: true } : {}),
+		...(isDestructive ? { destructive: true } : {}),
 		idRole,
 	};
 };
@@ -162,9 +166,8 @@ export const resourceRegistry: readonly ResourceVerbSpec[] = RESOURCES.flatMap(
 export const normalizeResourceName = (resource: string): string => {
 	const normalized = resource.replace(/_/g, "-").toLowerCase();
 	// naive singular for simple plurals; leave tokens like "status" alone
-	if (normalized.endsWith("s") && normalized !== "status") {
-		return normalized.slice(0, -1);
-	}
+	const isSimplePlural = normalized.endsWith("s") && normalized !== "status";
+	if (isSimplePlural) return normalized.slice(0, -1);
 	return normalized;
 };
 
@@ -179,7 +182,8 @@ export const findResourceVerb = (
 };
 
 export const listRegisteredResources = (): string[] => {
-	return [...new Set(resourceRegistry.map((entry) => entry.resource))].sort();
+	const resourceNames = resourceRegistry.map((entry) => entry.resource);
+	return [...new Set(resourceNames)].sort();
 };
 
 export const listRegisteredVerbs = (resource: string): OpVerb[] => {
@@ -194,37 +198,44 @@ const requireId = (
 	args: InvokeOpArgs,
 	spec: ResourceVerbSpec,
 ): string | number => {
-	if (args.id === undefined || args.id === "") {
+	const { id } = args;
+	const isIdMissing = id === undefined || id === "";
+	if (isIdMissing) {
 		throw freshSqueezyErrorOf({
 			code: "MISSING_ARG",
 			message: `--id is required for this ${spec.resource} operation.`,
 		});
 	}
-	return args.id;
+	return id;
 };
 
 const requireStore = (args: InvokeOpArgs): string | number => {
-	if (args.storeId === undefined || args.storeId === "") {
+	const { storeId } = args;
+	const isStoreIdMissing = storeId === undefined || storeId === "";
+	if (isStoreIdMissing) {
 		throw freshSqueezyErrorOf({
 			code: "MISSING_ARG",
 			message: "--store-ids (or store id) is required for this list operation.",
 		});
 	}
-	return args.storeId;
+	return storeId;
 };
 
 const requireParent = (args: InvokeOpArgs, parent: string): string | number => {
-	if (args.parentId === undefined || args.parentId === "") {
+	const { parentId } = args;
+	const isParentIdMissing = parentId === undefined || parentId === "";
+	if (isParentIdMissing) {
 		throw freshSqueezyErrorOf({
 			code: "MISSING_ARG",
 			message: `--parent-id (${parent} id) is required for this list operation.`,
 		});
 	}
-	return args.parentId;
+	return parentId;
 };
 
 const requireBody = (args: InvokeOpArgs): unknown => {
-	if (args.body === undefined) {
+	const isBodyMissing = args.body === undefined;
+	if (isBodyMissing) {
 		throw freshSqueezyErrorOf({
 			code: "MISSING_ARG",
 			message: "A JSON body is required (--body or --body-file).",
@@ -240,15 +251,21 @@ const listFilter = (
 	const listScope = RESOURCES.find(
 		([resource]) => resource === spec.resource,
 	)?.[2];
-	if (!listScope) return undefined;
-	const scopeId =
-		listScope === "store" ? requireStore(args) : requireParent(args, listScope);
-	return { [`filter[${listScope.replace(/-/g, "_")}_id]`]: String(scopeId) };
+	const isListUnscoped = !listScope;
+	if (isListUnscoped) return undefined;
+	const isStoreScoped = listScope === "store";
+	const scopeId = isStoreScoped
+		? requireStore(args)
+		: requireParent(args, listScope);
+	const scopeName = listScope.replace(/-/g, "_");
+	return { [`filter[${scopeName}_id]`]: String(scopeId) };
 };
 
 const requestBody = (rule: VerbRule, args: InvokeOpArgs): unknown => {
-	if (rule.body === "required") return requireBody(args);
-	if (rule.body === "optional") return args.body ?? {};
+	const isBodyRequired = rule.body === "required";
+	const isBodyOptional = rule.body === "optional";
+	if (isBodyRequired) return requireBody(args);
+	if (isBodyOptional) return args.body ?? {};
 	return undefined;
 };
 
@@ -259,33 +276,39 @@ export const invokeOp = async (
 	args: InvokeOpArgs = {},
 ): Promise<unknown> => {
 	const spec = findResourceVerb(resource, verb);
-	if (!spec) {
+	const isOpUnknown = !spec;
+	if (isOpUnknown) {
 		throw freshSqueezyErrorOf({
 			code: "UNKNOWN_OP",
 			message: `Unknown or unsupported op: ${verb} ${resource}. Run \`fresh-squeezy ops --list\`.`,
 		});
 	}
 
-	if (spec.resource === "user") {
-		const doc = await http.request<JsonApiDocument<UserAttributes>>({
+	const isUserOp = spec.resource === "user";
+	if (isUserOp) {
+		const userDocument = await http.request<JsonApiDocument<UserAttributes>>({
 			path: USER_ME_PATH,
 		});
-		return doc.data;
+		return userDocument.data;
 	}
 
 	const collectionPath = `/v1/${spec.resource}s`;
-	if (spec.verb === "list") {
-		return http.paginate(collectionPath, listFilter(spec, args));
+	const isListOp = spec.verb === "list";
+	if (isListOp) {
+		const filter = listFilter(spec, args);
+		return http.paginate(collectionPath, filter);
 	}
 
 	const rule = VERB_RULES[spec.verb];
-	const path =
-		collectionPath +
-		rule.path.replace("{id}", () => String(requireId(args, spec)));
-	const doc = await http.request<{ data?: unknown } | undefined>({
-		method: rule.method,
-		path,
-		body: requestBody(rule, args),
+	const idPath = rule.path.replace("{id}", () => {
+		const id = requireId(args, spec);
+		return String(id);
 	});
-	return doc?.data ?? doc;
+	const body = requestBody(rule, args);
+	const document = await http.request<{ data?: unknown } | undefined>({
+		method: rule.method,
+		path: collectionPath + idPath,
+		body,
+	});
+	return document?.data ?? document;
 };
