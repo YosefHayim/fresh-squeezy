@@ -16,4 +16,3 @@ export const OPTIONAL_WEBHOOK_EVENTS = [
 	"license_key_created",
 	"license_key_updated",
 ] as const;
-
