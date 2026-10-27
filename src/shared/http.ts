@@ -95,6 +95,12 @@ const apiErrorOf = (
 	return freshSqueezyErrorOf({ code, status, message, detail: responseBody });
 };
 
+const networkErrorOf = (cause: unknown) => {
+	const isCauseAnError = cause instanceof Error;
+	const message = isCauseAnError ? cause.message : "Network request failed";
+	return freshSqueezyErrorOf({ code: "NETWORK_ERROR", message, detail: cause });
+};
+
 const sendRequest = async <Payload>(
 	config: Config,
 	{ method = "GET", path, query, body, signal }: HttpRequest,
@@ -108,22 +114,11 @@ const sendRequest = async <Payload>(
 	if (hasBody) headers["Content-Type"] = API_CONTENT_TYPE;
 
 	const bodyText = hasBody ? JSON.stringify(body) : undefined;
-	let response: Response;
-	try {
-		response = await config.fetch(url, {
-			method,
-			headers,
-			body: bodyText,
-			signal,
+	const response = await config
+		.fetch(url, { method, headers, body: bodyText, signal })
+		.catch((cause: unknown) => {
+			throw networkErrorOf(cause);
 		});
-	} catch (cause) {
-		const isCauseAnError = cause instanceof Error;
-		throw freshSqueezyErrorOf({
-			code: "NETWORK_ERROR",
-			message: isCauseAnError ? cause.message : "Network request failed",
-			detail: cause,
-		});
-	}
 
 	const text = await response.text();
 	const isBodyPresent = text.length > 0;
@@ -142,27 +137,26 @@ export const createHttp = (config: Config) => {
 		return document.data;
 	};
 
-	const getAll = async <Attributes>(path: string, query?: HttpQuery) => {
-		const firstPage = Number(query?.["page[number]"] ?? 1);
-		const resources: JsonApiResource<Attributes>[] = [];
-		let pageNumber = firstPage;
-		while (true) {
-			const pageQuery = {
-				...query,
-				"page[size]": PAGE_SIZE,
-				"page[number]": pageNumber,
-			};
-			const collection = await request<JsonApiCollection<Attributes>>({
-				path,
-				query: pageQuery,
-			});
-			resources.push(...collection.data);
-			const lastPage = collection.meta?.page?.lastPage;
-			const isLastPageReached =
-				lastPage === undefined || pageNumber >= lastPage;
-			if (isLastPageReached) return resources;
-			pageNumber += 1;
-		}
+	const getAll = async <Attributes>(
+		path: string,
+		query?: HttpQuery,
+	): Promise<JsonApiResource<Attributes>[]> => {
+		const pageNumber = Number(query?.["page[number]"] ?? 1);
+		const pageQuery = {
+			...query,
+			"page[size]": PAGE_SIZE,
+			"page[number]": pageNumber,
+		};
+		const collection = await request<JsonApiCollection<Attributes>>({
+			path,
+			query: pageQuery,
+		});
+		const lastPage = collection.meta?.page?.lastPage;
+		const isLastPageReached = lastPage === undefined || pageNumber >= lastPage;
+		if (isLastPageReached) return collection.data;
+		const nextPageQuery = { ...query, "page[number]": pageNumber + 1 };
+		const laterPages = await getAll<Attributes>(path, nextPageQuery);
+		return [...collection.data, ...laterPages];
 	};
 
 	return { request, getResource, getAll };
