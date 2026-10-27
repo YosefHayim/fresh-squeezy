@@ -1,4 +1,4 @@
-import { FreshSqueezyError } from "../../core/errors.js";
+import { freshSqueezyErrorOf } from "../../core/errors.js";
 import type { HttpClient } from "../../core/http.js";
 import { type ResourceVerbSpec, findResourceVerb, invokeOp } from "../../resources/registry.js";
 
@@ -98,19 +98,19 @@ export const collectBulkTargets = async (
 
   const listSpec = findResourceVerb(spec.resource, "list");
   if (!listSpec) {
-    throw new FreshSqueezyError({
+    throw freshSqueezyErrorOf({
       code: "UNKNOWN_OP",
       message: `Cannot use --all: ${spec.resource} has no list op. Pass --ids instead.`,
     });
   }
   if (listSpec.idRole === "store" && !selector.storeId) {
-    throw new FreshSqueezyError({
+    throw freshSqueezyErrorOf({
       code: "MISSING_ARG",
       message: "--all needs a store: pass --store-ids or set LEMON_SQUEEZY_STORE_ID.",
     });
   }
   if (listSpec.idRole === "parent" && !selector.parentId) {
-    throw new FreshSqueezyError({
+    throw freshSqueezyErrorOf({
       code: "MISSING_ARG",
       message: `--all needs --parent-id to list ${spec.resource} items.`,
     });

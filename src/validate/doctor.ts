@@ -1,4 +1,4 @@
-import { FreshSqueezyError } from "../core/errors.js";
+import { freshSqueezyErrorOf } from "../core/errors.js";
 import type { HttpClient } from "../core/http.js";
 import type { DoctorReport, Mode, ValidationResult } from "../core/types.js";
 import type {
@@ -173,7 +173,7 @@ const assertOptionsCoherent = (options: DoctorOptions): void => {
 
   if (dependent.length === 0) return;
 
-  throw new FreshSqueezyError({
+  throw freshSqueezyErrorOf({
     code: "DOCTOR_OPTIONS_INVALID",
     message: `doctor() received ${dependent.join(", ")} without storeId. These validators cannot run without a store; pass \`storeId\` or remove the dependent options.`,
   });

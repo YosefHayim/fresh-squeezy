@@ -1,4 +1,4 @@
-import { FreshSqueezyError } from "../../core/errors.js";
+import { freshSqueezyErrorOf, isFreshSqueezyError } from "../../core/errors.js";
 import type { Mode, ValidationResult } from "../../core/types.js";
 import { type FreshSqueezyClient, createFreshSqueezy } from "../../createFreshSqueezy.js";
 import { MISSING_API_KEY_HINTS, renderCliError, renderResult } from "../render.js";
@@ -36,7 +36,7 @@ const EXAMPLE_WEBHOOK_URL = "https://app.example.com/api/webhooks/lemon-squeezy"
 
 const required = <T>(value: T | undefined, message: string): T => {
   if (value === undefined || value === null || value === "") {
-    throw new FreshSqueezyError({ code: "MISSING_ARG", message });
+    throw freshSqueezyErrorOf({ code: "MISSING_ARG", message });
   }
   return value;
 };
@@ -56,7 +56,7 @@ const resolveStoresForSubcommand = async (
     isInteractive: options.isInteractive ?? false,
   });
   if (resolved.skipped) {
-    throw new FreshSqueezyError({
+    throw freshSqueezyErrorOf({
       code: "MISSING_ARG",
       message: `--store-ids or --all-stores is required for \`validate ${target}\` in non-interactive mode.`,
     });
@@ -162,7 +162,7 @@ export const VALIDATE_SUBCOMMANDS = {
 export type ValidateSubcommand = keyof typeof VALIDATE_SUBCOMMANDS;
 
 const errorHints = (err: unknown, target: ValidateSubcommand): string[] => {
-  if (!(err instanceof FreshSqueezyError)) return [];
+  if (!isFreshSqueezyError(err)) return [];
   if (err.code === "MISSING_API_KEY") return MISSING_API_KEY_HINTS;
   if (err.code === "INVALID_MODE") {
     return [

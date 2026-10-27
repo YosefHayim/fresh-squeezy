@@ -1,4 +1,4 @@
-import { FreshSqueezyError } from "./errors.js";
+import { type FreshSqueezyError, freshSqueezyErrorOf } from "./errors.js";
 import type {
   JsonApiCollection,
   JsonApiDocument,
@@ -77,7 +77,7 @@ export class HttpClient {
         signal: options.signal,
       });
     } catch (cause) {
-      throw new FreshSqueezyError({
+      throw freshSqueezyErrorOf({
         code: "NETWORK_ERROR",
         message: cause instanceof Error ? cause.message : "Network request failed",
         detail: cause,
@@ -162,7 +162,7 @@ const apiError = (status: number, responseBody: unknown): FreshSqueezyError => {
   const code = mapped ?? first?.code ?? `HTTP_${status}`;
   const message =
     first?.detail ?? first?.title ?? `Lemon Squeezy request failed with status ${status}`;
-  return new FreshSqueezyError({ code, status, message, detail: responseBody });
+  return freshSqueezyErrorOf({ code, status, message, detail: responseBody });
 };
 
 const extractJsonApiErrors = (responseBody: unknown): JsonApiError[] => {

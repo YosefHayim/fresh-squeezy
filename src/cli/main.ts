@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { Command } from "commander";
 import dotenv from "dotenv";
-import { FreshSqueezyError } from "../core/errors.js";
+import { freshSqueezyErrorOf } from "../core/errors.js";
 import type { Mode } from "../core/types.js";
 import type { OpVerb } from "../resources/registry.js";
 import { runAugmentCommand } from "./commands/augment.js";
@@ -44,7 +44,7 @@ const OP_VERBS: OpVerb[] = [
 
 const parseMode = (value: string): Mode => {
   if (value === "test" || value === "live") return value;
-  throw new FreshSqueezyError({
+  throw freshSqueezyErrorOf({
     code: "INVALID_MODE",
     message: `Mode must be "test" or "live", got "${value}"`,
   });

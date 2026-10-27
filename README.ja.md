@@ -145,6 +145,39 @@ if (!report.ok) {
 const user = await lemon.request({ path: "/v1/users/me" });
 ```
 
+## 0.3 からのアップグレード
+
+破壊的変更が 2 つあります。パッケージにバレルはなくなりました。`fresh-squeezy` は `createFreshSqueezy`（とそのクライアント型）だけをエクスポートし、それ以外のモジュールはそれぞれ専用のサブパスになります。また `FreshSqueezyError` はクラスではなくなり、`name`・`code`・`status`・`detail` を持つ素の `Error` です。`freshSqueezyErrorOf` で作成し、`isFreshSqueezyError` で判定します。分岐は引き続き `.code` で行ってください。
+
+インポートの対応表:
+
+| Before (`from "fresh-squeezy"`) | Now |
+| --- | --- |
+| `createFreshSqueezy`, `FreshSqueezyClient`, `FreshSqueezyOps` | `fresh-squeezy` |
+| `FreshSqueezyError` | `fresh-squeezy/errors` |
+| config helpers | `fresh-squeezy/config` |
+| `ValidationResult`, `DoctorReport`, shared types | `fresh-squeezy/types` |
+| `Generated*` Lemon Squeezy types | `fresh-squeezy/api-types` |
+| resource attribute interfaces | `fresh-squeezy/resources/attributes` |
+| resource registry (`invokeOp`, ...) | `fresh-squeezy/resources/registry` |
+| validators | `fresh-squeezy/validate/connection`, `discount`, `doctor`, `license-key`, `product`, `issues`, `store`, `subscription-plan`, `webhook` |
+| webhook policy, supported resources | `fresh-squeezy/manifest` |
+| `Latest*` helpers | `fresh-squeezy/augmentations` |
+
+インポートとエラー判定:
+
+```ts
+// before
+import { createFreshSqueezy, validateStore, FreshSqueezyError } from "fresh-squeezy";
+if (error instanceof FreshSqueezyError) console.error(error.code);
+
+// after
+import { createFreshSqueezy } from "fresh-squeezy";
+import { validateStore } from "fresh-squeezy/validate/store";
+import { isFreshSqueezyError } from "fresh-squeezy/errors";
+if (isFreshSqueezyError(error)) console.error(error.code);
+```
+
 ## サンドボックス vs ライブ
 
 Lemon Squeezy は両方のモードを同じ API ホストから提供します。モードはキーによって決まります。`fresh-squeezy` は、宣言されたモードを `/v1/users/me` の `meta.test_mode` と照合します。不一致 = `MODE_MISMATCH` となり、doctor は 1 で終了します — 本番キーがステージングを指している状況を、被害が出る前に検出する最速の方法です。

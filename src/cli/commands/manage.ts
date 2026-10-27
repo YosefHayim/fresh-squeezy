@@ -1,5 +1,5 @@
 import { resolveConfig } from "../../core/config.js";
-import { FreshSqueezyError } from "../../core/errors.js";
+import { freshSqueezyErrorOf } from "../../core/errors.js";
 import { HttpClient } from "../../core/http.js";
 import type { Mode } from "../../core/types.js";
 import { createFreshSqueezy } from "../../createFreshSqueezy.js";
@@ -90,7 +90,7 @@ export const runManageCommand = async (): Promise<number> => {
     const spec = findResourceVerb(op.resource, op.verb);
     const listSpec = findResourceVerb(op.resource, "list");
     if (!spec || !listSpec) {
-      throw new FreshSqueezyError({
+      throw freshSqueezyErrorOf({
         code: "UNKNOWN_OP",
         message: `${op.verb} ${op.resource} is not available.`,
       });

@@ -173,20 +173,53 @@ if (!report.ok) {
   process.exit(1);
 }
 
-// Nested docs-backed ops (HTTP failures throw FreshSqueezyError)
+// Nested docs-backed ops (HTTP failures throw a FreshSqueezyError, see below)
 const product = await lemon.products.get(42);
 const webhooks = await lemon.webhooks.list(12);
 await lemon.subscriptions.cancel(9);
 ```
 
-For multi-store doctor runs at the library layer, call `doctor()` in a loop — the CLI does exactly this. Switch on `issue.code` in CI logic; codes are stable across minor versions. Validators return `ValidationResult` and never throw for findings; resource mutations throw `FreshSqueezyError` (`code` / `status`).
+For multi-store doctor runs at the library layer, call `doctor()` in a loop — the CLI does exactly this. Switch on `issue.code` in CI logic; codes are stable across minor versions. Validators return `ValidationResult` and never throw for findings; resource mutations throw a plain `Error` with `name: "FreshSqueezyError"`, `code`, `status` and `detail`; check it with `isFreshSqueezyError` from `fresh-squeezy/errors`.
 
-Public types: [`FreshSqueezyClient`](src/createFreshSqueezy.ts), [`ValidationResult<T>`](src/core/types.ts), [`DoctorReport`](src/core/types.ts), resource attribute interfaces under [`src/resources/attributes.ts`](src/resources/attributes.ts), docs-generated Lemon Squeezy object types in [`src/generated/lemonSqueezyApiTypes.ts`](src/generated/lemonSqueezyApiTypes.ts), and changelog augmentation helpers in [`src/augmentations.ts`](src/augmentations.ts).
+Public modules, one subpath each: `fresh-squeezy` (the client, [`src/createFreshSqueezy.ts`](src/createFreshSqueezy.ts)), `fresh-squeezy/types` ([`ValidationResult<T>`, `DoctorReport`](src/core/types.ts)), `fresh-squeezy/errors`, `fresh-squeezy/config`, `fresh-squeezy/resources/attributes`, `fresh-squeezy/resources/registry`, `fresh-squeezy/api-types` (docs-generated Lemon Squeezy object types), `fresh-squeezy/augmentations` (changelog augmentation helpers), `fresh-squeezy/manifest`, and one `fresh-squeezy/validate/<name>` per validator.
 
 For endpoints not yet wrapped, use the raw escape hatch:
 
 ```ts
 const user = await lemon.request({ path: "/v1/users/me" });
+```
+
+## Upgrade from 0.3
+
+Two breaking changes. The package no longer has a barrel: `fresh-squeezy` exports only `createFreshSqueezy` (and its client types); every other module has its own subpath. And `FreshSqueezyError` is no longer a class: it is a plain `Error` with `name`, `code`, `status` and `detail`, built by `freshSqueezyErrorOf` and checked with `isFreshSqueezyError`. Keep branching on `.code`.
+
+Import map:
+
+| Before (`from "fresh-squeezy"`) | Now |
+| --- | --- |
+| `createFreshSqueezy`, `FreshSqueezyClient`, `FreshSqueezyOps` | `fresh-squeezy` |
+| `FreshSqueezyError` | `fresh-squeezy/errors` |
+| config helpers | `fresh-squeezy/config` |
+| `ValidationResult`, `DoctorReport`, shared types | `fresh-squeezy/types` |
+| `Generated*` Lemon Squeezy types | `fresh-squeezy/api-types` |
+| resource attribute interfaces | `fresh-squeezy/resources/attributes` |
+| resource registry (`invokeOp`, ...) | `fresh-squeezy/resources/registry` |
+| validators | `fresh-squeezy/validate/connection`, `discount`, `doctor`, `license-key`, `product`, `issues`, `store`, `subscription-plan`, `webhook` |
+| webhook policy, supported resources | `fresh-squeezy/manifest` |
+| `Latest*` helpers | `fresh-squeezy/augmentations` |
+
+Imports and the error check:
+
+```ts
+// before
+import { createFreshSqueezy, validateStore, FreshSqueezyError } from "fresh-squeezy";
+if (error instanceof FreshSqueezyError) console.error(error.code);
+
+// after
+import { createFreshSqueezy } from "fresh-squeezy";
+import { validateStore } from "fresh-squeezy/validate/store";
+import { isFreshSqueezyError } from "fresh-squeezy/errors";
+if (isFreshSqueezyError(error)) console.error(error.code);
 ```
 
 ## Sandbox vs live
@@ -272,7 +305,7 @@ Lemon Squeezy ships API changes (new events, new fields, new resources) faster t
 
 ### Can I use fresh-squeezy as a library instead of the CLI?
 
-Yes. `import { createFreshSqueezy } from "fresh-squeezy"` and call `doctor()`, individual validators, or nested ops (`lemon.webhooks.create(…)`). Validators return typed `ValidationResult`; ops throw `FreshSqueezyError` on HTTP failure — see [Library](#library).
+Yes. `import { createFreshSqueezy } from "fresh-squeezy"` and call `doctor()`, individual validators, or nested ops (`lemon.webhooks.create(…)`). Validators return typed `ValidationResult`; ops throw a `FreshSqueezyError` (a plain `Error` with `code`) on HTTP failure — see [Library](#library).
 
 ### Which Lemon Squeezy resources can it validate?
 
@@ -281,8 +314,7 @@ Connection/auth, stores, products (and variants), webhooks, discounts, license k
 ## Project structure
 
 ```
-src/index.ts                public barrel (export *)
-src/createFreshSqueezy.ts   the client: validators, doctor(), lemon.<resource>.<verb>()
+src/createFreshSqueezy.ts   the client (package root export; no barrel): validators, doctor(), lemon.<resource>.<verb>()
 src/core/                   HttpClient (the only fetch), config, FreshSqueezyError, shared types
 src/resources/              registry.ts (one table of docs-backed ops + invokeOp), attributes.ts
 src/validate/               one file per validator, doctor composition, issues, probe

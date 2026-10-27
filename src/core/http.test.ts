@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { storeDoc, unauthorizedError } from "../../tests/fixtures/sandbox/data.js";
 import { createMockFetch, pathIs } from "../../tests/helpers/mockFetch.js";
 import { resolveConfig } from "./config.js";
-import { FreshSqueezyError } from "./errors.js";
+import { isFreshSqueezyError } from "./errors.js";
 import { HttpClient } from "./http.js";
 
 describe("HttpClient", () => {
@@ -86,8 +86,8 @@ describe("HttpClient", () => {
     const http = new HttpClient(resolveConfig({ apiKey: "k", fetch: fetchImpl }));
 
     const err = await http.request({ path: "/v1/users/me" }).catch((error) => error);
-    expect(err).toBeInstanceOf(FreshSqueezyError);
-    expect((err as FreshSqueezyError).code).toBe("NETWORK_ERROR");
+    expect(isFreshSqueezyError(err)).toBe(true);
+    expect((err as { code: string }).code).toBe("NETWORK_ERROR");
   });
 
   it("request sends a POST body as JSON and returns the parsed document", async () => {

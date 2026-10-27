@@ -145,6 +145,39 @@ Para endpoints que aún no están envueltos, usa la vía de escape sin procesar:
 const user = await lemon.request({ path: "/v1/users/me" });
 ```
 
+## Actualizar desde 0.3
+
+Dos cambios incompatibles. El paquete ya no tiene barrel: `fresh-squeezy` exporta solo `createFreshSqueezy` (y los tipos de su cliente); cada otro módulo tiene su propio subpath. Y `FreshSqueezyError` ya no es una clase: es un `Error` simple con `name`, `code`, `status` y `detail`, creado con `freshSqueezyErrorOf` y comprobado con `isFreshSqueezyError`. Sigue ramificando por `.code`.
+
+Mapa de imports:
+
+| Before (`from "fresh-squeezy"`) | Now |
+| --- | --- |
+| `createFreshSqueezy`, `FreshSqueezyClient`, `FreshSqueezyOps` | `fresh-squeezy` |
+| `FreshSqueezyError` | `fresh-squeezy/errors` |
+| config helpers | `fresh-squeezy/config` |
+| `ValidationResult`, `DoctorReport`, shared types | `fresh-squeezy/types` |
+| `Generated*` Lemon Squeezy types | `fresh-squeezy/api-types` |
+| resource attribute interfaces | `fresh-squeezy/resources/attributes` |
+| resource registry (`invokeOp`, ...) | `fresh-squeezy/resources/registry` |
+| validators | `fresh-squeezy/validate/connection`, `discount`, `doctor`, `license-key`, `product`, `issues`, `store`, `subscription-plan`, `webhook` |
+| webhook policy, supported resources | `fresh-squeezy/manifest` |
+| `Latest*` helpers | `fresh-squeezy/augmentations` |
+
+Imports y comprobación del error:
+
+```ts
+// before
+import { createFreshSqueezy, validateStore, FreshSqueezyError } from "fresh-squeezy";
+if (error instanceof FreshSqueezyError) console.error(error.code);
+
+// after
+import { createFreshSqueezy } from "fresh-squeezy";
+import { validateStore } from "fresh-squeezy/validate/store";
+import { isFreshSqueezyError } from "fresh-squeezy/errors";
+if (isFreshSqueezyError(error)) console.error(error.code);
+```
+
 ## Sandbox frente a producción
 
 Lemon Squeezy sirve ambos modos desde el mismo host de API; el modo se determina por la clave. `fresh-squeezy` compara el modo declarado contra `meta.test_mode` de `/v1/users/me`. Discrepancia = `MODE_MISMATCH`, doctor sale con 1 — la forma más rápida de detectar una clave de producción apuntando a staging antes de que cause daño.

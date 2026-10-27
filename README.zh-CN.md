@@ -145,6 +145,39 @@ if (!report.ok) {
 const user = await lemon.request({ path: "/v1/users/me" });
 ```
 
+## 从 0.3 升级
+
+有两处不兼容变更。包不再有 barrel：`fresh-squeezy` 只导出 `createFreshSqueezy`（及其客户端类型），其他每个模块都有自己的子路径。`FreshSqueezyError` 也不再是类：它是带有 `name`、`code`、`status` 和 `detail` 的普通 `Error`，用 `freshSqueezyErrorOf` 创建，用 `isFreshSqueezyError` 判断。继续按 `.code` 分支即可。
+
+导入对照表：
+
+| Before (`from "fresh-squeezy"`) | Now |
+| --- | --- |
+| `createFreshSqueezy`, `FreshSqueezyClient`, `FreshSqueezyOps` | `fresh-squeezy` |
+| `FreshSqueezyError` | `fresh-squeezy/errors` |
+| config helpers | `fresh-squeezy/config` |
+| `ValidationResult`, `DoctorReport`, shared types | `fresh-squeezy/types` |
+| `Generated*` Lemon Squeezy types | `fresh-squeezy/api-types` |
+| resource attribute interfaces | `fresh-squeezy/resources/attributes` |
+| resource registry (`invokeOp`, ...) | `fresh-squeezy/resources/registry` |
+| validators | `fresh-squeezy/validate/connection`, `discount`, `doctor`, `license-key`, `product`, `issues`, `store`, `subscription-plan`, `webhook` |
+| webhook policy, supported resources | `fresh-squeezy/manifest` |
+| `Latest*` helpers | `fresh-squeezy/augmentations` |
+
+导入与错误判断：
+
+```ts
+// before
+import { createFreshSqueezy, validateStore, FreshSqueezyError } from "fresh-squeezy";
+if (error instanceof FreshSqueezyError) console.error(error.code);
+
+// after
+import { createFreshSqueezy } from "fresh-squeezy";
+import { validateStore } from "fresh-squeezy/validate/store";
+import { isFreshSqueezyError } from "fresh-squeezy/errors";
+if (isFreshSqueezyError(error)) console.error(error.code);
+```
+
 ## 沙盒模式 vs 正式模式
 
 Lemon Squeezy 从同一个 API 主机提供两种模式；模式由密钥决定。`fresh-squeezy` 会将声明的模式与来自 `/v1/users/me` 的 `meta.test_mode` 进行交叉核验。不匹配 = `MODE_MISMATCH`，doctor 以 1 退出 —— 这是在生产密钥指向测试环境造成损害之前捕获它的最快方式。

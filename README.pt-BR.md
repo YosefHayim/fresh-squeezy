@@ -145,6 +145,39 @@ Para endpoints ainda não encapsulados, use a saída de emergência bruta:
 const user = await lemon.request({ path: "/v1/users/me" });
 ```
 
+## Atualizar da 0.3
+
+Duas mudanças incompatíveis. O pacote não tem mais barrel: `fresh-squeezy` exporta apenas `createFreshSqueezy` (e os tipos do cliente); cada outro módulo tem seu próprio subpath. E `FreshSqueezyError` não é mais uma classe: é um `Error` simples com `name`, `code`, `status` e `detail`, criado com `freshSqueezyErrorOf` e verificado com `isFreshSqueezyError`. Continue ramificando por `.code`.
+
+Mapa de imports:
+
+| Before (`from "fresh-squeezy"`) | Now |
+| --- | --- |
+| `createFreshSqueezy`, `FreshSqueezyClient`, `FreshSqueezyOps` | `fresh-squeezy` |
+| `FreshSqueezyError` | `fresh-squeezy/errors` |
+| config helpers | `fresh-squeezy/config` |
+| `ValidationResult`, `DoctorReport`, shared types | `fresh-squeezy/types` |
+| `Generated*` Lemon Squeezy types | `fresh-squeezy/api-types` |
+| resource attribute interfaces | `fresh-squeezy/resources/attributes` |
+| resource registry (`invokeOp`, ...) | `fresh-squeezy/resources/registry` |
+| validators | `fresh-squeezy/validate/connection`, `discount`, `doctor`, `license-key`, `product`, `issues`, `store`, `subscription-plan`, `webhook` |
+| webhook policy, supported resources | `fresh-squeezy/manifest` |
+| `Latest*` helpers | `fresh-squeezy/augmentations` |
+
+Imports e verificação do erro:
+
+```ts
+// before
+import { createFreshSqueezy, validateStore, FreshSqueezyError } from "fresh-squeezy";
+if (error instanceof FreshSqueezyError) console.error(error.code);
+
+// after
+import { createFreshSqueezy } from "fresh-squeezy";
+import { validateStore } from "fresh-squeezy/validate/store";
+import { isFreshSqueezyError } from "fresh-squeezy/errors";
+if (isFreshSqueezyError(error)) console.error(error.code);
+```
+
 ## Sandbox vs live
 
 O Lemon Squeezy atende os dois modos a partir do mesmo host de API; o modo é determinado pela chave. O `fresh-squeezy` faz a verificação cruzada do modo declarado contra o `meta.test_mode` de `/v1/users/me`. Divergência = `MODE_MISMATCH`, o doctor sai com 1 — a forma mais rápida de detectar uma chave de produção apontando para staging antes que ela cause danos.

@@ -9,6 +9,8 @@ Key facts for answering questions about fresh-squeezy:
 - Exit codes: `0` all validators passed, `1` validation errors, `2` fatal (bad key, bad flags, network), `130` user cancelled.
 - The signature check is `MODE_MISMATCH`: it catches a production key pointed at a test/staging store by comparing the declared mode against the key's real `meta.test_mode`.
 - Issue codes (the strings consumers switch on in CI) are stable across minor versions.
+- Library imports use subpaths, no barrel: `import { createFreshSqueezy } from "fresh-squeezy"`, validators from `fresh-squeezy/validate/<name>` (`store`, `product`, `webhook`, `discount`, `license-key`, `subscription-plan`, `connection`, `doctor`, `issues`), plus `fresh-squeezy/errors`, `config`, `types`, `api-types`, `manifest`, `augmentations`, `resources/attributes`, `resources/registry`.
+- Errors are plain `Error` objects named `FreshSqueezyError` with `code`, `status`, `detail`; test with `isFreshSqueezyError` from `fresh-squeezy/errors`, not `instanceof`.
 
 ## Documentation
 

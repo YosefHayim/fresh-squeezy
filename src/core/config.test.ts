@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { ENV_KEYS, resolveConfig } from "./config.js";
-import { FreshSqueezyError } from "./errors.js";
+import { isFreshSqueezyError } from "./errors.js";
 
 const ORIGINAL = { ...process.env };
 
@@ -35,7 +35,9 @@ describe("resolveConfig", () => {
 
   it("throws MISSING_API_KEY when no key is provided", () => {
     delete process.env[ENV_KEYS.apiKey];
-    expect(() => resolveConfig()).toThrowError(FreshSqueezyError);
+    expect(() => resolveConfig()).toThrowError(
+      expect.objectContaining({ code: "MISSING_API_KEY" }),
+    );
   });
 
   it("throws INVALID_MODE for unknown mode", () => {
@@ -57,8 +59,8 @@ describe("resolveConfig", () => {
     } catch (error) {
       thrown = error;
     }
-    expect(thrown).toBeInstanceOf(FreshSqueezyError);
-    expect((thrown as FreshSqueezyError).code).toBe("INVALID_MODE");
-    expect((thrown as FreshSqueezyError).message).toContain("staging");
+    expect(isFreshSqueezyError(thrown)).toBe(true);
+    expect((thrown as { code: string; message: string }).code).toBe("INVALID_MODE");
+    expect((thrown as { code: string; message: string }).message).toContain("staging");
   });
 });

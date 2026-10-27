@@ -1,4 +1,4 @@
-import { FreshSqueezyError } from "../core/errors.js";
+import { isFreshSqueezyError } from "../core/errors.js";
 import type { ValidationIssue } from "../core/types.js";
 import { ISSUE_CODES, issue } from "./issues.js";
 
@@ -34,7 +34,7 @@ export interface IssueMapping {
  * reuse the same mapper as `probeFetch` does for single-resource fetches.
  */
 export const mapErrorToIssue = (err: unknown, mapping: IssueMapping = {}): ValidationIssue => {
-  if (err instanceof FreshSqueezyError) {
+  if (isFreshSqueezyError(err)) {
     if (mapping.unauthorized && (err.status === 401 || err.code === "UNAUTHORIZED")) {
       return issue(mapping.unauthorized.code, "error", mapping.unauthorized.message, {
         suggestedFix: mapping.unauthorized.suggestedFix,
