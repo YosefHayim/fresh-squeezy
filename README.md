@@ -58,12 +58,12 @@ npx fresh-squeezy
 
 The first run adds `fresh-squeezy` to devDependencies when it is missing, then starts the guided setup. No store ID to copy from the dashboard — the CLI discovers reachable stores itself. Use `npx fresh-squeezy --no-install` to run the setup without editing `package.json`.
 
-| Exit | Meaning |
-|------|---------|
-| `0`  | Success (validators passed / op completed) |
-| `1`  | One or more validators reported `error`-level issues |
-| `2`  | Fatal (missing key, invalid flags, network failure) |
-| `130` | User cancelled an interactive flow |
+| Exit  | Meaning                                              |
+| ----- | ---------------------------------------------------- |
+| `0`   | Success (validators passed / op completed)           |
+| `1`   | One or more validators reported `error`-level issues |
+| `2`   | Fatal (missing key, invalid flags, network failure)  |
+| `130` | User cancelled an interactive flow                   |
 
 ## What it catches that Postman and the official SDK won't
 
@@ -77,17 +77,17 @@ The first run adds `fresh-squeezy` to devDependencies when it is missing, then s
 
 How a typical Lemon Squeezy pre-ship check compares across the tools a developer would otherwise reach for:
 
-| Capability | fresh-squeezy | Official SDK | Postman | Hand-rolled wrapper |
-|---|:---:|:---:|:---:|:---:|
-| Mode / key mismatch detection (`MODE_MISMATCH`) | ✅ | ❌ | ❌ | ❌ |
-| Store-ownership cross-checks | ✅ | ❌ | ❌ | ⚠️ manual |
-| Webhook event-coverage diff | ✅ | ❌ | ⚠️ manual | ⚠️ manual |
-| Discount / license-key / plan validation | ✅ | ❌ | ❌ | ⚠️ manual |
-| Changelog-drift tracking | ✅ | ❌ | ❌ | ❌ |
-| Stable, CI-ready exit codes + JSON | ✅ | ❌ | ❌ | ⚠️ manual |
-| One-command full sweep (`doctor`) | ✅ | ❌ | ❌ | ❌ |
-| Docs-backed ops CLI (get/list/create/…/refund) | ✅ | ⚠️ SDK only | ⚠️ manual | ⚠️ manual |
-| Typed API responses | ✅ | ✅ | ❌ | ⚠️ depends |
+| Capability                                      | fresh-squeezy | Official SDK |  Postman  | Hand-rolled wrapper |
+| ----------------------------------------------- | :-----------: | :----------: | :-------: | :-----------------: |
+| Mode / key mismatch detection (`MODE_MISMATCH`) |      ✅       |      ❌      |    ❌     |         ❌          |
+| Store-ownership cross-checks                    |      ✅       |      ❌      |    ❌     |      ⚠️ manual      |
+| Webhook event-coverage diff                     |      ✅       |      ❌      | ⚠️ manual |      ⚠️ manual      |
+| Discount / license-key / plan validation        |      ✅       |      ❌      |    ❌     |      ⚠️ manual      |
+| Changelog-drift tracking                        |      ✅       |      ❌      |    ❌     |         ❌          |
+| Stable, CI-ready exit codes + JSON              |      ✅       |      ❌      |    ❌     |      ⚠️ manual      |
+| One-command full sweep (`doctor`)               |      ✅       |      ❌      |    ❌     |         ❌          |
+| Docs-backed ops CLI (get/list/create/…/refund)  |      ✅       | ⚠️ SDK only  | ⚠️ manual |      ⚠️ manual      |
+| Typed API responses                             |      ✅       |      ✅      |    ❌     |     ⚠️ depends      |
 
 fresh-squeezy is **not** a full replacement for the official SDK inside app code — use the SDK (or our nested client) for product runtime, and fresh-squeezy for setup, CI gates, and store ops.
 
@@ -159,7 +159,7 @@ const lemon = createFreshSqueezy(); // reads LEMON_SQUEEZY_API_KEY, LEMON_SQUEEZ
 
 // Doctor
 const report = await lemon.doctor({
-  storeId: 12,                      // library is single-store per call
+  storeId: 12, // library is single-store per call
   productId: 987,
   webhookUrl: "https://app.example.com/api/webhooks/lemon-squeezy",
 });
@@ -195,18 +195,18 @@ Two breaking changes. The package no longer has a barrel: `fresh-squeezy` export
 
 Import map:
 
-| Before (`from "fresh-squeezy"`) | Now |
-| --- | --- |
-| `createFreshSqueezy`, `FreshSqueezyClient`, `FreshSqueezyOps` | `fresh-squeezy` |
-| `FreshSqueezyError` | `fresh-squeezy/errors` |
-| config helpers | `fresh-squeezy/config` |
-| `ValidationResult`, `DoctorReport`, shared types | `fresh-squeezy/types` |
-| `Generated*` Lemon Squeezy types | `fresh-squeezy/api-types` |
-| resource attribute interfaces | `fresh-squeezy/resources/attributes` |
-| resource registry (`invokeOp`, ...) | `fresh-squeezy/resources/registry` |
-| validators | `fresh-squeezy/validate/connection`, `discount`, `doctor`, `license-key`, `product`, `issues`, `store`, `subscription-plan`, `webhook` |
-| webhook policy, supported resources | `fresh-squeezy/manifest` |
-| `Latest*` helpers | `fresh-squeezy/augmentations` |
+| Before (`from "fresh-squeezy"`)                               | Now                                                                                                                                    |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `createFreshSqueezy`, `FreshSqueezyClient`, `FreshSqueezyOps` | `fresh-squeezy`                                                                                                                        |
+| `FreshSqueezyError`                                           | `fresh-squeezy/errors`                                                                                                                 |
+| config helpers                                                | `fresh-squeezy/config`                                                                                                                 |
+| `ValidationResult`, `DoctorReport`, shared types              | `fresh-squeezy/types`                                                                                                                  |
+| `Generated*` Lemon Squeezy types                              | `fresh-squeezy/api-types`                                                                                                              |
+| resource attribute interfaces                                 | `fresh-squeezy/resources/attributes`                                                                                                   |
+| resource registry (`invokeOp`, ...)                           | `fresh-squeezy/resources/registry`                                                                                                     |
+| validators                                                    | `fresh-squeezy/validate/connection`, `discount`, `doctor`, `license-key`, `product`, `issues`, `store`, `subscription-plan`, `webhook` |
+| webhook policy, supported resources                           | `fresh-squeezy/manifest`                                                                                                               |
+| `Latest*` helpers                                             | `fresh-squeezy/augmentations`                                                                                                          |
 
 Imports and the error check:
 
@@ -229,7 +229,7 @@ Lemon Squeezy serves both modes from the same API host; mode is determined by th
 ```ts
 const lemon = createFreshSqueezy({ mode: "test" });
 const result = await lemon.validateConnection();
-result.mode;                 // "test" (declared)
+result.mode; // "test" (declared)
 result.resource?.actualMode; // "live" — alarm bell
 ```
 
@@ -237,11 +237,11 @@ The CLI default is `--mode test`. Override with `--mode live`. Guided setup asks
 
 ## Environment variables
 
-| Variable | Required | Purpose |
-|----------|----------|---------|
-| `LEMON_SQUEEZY_API_KEY` | yes | Bearer token (library + CLI) |
-| `LEMON_SQUEEZY_MODE` | no | `test` (default) or `live` |
-| `LEMON_SQUEEZY_STORE_ID` | no | Convenience default for `client.doctor()` — library only |
+| Variable                 | Required | Purpose                                                  |
+| ------------------------ | -------- | -------------------------------------------------------- |
+| `LEMON_SQUEEZY_API_KEY`  | yes      | Bearer token (library + CLI)                             |
+| `LEMON_SQUEEZY_MODE`     | no       | `test` (default) or `live`                               |
+| `LEMON_SQUEEZY_STORE_ID` | no       | Convenience default for `client.doctor()` — library only |
 
 `doctor` and `validate` do not read `LEMON_SQUEEZY_STORE_ID`; use `--store-ids` or `--all-stores` there. Only the `ops` verbs (`list`, `delete --all`, …) fall back to it when `--store-ids` is omitted.
 
@@ -249,13 +249,13 @@ The CLI default is `--mode test`. Override with `--mode live`. Guided setup asks
 
 Switch on `issue.code` in CI — all codes are stable across minor versions. The most common ones:
 
-| Code | Meaning |
-|------|---------|
-| `AUTH_FAILED` | Invalid or missing API key |
-| `MODE_MISMATCH` | Declared mode doesn't match key's `meta.test_mode` |
-| `STORE_NOT_FOUND` / `STORE_NOT_OWNED` | Store ID invalid or owned by another account |
-| `PRODUCT_UNPUBLISHED` / `PRODUCT_WRONG_STORE` / `PRODUCT_NO_BUY_URL` | Product can't accept checkout |
-| `WEBHOOK_NOT_FOUND` / `WEBHOOK_EVENTS_MISSING` | Webhook URL not registered or under-subscribed |
+| Code                                                                 | Meaning                                            |
+| -------------------------------------------------------------------- | -------------------------------------------------- |
+| `AUTH_FAILED`                                                        | Invalid or missing API key                         |
+| `MODE_MISMATCH`                                                      | Declared mode doesn't match key's `meta.test_mode` |
+| `STORE_NOT_FOUND` / `STORE_NOT_OWNED`                                | Store ID invalid or owned by another account       |
+| `PRODUCT_UNPUBLISHED` / `PRODUCT_WRONG_STORE` / `PRODUCT_NO_BUY_URL` | Product can't accept checkout                      |
+| `WEBHOOK_NOT_FOUND` / `WEBHOOK_EVENTS_MISSING`                       | Webhook URL not registered or under-subscribed     |
 
 ## Reference
 

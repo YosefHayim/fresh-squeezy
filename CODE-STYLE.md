@@ -42,26 +42,36 @@ When creating a new script, ask: _"Would CI or another contributor need this?"_ 
 ## Rules
 
 ### Const arrow functions only (no `function` / `async function` declarations)
+
 Every module-scope callable is a **`const` arrow** — sync or async. Never
 `function name()` or `async function name()` at module scope (or nested helpers).
 Class methods on `HttpClient` are the only exception (they stay methods).
 ```ts
 // avoid
-export async function validateStore(http, mode, storeId) { /* … */ }
-function parseMode(value: string): Mode { /* … */ }
+export async function validateStore(http, mode, storeId) {
+  /* … */
+}
+function parseMode(value: string): Mode {
+  /* … */
+}
 
 // after — const arrows only
 export const validateStore = async (
   http: HttpClient,
   mode: Mode,
   storeId: string | number,
-): Promise<ValidationResult<StoreAttributes>> => { /* … */ };
+): Promise<ValidationResult<StoreAttributes>> => {
+  /* … */
+};
 
-const parseMode = (value: string): Mode => { /* … */ };
+const parseMode = (value: string): Mode => {
+  /* … */
+};
 ```
 _Why:_ one call-shape everywhere; no hoisting games; matches how agents and modern TS write. Helpers must be declared before use (const is not hoisted).
 
 ### Named exports only, no barrels
+
 Zero `export default`. There is no `index.ts` barrel: every public module is its own
 subpath in `package.json` `exports` and its own entry in `tsup.config.ts`. The package root
 (`fresh-squeezy`) exports only `createFreshSqueezy`; it never re-exports other modules.
@@ -74,12 +84,14 @@ import { isFreshSqueezyError } from "fresh-squeezy/errors";
 _Why:_ consumers import only what they use, and each subpath is a stable, greppable public module.
 
 ### No backward-compatibility shims
+
 When style or API shape changes, **rewrite callers** — do not leave dual forms,
 deprecated aliases, `// kept for BC`, or parallel `function` + arrow exports.
 Major bumps own real public contract breaks (`issue.code`, `ValidationResult`);
 internal style is not a BC surface.
 
 ### Guard-clause early returns + imperative `issues[]`
+
 Fail-path first; accumulate with `push`; end in `buildResult`. No functional map/filter
 chains for issue building.
 ```ts
@@ -93,16 +105,21 @@ return buildResult("store", mode, issues, fetched.resource.attributes, target);
 ```
 
 ### interface for shapes, type for unions, as const for tables
+
 Object shapes are `interface`; unions/discriminated shapes are `type`; literal lookup
 tables are `as const` and sit at the top of the file, directly after imports — never below
 a function.
 ```ts
-export interface ValidationResult<T = unknown> { ok: boolean; mode: Mode; /* … */ }
+export interface ValidationResult<T = unknown> {
+  ok: boolean;
+  mode: Mode /* … */;
+}
 export type Mode = "test" | "live";
-export const ISSUE_CODES = { STORE_NOT_FOUND: "STORE_NOT_FOUND", /* … */ } as const;
+export const ISSUE_CODES = { STORE_NOT_FOUND: "STORE_NOT_FOUND" /* … */ } as const;
 ```
 
 ### unknown never any; one FreshSqueezyError
+
 Boundaries take `unknown` and narrow with a cast. Never `any` in hand-written code. All
 failures use the single `FreshSqueezyError`: a plain `Error` with `code`/`status`/`detail`,
 made by `freshSqueezyErrorOf` and checked with `isFreshSqueezyError` (never `instanceof`);
@@ -113,6 +130,7 @@ const errors = (body as { errors?: unknown }).errors;
 ```
 
 ### Layers are one-directional; core/ is the foundation
+
 Import direction is strictly `generated → core → resources → validate → cli`. `core/`
 imports only from `core/` and `generated/` — never up into `resources/`, `validate/`, or
 `cli/`. Pure helpers live in `core/`; anything doing I/O against a resource lives at
@@ -125,26 +143,35 @@ const store = await http.getResource<StoreAttributes>(`/v1/stores/${storeId}`); 
 ```
 
 ### Validators: pure check*() + thin fetch (rich validators)
+
 Validators with real assertion logic (`product`, `discount`, `licenseKey`,
 `subscriptionPlan`) extract a pure `check<Resource>(attributes): ValidationIssue[]`; the
 async validator does the fetch and delegates. Thin validators (`store`, `connection`) stay
 fused. Mirrors the pure-vs-I/O split in `probe.ts` (`checkStoreOwnership` vs `probeFetch`).
 ```ts
 // after — src/validate/product.ts
-export const checkProduct = (
-  attrs: ProductAttributes,
-  storeId?: string,
-): ValidationIssue[] => { /* … */ };
+export const checkProduct = (attrs: ProductAttributes, storeId?: string): ValidationIssue[] => {
+  /* … */
+};
 
 export const validateProduct = async (http, mode, id, storeId?) => {
-  const f = await probeFetch(() => http.getResource<ProductAttributes>(`/v1/products/${id}`), { /* … */ });
+  const f = await probeFetch(() => http.getResource<ProductAttributes>(`/v1/products/${id}`), {
+    /* … */
+  });
   if (!f.ok) return buildResult("product", mode, [f.issue], undefined, target);
-  return buildResult("product", mode, checkProduct(f.resource.attributes, storeId), f.resource.attributes, target);
+  return buildResult(
+    "product",
+    mode,
+    checkProduct(f.resource.attributes, storeId),
+    f.resource.attributes,
+    target,
+  );
 };
 ```
 _Why:_ the rules become unit-testable with plain data, no mock fetch.
 
 ### Error → issue conversion goes through a shared wrapper
+
 Single-resource fetches use `probeFetch`; collection/composite fetches use
 `probeCollection` (sibling). Never hand-roll the `FreshSqueezyError` → issue mapping; never
 a silent `catch {}` — a best-effort skip carries a one-line comment or emits an info issue.
@@ -157,6 +184,7 @@ if (!probed.ok) { issues.push(probed.issue); return buildResult(/* … */); }
 ```
 
 ### TSDoc: why + @param + @returns + @example
+
 Every exported function gets a `/** … */` block with:
 - summary (_why_, not restating the name)
 - `@param` for each parameter
@@ -165,7 +193,7 @@ Every exported function gets a `/** … */` block with:
 - `@throws {FreshSqueezyError}` on resource ops that throw
 
 Interfaces/types/consts still get a why-summary. Agents rely on this contract.
-```ts
+````ts
 /**
  * Run a docs-backed resource verb: look it up in `resourceRegistry`, then make
  * the one HTTP call its verb rule describes.
@@ -182,16 +210,20 @@ Interfaces/types/consts still get a why-summary. Agents rely on this contract.
  * const product = await invokeOp(http, "product", "get", { id: 42 });
  * ```
  */
-export const invokeOp = async (http, resource, verb, args = {}): Promise<unknown> => { /* … */ };
-```
+export const invokeOp = async (http, resource, verb, args = {}): Promise<unknown> => {
+  /* … */
+};
+````
 
 ### Single named return — no multi-object bags
+
 A function returns **one** value of **one** named type. Never `return { product, variants }`
 or bare tuples of independent entities. Discriminated results (`ValidationResult`,
 `FetchProbeOutcome`) and named DTOs (`ResolveStoresOutput`) are fine — they are one type.
 If two entities are needed, use two functions or a named composite with a job.
 
 ### Docs-backed resource verbs only
+
 A resource gets create/update/delete/cancel/refund/… **only** when
 docs.lemonsqueezy.com/api documents them. Every verb is a word in its resource's row of
 `RESOURCES` in `src/resources/registry.ts`; `VERB_RULES` turns it into one HTTP call and a
@@ -200,6 +232,7 @@ invent catalog writes (product/variant/price create). CLI hybrid verbs and neste
 `createFreshSqueezy()` namespaces all call `invokeOp`.
 
 ### One table per repeated list
+
 When the same set of things (resources, `validate` subcommands, optional validators) would
 be listed in several files, keep **one** table and derive the rest from it. Adding an item
 means adding a row, not editing four files.
@@ -213,12 +246,14 @@ discount: { description, stores: "ownership", required: ["--discount-id <id>", "
 ```
 
 ### Naming
+
 Files `camelCase` (even when the CLI verb is kebab: `subscriptionPlan.ts` ↔
 `subscription-plan`). Functions `verbNoun` (`validateStore`, `findResourceVerb`,
 `runDoctorCommand`). Constants `SCREAMING_SNAKE_CASE`; types `PascalCase`; generated types
 `Generated*`; augmentations `Latest*Fields`.
 
 ### Formatting
+
 Biome owns it (`biome.json`): double quotes, semicolons, width 100, trailing
 commas everywhere, `node:` → third-party → local import order. Run `npm run format` /
 `npm run lint`. Don't hand-format against it.
@@ -226,6 +261,7 @@ commas everywhere, `node:` → third-party → local import order. Run `npm run 
 ## Recipes
 
 ### How to add a validator
+
 1. If the resource has no `*Attributes` in `src/resources/attributes.ts`, add one (`extends Generated*Attributes`).
 2. Add issue codes to `ISSUE_CODES` in `src/validate/issues.ts` (stable public API).
 3. Add `src/validate/<name>.ts`. Rich logic → extract a pure `check<Name>(attributes): ValidationIssue[]`; fetch with `http.getResource`/`http.paginate` inside `probeFetch`/`probeCollection`; build with `buildResult`.
@@ -236,6 +272,7 @@ commas everywhere, `node:` → third-party → local import order. Run `npm run 
 8. Update the README table.
 
 ### How to add a CLI command
+
 1. Add the handler in `src/cli/commands/<verb>.ts` as `run<Verb>Command(options)` returning an exit code.
 2. Register it on `program` in `src/cli/main.ts` with commander flags.
 3. Honor the dual-mode contract: flags/non-TTY defer and never hang; the interactive path prompts via `@inquirer/prompts`; both routes call the same `run<Verb>Command`.
@@ -244,6 +281,7 @@ commas everywhere, `node:` → third-party → local import order. Run `npm run 
 6. Unit-test with a stubbed `fetch` (`vi.stubGlobal`).
 
 ### How to add a resource verb (docs-backed ops)
+
 1. Confirm the endpoint on docs.lemonsqueezy.com/api (or the proposed scrape snapshot).
 2. Add the verb to the resource's row in `RESOURCES` (`src/resources/registry.ts`). A new resource is a new row (plus its `*Attributes` in `attributes.ts`); a new kind of verb is a new `VERB_RULES` entry.
 3. If the docs page breaks the `VERB_RULES` naming pattern, add it to `DOCS_PATH_EXCEPTIONS`.
@@ -263,6 +301,7 @@ Write new code like these:
 - `src/cli/commands/init.ts` — multi-step interactive flow.
 
 ## Never
+
 - `export default` — named exports only.
 - `function` / `async function` declarations — `const` arrows only (class methods excepted).
 - After-import re-exports (`import { x }; export { x }`) or named `export { x } from`.

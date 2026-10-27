@@ -1,5 +1,5 @@
 name: ci
-'on':
+"on":
   pull_request:
     branches:
       - main
@@ -7,7 +7,7 @@ name: ci
     branches:
       - main
     paths-ignore:
-      - '**/*.md'
+      - "**/*.md"
   workflow_dispatch: null
 permissions:
   contents: read
@@ -28,7 +28,7 @@ jobs:
         id: filter
         if: github.event_name == 'pull_request'
         with:
-          token: ''
+          token: ""
           filters: |
             everything: &everything
               - pnpm-lock.yaml
@@ -50,8 +50,8 @@ jobs:
       fail-fast: false
       matrix:
         node:
-          - '20'
-          - '22'
+          - "20"
+          - "22"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

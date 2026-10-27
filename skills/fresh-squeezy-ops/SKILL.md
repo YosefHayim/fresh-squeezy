@@ -1,12 +1,13 @@
 ---
+
 name: fresh-squeezy-ops
 description: >
-  Use the fresh-squeezy CLI and TypeScript library for Lemon Squeezy: doctor/validate
-  pre-flight checks plus docs-backed resource ops (get/list/create/update/delete/cancel/
-  refund/generate-invoice/current-usage). Trigger when integrating Lemon Squeezy, running
-  billing health checks, inspecting or changing Lemon Squeezy data, managing webhooks/
-  discounts/checkouts/customers/subscriptions, or extending fresh-squeezy with a new
-  resource verb. Prefer it over ad-hoc curl for supported store operations.
+Use the fresh-squeezy CLI and TypeScript library for Lemon Squeezy: doctor/validate
+pre-flight checks plus docs-backed resource ops (get/list/create/update/delete/cancel/
+refund/generate-invoice/current-usage). Trigger when integrating Lemon Squeezy, running
+billing health checks, inspecting or changing Lemon Squeezy data, managing webhooks/
+discounts/checkouts/customers/subscriptions, or extending fresh-squeezy with a new
+resource verb. Prefer it over ad-hoc curl for supported store operations.
 ---
 
 # fresh-squeezy ops + doctor
@@ -22,8 +23,8 @@ description: >
 
 Lemon Squeezy does **not** expose create/update/delete for catalog objects:
 
-| Read-only in API | Writes / actions documented |
-|------------------|-----------------------------|
+| Read-only in API                                                                                                | Writes / actions documented                                                                                                                                                                                                                                                             |
+| --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | products, variants, prices, files, stores, affiliates, order-items, discount-redemptions, license-key-instances | webhooks CRUD; discounts create/delete; customers create/update; checkouts create; subscriptions update/cancel; subscription-items update + current-usage; usage-records create; license-keys update; orders refund + generate-invoice; subscription-invoices refund + generate-invoice |
 
 Never invent `create product`. Confirm with `fresh-squeezy ops --list`.
@@ -34,11 +35,11 @@ Squeezy dashboard and use fresh-squeezy afterward to read and verify the resulti
 
 ## CLI dual-mode contract
 
-| Context | Behavior |
-|---------|----------|
-| TTY bare `fresh-squeezy` | Launcher menu (never hang without TTY → exit 2) |
-| Flags / CI / agents | No prompts; missing args → exit 2 |
-| Exit codes | `0` ok · `1` validation failed · `2` fatal/usage · `130` cancel |
+| Context                  | Behavior                                                        |
+| ------------------------ | --------------------------------------------------------------- |
+| TTY bare `fresh-squeezy` | Launcher menu (never hang without TTY → exit 2)                 |
+| Flags / CI / agents      | No prompts; missing args → exit 2                               |
+| Exit codes               | `0` ok · `1` validation failed · `2` fatal/usage · `130` cancel |
 
 ### Safety
 
@@ -143,14 +144,14 @@ See `CODE-STYLE.md` → “How to add a validator”. Ops do not replace doctor.
 
 ## Key files
 
-| Path | Role |
-|------|------|
-| `src/resources/registry.ts` | `RESOURCES` × `VERB_RULES` ops table + `invokeOp` dispatcher |
-| `src/resources/attributes.ts` | Typed `*Attributes` for every resource |
-| `src/core/http.ts` | Only `fetch` |
-| `src/cli/commands/resourceOps.ts` | CLI safety + body + exit codes |
-| `src/cli/main.ts` | `get\|list\|create\|…` commands |
-| `src/validate/*` | Doctor validators |
+| Path                              | Role                                                         |
+| --------------------------------- | ------------------------------------------------------------ |
+| `src/resources/registry.ts`       | `RESOURCES` × `VERB_RULES` ops table + `invokeOp` dispatcher |
+| `src/resources/attributes.ts`     | Typed `*Attributes` for every resource                       |
+| `src/core/http.ts`                | Only `fetch`                                                 |
+| `src/cli/commands/resourceOps.ts` | CLI safety + body + exit codes                               |
+| `src/cli/main.ts`                 | `get\|list\|create\|…` commands                              |
+| `src/validate/*`                  | Doctor validators                                            |
 
 ## Agent checklist
 

@@ -54,12 +54,12 @@ npx fresh-squeezy
 
 初回実行時、`fresh-squeezy` が存在しなければ devDependencies に追加してから、ガイド付きセットアップを開始します。ダッシュボードからコピーするストア ID は不要です — CLI が到達可能なストアを自分で検出します。`package.json` を編集せずにセットアップを実行するには `npx fresh-squeezy --no-install` を使用してください。
 
-| 終了コード | 意味 |
-|------|---------|
-| `0`  | すべてのバリデーターが合格 |
-| `1`  | 1 つ以上のバリデーターが `error` レベルのイシューを報告 |
-| `2`  | 致命的エラー（キーの欠落、無効なフラグ、ネットワーク障害） |
-| `130` | ユーザーが対話フローをキャンセル |
+| 終了コード | 意味                                                       |
+| ---------- | ---------------------------------------------------------- |
+| `0`        | すべてのバリデーターが合格                                 |
+| `1`        | 1 つ以上のバリデーターが `error` レベルのイシューを報告    |
+| `2`        | 致命的エラー（キーの欠落、無効なフラグ、ネットワーク障害） |
+| `130`      | ユーザーが対話フローをキャンセル                           |
 
 ## Postman や公式 SDK では検出できないものを検出
 
@@ -73,18 +73,18 @@ npx fresh-squeezy
 
 一般的な Lemon Squeezy のリリース前チェックを、開発者がそうでなければ手に取るであろう各ツール間で比較すると次のようになります:
 
-| 機能 | fresh-squeezy | 公式 SDK | Postman | 手作りのラッパー |
-|---|:---:|:---:|:---:|:---:|
-| モード / キーの不一致検出（`MODE_MISMATCH`） | ✅ | ❌ | ❌ | ❌ |
-| ストア所有権のクロスチェック | ✅ | ❌ | ❌ | ⚠️ 手動 |
-| Webhook のイベントカバレッジ差分 | ✅ | ❌ | ⚠️ 手動 | ⚠️ 手動 |
-| 割引 / ライセンスキー / プランの検証 | ✅ | ❌ | ❌ | ⚠️ 手動 |
-| チェンジログドリフトの追跡 | ✅ | ❌ | ❌ | ❌ |
-| 安定した CI 対応の終了コード + JSON | ✅ | ❌ | ❌ | ⚠️ 手動 |
-| ワンコマンドの完全スイープ（`doctor`） | ✅ | ❌ | ❌ | ❌ |
-| 型付き API レスポンス | ✅ | ✅ | ❌ | ⚠️ 場合による |
+| 機能                                         | fresh-squeezy | 公式 SDK | Postman | 手作りのラッパー |
+| -------------------------------------------- | :-----------: | :------: | :-----: | :--------------: |
+| モード / キーの不一致検出（`MODE_MISMATCH`） |      ✅       |    ❌    |   ❌    |        ❌        |
+| ストア所有権のクロスチェック                 |      ✅       |    ❌    |   ❌    |     ⚠️ 手動      |
+| Webhook のイベントカバレッジ差分             |      ✅       |    ❌    | ⚠️ 手動 |     ⚠️ 手動      |
+| 割引 / ライセンスキー / プランの検証         |      ✅       |    ❌    |   ❌    |     ⚠️ 手動      |
+| チェンジログドリフトの追跡                   |      ✅       |    ❌    |   ❌    |        ❌        |
+| 安定した CI 対応の終了コード + JSON          |      ✅       |    ❌    |   ❌    |     ⚠️ 手動      |
+| ワンコマンドの完全スイープ（`doctor`）       |      ✅       |    ❌    |   ❌    |        ❌        |
+| 型付き API レスポンス                        |      ✅       |    ✅    |   ❌    |  ⚠️ 場合による   |
 
-fresh-squeezy は公式 SDK の **代替ではありません** — それと *並行して* 実行するプリフライトチェックです。API 呼び出しには SDK を使い、それらの呼び出しが本番に届く前にセットアップが正しいことを証明するには fresh-squeezy を使ってください。
+fresh-squeezy は公式 SDK の **代替ではありません** — それと _並行して_ 実行するプリフライトチェックです。API 呼び出しには SDK を使い、それらの呼び出しが本番に届く前にセットアップが正しいことを証明するには fresh-squeezy を使ってください。
 
 ## CLI
 
@@ -120,7 +120,7 @@ import { createFreshSqueezy } from "fresh-squeezy";
 const lemon = createFreshSqueezy(); // reads LEMON_SQUEEZY_API_KEY, LEMON_SQUEEZY_MODE
 
 const report = await lemon.doctor({
-  storeId: 12,                      // library is single-store per call
+  storeId: 12, // library is single-store per call
   productId: 987,
   webhookUrl: "https://app.example.com/api/webhooks/lemon-squeezy",
 });
@@ -151,18 +151,18 @@ const user = await lemon.request({ path: "/v1/users/me" });
 
 インポートの対応表:
 
-| Before (`from "fresh-squeezy"`) | Now |
-| --- | --- |
-| `createFreshSqueezy`, `FreshSqueezyClient`, `FreshSqueezyOps` | `fresh-squeezy` |
-| `FreshSqueezyError` | `fresh-squeezy/errors` |
-| config helpers | `fresh-squeezy/config` |
-| `ValidationResult`, `DoctorReport`, shared types | `fresh-squeezy/types` |
-| `Generated*` Lemon Squeezy types | `fresh-squeezy/api-types` |
-| resource attribute interfaces | `fresh-squeezy/resources/attributes` |
-| resource registry (`invokeOp`, ...) | `fresh-squeezy/resources/registry` |
-| validators | `fresh-squeezy/validate/connection`, `discount`, `doctor`, `license-key`, `product`, `issues`, `store`, `subscription-plan`, `webhook` |
-| webhook policy, supported resources | `fresh-squeezy/manifest` |
-| `Latest*` helpers | `fresh-squeezy/augmentations` |
+| Before (`from "fresh-squeezy"`)                               | Now                                                                                                                                    |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `createFreshSqueezy`, `FreshSqueezyClient`, `FreshSqueezyOps` | `fresh-squeezy`                                                                                                                        |
+| `FreshSqueezyError`                                           | `fresh-squeezy/errors`                                                                                                                 |
+| config helpers                                                | `fresh-squeezy/config`                                                                                                                 |
+| `ValidationResult`, `DoctorReport`, shared types              | `fresh-squeezy/types`                                                                                                                  |
+| `Generated*` Lemon Squeezy types                              | `fresh-squeezy/api-types`                                                                                                              |
+| resource attribute interfaces                                 | `fresh-squeezy/resources/attributes`                                                                                                   |
+| resource registry (`invokeOp`, ...)                           | `fresh-squeezy/resources/registry`                                                                                                     |
+| validators                                                    | `fresh-squeezy/validate/connection`, `discount`, `doctor`, `license-key`, `product`, `issues`, `store`, `subscription-plan`, `webhook` |
+| webhook policy, supported resources                           | `fresh-squeezy/manifest`                                                                                                               |
+| `Latest*` helpers                                             | `fresh-squeezy/augmentations`                                                                                                          |
 
 インポートとエラー判定:
 
@@ -185,7 +185,7 @@ Lemon Squeezy は両方のモードを同じ API ホストから提供します�
 ```ts
 const lemon = createFreshSqueezy({ mode: "test" });
 const result = await lemon.validateConnection();
-result.mode;                 // "test" (declared)
+result.mode; // "test" (declared)
 result.resource?.actualMode; // "live" — alarm bell
 ```
 
@@ -193,10 +193,10 @@ CLI のデフォルトは `--mode test` です。`--mode live` で上書きで�
 
 ## 環境変数
 
-| 変数 | 必須 | 目的 |
-|----------|----------|---------|
-| `LEMON_SQUEEZY_API_KEY` | はい | Bearer トークン（ライブラリ + CLI） |
-| `LEMON_SQUEEZY_MODE` | いいえ | `test`（デフォルト）または `live` |
+| 変数                     | 必須   | 目的                                                    |
+| ------------------------ | ------ | ------------------------------------------------------- |
+| `LEMON_SQUEEZY_API_KEY`  | はい   | Bearer トークン（ライブラリ + CLI）                     |
+| `LEMON_SQUEEZY_MODE`     | いいえ | `test`（デフォルト）または `live`                       |
 | `LEMON_SQUEEZY_STORE_ID` | いいえ | `client.doctor()` の便宜的なデフォルト — ライブラリのみ |
 
 CLI は `LEMON_SQUEEZY_STORE_ID` を読み取りません。ストア選択がコマンドごとに明示的なままになるよう、`--store-ids` または `--all-stores` を使用してください。
@@ -205,13 +205,13 @@ CLI は `LEMON_SQUEEZY_STORE_ID` を読み取りません。ストア選択が�
 
 CI では `issue.code` で分岐してください — すべてのコードはマイナーバージョン間で安定しています。最も一般的なもの:
 
-| コード | 意味 |
-|------|---------|
-| `AUTH_FAILED` | API キーが無効または欠落 |
-| `MODE_MISMATCH` | 宣言されたモードがキーの `meta.test_mode` と一致しない |
-| `STORE_NOT_FOUND` / `STORE_NOT_OWNED` | ストア ID が無効、または別のアカウントが所有 |
-| `PRODUCT_UNPUBLISHED` / `PRODUCT_WRONG_STORE` / `PRODUCT_NO_BUY_URL` | 製品がチェックアウトを受け付けられない |
-| `WEBHOOK_NOT_FOUND` / `WEBHOOK_EVENTS_MISSING` | Webhook URL が未登録、または購読が不足 |
+| コード                                                               | 意味                                                   |
+| -------------------------------------------------------------------- | ------------------------------------------------------ |
+| `AUTH_FAILED`                                                        | API キーが無効または欠落                               |
+| `MODE_MISMATCH`                                                      | 宣言されたモードがキーの `meta.test_mode` と一致しない |
+| `STORE_NOT_FOUND` / `STORE_NOT_OWNED`                                | ストア ID が無効、または別のアカウントが所有           |
+| `PRODUCT_UNPUBLISHED` / `PRODUCT_WRONG_STORE` / `PRODUCT_NO_BUY_URL` | 製品がチェックアウトを受け付けられない                 |
+| `WEBHOOK_NOT_FOUND` / `WEBHOOK_EVENTS_MISSING`                       | Webhook URL が未登録、または購読が不足                 |
 
 ## リファレンス
 
@@ -249,7 +249,7 @@ pnpm check:api-types
 
 ### fresh-squeezy は公式 Lemon Squeezy SDK の代替ですか？
 
-いいえ。[公式 SDK](https://github.com/lmsqueezy/lemonsqueezy.js) は API 呼び出しを行います。fresh-squeezy は、それらの呼び出しが本番に届く *前に* セットアップが正しいことを証明するプリフライトチェックです。両者は補完的です — [比較表](#fresh-squeezy-と代替手段の比較) を参照してください。
+いいえ。[公式 SDK](https://github.com/lmsqueezy/lemonsqueezy.js) は API 呼び出しを行います。fresh-squeezy は、それらの呼び出しが本番に届く _前に_ セットアップが正しいことを証明するプリフライトチェックです。両者は補完的です — [比較表](#fresh-squeezy-と代替手段の比較) を参照してください。
 
 ### 「チェンジログドリフト」とは何で、なぜ気にすべきですか？
 

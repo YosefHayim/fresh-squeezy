@@ -38,7 +38,7 @@ These are held as firmly as the goals:
 4. **Mode-awareness everywhere.** Every validator surfaces `mode`; live writes and
    destructive ops require `--yes` or TTY confirm.
 5. **Static support / ops registry + drift snapshot.** No live changelog scraping in
-   runtime code. CI scrape may *propose* matrix gaps; only registered exports ship.
+   runtime code. CI scrape may _propose_ matrix gaps; only registered exports ship.
 
 ## Success criteria
 

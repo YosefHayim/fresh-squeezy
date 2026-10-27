@@ -4,7 +4,7 @@ inputs:
   node-version:
     description: Node.js major version.
     required: false
-    default: '20'
+    default: "20"
 runs:
   using: composite
   steps:

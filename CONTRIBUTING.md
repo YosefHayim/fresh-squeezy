@@ -77,6 +77,7 @@ When the weekly `changelog-drift` workflow opens an issue:
    - **Skip:** Purely cosmetic or irrelevant changes (typo fixes, branding).
 3. **If codifying or acknowledging:** add a row to `ACKNOWLEDGED_CHANGELOG_ENTRIES` in `src/support/manifest.ts` with the entry's date, a one-line summary, and the action taken (e.g. which validator handles it, or why it's intentionally unwrapped). If codifying, also wire the actual check in `src/validate/`.
 4. **Refresh the snapshot** so future runs start from the new baseline:
+
    ```
    pnpm check:changelog -- --update
    ```
@@ -93,7 +94,7 @@ The drift workflow is advisory — it never modifies code automatically. The sna
 
 ## Commit style
 
-Short, imperative subject, optional scope, optional body with the *why*. Examples:
+Short, imperative subject, optional scope, optional body with the _why_. Examples:
 
 ```
 fix(webhook): normalize trailing slashes when matching URLs
