@@ -315,18 +315,33 @@ Connection/auth, stores, products (and variants), webhooks, discounts, license k
 
 ```
 src/createFreshSqueezy.ts   the client (package root export; no barrel): validators, doctor(), lemon.<resource>.<verb>()
-src/core/                   HttpClient (the only fetch), config, FreshSqueezyError, shared types
+src/http/                   HttpClient (the only fetch)
+src/errors/, src/config/    FreshSqueezyError, config resolution
+src/contracts/              shared public types
 src/resources/              registry.ts (one table of docs-backed ops + invokeOp), attributes.ts
 src/validate/               one file per validator, doctor composition, issues, probe
 src/cli/                    main.ts (commander), render, prompts, commands/ (one file per command)
 src/generated/              docs-generated Lemon Squeezy attribute types
 src/support/, src/scripts/  webhook policy + drift snapshot, CI scripts
-tests/                      fixtures, helpers, opt-in live smoke
+e2e/                        end-to-end tests, fixtures, helpers, opt-in live smoke
 ```
 
 ## Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md). Clone, `pnpm install`, `pnpm test`. The project aims to stay small and boring — doctor + docs-backed ops, one HTTP layer, stable `issue.code` contract. Style: const arrows only, pure `export *` barrels — see [CODE-STYLE.md](./CODE-STYLE.md).
+Requirements: Node.js 20+ and pnpm 10 (no npm, yarn or bun lockfiles).
+
+```bash
+git clone https://github.com/YosefHayim/fresh-squeezy.git
+cd fresh-squeezy
+pnpm install
+pnpm test
+```
+
+The project aims to stay small and boring: doctor + docs-backed ops, one HTTP layer, stable `issue.code` contract. Read [PROJECT.md](./PROJECT.md) for the goals and non-goals, [AGENTS.md](./AGENTS.md) for the commands and rules, and [CONTEXT.md](./CONTEXT.md) for recipes.
+
+### Filing issues
+
+Include the `fresh-squeezy` version, the Node version, the mode (`test` or `live`), a minimal reproduction (a 5-line script is best) and the full `ValidationResult` or `DoctorReport` JSON with `apiKey` redacted.
 
 ## Contributors
 

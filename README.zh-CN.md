@@ -265,7 +265,7 @@ Lemon Squeezy 发布 API 变更（新事件、新字段、新资源）的速度�
 
 ## 贡献
 
-参见 [CONTRIBUTING.md](./CONTRIBUTING.md)。克隆仓库，运行 `pnpm install`、`pnpm test`。本项目力求保持小巧而朴素 —— 验证优先、单一 HTTP 层、稳定的 `issue.code` 契约。
+参见 [README.md](./README.md#contributing)。克隆仓库，运行 `pnpm install`、`pnpm test`。本项目力求保持小巧而朴素 —— 验证优先、单一 HTTP 层、稳定的 `issue.code` 契约。
 
 ## 贡献者
 

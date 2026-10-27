@@ -265,7 +265,7 @@ Conexión/autenticación, tiendas, productos (y variantes), webhooks, descuentos
 
 ## Contribuir
 
-Consulta [CONTRIBUTING.md](./CONTRIBUTING.md). Clona, `pnpm install`, `pnpm test`. El proyecto busca mantenerse pequeño y aburrido — con enfoque en validación, una sola capa HTTP y un contrato `issue.code` estable.
+Consulta [README.md](./README.md#contributing). Clona, `pnpm install`, `pnpm test`. El proyecto busca mantenerse pequeño y aburrido — con enfoque en validación, una sola capa HTTP y un contrato `issue.code` estable.
 
 ## Colaboradores
 

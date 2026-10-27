@@ -265,7 +265,7 @@ Lemon Squeezy は、クライアント SDK が採用するよりも速く API �
 
 ## コントリビューション
 
-[CONTRIBUTING.md](./CONTRIBUTING.md) を参照してください。クローンし、`pnpm install`、`pnpm test` を実行します。本プロジェクトは小さく退屈であり続けることを目指しています — バリデーター優先、単一の HTTP レイヤー、安定した `issue.code` 契約。
+[README.md](./README.md#contributing) を参照してください。クローンし、`pnpm install`、`pnpm test` を実行します。本プロジェクトは小さく退屈であり続けることを目指しています — バリデーター優先、単一の HTTP レイヤー、安定した `issue.code` 契約。
 
 ## コントリビューター
 
