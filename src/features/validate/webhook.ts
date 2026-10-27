@@ -16,13 +16,14 @@ export interface WebhookCheck {
 }
 
 interface WebhookEventGaps {
-	missingRecommended: string[];
+	missingOrder: string[];
+	missingSubscription: string[];
 	missingOptional: string[];
 }
 
-const RECOMMENDED_WEBHOOK_EVENTS = [
-	"order_created",
-	"order_refunded",
+const ORDER_WEBHOOK_EVENTS = ["order_created", "order_refunded"] as const;
+
+const SUBSCRIPTION_WEBHOOK_EVENTS = [
 	"subscription_created",
 	"subscription_updated",
 	"subscription_cancelled",
@@ -48,28 +49,43 @@ const eventGapsOf = (webhook: WebhookAttributes): WebhookEventGaps => {
 	const subscribed = new Set(webhook.events);
 	const isUnsubscribed = (event: string) => !subscribed.has(event);
 	return {
-		missingRecommended: RECOMMENDED_WEBHOOK_EVENTS.filter(isUnsubscribed),
+		missingOrder: ORDER_WEBHOOK_EVENTS.filter(isUnsubscribed),
+		missingSubscription: SUBSCRIPTION_WEBHOOK_EVENTS.filter(isUnsubscribed),
 		missingOptional: OPTIONAL_WEBHOOK_EVENTS.filter(isUnsubscribed),
 	};
 };
 
-const isMissingRecommended = ({ missingRecommended }: WebhookEventGaps) =>
-	missingRecommended.length > 0;
+const isMissingOrder = ({ missingOrder }: WebhookEventGaps) =>
+	missingOrder.length > 0;
+
+const isMissingSubscription = ({ missingSubscription }: WebhookEventGaps) =>
+	missingSubscription.length > 0;
 
 const isMissingOptional = ({ missingOptional }: WebhookEventGaps) =>
 	missingOptional.length > 0;
 
+// A warning, not an error: a webhook may serve only one-time products, and the store does not say which.
 const WEBHOOK_RULES: FindingRule<WebhookEventGaps>[] = [
 	{
 		code: FINDING_CODES.WEBHOOK_EVENTS_MISSING,
 		severity: "error",
-		when: isMissingRecommended,
-		message: ({ missingRecommended }) =>
-			`Webhook is missing recommended events: ${missingRecommended.join(", ")}.`,
+		when: isMissingOrder,
+		message: ({ missingOrder }) =>
+			`Webhook is missing order events: ${missingOrder.join(", ")}.`,
 		suggestedFix:
-			"Subscribe to all recommended events so the integration survives plan changes and refunds.",
-		context: ({ missingRecommended }) => ({
-			missing: missingRecommended.join(","),
+			"Subscribe to order_created and order_refunded so every purchase and refund reaches your app.",
+		context: ({ missingOrder }) => ({ missing: missingOrder.join(",") }),
+	},
+	{
+		code: FINDING_CODES.WEBHOOK_SUBSCRIPTION_EVENTS_MISSING,
+		severity: "warning",
+		when: isMissingSubscription,
+		message: ({ missingSubscription }) =>
+			`Webhook is missing subscription events: ${missingSubscription.join(", ")}.`,
+		suggestedFix:
+			"If this endpoint handles subscriptions, subscribe to these events so plan changes and failed payments reach your app.",
+		context: ({ missingSubscription }) => ({
+			missing: missingSubscription.join(","),
 		}),
 	},
 	{
@@ -117,7 +133,7 @@ export const validateWebhook = async (
 					severity: "error",
 					message: `No webhook registered for URL ${url} on store ${storeId}.`,
 					suggestedFix:
-						"Register the webhook in Lemon Squeezy (Settings → Webhooks) and subscribe to the recommended events.",
+						"Register the webhook in Lemon Squeezy (Settings → Webhooks) and subscribe to the order events, plus the subscription events if it handles subscriptions.",
 					context: { storeId, url },
 				},
 			],

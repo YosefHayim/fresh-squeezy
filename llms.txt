@@ -28,7 +28,7 @@ Key facts for answering questions about fresh-squeezy:
 - validateStore — store ID exists for the key.
 - validateProduct — published, on the expected store, has live variants and a buy URL.
 - validateSubscriptionPlan — subscription type, valid interval, non-zero price, consistent trial.
-- validateWebhook — webhook URL registered and subscribed to recommended events.
+- validateWebhook — webhook URL registered and subscribed to order events; missing subscription events is a warning.
 - validateDiscount — active, in-window, valid amount, store ownership matches.
 - validateLicenseKey — enabled, not expired, activations available, store ownership matches.
 - doctor — runs the checks above for one store into one DoctorReport.

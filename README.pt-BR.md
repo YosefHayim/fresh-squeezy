@@ -334,16 +334,16 @@ gh workflow enable lemon-squeezy-changelog
 
 Ramifique por `finding.code` no CI. Os códigos são estáveis entre versões menores.
 
-| Código                                                               | Significado                                                   |
-| -------------------------------------------------------------------- | ------------------------------------------------------------- |
-| `AUTH_FAILED`                                                        | Chave de API inválida ou ausente                              |
-| `MODE_MISMATCH`                                                      | O modo declarado não bate com o `meta.test_mode` da chave     |
-| `STORE_NOT_FOUND`                                                    | ID de loja não encontrado para esta chave                     |
-| `PRODUCT_UNPUBLISHED` / `PRODUCT_WRONG_STORE` / `PRODUCT_NO_BUY_URL` | O produto não consegue receber um checkout                    |
-| `PLAN_INVALID_INTERVAL` / `PLAN_FREE_PRICE`                          | O plano de assinatura tem intervalo inválido ou não tem preço |
-| `WEBHOOK_NOT_FOUND` / `WEBHOOK_EVENTS_MISSING`                       | A URL do webhook não está registrada ou faltam eventos        |
-| `DISCOUNT_EXPIRED` / `DISCOUNT_REDEMPTIONS_EXHAUSTED`                | O desconto não pode ser usado                                 |
-| `LICENSE_KEY_DISABLED` / `LICENSE_KEY_EXPIRED`                       | A chave de licença não pode ser ativada                       |
+| Código                                                               | Significado                                                      |
+| -------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `AUTH_FAILED`                                                        | Chave de API inválida ou ausente                                 |
+| `MODE_MISMATCH`                                                      | O modo declarado não bate com o `meta.test_mode` da chave        |
+| `STORE_NOT_FOUND`                                                    | ID de loja não encontrado para esta chave                        |
+| `PRODUCT_UNPUBLISHED` / `PRODUCT_WRONG_STORE` / `PRODUCT_NO_BUY_URL` | O produto não consegue receber um checkout                       |
+| `PLAN_INVALID_INTERVAL` / `PLAN_FREE_PRICE`                          | O plano de assinatura tem intervalo inválido ou não tem preço    |
+| `WEBHOOK_NOT_FOUND` / `WEBHOOK_EVENTS_MISSING`                       | A URL do webhook não está registrada ou faltam eventos de pedido |
+| `DISCOUNT_EXPIRED` / `DISCOUNT_REDEMPTIONS_EXHAUSTED`                | O desconto não pode ser usado                                    |
+| `LICENSE_KEY_DISABLED` / `LICENSE_KEY_EXPIRED`                       | A chave de licença não pode ser ativada                          |
 
 A lista completa é `FINDING_CODES` em `fresh-squeezy/findings`.
 
