@@ -21,7 +21,6 @@ export interface StoreAttributes {
 	url?: string | null;
 	avatar_url?: string | null;
 	country?: string | null;
-	country_nicename?: string | null;
 	currency?: string | null;
 	plan?: string | null;
 	total_sales?: number | null;
