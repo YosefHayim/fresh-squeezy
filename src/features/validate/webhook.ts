@@ -1,29 +1,69 @@
 import type { WebhookAttributes } from "@/shared/attributes.js";
-import type {
-	Mode,
-	ValidationIssue,
-	ValidationResult,
-} from "@/shared/contracts.js";
+import type { Mode, ResourceId, ValidationResult } from "@/shared/contracts.js";
 import type { HttpClient } from "@/shared/http.js";
 import {
 	OPTIONAL_WEBHOOK_EVENTS,
 	RECOMMENDED_WEBHOOK_EVENTS,
 } from "@/shared/support-manifest.js";
-import { buildResult, ISSUE_CODES, issue } from "./issues.js";
+import {
+	buildResult,
+	failedResult,
+	ISSUE_CODES,
+	type IssueRule,
+	issue,
+	issuesOf,
+} from "./issues.js";
 import { probeCollection } from "./probe.js";
 
 export interface WebhookValidationOptions {
-	storeId: string | number;
+	storeId: ResourceId;
 	url: string;
 }
-
-export const sameWebhookUrl = (a: string, b: string): boolean => {
-	return normalizeWebhookUrl(a) === normalizeWebhookUrl(b);
-};
 
 const normalizeWebhookUrl = (raw: string): string => {
 	return raw.replace(/\/+$/, "").toLowerCase();
 };
+
+const sameWebhookUrl = (a: string, b: string): boolean => {
+	return normalizeWebhookUrl(a) === normalizeWebhookUrl(b);
+};
+
+interface WebhookEventGaps {
+	missingRecommended: string[];
+	missingOptional: string[];
+}
+
+const eventGapsOf = (attributes: WebhookAttributes): WebhookEventGaps => {
+	const subscribed = new Set(attributes.events);
+	const isUnsubscribed = (event: string) => !subscribed.has(event);
+	return {
+		missingRecommended: RECOMMENDED_WEBHOOK_EVENTS.filter(isUnsubscribed),
+		missingOptional: OPTIONAL_WEBHOOK_EVENTS.filter(isUnsubscribed),
+	};
+};
+
+const webhookIssueRules: IssueRule<WebhookEventGaps>[] = [
+	{
+		code: ISSUE_CODES.WEBHOOK_EVENTS_MISSING,
+		severity: "error",
+		isRaised: ({ missingRecommended }) => missingRecommended.length > 0,
+		message: ({ missingRecommended }) =>
+			`Webhook is missing recommended events: ${missingRecommended.join(", ")}.`,
+		suggestedFix:
+			"Subscribe to all recommended events so the integration survives plan changes and refunds.",
+		context: ({ missingRecommended }) => ({
+			missing: missingRecommended.join(","),
+		}),
+	},
+	{
+		code: ISSUE_CODES.WEBHOOK_OPTIONAL_EVENTS,
+		severity: "info",
+		isRaised: ({ missingOptional }) => missingOptional.length > 0,
+		message: ({ missingOptional }) =>
+			`Optional events not subscribed: ${missingOptional.join(", ")}.`,
+		context: ({ missingOptional }) => ({ missing: missingOptional.join(",") }),
+	},
+];
 
 export const validateWebhook = async (
 	http: HttpClient,
@@ -39,13 +79,7 @@ export const validateWebhook = async (
 	);
 	const isFetchFailed = !fetched.ok;
 	if (isFetchFailed) {
-		return buildResult<WebhookAttributes>(
-			"webhook",
-			mode,
-			[fetched.issue],
-			undefined,
-			target,
-		);
+		return failedResult("webhook", mode, fetched.issue, target);
 	}
 
 	const match = fetched.resource.find((webhook) =>
@@ -63,50 +97,11 @@ export const validateWebhook = async (
 				context: { storeId: String(options.storeId), url: options.url },
 			},
 		);
-		return buildResult<WebhookAttributes>(
-			"webhook",
-			mode,
-			[notFoundIssue],
-			undefined,
-			target,
-		);
+		return failedResult("webhook", mode, notFoundIssue, target);
 	}
 
-	const issues: ValidationIssue[] = [];
-	const subscribed = new Set(match.attributes.events);
-	const missingRecommended = RECOMMENDED_WEBHOOK_EVENTS.filter(
-		(event) => !subscribed.has(event),
-	);
-	const missingOptional = OPTIONAL_WEBHOOK_EVENTS.filter(
-		(event) => !subscribed.has(event),
-	);
-
-	const isAnyRecommendedEventMissing = missingRecommended.length > 0;
-	if (isAnyRecommendedEventMissing) {
-		const missingEventsIssue = issue(
-			ISSUE_CODES.WEBHOOK_EVENTS_MISSING,
-			"error",
-			`Webhook is missing recommended events: ${missingRecommended.join(", ")}.`,
-			{
-				suggestedFix:
-					"Subscribe to all recommended events so the integration survives plan changes and refunds.",
-				context: { missing: missingRecommended.join(",") },
-			},
-		);
-		issues.push(missingEventsIssue);
-	}
-
-	const isAnyOptionalEventMissing = missingOptional.length > 0;
-	if (isAnyOptionalEventMissing) {
-		const optionalEventsIssue = issue(
-			ISSUE_CODES.WEBHOOK_OPTIONAL_EVENTS,
-			"info",
-			`Optional events not subscribed: ${missingOptional.join(", ")}.`,
-			{ context: { missing: missingOptional.join(",") } },
-		);
-		issues.push(optionalEventsIssue);
-	}
-
+	const eventGaps = eventGapsOf(match.attributes);
+	const issues = issuesOf(webhookIssueRules, eventGaps);
 	return buildResult("webhook", mode, issues, match.attributes, {
 		label: match.attributes.url,
 		id: match.id,

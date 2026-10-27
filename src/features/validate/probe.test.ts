@@ -4,8 +4,8 @@ import { checkStoreOwnership, mapErrorToIssue, probeFetch } from "./probe.js";
 
 test("probeFetch returns the resource on success", async () => {
 	const probeOutcome = await probeFetch(async () => ({ id: 1 }), {
-		notFoundCode: "PRODUCT_NOT_FOUND",
-		notFoundMessage: "Product not found.",
+		code: "PRODUCT_NOT_FOUND",
+		message: "Product not found.",
 	});
 	expect(probeOutcome).toEqual({ ok: true, resource: { id: 1 } });
 });
@@ -20,10 +20,10 @@ test("probeFetch maps a 404 to the caller-supplied notFoundCode", async () => {
 			});
 		},
 		{
-			notFoundCode: "PRODUCT_NOT_FOUND",
-			notFoundMessage: "Product 99 not found.",
-			notFoundFix: "Verify the ID.",
-			notFoundContext: { productId: "99" },
+			code: "PRODUCT_NOT_FOUND",
+			message: "Product 99 not found.",
+			suggestedFix: "Verify the ID.",
+			context: { productId: "99" },
 		},
 	);
 	expect(probeOutcome.ok).toBe(false);
@@ -39,7 +39,7 @@ test("probeFetch maps a NETWORK_ERROR to ISSUE_CODES.NETWORK_ERROR", async () =>
 		async () => {
 			throw freshSqueezyErrorOf({ code: "NETWORK_ERROR", message: "boom" });
 		},
-		{ notFoundCode: "X_NOT_FOUND", notFoundMessage: "x" },
+		{ code: "X_NOT_FOUND", message: "x" },
 	);
 	expect(probeOutcome.ok).toBe(false);
 	if (probeOutcome.ok) return;
@@ -56,7 +56,7 @@ test("probeFetch maps any other FreshSqueezyError to UNKNOWN with status + code 
 				message: "slow down",
 			});
 		},
-		{ notFoundCode: "X_NOT_FOUND", notFoundMessage: "x" },
+		{ code: "X_NOT_FOUND", message: "x" },
 	);
 	expect(probeOutcome.ok).toBe(false);
 	if (probeOutcome.ok) return;
@@ -72,7 +72,7 @@ test("probeFetch maps non-FreshSqueezyError to UNKNOWN with the error message", 
 		async () => {
 			throw new Error("oops");
 		},
-		{ notFoundCode: "X_NOT_FOUND", notFoundMessage: "x" },
+		{ code: "X_NOT_FOUND", message: "x" },
 	);
 	expect(probeOutcome.ok).toBe(false);
 	if (probeOutcome.ok) return;
@@ -112,7 +112,7 @@ test("checkStoreOwnership returns null when expected matches actual", () => {
 			code: "X_STORE_MISMATCH",
 			label: "X",
 		}),
-	).toBeNull();
+	).toEqual([]);
 });
 
 test("checkStoreOwnership treats numeric and string IDs as equal", () => {
@@ -123,11 +123,11 @@ test("checkStoreOwnership treats numeric and string IDs as equal", () => {
 			code: "X_STORE_MISMATCH",
 			label: "X",
 		}),
-	).toBeNull();
+	).toEqual([]);
 });
 
 test("checkStoreOwnership returns a mismatch issue when IDs differ", () => {
-	const ownershipIssue = checkStoreOwnership({
+	const [ownershipIssue] = checkStoreOwnership({
 		expectedStoreId: "42",
 		actualStoreId: "99",
 		code: "DISCOUNT_STORE_MISMATCH",
@@ -135,7 +135,7 @@ test("checkStoreOwnership returns a mismatch issue when IDs differ", () => {
 		suggestedFix: "Use the correct store.",
 		extraContext: { discountId: "7" },
 	});
-	expect(ownershipIssue).not.toBeNull();
+	expect(ownershipIssue).not.toEqual([]);
 	expect(ownershipIssue?.code).toBe("DISCOUNT_STORE_MISMATCH");
 	expect(ownershipIssue?.severity).toBe("error");
 	expect(ownershipIssue?.message).toBe(

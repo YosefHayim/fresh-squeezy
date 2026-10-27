@@ -7,16 +7,9 @@ import {
 	variantsCollectionEmpty,
 	variantsCollectionPublished,
 } from "@e2e/fixtures/sandbox/data.js";
-import { createMockFetch, pathIs, pathIsWithQuery } from "@e2e/mock-fetch.js";
+import { makeClient, pathIs, pathIsWithQuery } from "@e2e/mock-fetch.js";
 import { expect, test } from "vitest";
-import { resolveConfig } from "@/shared/config.js";
-import { HttpClient } from "@/shared/http.js";
 import { validateProduct } from "./product.js";
-
-const makeClient = (routes: Parameters<typeof createMockFetch>[0]) => {
-	const { fetch } = createMockFetch(routes);
-	return new HttpClient(resolveConfig({ apiKey: "k", fetch }));
-};
 
 test("validateProduct passes a published product with a published variant", async () => {
 	const http = makeClient([

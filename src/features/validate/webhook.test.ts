@@ -3,16 +3,9 @@ import {
 	webhooksCollectionEmpty,
 	webhooksCollectionMissingEvents,
 } from "@e2e/fixtures/sandbox/data.js";
-import { createMockFetch, pathIsWithQuery } from "@e2e/mock-fetch.js";
+import { makeClient, pathIsWithQuery } from "@e2e/mock-fetch.js";
 import { expect, test } from "vitest";
-import { resolveConfig } from "@/shared/config.js";
-import { HttpClient } from "@/shared/http.js";
-import { sameWebhookUrl, validateWebhook } from "./webhook.js";
-
-const makeClient = (routes: Parameters<typeof createMockFetch>[0]) => {
-	const { fetch } = createMockFetch(routes);
-	return new HttpClient(resolveConfig({ apiKey: "k", fetch }));
-};
+import { validateWebhook } from "./webhook.js";
 
 const WEBHOOK_URL = "https://app.example.com/api/webhooks/lemon-squeezy";
 
@@ -91,62 +84,27 @@ test("validateWebhook normalizes trailing slashes when matching URLs", async () 
 	expect(webhookValidation.ok).toBe(true);
 });
 
-test("sameWebhookUrl matches identical URLs", () => {
-	expect(
-		sameWebhookUrl(
-			"https://app.example.com/hooks",
-			"https://app.example.com/hooks",
-		),
-	).toBe(true);
-});
+test.each([
+	["identical URLs", WEBHOOK_URL, true],
+	["trailing slash", `${WEBHOOK_URL}/`, true],
+	["multiple trailing slashes", `${WEBHOOK_URL}///`, true],
+	["different case", WEBHOOK_URL.toUpperCase().replace("/API/", "/api/"), true],
+	["different path", `${WEBHOOK_URL}-other`, false],
+	["different host", WEBHOOK_URL.replace("app.", "other."), false],
+])("validateWebhook url match: %s", async (_label, url, isMatch) => {
+	const http = makeClient([
+		{
+			match: pathIsWithQuery("/v1/webhooks", { "filter[store_id]": "42" }),
+			status: 200,
+			body: webhooksCollectionComplete,
+		},
+	]);
 
-test("sameWebhookUrl ignores trailing slashes", () => {
-	expect(
-		sameWebhookUrl(
-			"https://app.example.com/hooks/",
-			"https://app.example.com/hooks",
-		),
-	).toBe(true);
-	expect(
-		sameWebhookUrl(
-			"https://app.example.com/hooks",
-			"https://app.example.com/hooks/",
-		),
-	).toBe(true);
-});
+	const webhookValidation = await validateWebhook(http, "test", {
+		storeId: 42,
+		url,
+	});
 
-test("sameWebhookUrl collapses multiple trailing slashes", () => {
-	expect(
-		sameWebhookUrl(
-			"https://app.example.com/hooks///",
-			"https://app.example.com/hooks",
-		),
-	).toBe(true);
-});
-
-test("sameWebhookUrl is case-insensitive", () => {
-	expect(
-		sameWebhookUrl(
-			"HTTPS://APP.EXAMPLE.COM/hooks",
-			"https://app.example.com/hooks",
-		),
-	).toBe(true);
-});
-
-test("sameWebhookUrl rejects different paths", () => {
-	expect(
-		sameWebhookUrl(
-			"https://app.example.com/hooks",
-			"https://app.example.com/other",
-		),
-	).toBe(false);
-});
-
-test("sameWebhookUrl rejects different hosts", () => {
-	expect(
-		sameWebhookUrl(
-			"https://app.example.com/hooks",
-			"https://other.example.com/hooks",
-		),
-	).toBe(false);
+	const isNotFound = webhookValidation.issues[0]?.code === "WEBHOOK_NOT_FOUND";
+	expect(isNotFound).toBe(!isMatch);
 });

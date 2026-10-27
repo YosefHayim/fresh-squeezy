@@ -1,6 +1,9 @@
 import { storesCollection, userDoc } from "@e2e/fixtures/sandbox/data.js";
 import { vi } from "vitest";
 
+import { resolveConfig } from "@/shared/config.js";
+import { HttpClient } from "@/shared/http.js";
+
 export interface MockRoute {
 	match: (req: { method: string; url: string }) => boolean;
 	status: number;
@@ -103,3 +106,9 @@ export const stubFetch = (routes: MockRoute[]): MockFetchResult => {
 
 export const silenceStdout = () =>
 	vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+export const makeClient = (routes: MockRoute[]): HttpClient => {
+	const { fetch } = createMockFetch(routes);
+	const config = resolveConfig({ apiKey: "k", fetch });
+	return new HttpClient(config);
+};

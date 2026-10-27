@@ -2,6 +2,8 @@ export type ValidationSeverity = "info" | "warning" | "error";
 
 export type Mode = "test" | "live";
 
+export type ResourceId = string | number;
+
 export interface ValidationIssue {
 	code: string;
 	severity: ValidationSeverity;
@@ -33,7 +35,7 @@ export interface DoctorReport {
 
 export interface FreshSqueezyConfig {
 	apiKey?: string;
-	storeId?: string | number;
+	storeId?: ResourceId;
 	mode?: Mode;
 	baseUrl?: string;
 	fetch?: typeof fetch;

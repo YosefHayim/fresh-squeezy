@@ -311,19 +311,6 @@ export interface SubscriptionItemUpdateAttributes {
 	disable_prorations?: boolean;
 }
 
-export const buildSubscriptionItemUpdateBody = (
-	subscriptionItemId: string | number,
-	attributes: SubscriptionItemUpdateAttributes,
-): unknown => {
-	return {
-		data: {
-			type: "subscription-items",
-			id: String(subscriptionItemId),
-			attributes,
-		},
-	};
-};
-
 export type SubscriptionInvoiceStatus =
 	| "pending"
 	| "paid"
