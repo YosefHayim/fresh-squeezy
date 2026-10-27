@@ -1,22 +1,22 @@
 import { expect, test } from "vitest";
 import {
-	buildResult,
+	buildCheckReport,
 	type Finding,
 	type FindingRule,
-	findingsFrom,
+	raiseFindings,
 } from "./findings.js";
 
-const isNegative = (value: number) => value < 0;
-const isZero = (value: number) => value === 0;
+const isNegative = (amount: number) => amount < 0;
+const isZero = (amount: number) => amount === 0;
 
 const NUMBER_RULES: FindingRule<number>[] = [
 	{
 		code: "UNKNOWN",
 		severity: "error",
 		when: isNegative,
-		message: (value) => `${value} is negative.`,
+		message: (amount) => `${amount} is negative.`,
 		suggestedFix: "Use a positive number.",
-		context: (value) => ({ value }),
+		context: (amount) => ({ amount }),
 	},
 	{ code: "UNKNOWN", severity: "warning", when: isZero, message: "Zero." },
 ];
@@ -32,28 +32,28 @@ const WARNING_FINDING: Finding = {
 	message: "meh",
 };
 
-test("findingsFrom returns only the rules that apply, with computed text", () => {
-	const findings = findingsFrom(NUMBER_RULES, -3);
+test("raiseFindings returns only the rules that apply, with computed text", () => {
+	const findings = raiseFindings(NUMBER_RULES, -3);
 
 	expect(findings).toHaveLength(1);
 	expect(findings[0]?.message).toBe("-3 is negative.");
 	expect(findings[0]?.suggestedFix).toBe("Use a positive number.");
-	expect(findings[0]?.context).toEqual({ value: -3 });
+	expect(findings[0]?.context).toEqual({ amount: -3 });
 });
 
-test("findingsFrom keeps plain text and leaves the fix empty when the rule has none", () => {
-	const [finding] = findingsFrom(NUMBER_RULES, 0);
+test("raiseFindings keeps plain text and leaves the fix empty when the rule has none", () => {
+	const [finding] = raiseFindings(NUMBER_RULES, 0);
 
 	expect(finding?.message).toBe("Zero.");
 	expect(finding?.suggestedFix).toBeUndefined();
 });
 
-test("findingsFrom returns nothing when no rule applies", () => {
-	expect(findingsFrom(NUMBER_RULES, 5)).toEqual([]);
+test("raiseFindings returns nothing when no rule applies", () => {
+	expect(raiseFindings(NUMBER_RULES, 5)).toEqual([]);
 });
 
-test("buildResult is ok with warnings only", () => {
-	const validation = buildResult({
+test("buildCheckReport is ok with warnings only", () => {
+	const validation = buildCheckReport({
 		name: "store",
 		mode: "test",
 		findings: [WARNING_FINDING],
@@ -62,8 +62,8 @@ test("buildResult is ok with warnings only", () => {
 	expect(validation.ok).toBe(true);
 });
 
-test("buildResult is not ok with an error finding", () => {
-	const validation = buildResult({
+test("buildCheckReport is not ok with an error finding", () => {
+	const validation = buildCheckReport({
 		name: "store",
 		mode: "live",
 		findings: [WARNING_FINDING, ERROR_FINDING],

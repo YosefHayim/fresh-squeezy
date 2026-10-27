@@ -12,7 +12,7 @@ export interface FreshSqueezyErrorFields {
 	detail?: unknown;
 }
 
-export const freshSqueezyErrorOf = (
+export const buildFreshSqueezyError = (
 	fields: FreshSqueezyErrorFields,
 ): FreshSqueezyError => {
 	const { code, message, status, detail } = fields;

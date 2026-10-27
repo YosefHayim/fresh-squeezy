@@ -1,18 +1,18 @@
 import { expect, test, vi } from "vitest";
 import { isFreshSqueezyError } from "@/client/errors.js";
-import { ENV_KEYS, readConfig } from "./config.js";
+import { readConfig } from "./config.js";
 
 test("readConfig uses explicit argument over env vars", () => {
-	vi.stubEnv(ENV_KEYS.apiKey.live, "from-env");
+	vi.stubEnv("LEMON_SQUEEZY_LIVE_API_KEY", "from-env");
 	const config = readConfig({ apiKey: "from-arg", mode: "live" });
 	expect(config.apiKey).toBe("from-arg");
 	expect(config.mode).toBe("live");
 });
 
 test("readConfig falls back to env vars when no argument passed", () => {
-	vi.stubEnv(ENV_KEYS.apiKey.live, "from-env");
-	vi.stubEnv(ENV_KEYS.mode, "live");
-	vi.stubEnv(ENV_KEYS.storeId, "42");
+	vi.stubEnv("LEMON_SQUEEZY_LIVE_API_KEY", "from-env");
+	vi.stubEnv("LEMON_SQUEEZY_MODE", "live");
+	vi.stubEnv("LEMON_SQUEEZY_STORE_ID", "42");
 	const config = readConfig();
 	expect(config.apiKey).toBe("from-env");
 	expect(config.mode).toBe("live");
@@ -20,25 +20,25 @@ test("readConfig falls back to env vars when no argument passed", () => {
 });
 
 test("readConfig defaults mode to test when nothing is set", () => {
-	vi.stubEnv(ENV_KEYS.apiKey.test, "k");
-	vi.stubEnv(ENV_KEYS.mode, undefined);
+	vi.stubEnv("LEMON_SQUEEZY_TEST_API_KEY", "k");
+	vi.stubEnv("LEMON_SQUEEZY_MODE", undefined);
 	expect(readConfig().mode).toBe("test");
 });
 
 test("readConfig reads the API key of the chosen mode", () => {
-	vi.stubEnv(ENV_KEYS.apiKey.test, "test-key");
-	vi.stubEnv(ENV_KEYS.apiKey.live, "live-key");
+	vi.stubEnv("LEMON_SQUEEZY_TEST_API_KEY", "test-key");
+	vi.stubEnv("LEMON_SQUEEZY_LIVE_API_KEY", "live-key");
 	expect(readConfig({ mode: "test" }).apiKey).toBe("test-key");
 	expect(readConfig({ mode: "live" }).apiKey).toBe("live-key");
 });
 
 test("readConfig throws MISSING_API_KEY naming the key of the chosen mode", () => {
-	vi.stubEnv(ENV_KEYS.apiKey.test, "test-key");
-	vi.stubEnv(ENV_KEYS.apiKey.live, undefined);
+	vi.stubEnv("LEMON_SQUEEZY_TEST_API_KEY", "test-key");
+	vi.stubEnv("LEMON_SQUEEZY_LIVE_API_KEY", undefined);
 	expect(() => readConfig({ mode: "live" })).toThrowError(
 		expect.objectContaining({
 			code: "MISSING_API_KEY",
-			message: expect.stringContaining(ENV_KEYS.apiKey.live),
+			message: expect.stringContaining("LEMON_SQUEEZY_LIVE_API_KEY"),
 		}),
 	);
 });

@@ -1,10 +1,7 @@
-import {
-	NOT_FOUND_ERROR,
-	UNAUTHORIZED_ERROR,
-} from "@e2e/sandbox-store.js";
 import { makeHttp, route } from "@e2e/mock-fetch.js";
+import { NOT_FOUND_ERROR, UNAUTHORIZED_ERROR } from "@e2e/sandbox-store.js";
 import { expect, test } from "vitest";
-import { freshSqueezyErrorOf } from "@/client/errors.js";
+import { buildFreshSqueezyError } from "@/client/errors.js";
 import { validateConnection } from "./connection.js";
 import { validateDiscount } from "./discount.js";
 import {
@@ -25,29 +22,29 @@ const NOT_FOUND: NotFoundFinding = {
 	message: "x not found.",
 };
 
-const failureOf = async (thrown: unknown, notFound?: NotFoundFinding) => {
-	const fetched = await fetchSafely(async () => {
+const findFailure = async (thrown: unknown, notFound?: NotFoundFinding) => {
+	const lookup = await fetchSafely(async () => {
 		throw thrown;
 	}, notFound);
-	const isFound = fetched.kind === "found";
+	const isFound = lookup.kind === "found";
 	if (isFound) throw new Error("expected a failed fetch");
-	return fetched.finding;
+	return lookup.finding;
 };
 
-test("fetchSafely returns the payload on success", async () => {
-	const fetched = await fetchSafely(async () => ({ id: 1 }));
+test("fetchSafely returns the resource on success", async () => {
+	const lookup = await fetchSafely(async () => ({ id: 1 }));
 
-	expect(fetched).toEqual({ kind: "found", payload: { id: 1 } });
+	expect(lookup).toEqual({ kind: "found", resource: { id: 1 } });
 });
 
 test("fetchSafely maps a 404 to the caller-supplied not-found finding", async () => {
-	const missing = freshSqueezyErrorOf({
+	const missing = buildFreshSqueezyError({
 		code: "NOT_FOUND",
 		status: 404,
 		message: "missing",
 	});
 
-	const finding = await failureOf(missing, {
+	const finding = await findFailure(missing, {
 		...NOT_FOUND,
 		suggestedFix: "Verify the ID.",
 		context: { productId: "99" },
@@ -60,25 +57,25 @@ test("fetchSafely maps a 404 to the caller-supplied not-found finding", async ()
 });
 
 test("fetchSafely maps a 404 to UNKNOWN when no not-found finding is given", async () => {
-	const missing = freshSqueezyErrorOf({
+	const missing = buildFreshSqueezyError({
 		code: "NOT_FOUND",
 		status: 404,
 		message: "missing",
 	});
 
-	const finding = await failureOf(missing);
+	const finding = await findFailure(missing);
 
 	expect(finding.code).toBe("UNKNOWN");
 });
 
 test("fetchSafely maps a 401 to AUTH_FAILED with the settings link", async () => {
-	const rejected = freshSqueezyErrorOf({
+	const rejected = buildFreshSqueezyError({
 		code: "UNAUTHORIZED",
 		status: 401,
 		message: "no",
 	});
 
-	const finding = await failureOf(rejected, NOT_FOUND);
+	const finding = await findFailure(rejected, NOT_FOUND);
 
 	expect(finding.code).toBe("AUTH_FAILED");
 	expect(finding.message).toBe("API key rejected by Lemon Squeezy.");
@@ -89,8 +86,8 @@ test("fetchSafely maps a 401 to AUTH_FAILED with the settings link", async () =>
 });
 
 test("fetchSafely maps NETWORK_ERROR to a network finding", async () => {
-	const finding = await failureOf(
-		freshSqueezyErrorOf({ code: "NETWORK_ERROR", message: "boom" }),
+	const finding = await findFailure(
+		buildFreshSqueezyError({ code: "NETWORK_ERROR", message: "boom" }),
 	);
 
 	expect(finding.code).toBe("NETWORK_ERROR");
@@ -98,8 +95,8 @@ test("fetchSafely maps NETWORK_ERROR to a network finding", async () => {
 });
 
 test("fetchSafely maps other API errors to UNKNOWN with status and code", async () => {
-	const finding = await failureOf(
-		freshSqueezyErrorOf({
+	const finding = await findFailure(
+		buildFreshSqueezyError({
 			code: "RATE_LIMITED",
 			status: 429,
 			message: "slow down",
@@ -111,14 +108,14 @@ test("fetchSafely maps other API errors to UNKNOWN with status and code", async 
 });
 
 test("fetchSafely maps a plain Error to UNKNOWN with its message", async () => {
-	const finding = await failureOf(new Error("oops"));
+	const finding = await findFailure(new Error("oops"));
 
 	expect(finding.code).toBe("UNKNOWN");
 	expect(finding.message).toBe("oops");
 });
 
 test("fetchSafely maps a thrown non-error to UNKNOWN", async () => {
-	const finding = await failureOf("text");
+	const finding = await findFailure("text");
 
 	expect(finding.message).toBe("Unknown error");
 });
@@ -130,23 +127,23 @@ test("fetchResource returns the attributes of the resource", async () => {
 		}),
 	]);
 
-	const fetched = await fetchResource<{ name: string }>(http, {
+	const lookup = await fetchResource<{ name: string }>(http, {
 		path: "/v1/stores/1",
 		notFound: NOT_FOUND,
 	});
 
-	expect(fetched).toEqual({ kind: "found", payload: { name: "S" } });
+	expect(lookup).toEqual({ kind: "found", resource: { name: "S" } });
 });
 
 test("fetchResource uses the not-found finding on a 404", async () => {
 	const http = makeHttp([route("/v1/stores/1", NOT_FOUND_ERROR, 404)]);
 
-	const fetched = await fetchResource(http, {
+	const lookup = await fetchResource(http, {
 		path: "/v1/stores/1",
 		notFound: NOT_FOUND,
 	});
 
-	expect(fetched.kind).toBe("failed");
+	expect(lookup.kind).toBe("failed");
 });
 
 test("fetchCollection returns every resource of the collection", async () => {
@@ -156,9 +153,9 @@ test("fetchCollection returns every resource of the collection", async () => {
 		}),
 	]);
 
-	const fetched = await fetchCollection(http, { path: "/v1/stores" });
+	const lookup = await fetchCollection(http, { path: "/v1/stores" });
 
-	expect(fetched.kind).toBe("found");
+	expect(lookup.kind).toBe("found");
 });
 
 test("storeMismatchFindings is empty when the stores match", () => {
@@ -193,7 +190,9 @@ test("storeMismatchFindings returns one finding when the stores differ", () => {
 });
 
 const rejectedKeyHttp = () =>
-	makeHttp([{ match: () => true, status: 401, body: UNAUTHORIZED_ERROR }]);
+	makeHttp([
+		{ match: () => true, status: 401, replyDocument: UNAUTHORIZED_ERROR },
+	]);
 
 const REJECTED_KEY_CASES = [
 	{

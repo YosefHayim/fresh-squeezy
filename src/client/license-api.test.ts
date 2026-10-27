@@ -9,20 +9,20 @@ import {
 const LICENSE_KEY = "38b1460a-5104-4067-a91d-77b872934d51";
 const INSTANCE_ID = "f90ec370-fd83-46a5-8bbd-44a241e78665";
 
-const ACTIVATED_BODY = { activated: true, error: null };
-const LIMIT_REACHED_BODY = {
+const ACTIVATED_REPLY = { activated: true, error: null };
+const LIMIT_REACHED_REPLY = {
 	activated: false,
 	error: "This license key has reached the activation limit.",
 };
-const NOT_FOUND_BODY = { valid: false, error: "license_key not found." };
+const NOT_FOUND_REPLY = { valid: false, error: "license_key not found." };
 
-const stubFetch = (status: number, responseText: string) => {
-	const fetchStub = vi.fn(async () => new Response(responseText, { status }));
+const stubFetch = (status: number, replyText: string) => {
+	const fetchStub = vi.fn(async () => new Response(replyText, { status }));
 	vi.stubGlobal("fetch", fetchStub);
 	return fetchStub;
 };
 
-const lastRequestOf = (fetchStub: ReturnType<typeof stubFetch>) => {
+const readLastRequest = (fetchStub: ReturnType<typeof stubFetch>) => {
 	const [url, init] = fetchStub.mock.calls[0] as unknown as [URL, RequestInit];
 	const headers = new Headers(init.headers);
 	const form = new URLSearchParams(String(init.body));
@@ -34,14 +34,14 @@ afterEach(() => {
 });
 
 test("activateLicense posts the key and instance name as a form without an API key", async () => {
-	const fetchStub = stubFetch(200, JSON.stringify(ACTIVATED_BODY));
+	const fetchStub = stubFetch(200, JSON.stringify(ACTIVATED_REPLY));
 
 	const activation = await activateLicense({
 		licenseKey: LICENSE_KEY,
 		instanceName: "Laptop",
 	});
 
-	const { url, method, headers, form } = lastRequestOf(fetchStub);
+	const { url, method, headers, form } = readLastRequest(fetchStub);
 	expect(url.toString()).toBe(
 		"https://api.lemonsqueezy.com/v1/licenses/activate",
 	);
@@ -63,7 +63,7 @@ test("validateLicense sends the instance id when it is given", async () => {
 
 	await validateLicense({ licenseKey: LICENSE_KEY, instanceId: INSTANCE_ID });
 
-	const { url, form } = lastRequestOf(fetchStub);
+	const { url, form } = readLastRequest(fetchStub);
 	expect(url.pathname).toBe("/v1/licenses/validate");
 	expect(Object.fromEntries(form)).toEqual({
 		license_key: LICENSE_KEY,
@@ -79,7 +79,7 @@ test("validateLicense leaves instance_id out when there is none", async () => {
 
 	await validateLicense({ licenseKey: LICENSE_KEY });
 
-	const { form } = lastRequestOf(fetchStub);
+	const { form } = readLastRequest(fetchStub);
 	expect(Object.fromEntries(form)).toEqual({ license_key: LICENSE_KEY });
 });
 
@@ -94,7 +94,7 @@ test("deactivateLicense posts the key and instance id", async () => {
 		instanceId: INSTANCE_ID,
 	});
 
-	const { url, method, form } = lastRequestOf(fetchStub);
+	const { url, method, form } = readLastRequest(fetchStub);
 	expect(url.pathname).toBe("/v1/licenses/deactivate");
 	expect(method).toBe("POST");
 	expect(Object.fromEntries(form)).toEqual({
@@ -105,7 +105,7 @@ test("deactivateLicense posts the key and instance id", async () => {
 });
 
 test("a 4xx answer with a JSON body is returned with its error", async () => {
-	stubFetch(400, JSON.stringify(LIMIT_REACHED_BODY));
+	stubFetch(400, JSON.stringify(LIMIT_REACHED_REPLY));
 
 	const activation = await activateLicense({
 		licenseKey: LICENSE_KEY,
@@ -113,16 +113,16 @@ test("a 4xx answer with a JSON body is returned with its error", async () => {
 	});
 
 	expect(activation.activated).toBe(false);
-	expect(activation.error).toBe(LIMIT_REACHED_BODY.error);
+	expect(activation.error).toBe(LIMIT_REACHED_REPLY.error);
 });
 
 test("a 404 for an unknown key comes back with no license_key or meta", async () => {
-	stubFetch(404, JSON.stringify(NOT_FOUND_BODY));
+	stubFetch(404, JSON.stringify(NOT_FOUND_REPLY));
 
 	const validation = await validateLicense({ licenseKey: LICENSE_KEY });
 
 	expect(validation.valid).toBe(false);
-	expect(validation.error).toBe(NOT_FOUND_BODY.error);
+	expect(validation.error).toBe(NOT_FOUND_REPLY.error);
 	expect(validation.license_key).toBeUndefined();
 	expect(validation.meta).toBeUndefined();
 });

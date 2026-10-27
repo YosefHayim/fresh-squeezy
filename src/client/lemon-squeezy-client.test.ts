@@ -10,12 +10,12 @@ import type {
 } from "@/client/lemon-squeezy-types.js";
 import { createLemonSqueezyClient } from "./lemon-squeezy-client.js";
 
-const ANY_RESOURCE_BODY = { data: { type: "any", id: "1", attributes: {} } };
+const ANY_RESOURCE_REPLY = { data: { type: "any", id: "1", attributes: {} } };
 
 const ANY_ROUTE: MockRoute = {
 	match: () => true,
 	status: 200,
-	body: ANY_RESOURCE_BODY,
+	replyDocument: ANY_RESOURCE_REPLY,
 };
 
 const ALL_RESOURCES: ResourceType[] = [
@@ -48,7 +48,7 @@ const LISTABLE_RESOURCES = ALL_RESOURCES.filter(
 const CREATE_CASES = [
 	{
 		type: "customers",
-		input: {
+		createInput: {
 			attributes: { name: "Ada", email: "ada@example.com", country: "GB" },
 			relationships: { store: "1" },
 		} satisfies CreateInput["customers"],
@@ -56,7 +56,7 @@ const CREATE_CASES = [
 	},
 	{
 		type: "usage-records",
-		input: {
+		createInput: {
 			attributes: { quantity: 5, action: "set" },
 			relationships: { "subscription-item": "7" },
 		} satisfies CreateInput["usage-records"],
@@ -66,7 +66,7 @@ const CREATE_CASES = [
 	},
 	{
 		type: "discounts",
-		input: {
+		createInput: {
 			attributes: {
 				name: "10% Off",
 				code: "10PERCENT",
@@ -88,7 +88,7 @@ const CREATE_CASES = [
 	},
 	{
 		type: "checkouts",
-		input: {
+		createInput: {
 			attributes: { custom_price: 500, preview: true },
 			relationships: { store: "1", variant: "2" },
 		} satisfies CreateInput["checkouts"],
@@ -99,7 +99,7 @@ const CREATE_CASES = [
 	},
 	{
 		type: "webhooks",
-		input: {
+		createInput: {
 			attributes: {
 				url: "https://example.com/hook",
 				events: ["order_created"],
@@ -145,21 +145,23 @@ const BILLING = {
 	notes: "Thank you",
 };
 
-const clientOf = (route: MockRoute = ANY_ROUTE) => {
+const createTestClient = (route: MockRoute = ANY_ROUTE) => {
 	const { fetch, calls } = createMockFetch([route]);
 	const config = readConfig({ apiKey: "k", fetch });
 	const client = createLemonSqueezyClient(createHttp(config));
 	const lastCall = () => {
 		const [call] = calls.slice(-1);
 		const url = new URL(call?.url ?? "");
-		const body = call?.body ? JSON.parse(call.body) : undefined;
-		return { method: call?.method, url, body };
+		const requestDocument = call?.requestText
+			? JSON.parse(call.requestText)
+			: undefined;
+		return { method: call?.method, url, requestDocument };
 	};
 	return { client, calls, lastCall };
 };
 
 test.each(ALL_RESOURCES)("get reads /v1/%s/:id with GET", async (type) => {
-	const { client, lastCall } = clientOf();
+	const { client, lastCall } = createTestClient();
 
 	const resource = await client.get(type, "9");
 
@@ -172,9 +174,12 @@ test.each(ALL_RESOURCES)("get reads /v1/%s/:id with GET", async (type) => {
 test.each(LISTABLE_RESOURCES)(
 	"list reads /v1/%s with page size 100",
 	async (type) => {
-		const { client, lastCall } = clientOf({
+		const { client, lastCall } = createTestClient({
 			...ANY_ROUTE,
-			body: { data: [], meta: { page: { currentPage: 1, lastPage: 1 } } },
+			replyDocument: {
+				data: [],
+				meta: { page: { currentPage: 1, lastPage: 1 } },
+			},
 		});
 
 		await client.list(type);
@@ -187,9 +192,9 @@ test.each(LISTABLE_RESOURCES)(
 );
 
 test("list sends every filter as filter[name]", async () => {
-	const { client, lastCall } = clientOf({
+	const { client, lastCall } = createTestClient({
 		...ANY_ROUTE,
-		body: { data: [] },
+		replyDocument: { data: [] },
 	});
 
 	await client.list("orders", { store_id: 1, status: "paid" });
@@ -207,12 +212,12 @@ test("list reads every page", async () => {
 			return true;
 		},
 		status: 200,
-		body: {
+		replyDocument: {
 			data: [{ type: "orders", id: "1", attributes: {} }],
 			meta: { page: { currentPage: 1, lastPage: 2 } },
 		},
 	};
-	const { client } = clientOf(pagedRoute);
+	const { client } = createTestClient(pagedRoute);
 
 	const orders = await client.list("orders");
 
@@ -222,18 +227,18 @@ test("list reads every page", async () => {
 
 test.each(CREATE_CASES)(
 	"create sends a JSON:API POST to /v1/$type",
-	async ({ type, input, expectedRelationships }) => {
-		const { client, lastCall } = clientOf();
+	async ({ type, createInput, expectedRelationships }) => {
+		const { client, lastCall } = createTestClient();
 
-		await client.create(type, input as never);
+		await client.create(type, createInput as never);
 
-		const { method, url, body } = lastCall();
+		const { method, url, requestDocument } = lastCall();
 		expect(method).toBe("POST");
 		expect(url.pathname).toBe(`/v1/${type}`);
-		expect(body).toEqual({
+		expect(requestDocument).toEqual({
 			data: {
 				type,
-				attributes: input.attributes,
+				attributes: createInput.attributes,
 				relationships: expectedRelationships,
 			},
 		});
@@ -243,37 +248,37 @@ test.each(CREATE_CASES)(
 test.each(UPDATE_CASES)(
 	"update sends a JSON:API PATCH to /v1/$type/:id",
 	async ({ type, attributes }) => {
-		const { client, lastCall } = clientOf();
+		const { client, lastCall } = createTestClient();
 
 		await client.update(type, "5", attributes as never);
 
-		const { method, url, body } = lastCall();
+		const { method, url, requestDocument } = lastCall();
 		expect(method).toBe("PATCH");
 		expect(url.pathname).toBe(`/v1/${type}/5`);
-		expect(body).toEqual({ data: { type, id: "5", attributes } });
+		expect(requestDocument).toEqual({ data: { type, id: "5", attributes } });
 	},
 );
 
 test.each(REMOVABLE_RESOURCES)(
 	"remove sends DELETE to /v1/%s/:id",
 	async (type) => {
-		const { client, lastCall } = clientOf({
+		const { client, lastCall } = createTestClient({
 			...ANY_ROUTE,
 			status: 204,
-			body: undefined,
+			replyDocument: undefined,
 		});
 
 		await client.remove(type, "9");
 
-		const { method, url, body } = lastCall();
+		const { method, url, requestDocument } = lastCall();
 		expect(method).toBe("DELETE");
 		expect(url.pathname).toBe(`/v1/${type}/9`);
-		expect(body).toBeUndefined();
+		expect(requestDocument).toBeUndefined();
 	},
 );
 
 test("cancelSubscription sends DELETE to /v1/subscriptions/:id", async () => {
-	const { client, lastCall } = clientOf();
+	const { client, lastCall } = createTestClient();
 
 	await client.cancelSubscription("123");
 
@@ -285,54 +290,54 @@ test("cancelSubscription sends DELETE to /v1/subscriptions/:id", async () => {
 test.each(REFUNDABLE_RESOURCES)(
 	"refund sends POST to /v1/%s/:id/refund with the amount",
 	async (type) => {
-		const { client, lastCall } = clientOf();
+		const { client, lastCall } = createTestClient();
 
 		await client.refund(type, "55", 500);
 
-		const { method, url, body } = lastCall();
+		const { method, url, requestDocument } = lastCall();
 		expect(method).toBe("POST");
 		expect(url.pathname).toBe(`/v1/${type}/55/refund`);
-		expect(body).toEqual({
+		expect(requestDocument).toEqual({
 			data: { type, id: "55", attributes: { amount: 500 } },
 		});
 	},
 );
 
 test("refund without an amount sends no amount for a full refund", async () => {
-	const { client, calls } = clientOf();
+	const { client, calls } = createTestClient();
 
 	await client.refund("orders", "55");
 
 	const [call] = calls;
-	const body = JSON.parse(call?.body ?? "{}");
-	expect(body.data.attributes).toEqual({});
+	const requestDocument = JSON.parse(call?.requestText ?? "{}");
+	expect(requestDocument.data.attributes).toEqual({});
 });
 
 test.each(REFUNDABLE_RESOURCES)(
 	"generateInvoice sends POST to /v1/%s/:id/generate-invoice with the billing query",
 	async (type) => {
 		const downloadUrl = "https://app.lemonsqueezy.com/invoice";
-		const { client, lastCall } = clientOf({
+		const { client, lastCall } = createTestClient({
 			...ANY_ROUTE,
-			body: { meta: { urls: { download_invoice: downloadUrl } } },
+			replyDocument: { meta: { urls: { download_invoice: downloadUrl } } },
 		});
 
 		const invoice = await client.generateInvoice(type, "55", BILLING);
 
-		const { method, url, body } = lastCall();
+		const { method, url, requestDocument } = lastCall();
 		expect(method).toBe("POST");
 		expect(url.pathname).toBe(`/v1/${type}/55/generate-invoice`);
 		expect(Object.fromEntries(url.searchParams)).toEqual(BILLING);
-		expect(body).toBeUndefined();
+		expect(requestDocument).toBeUndefined();
 		expect(invoice.meta.urls.download_invoice).toBe(downloadUrl);
 	},
 );
 
 test("currentUsage reads /v1/subscription-items/:id/current-usage", async () => {
 	const usageMeta = { quantity: 5, interval_unit: "month" };
-	const { client, lastCall } = clientOf({
+	const { client, lastCall } = createTestClient({
 		...ANY_ROUTE,
-		body: { meta: usageMeta },
+		replyDocument: { meta: usageMeta },
 	});
 
 	const usage = await client.currentUsage("77");
@@ -344,7 +349,7 @@ test("currentUsage reads /v1/subscription-items/:id/current-usage", async () => 
 });
 
 test("the resource name decides which calls compile", () => {
-	const { client } = clientOf();
+	const { client } = createTestClient();
 	const neverCalled = () => {
 		// @ts-expect-error orders cannot be created
 		client.create("orders", { attributes: {}, relationships: {} });

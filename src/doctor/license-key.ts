@@ -3,11 +3,11 @@ import type { Http } from "@/client/http.js";
 import type { LicenseKeyAttributes } from "@/client/lemon-squeezy-types.js";
 import { fetchResource, storeMismatchFindings } from "./fetch-resource.js";
 import {
-	buildResult,
+	buildCheckReport,
+	type CheckReport,
 	FINDING_CODES,
 	type FindingRule,
-	findingsFrom,
-	type ValidationResult,
+	raiseFindings,
 } from "./findings.js";
 
 export interface LicenseKeyCheck {
@@ -71,8 +71,8 @@ export const validateLicenseKey = async (
 	http: Http,
 	mode: Mode,
 	{ storeId, licenseKeyId }: LicenseKeyCheck,
-): Promise<ValidationResult<LicenseKeyAttributes>> => {
-	const fetched = await fetchResource<LicenseKeyAttributes>(http, {
+): Promise<CheckReport<LicenseKeyAttributes>> => {
+	const licenseKeyLookup = await fetchResource<LicenseKeyAttributes>(http, {
 		path: `/v1/license-keys/${licenseKeyId}`,
 		notFound: {
 			code: FINDING_CODES.LICENSE_KEY_NOT_FOUND,
@@ -82,17 +82,17 @@ export const validateLicenseKey = async (
 		},
 	});
 
-	const isFetchFailed = fetched.kind === "failed";
+	const isFetchFailed = licenseKeyLookup.kind === "failed";
 	if (isFetchFailed) {
-		return buildResult({
+		return buildCheckReport({
 			name: "licenseKey",
 			mode,
-			findings: [fetched.finding],
+			findings: [licenseKeyLookup.finding],
 			target: { label: `license key ${licenseKeyId}`, id: licenseKeyId },
 		});
 	}
 
-	const licenseKey = fetched.payload;
+	const licenseKey = licenseKeyLookup.resource;
 	const storeFindings = storeMismatchFindings({
 		label: "License key",
 		code: FINDING_CODES.LICENSE_KEY_STORE_MISMATCH,
@@ -101,8 +101,8 @@ export const validateLicenseKey = async (
 		suggestedFix:
 			"Use the correct store ID or license key ID — keys should not cross stores.",
 	});
-	const ruleFindings = findingsFrom(LICENSE_KEY_RULES, licenseKey);
-	return buildResult({
+	const ruleFindings = raiseFindings(LICENSE_KEY_RULES, licenseKey);
+	return buildCheckReport({
 		name: "licenseKey",
 		mode,
 		findings: [...storeFindings, ...ruleFindings],

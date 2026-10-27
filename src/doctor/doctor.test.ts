@@ -1,4 +1,11 @@
 import {
+	makeHttp,
+	route,
+	SIGNED_IN_ROUTES,
+	storeListRoute,
+	variantListRoute,
+} from "@e2e/mock-fetch.js";
+import {
 	activeLicenseKeyDoc,
 	NOT_FOUND_ERROR,
 	PUBLISHED_PRODUCT_DOC,
@@ -8,13 +15,6 @@ import {
 	UNAUTHORIZED_ERROR,
 	WEBHOOKS_COLLECTION_COMPLETE,
 } from "@e2e/sandbox-store.js";
-import {
-	makeHttp,
-	route,
-	SIGNED_IN_ROUTES,
-	storeListRoute,
-	variantListRoute,
-} from "@e2e/mock-fetch.js";
 import { expect, test } from "vitest";
 import { doctor, listStoreIds } from "./doctor.js";
 
@@ -23,8 +23,8 @@ test("doctor skips validators for targets that are not configured", async () => 
 
 	const report = await doctor(http, "test");
 
-	expect(report.results).toHaveLength(1);
-	expect(report.results[0]?.name).toBe("connection");
+	expect(report.checks).toHaveLength(1);
+	expect(report.checks[0]?.name).toBe("connection");
 });
 
 const STORE_SCOPED_ROUTES = [
@@ -36,13 +36,13 @@ const TARGET_CASES = [
 	{
 		title: "discount validator when discountId is provided",
 		routes: [route("/v1/discounts/600", publishedDiscountDoc)],
-		options: { discountIds: ["600"] },
+		targets: { discountIds: ["600"] },
 		name: "discount",
 	},
 	{
 		title: "license key validator when licenseKeyId is provided",
 		routes: [route("/v1/license-keys/700", activeLicenseKeyDoc)],
-		options: { licenseKeyIds: ["700"] },
+		targets: { licenseKeyIds: ["700"] },
 		name: "licenseKey",
 	},
 	{
@@ -51,20 +51,20 @@ const TARGET_CASES = [
 			route("/v1/variants/800", subscriptionVariantDoc),
 			route("/v1/products/100", PUBLISHED_PRODUCT_DOC),
 		],
-		options: { variantIds: ["800"] },
+		targets: { variantIds: ["800"] },
 		name: "subscriptionPlan",
 	},
 ];
 
 test.each(TARGET_CASES)(
 	"doctor runs $title",
-	async ({ routes, options, name }) => {
+	async ({ routes, targets, name }) => {
 		const http = makeHttp([...STORE_SCOPED_ROUTES, ...routes]);
 
-		const report = await doctor(http, "test", { storeId: "42", ...options });
+		const report = await doctor(http, "test", { storeId: "42", ...targets });
 
 		expect(report.ok).toBe(true);
-		expect(report.results.some((entry) => entry.name === name)).toBe(true);
+		expect(report.checks.some((check) => check.name === name)).toBe(true);
 	},
 );
 
@@ -81,7 +81,7 @@ test("doctor includes discount failure in overall ok", async () => {
 
 	expect(report.ok).toBe(false);
 	expect(
-		report.results.some((entry) => entry.name === "discount" && !entry.ok),
+		report.checks.some((check) => check.name === "discount" && !check.ok),
 	).toBe(true);
 });
 
@@ -94,21 +94,21 @@ test("doctor stops after a failed connection", async () => {
 	});
 
 	expect(report.ok).toBe(false);
-	expect(report.results.map((entry) => entry.name)).toEqual(["connection"]);
+	expect(report.checks.map((check) => check.name)).toEqual(["connection"]);
 });
 
-test("doctor throws DOCTOR_OPTIONS_INVALID when dependent options come without a store", async () => {
+test("doctor throws DOCTOR_TARGETS_INVALID when dependent options come without a store", async () => {
 	const http = makeHttp(SIGNED_IN_ROUTES);
 
 	await expect(
 		doctor(http, "test", { discountIds: ["600"] }),
 	).rejects.toMatchObject({
-		code: "DOCTOR_OPTIONS_INVALID",
+		code: "DOCTOR_TARGETS_INVALID",
 	});
 	await expect(
 		doctor(http, "test", { allResources: true }),
 	).rejects.toMatchObject({
-		code: "DOCTOR_OPTIONS_INVALID",
+		code: "DOCTOR_TARGETS_INVALID",
 	});
 });
 
@@ -123,10 +123,10 @@ test("doctor runs each explicit id once", async () => {
 		discountIds: ["600", "600"],
 	});
 
-	const discountResults = report.results.filter(
-		(entry) => entry.name === "discount",
+	const discountChecks = report.checks.filter(
+		(check) => check.name === "discount",
 	);
-	expect(discountResults).toHaveLength(1);
+	expect(discountChecks).toHaveLength(1);
 });
 
 const DISCOVERY_ROUTES = [
@@ -150,7 +150,7 @@ test("doctor with allResources checks everything it finds in the store", async (
 		allResources: true,
 	});
 
-	const names = report.results.map((entry) => entry.name);
+	const names = report.checks.map((check) => check.name);
 	expect(report.ok).toBe(true);
 	expect(names).toEqual([
 		"connection",
@@ -174,8 +174,8 @@ test("doctor with allResources reports a failed listing as a failed check", asyn
 		allResources: true,
 	});
 
-	const listingFailure = report.results.find(
-		(entry) => entry.target?.label === "products of store 42",
+	const listingFailure = report.checks.find(
+		(check) => check.target?.label === "products of store 42",
 	);
 	expect(report.ok).toBe(false);
 	expect(listingFailure?.name).toBe("product");

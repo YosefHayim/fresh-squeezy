@@ -34,7 +34,6 @@ jobs:
               - pnpm-lock.yaml
               - package.json
               - biome.json
-              - knip.json
               - 'tsconfig*.json'
               - '*.config.ts'
               - '.github/**'
@@ -61,6 +60,10 @@ jobs:
         uses: ./.github/actions/setup
         with:
           node-version: ${{ matrix.node }}
+      - name: lint
+        run: pnpm lint
+      - name: typecheck
+        run: pnpm typecheck
       - name: unit tests
         if: needs.changes.outputs.since == ''
         run: pnpm test -- --coverage

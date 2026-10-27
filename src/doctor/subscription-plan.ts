@@ -6,12 +6,12 @@ import type {
 } from "@/client/lemon-squeezy-types.js";
 import { fetchResource, storeMismatchFindings } from "./fetch-resource.js";
 import {
-	buildResult,
+	buildCheckReport,
+	type CheckReport,
 	FINDING_CODES,
 	type Finding,
 	type FindingRule,
-	findingsFrom,
-	type ValidationResult,
+	raiseFindings,
 } from "./findings.js";
 
 export interface SubscriptionPlanCheck {
@@ -116,7 +116,7 @@ const PLAN_RULES: FindingRule<PlanSubject>[] = [
 	},
 ];
 
-const summaryOf = (
+const buildPlanSummary = (
 	variantId: string,
 	plan: VariantAttributes,
 ): SubscriptionPlanSummary => ({
@@ -128,12 +128,12 @@ const summaryOf = (
 	status: plan.status,
 });
 
-const storeFindingsOf = async (
+const checkStoreMatch = async (
 	http: Http,
 	storeId: string,
 	productId: number,
 ): Promise<Finding[]> => {
-	const fetched = await fetchResource<ProductAttributes>(http, {
+	const productLookup = await fetchResource<ProductAttributes>(http, {
 		path: `/v1/products/${productId}`,
 		notFound: {
 			code: FINDING_CODES.PRODUCT_NOT_FOUND,
@@ -141,13 +141,13 @@ const storeFindingsOf = async (
 		},
 	});
 	// Advisory only: a failed product fetch skips the store check instead of blocking the plan checks.
-	const isFetchFailed = fetched.kind === "failed";
+	const isFetchFailed = productLookup.kind === "failed";
 	if (isFetchFailed) return [];
 	return storeMismatchFindings({
 		label: `Subscription variant (via product ${productId})`,
 		code: FINDING_CODES.PLAN_STORE_MISMATCH,
 		expectedStoreId: storeId,
-		actualStoreId: fetched.payload.store_id,
+		actualStoreId: productLookup.resource.store_id,
 		suggestedFix:
 			"Use the correct store ID or variant ID — plans should not cross stores.",
 		extraContext: { productId: String(productId) },
@@ -158,8 +158,8 @@ export const validateSubscriptionPlan = async (
 	http: Http,
 	mode: Mode,
 	{ storeId, variantId }: SubscriptionPlanCheck,
-): Promise<ValidationResult<SubscriptionPlanSummary>> => {
-	const fetched = await fetchResource<VariantAttributes>(http, {
+): Promise<CheckReport<SubscriptionPlanSummary>> => {
+	const planLookup = await fetchResource<VariantAttributes>(http, {
 		path: `/v1/variants/${variantId}`,
 		notFound: {
 			code: FINDING_CODES.PLAN_VARIANT_NOT_FOUND,
@@ -169,24 +169,24 @@ export const validateSubscriptionPlan = async (
 		},
 	});
 
-	const isFetchFailed = fetched.kind === "failed";
+	const isFetchFailed = planLookup.kind === "failed";
 	if (isFetchFailed) {
-		return buildResult({
+		return buildCheckReport({
 			name: "subscriptionPlan",
 			mode,
-			findings: [fetched.finding],
+			findings: [planLookup.finding],
 			target: { label: `variant ${variantId}`, id: variantId },
 		});
 	}
 
-	const plan = fetched.payload;
-	const planFindings = findingsFrom(PLAN_RULES, { ...plan, variantId });
-	const storeFindings = await storeFindingsOf(http, storeId, plan.product_id);
-	return buildResult({
+	const plan = planLookup.resource;
+	const planFindings = raiseFindings(PLAN_RULES, { ...plan, variantId });
+	const storeFindings = await checkStoreMatch(http, storeId, plan.product_id);
+	return buildCheckReport({
 		name: "subscriptionPlan",
 		mode,
 		findings: [...planFindings, ...storeFindings],
-		resource: summaryOf(variantId, plan),
+		resource: buildPlanSummary(variantId, plan),
 		target: { label: plan.name, id: variantId },
 	});
 };

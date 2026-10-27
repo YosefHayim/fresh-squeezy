@@ -1,9 +1,9 @@
+import { makeHttp, route, SIGNED_IN_ROUTES } from "@e2e/mock-fetch.js";
 import {
 	LIVE_USER_DOC,
 	UNAUTHORIZED_ERROR,
 	USER_DOC,
 } from "@e2e/sandbox-store.js";
-import { makeHttp, route, SIGNED_IN_ROUTES } from "@e2e/mock-fetch.js";
 import { expect, test } from "vitest";
 import { validateConnection } from "./connection.js";
 
@@ -54,7 +54,7 @@ test("validateConnection flags MODE_MISMATCH when declared mode differs from met
 	expect(connectionValidation.resource?.actualMode).toBe("live");
 	expect(connectionValidation.resource?.declaredMode).toBe("test");
 	const mismatch = connectionValidation.findings.find(
-		(entry) => entry.code === "MODE_MISMATCH",
+		(finding) => finding.code === "MODE_MISMATCH",
 	);
 	expect(mismatch?.severity).toBe("error");
 	expect(mismatch?.context).toMatchObject({ declared: "test", actual: "live" });
@@ -82,7 +82,7 @@ test("validateConnection skips mode check when meta.test_mode is absent", async 
 	expect(connectionValidation.resource?.actualMode).toBeUndefined();
 	expect(
 		connectionValidation.findings.find(
-			(entry) => entry.code === "MODE_MISMATCH",
+			(finding) => finding.code === "MODE_MISMATCH",
 		),
 	).toBeUndefined();
 });

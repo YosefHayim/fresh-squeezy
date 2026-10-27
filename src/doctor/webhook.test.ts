@@ -1,10 +1,10 @@
+import { makeHttp, pathIsWithQuery } from "@e2e/mock-fetch.js";
 import {
 	WEBHOOKS_COLLECTION_COMPLETE,
 	WEBHOOKS_COLLECTION_EMPTY,
 	WEBHOOKS_COLLECTION_MISSING_EVENTS,
 	WEBHOOKS_COLLECTION_ORDER_EVENTS_ONLY,
 } from "@e2e/sandbox-store.js";
-import { makeHttp, pathIsWithQuery } from "@e2e/mock-fetch.js";
 import { expect, test } from "vitest";
 import { validateWebhook } from "./webhook.js";
 
@@ -15,7 +15,7 @@ const validateAgainst = (storeWebhooks: unknown, url = WEBHOOK_URL) => {
 		{
 			match: pathIsWithQuery("/v1/webhooks", { "filter[store_id]": "42" }),
 			status: 200,
-			body: storeWebhooks,
+			replyDocument: storeWebhooks,
 		},
 	]);
 	return validateWebhook(http, "test", { storeId: "42", url });
@@ -26,7 +26,9 @@ test("validateWebhook passes when order and subscription events are subscribed",
 
 	expect(webhookValidation.ok).toBe(true);
 	expect(
-		webhookValidation.findings.filter((entry) => entry.severity === "error"),
+		webhookValidation.findings.filter(
+			(finding) => finding.severity === "error",
+		),
 	).toHaveLength(0);
 });
 
@@ -36,7 +38,7 @@ test("validateWebhook flags missing order events as errors", async () => {
 	);
 
 	expect(webhookValidation.ok).toBe(false);
-	expect(webhookValidation.findings.map((entry) => entry.code)).toContain(
+	expect(webhookValidation.findings.map((finding) => finding.code)).toContain(
 		"WEBHOOK_EVENTS_MISSING",
 	);
 });
@@ -47,7 +49,7 @@ test("validateWebhook warns without failing when only subscription events are mi
 	);
 
 	const subscriptionFinding = webhookValidation.findings.find(
-		(entry) => entry.code === "WEBHOOK_SUBSCRIPTION_EVENTS_MISSING",
+		(finding) => finding.code === "WEBHOOK_SUBSCRIPTION_EVENTS_MISSING",
 	);
 	expect(webhookValidation.ok).toBe(true);
 	expect(subscriptionFinding?.severity).toBe("warning");

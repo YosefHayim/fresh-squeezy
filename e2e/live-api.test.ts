@@ -1,12 +1,12 @@
 import { expect, inject, test } from "vitest";
-import { createFreshSqueezy } from "@/create-fresh-squeezy.js";
 import type { Mode } from "@/client/config.js";
 import type { ResourceType } from "@/client/lemon-squeezy-types.js";
+import { createFreshSqueezy } from "@/create-fresh-squeezy.js";
 import { readAttributeKeys } from "./read-interface-keys.js";
 
 declare module "vitest" {
 	interface ProvidedContext {
-		liveSmokeModes: Mode[];
+		liveApiModes: Mode[];
 	}
 }
 
@@ -27,9 +27,9 @@ const CONNECTION_TIMEOUT_MS = 15_000;
 
 const ATTRIBUTE_KEYS_TIMEOUT_MS = 300_000;
 
-const liveSmokeModes = inject("liveSmokeModes");
-const isTestModeSmoked = liveSmokeModes.includes("test");
-const isLiveModeSmoked = liveSmokeModes.includes("live");
+const liveApiModes = inject("liveApiModes");
+const isTestModeChecked = liveApiModes.includes("test");
+const isLiveModeChecked = liveApiModes.includes("live");
 
 const expectConnection = async (mode: Mode) => {
 	const freshSqueezy = createFreshSqueezy({ mode });
@@ -53,7 +53,7 @@ const expectKnownAttributeKeys = async (mode: Mode) => {
 			keysMissingFromInterfaces.add(`${type}.${key}`);
 	};
 
-	const firstResourceOf = async (type: ResourceType) => {
+	const fetchFirstResource = async (type: ResourceType) => {
 		const isUsers = type === "users";
 		if (isUsers) return freshSqueezy.get("users", "me");
 		const isStoreScoped = STORE_SCOPED_RESOURCES.includes(type);
@@ -67,7 +67,7 @@ const expectKnownAttributeKeys = async (mode: Mode) => {
 	};
 
 	for (const type of resourceTypes) {
-		const firstResource = await firstResourceOf(type);
+		const firstResource = await fetchFirstResource(type);
 		if (firstResource)
 			checkAttributes(type, firstResource.attributes as object);
 	}
@@ -75,25 +75,25 @@ const expectKnownAttributeKeys = async (mode: Mode) => {
 	expect([...keysMissingFromInterfaces]).toEqual([]);
 };
 
-test.runIf(isTestModeSmoked)(
+test.runIf(isTestModeChecked)(
 	"a test-mode key authenticates and lists stores against the real API",
 	() => expectConnection("test"),
 	CONNECTION_TIMEOUT_MS,
 );
 
-test.runIf(isLiveModeSmoked)(
+test.runIf(isLiveModeChecked)(
 	"a live-mode key authenticates and lists stores against the real API",
 	() => expectConnection("live"),
 	CONNECTION_TIMEOUT_MS,
 );
 
-test.runIf(isTestModeSmoked)(
+test.runIf(isTestModeChecked)(
 	"every test-mode attribute key exists in its interface",
 	() => expectKnownAttributeKeys("test"),
 	ATTRIBUTE_KEYS_TIMEOUT_MS,
 );
 
-test.runIf(isLiveModeSmoked)(
+test.runIf(isLiveModeChecked)(
 	"every live-mode attribute key exists in its interface",
 	() => expectKnownAttributeKeys("live"),
 	ATTRIBUTE_KEYS_TIMEOUT_MS,

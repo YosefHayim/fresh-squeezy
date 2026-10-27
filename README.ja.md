@@ -40,7 +40,7 @@
 
 ---
 
-**fresh-squeezy** は [Lemon Squeezy](https://www.lemonsqueezy.com/) 向けの 2 つの道具です。
+**fresh-squeezy** は、もうメンテナンスされていない Lemon Squeezy SDK の代わりです。アプリごとに型やテストを書かなくても、型付きで検証済みの課金が使えます。[Lemon Squeezy](https://www.lemonsqueezy.com/) 向けの 2 つの道具です。
 
 1. **型付きクライアント**。[`@lemonsqueezy/lemonsqueezy.js`](https://github.com/lmsqueezy/lemonsqueezy.js) を置き換えます。公式 SDK の最後のリリースは 2024-11-05 の 4.0.0 です。fresh-squeezy は [API の変更履歴](https://docs.lemonsqueezy.com/api/getting-started/changelog)に追従します。ランタイム依存はゼロ、ESM と CJS に対応します。
 2. **doctor**。公開前にストアをチェックします。接続とモード、ストア、商品、サブスクリプションプラン、webhook、割引、ライセンスキーが対象です。安定した finding コード、安定した終了コード、CI 向けの JSON を返します。
@@ -163,7 +163,7 @@ doctor はモードに合うキー (`LEMON_SQUEEZY_TEST_API_KEY` または `LEMO
 		{
 			"ok": false,
 			"mode": "test",
-			"results": [
+			"checks": [
 				{
 					"name": "discount",
 					"ok": false,
@@ -200,7 +200,7 @@ doctor はモードに合うキー (`LEMON_SQUEEZY_TEST_API_KEY` または `LEMO
 
 ### TypeScript からチェックを実行する
 
-各チェックは `ValidationResult` を返し、例外を投げません。
+各チェックは `CheckReport` を返し、例外を投げません。
 
 ```ts
 const freshSqueezy = createFreshSqueezy({ mode: "live" });
@@ -213,7 +213,7 @@ const discount = await freshSqueezy.validateDiscount({
 const report = await freshSqueezy.doctor({ storeId: "12", allResources: true });
 const storeIds = await freshSqueezy.listStoreIds();
 
-for (const check of report.results) {
+for (const check of report.checks) {
 	for (const finding of check.findings) {
 		console.error(`[${finding.severity}] ${finding.code}: ${finding.message}`);
 	}
@@ -299,6 +299,8 @@ SDK がエクスポートするすべての関数と、それを置き換える 
 
 ## 0.3 からのアップグレード
 
+- 結果は check になりました。`ValidationResult` は `CheckReport`、`ValidationTarget` は `CheckTarget`、`DoctorOptions` は `DoctorTargets`、`buildResult` は `buildCheckReport`、`DoctorReport` のキー `results` は `checks` です。
+- `ENV_KEYS` はなくなりました。環境変数は `LEMON_SQUEEZY_TEST_API_KEY`、`LEMON_SQUEEZY_LIVE_API_KEY`、`LEMON_SQUEEZY_MODE`、`LEMON_SQUEEZY_STORE_ID` です。
 - ops コマンドと verb レジストリは削除されました。[クライアント](#クライアント)を使ってください。
 - `init`、`manage`、`validate` サブコマンド、augmentation、ランチャーメニューは削除されました。コマンドは `fresh-squeezy doctor` だけで、フラグのみを受け付けます。
 - `--store-ids a,b` は `--store-id a --store-id b` になりました。ストアを指定しない場合、doctor はすべてのストアをチェックするため、`--all-stores` が既定です。
@@ -309,13 +311,14 @@ SDK がエクスポートするすべての関数と、それを置き換える 
 ```ts
 // 変更前
 import { validateStore } from "fresh-squeezy/validate/store";
-if (result.issues.length > 0) console.error(result.issues[0].code);
+if (report.issues.length > 0) console.error(report.issues[0].code);
 
 // 変更後
 import { createFreshSqueezy } from "fresh-squeezy";
 const freshSqueezy = createFreshSqueezy();
-const result = await freshSqueezy.validateStore("12");
-if (result.findings.length > 0) console.error(result.findings[0].code);
+const storeReport = await freshSqueezy.validateStore("12");
+if (storeReport.findings.length > 0)
+	console.error(storeReport.findings[0].code);
 ```
 
 ## 型を最新に保つ
@@ -324,10 +327,13 @@ if (result.findings.length > 0) console.error(result.findings[0].code);
 
 直すには、エントリを読み、`src/client/lemon-squeezy-types.ts` とクライアントを手で編集し、テストを追加して、issue を閉じます。issue をエージェントに任せることもできます。
 
+`live-api-check` ワークフローも毎月 1 日と 15 日に動きます。テストキーで読める Lemon Squeezy のリソースをすべて型と比べ、型にないフィールドを API が返したら `live-api-drift` ラベルの issue を開きます。
+
 公開リポジトリでは、60 日間アクティビティがないと GitHub がスケジュール実行を止めます。次のコマンドで再び有効にします。
 
 ```bash
 gh workflow enable lemon-squeezy-changelog
+gh workflow enable live-api-check
 ```
 
 ## Finding コード
@@ -355,10 +361,10 @@ CI では `finding.code` で分岐します。コードはマイナーバージ�
 git clone https://github.com/YosefHayim/fresh-squeezy.git
 cd fresh-squeezy
 pnpm install
-pnpm verify
+pnpm check
 ```
 
-目標と非目標は [PROJECT.md](./PROJECT.md)、コマンド・ルール・手順は [AGENTS.md](./AGENTS.md)、コードの構造は [CONTEXT.md](./CONTEXT.md) を読んでください。
+クライアントは `src/client/`、チェックは `src/doctor/` にあります。`pnpm check` は CI と同じ lint、typecheck、テスト、ビルドを実行します。
 
 issue を立てるときは、`fresh-squeezy` のバージョン、Node のバージョン、モード、最小の再現手順、キーを除いた doctor の `--json` 出力を含めてください。
 

@@ -32,4 +32,13 @@ jobs:
             exit 0
           fi
 
-          gh issue create --title "$title" --label changelog-drift --body "New entry on $CHANGELOG_URL. Read it, then update src/client/lemon-squeezy-types.ts and the client by hand, or hand this issue to an agent."
+          gh issue create --title "$title" --label changelog-drift --body "New entry on $CHANGELOG_URL.
+
+          To fix it:
+          1. Read the new entry.
+          2. Edit src/client/lemon-squeezy-types.ts for new or changed fields. Edit src/client/lemon-squeezy-client.ts too if a call changed.
+          3. Add or update a test next to the file you changed.
+          4. Run pnpm check, then gh workflow run live-api-check.yml to compare with the live API.
+          5. Close this issue.
+
+          An agent can take this issue."

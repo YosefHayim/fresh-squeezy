@@ -1,6 +1,6 @@
 import { postLicenseForm } from "@/client/http.js";
 
-export interface LicenseKeyInfo {
+export interface LicenseKeyDetails {
 	id: number;
 	status: "inactive" | "active" | "expired" | "disabled";
 	key: string;
@@ -10,7 +10,7 @@ export interface LicenseKeyInfo {
 	expires_at: string | null;
 }
 
-export interface LicenseInstanceInfo {
+export interface LicenseInstanceDetails {
 	id: string;
 	name: string;
 	created_at: string;
@@ -29,37 +29,37 @@ export interface LicenseMeta {
 	customer_email: string;
 }
 
-interface LicenseResponse {
+interface LicenseReply {
 	error: string | null;
-	license_key?: LicenseKeyInfo;
+	license_key?: LicenseKeyDetails;
 	meta?: LicenseMeta;
 }
 
-export interface ActivateLicenseResponse extends LicenseResponse {
+export interface ActivateLicenseReply extends LicenseReply {
 	activated: boolean;
-	instance?: LicenseInstanceInfo;
+	instance?: LicenseInstanceDetails;
 }
 
-export interface ValidateLicenseResponse extends LicenseResponse {
+export interface ValidateLicenseReply extends LicenseReply {
 	valid: boolean;
-	instance?: LicenseInstanceInfo | null;
+	instance?: LicenseInstanceDetails | null;
 }
 
-export interface DeactivateLicenseResponse extends LicenseResponse {
+export interface DeactivateLicenseReply extends LicenseReply {
 	deactivated: boolean;
 }
 
-export interface ActivateLicenseInput {
+export interface ActivateLicenseRequest {
 	licenseKey: string;
 	instanceName: string;
 }
 
-export interface ValidateLicenseInput {
+export interface ValidateLicenseRequest {
 	licenseKey: string;
 	instanceId?: string;
 }
 
-export interface DeactivateLicenseInput {
+export interface DeactivateLicenseRequest {
 	licenseKey: string;
 	instanceId: string;
 }
@@ -67,8 +67,8 @@ export interface DeactivateLicenseInput {
 export const activateLicense = ({
 	licenseKey,
 	instanceName,
-}: ActivateLicenseInput) =>
-	postLicenseForm<ActivateLicenseResponse>({
+}: ActivateLicenseRequest) =>
+	postLicenseForm<ActivateLicenseReply>({
 		action: "activate",
 		fields: { license_key: licenseKey, instance_name: instanceName },
 	});
@@ -76,8 +76,8 @@ export const activateLicense = ({
 export const validateLicense = ({
 	licenseKey,
 	instanceId,
-}: ValidateLicenseInput) =>
-	postLicenseForm<ValidateLicenseResponse>({
+}: ValidateLicenseRequest) =>
+	postLicenseForm<ValidateLicenseReply>({
 		action: "validate",
 		fields: { license_key: licenseKey, instance_id: instanceId },
 	});
@@ -85,8 +85,8 @@ export const validateLicense = ({
 export const deactivateLicense = ({
 	licenseKey,
 	instanceId,
-}: DeactivateLicenseInput) =>
-	postLicenseForm<DeactivateLicenseResponse>({
+}: DeactivateLicenseRequest) =>
+	postLicenseForm<DeactivateLicenseReply>({
 		action: "deactivate",
 		fields: { license_key: licenseKey, instance_id: instanceId },
 	});

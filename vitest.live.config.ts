@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { loadEnvFile } from "node:process";
 import { defineConfig } from "vitest/config";
-import { ENV_KEYS, type Mode } from "./src/client/config.js";
+import { type Mode, readEnvApiKey } from "./src/client/config.js";
 import baseConfig from "./vitest.config.js";
 
 const ENV_FILE = ".env";
@@ -12,18 +12,17 @@ const isEnvFilePresent = existsSync(ENV_FILE);
 if (isEnvFilePresent) loadEnvFile(ENV_FILE);
 
 const isApiKeySet = (mode: Mode) => {
-	const apiKeyEnvName = ENV_KEYS.apiKey[mode];
-	const apiKey = process.env[apiKeyEnvName]?.trim();
-	return Boolean(apiKey);
+	const apiKey = readEnvApiKey(mode);
+	return apiKey !== undefined;
 };
 
-const liveSmokeModes = MODES.filter(isApiKeySet);
+const liveApiModes = MODES.filter(isApiKeySet);
 
 export default defineConfig({
 	...baseConfig,
 	test: {
 		...baseConfig.test,
-		provide: { liveSmokeModes },
+		provide: { liveApiModes },
 		include: ["e2e/live-api.test.ts"],
 	},
 });

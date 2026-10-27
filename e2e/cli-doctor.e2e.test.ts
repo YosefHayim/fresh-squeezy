@@ -11,26 +11,29 @@ const CLI_PATH = join(CACHE_DIR, "cli.js");
 const FAKE_API_PATH = join(ROOT, "e2e/fake-api.mjs");
 const SETTINGS_FILE_NAME = ".env";
 
-interface RunOptions {
+interface CliRunSettings {
 	env?: Record<string, string | undefined>;
 	cwd?: string;
 }
 
-interface ReportedResult {
+interface ReportedCheck {
 	name: string;
 	findings: { code: string }[];
 }
 
-const run = (args: string[], { env, cwd = EMPTY_CWD }: RunOptions = {}) => {
+const runCli = (
+	cliFlags: string[],
+	{ env, cwd = EMPTY_CWD }: CliRunSettings = {},
+) => {
 	const processEnv = {
 		LEMON_SQUEEZY_TEST_API_KEY: "test-key",
 		LEMON_SQUEEZY_MODE: "test",
 		NO_COLOR: "1",
 		...env,
 	};
-	const outcome = spawnSync(
+	const cliRun = spawnSync(
 		process.execPath,
-		["--import", FAKE_API_PATH, CLI_PATH, ...args],
+		["--import", FAKE_API_PATH, CLI_PATH, ...cliFlags],
 		{
 			cwd,
 			encoding: "utf8",
@@ -38,9 +41,9 @@ const run = (args: string[], { env, cwd = EMPTY_CWD }: RunOptions = {}) => {
 		},
 	);
 	return {
-		exitCode: outcome.status,
-		stdout: outcome.stdout,
-		stderr: outcome.stderr,
+		exitCode: cliRun.status,
+		stdout: cliRun.stdout,
+		stderr: cliRun.stderr,
 	};
 };
 
@@ -71,7 +74,7 @@ beforeAll(() => {
 }, 60_000);
 
 test("doctor prints a passing report and exits 0", () => {
-	const { exitCode, stdout } = run([
+	const { exitCode, stdout } = runCli([
 		"doctor",
 		"--store-id",
 		"1",
@@ -85,18 +88,18 @@ test("doctor prints a passing report and exits 0", () => {
 });
 
 test("doctor --json prints ok, mode and reports", () => {
-	const { exitCode, stdout } = run(["doctor", "--store-id", "1", "--json"]);
+	const { exitCode, stdout } = runCli(["doctor", "--store-id", "1", "--json"]);
 
 	const parsed = JSON.parse(stdout);
 	expect(exitCode).toBe(0);
 	expect(Object.keys(parsed)).toEqual(["ok", "mode", "reports"]);
 	expect(parsed.ok).toBe(true);
 	expect(parsed.reports).toHaveLength(1);
-	expect(parsed.reports[0].results[0].findings).toEqual([]);
+	expect(parsed.reports[0].checks[0].findings).toEqual([]);
 });
 
 test("doctor exits 1 when a check fails", () => {
-	const { exitCode, stdout } = run([
+	const { exitCode, stdout } = runCli([
 		"doctor",
 		"--store-id",
 		"1",
@@ -106,39 +109,39 @@ test("doctor exits 1 when a check fails", () => {
 	]);
 
 	const parsed = JSON.parse(stdout);
-	const results: ReportedResult[] = parsed.reports[0].results;
-	const discount = results.find((entry) => entry.name === "discount");
+	const checks: ReportedCheck[] = parsed.reports[0].checks;
+	const discount = checks.find((check) => check.name === "discount");
 	expect(exitCode).toBe(1);
 	expect(parsed.ok).toBe(false);
 	expect(discount?.findings[0]?.code).toBe("DISCOUNT_EXPIRED");
 });
 
 test("doctor reports AUTH_FAILED once for a rejected key", () => {
-	const { exitCode, stdout } = run(["doctor", "--store-id", "1", "--json"], {
+	const { exitCode, stdout } = runCli(["doctor", "--store-id", "1", "--json"], {
 		env: { LEMON_SQUEEZY_TEST_API_KEY: "rejected-key" },
 	});
 
 	const parsed = JSON.parse(stdout);
 	expect(exitCode).toBe(1);
-	expect(parsed.reports[0].results).toHaveLength(1);
-	expect(parsed.reports[0].results[0].findings[0].code).toBe("AUTH_FAILED");
+	expect(parsed.reports[0].checks).toHaveLength(1);
+	expect(parsed.reports[0].checks[0].findings[0].code).toBe("AUTH_FAILED");
 });
 
 test("doctor reports AUTH_FAILED in every check when the key is revoked after connecting", () => {
-	const { exitCode, stdout } = run(
+	const { exitCode, stdout } = runCli(
 		["doctor", "--store-id", "1", "--product-id", "100", "--json"],
 		{ env: { LEMON_SQUEEZY_TEST_API_KEY: "revoked-after-connect" } },
 	);
 
 	const parsed = JSON.parse(stdout);
-	const results: ReportedResult[] = parsed.reports[0].results.slice(1);
-	const codes = results.map((entry) => entry.findings[0]?.code);
+	const checks: ReportedCheck[] = parsed.reports[0].checks.slice(1);
+	const codes = checks.map((check) => check.findings[0]?.code);
 	expect(exitCode).toBe(1);
 	expect(codes).toEqual(["AUTH_FAILED", "AUTH_FAILED"]);
 });
 
 test("doctor repeats --store-id to check several stores", () => {
-	const { exitCode, stdout } = run([
+	const { exitCode, stdout } = runCli([
 		"doctor",
 		"--store-id",
 		"1",
@@ -153,7 +156,7 @@ test("doctor repeats --store-id to check several stores", () => {
 });
 
 test("doctor checks every store when no store flag is given", () => {
-	const { exitCode, stdout } = run(["doctor", "--json"]);
+	const { exitCode, stdout } = runCli(["doctor", "--json"]);
 
 	const parsed = JSON.parse(stdout);
 	expect(exitCode).toBe(0);
@@ -161,7 +164,7 @@ test("doctor checks every store when no store flag is given", () => {
 });
 
 test("doctor --all-resources checks every resource of the store", () => {
-	const { exitCode, stdout } = run([
+	const { exitCode, stdout } = runCli([
 		"doctor",
 		"--store-id",
 		"1",
@@ -170,8 +173,8 @@ test("doctor --all-resources checks every resource of the store", () => {
 	]);
 
 	const parsed = JSON.parse(stdout);
-	const results: ReportedResult[] = parsed.reports[0].results;
-	const names = results.map((entry) => entry.name);
+	const checks: ReportedCheck[] = parsed.reports[0].checks;
+	const names = checks.map((check) => check.name);
 	expect(exitCode).toBe(1);
 	expect(names).toEqual(
 		expect.arrayContaining([
@@ -185,32 +188,32 @@ test("doctor --all-resources checks every resource of the store", () => {
 });
 
 test("doctor exits 2 for an unknown flag", () => {
-	const { exitCode, stderr } = run(["doctor", "--nope"]);
+	const { exitCode, stderr } = runCli(["doctor", "--nope"]);
 
 	expect(exitCode).toBe(2);
 	expect(stderr).toContain("--nope");
 });
 
 test("doctor exits 2 for a bad mode", () => {
-	const { exitCode, stderr } = run(["doctor", "--mode", "staging"]);
+	const { exitCode, stderr } = runCli(["doctor", "--mode", "staging"]);
 
 	expect(exitCode).toBe(2);
 	expect(stderr).toContain("staging");
 });
 
 test("--mode picks the API key of that mode", () => {
-	const { stdout } = run(
+	const { stdout } = runCli(
 		["doctor", "--store-id", "1", "--mode", "live", "--json"],
 		{ env: { LEMON_SQUEEZY_LIVE_API_KEY: "rejected-key" } },
 	);
 
 	const parsed = JSON.parse(stdout);
 	expect(parsed.mode).toBe("live");
-	expect(parsed.reports[0].results[0].findings[0].code).toBe("AUTH_FAILED");
+	expect(parsed.reports[0].checks[0].findings[0].code).toBe("AUTH_FAILED");
 });
 
 test("doctor exits 2 when there is no API key", () => {
-	const { exitCode, stderr } = run(["doctor"], {
+	const { exitCode, stderr } = runCli(["doctor"], {
 		env: { LEMON_SQUEEZY_TEST_API_KEY: undefined },
 	});
 
@@ -219,21 +222,21 @@ test("doctor exits 2 when there is no API key", () => {
 });
 
 test("running without the doctor command prints the help to stderr and exits 2", () => {
-	const { exitCode, stderr } = run([]);
+	const { exitCode, stderr } = runCli([]);
 
 	expect(exitCode).toBe(2);
 	expect(stderr).toContain("Usage: fresh-squeezy doctor");
 });
 
 test("--help prints the help and exits 0", () => {
-	const { exitCode, stdout } = run(["--help"]);
+	const { exitCode, stdout } = runCli(["--help"]);
 
 	expect(exitCode).toBe(0);
 	expect(stdout).toContain("--all-resources");
 });
 
 test("--version prints the package version", () => {
-	const { exitCode, stdout } = run(["--version"]);
+	const { exitCode, stdout } = runCli(["--version"]);
 
 	expect(exitCode).toBe(0);
 	expect(stdout.trim()).toMatch(/^\d+\.\d+\.\d+/);
@@ -245,7 +248,7 @@ test("doctor reads the API key from the settings file in the working directory",
 		"LEMON_SQUEEZY_MODE=test",
 	]);
 
-	const { exitCode, stdout } = run(["doctor", "--store-id", "1"], {
+	const { exitCode, stdout } = runCli(["doctor", "--store-id", "1"], {
 		cwd: FILE_CWD,
 		env: { LEMON_SQUEEZY_TEST_API_KEY: undefined },
 	});
@@ -260,7 +263,7 @@ test("a variable already set in the environment wins over the settings file", ()
 		"LEMON_SQUEEZY_MODE=live",
 	]);
 
-	const { exitCode, stdout } = run(["doctor", "--store-id", "1"], {
+	const { exitCode, stdout } = runCli(["doctor", "--store-id", "1"], {
 		cwd: FILE_CWD,
 	});
 

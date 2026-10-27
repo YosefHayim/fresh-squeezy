@@ -1,13 +1,13 @@
 import { expect, test, vi } from "vitest";
 import type { DoctorReport } from "./findings.js";
-import { reportTextOf } from "./report-text.js";
+import { formatReport } from "./report-text.js";
 
 vi.stubEnv("NO_COLOR", "1");
 
 const PASSING_REPORT: DoctorReport = {
 	ok: true,
 	mode: "test",
-	results: [
+	checks: [
 		{
 			name: "connection",
 			ok: true,
@@ -21,7 +21,7 @@ const PASSING_REPORT: DoctorReport = {
 const FAILING_REPORT: DoctorReport = {
 	ok: false,
 	mode: "live",
-	results: [
+	checks: [
 		{ name: "connection", ok: true, mode: "live", findings: [] },
 		{
 			name: "discount",
@@ -46,8 +46,8 @@ const FAILING_REPORT: DoctorReport = {
 	],
 };
 
-test("reportTextOf prints the pass summary and the check line", () => {
-	const text = reportTextOf(PASSING_REPORT);
+test("formatReport prints the pass summary and the check line", () => {
+	const text = formatReport(PASSING_REPORT);
 
 	expect(text).toContain("fresh-squeezy doctor: OK");
 	expect(text).toContain("(mode: test)");
@@ -55,8 +55,8 @@ test("reportTextOf prints the pass summary and the check line", () => {
 	expect(text).toContain("PASS [test] connection");
 });
 
-test("reportTextOf prints failed checks with findings, fixes and the target", () => {
-	const text = reportTextOf(FAILING_REPORT);
+test("formatReport prints failed checks with findings, fixes and the target", () => {
+	const text = formatReport(FAILING_REPORT);
 
 	expect(text).toContain("fresh-squeezy doctor: FAILED");
 	expect(text).toContain("1/2 checks failed");

@@ -1,3 +1,4 @@
+import { makeHttp, pathIs, pathIsWithQuery, route } from "@e2e/mock-fetch.js";
 import {
 	NOT_FOUND_ERROR,
 	PRODUCT_ON_WRONG_STORE_DOC,
@@ -9,27 +10,26 @@ import {
 	VARIANTS_COLLECTION_PENDING_AND_DRAFT,
 	VARIANTS_COLLECTION_PUBLISHED,
 } from "@e2e/sandbox-store.js";
-import { makeHttp, pathIs, pathIsWithQuery, route } from "@e2e/mock-fetch.js";
 import { expect, test } from "vitest";
 import { validateProduct } from "./product.js";
 
 const publishedProductRoutes = (
 	variantsStatus: number,
-	variantsBody: unknown,
+	variantsReplyDocument: unknown,
 ) => [
 	route("/v1/products/100", PUBLISHED_PRODUCT_DOC),
 	{
 		match: pathIsWithQuery("/v1/variants", { "filter[product_id]": "100" }),
 		status: variantsStatus,
-		body: variantsBody,
+		replyDocument: variantsReplyDocument,
 	},
 ];
 
 const validatePublishedProduct = (
 	variantsStatus: number,
-	variantsBody: unknown,
+	variantsReplyDocument: unknown,
 ) => {
-	const routes = publishedProductRoutes(variantsStatus, variantsBody);
+	const routes = publishedProductRoutes(variantsStatus, variantsReplyDocument);
 	const http = makeHttp(routes);
 	return validateProduct(http, "test", { productId: "100" });
 };
@@ -65,7 +65,7 @@ test("validateProduct flags VARIANT_UNPUBLISHED when a pending variant has only 
 	);
 
 	expect(productValidation.ok).toBe(false);
-	expect(productValidation.findings.map((entry) => entry.code)).toContain(
+	expect(productValidation.findings.map((finding) => finding.code)).toContain(
 		"VARIANT_UNPUBLISHED",
 	);
 });
@@ -75,12 +75,12 @@ test("validateProduct flags unpublished product and draft-only variants", async 
 		{
 			match: pathIs("/v1/products/101"),
 			status: 200,
-			body: UNPUBLISHED_PRODUCT_DOC,
+			replyDocument: UNPUBLISHED_PRODUCT_DOC,
 		},
 		{
 			match: pathIsWithQuery("/v1/variants", { "filter[product_id]": "101" }),
 			status: 200,
-			body: VARIANTS_COLLECTION_ALL_DRAFT,
+			replyDocument: VARIANTS_COLLECTION_ALL_DRAFT,
 		},
 	]);
 
@@ -89,7 +89,7 @@ test("validateProduct flags unpublished product and draft-only variants", async 
 	});
 
 	expect(productValidation.ok).toBe(false);
-	const codes = productValidation.findings.map((entry) => entry.code);
+	const codes = productValidation.findings.map((finding) => finding.code);
 	expect(codes).toContain("PRODUCT_UNPUBLISHED");
 	expect(codes).toContain("VARIANT_UNPUBLISHED");
 	expect(codes).toContain("PRODUCT_NO_BUY_URL");
@@ -100,12 +100,12 @@ test("validateProduct flags product on wrong store when expectedStoreId mismatch
 		{
 			match: pathIs("/v1/products/102"),
 			status: 200,
-			body: PRODUCT_ON_WRONG_STORE_DOC,
+			replyDocument: PRODUCT_ON_WRONG_STORE_DOC,
 		},
 		{
 			match: pathIsWithQuery("/v1/variants", { "filter[product_id]": "102" }),
 			status: 200,
-			body: VARIANTS_COLLECTION_PUBLISHED,
+			replyDocument: VARIANTS_COLLECTION_PUBLISHED,
 		},
 	]);
 
@@ -115,14 +115,18 @@ test("validateProduct flags product on wrong store when expectedStoreId mismatch
 	});
 
 	expect(productValidation.ok).toBe(false);
-	expect(productValidation.findings.map((entry) => entry.code)).toContain(
+	expect(productValidation.findings.map((finding) => finding.code)).toContain(
 		"PRODUCT_WRONG_STORE",
 	);
 });
 
 test("validateProduct returns PRODUCT_NOT_FOUND on 404", async () => {
 	const http = makeHttp([
-		{ match: pathIs("/v1/products/9999"), status: 404, body: NOT_FOUND_ERROR },
+		{
+			match: pathIs("/v1/products/9999"),
+			status: 404,
+			replyDocument: NOT_FOUND_ERROR,
+		},
 	]);
 	const productValidation = await validateProduct(http, "test", {
 		productId: "9999",
@@ -138,7 +142,7 @@ test("validateProduct flags VARIANT_MISSING when no variants exist", async () =>
 	);
 
 	expect(productValidation.ok).toBe(false);
-	expect(productValidation.findings.map((entry) => entry.code)).toContain(
+	expect(productValidation.findings.map((finding) => finding.code)).toContain(
 		"VARIANT_MISSING",
 	);
 });
@@ -150,7 +154,7 @@ test("validateProduct soft-fails variant listing as a warning without failing th
 
 	expect(productValidation.ok).toBe(true);
 	const variantFinding = productValidation.findings.find(
-		(entry) => entry.code === "UNKNOWN",
+		(finding) => finding.code === "UNKNOWN",
 	);
 	expect(variantFinding?.severity).toBe("warning");
 });

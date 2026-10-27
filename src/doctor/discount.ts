@@ -3,11 +3,11 @@ import type { Http } from "@/client/http.js";
 import type { DiscountAttributes } from "@/client/lemon-squeezy-types.js";
 import { fetchResource, storeMismatchFindings } from "./fetch-resource.js";
 import {
-	buildResult,
+	buildCheckReport,
+	type CheckReport,
 	FINDING_CODES,
 	type FindingRule,
-	findingsFrom,
-	type ValidationResult,
+	raiseFindings,
 } from "./findings.js";
 
 export interface DiscountCheck {
@@ -113,8 +113,8 @@ export const validateDiscount = async (
 	http: Http,
 	mode: Mode,
 	{ storeId, discountId }: DiscountCheck,
-): Promise<ValidationResult<DiscountAttributes>> => {
-	const fetched = await fetchResource<DiscountAttributes>(http, {
+): Promise<CheckReport<DiscountAttributes>> => {
+	const discountLookup = await fetchResource<DiscountAttributes>(http, {
 		path: `/v1/discounts/${discountId}`,
 		notFound: {
 			code: FINDING_CODES.DISCOUNT_NOT_FOUND,
@@ -124,17 +124,17 @@ export const validateDiscount = async (
 		},
 	});
 
-	const isFetchFailed = fetched.kind === "failed";
+	const isFetchFailed = discountLookup.kind === "failed";
 	if (isFetchFailed) {
-		return buildResult({
+		return buildCheckReport({
 			name: "discount",
 			mode,
-			findings: [fetched.finding],
+			findings: [discountLookup.finding],
 			target: { label: `discount ${discountId}`, id: discountId },
 		});
 	}
 
-	const discount = fetched.payload;
+	const discount = discountLookup.resource;
 	const storeFindings = storeMismatchFindings({
 		label: "Discount",
 		code: FINDING_CODES.DISCOUNT_STORE_MISMATCH,
@@ -143,8 +143,8 @@ export const validateDiscount = async (
 		suggestedFix:
 			"Use the correct store ID or discount ID — discounts should not cross stores.",
 	});
-	const ruleFindings = findingsFrom(DISCOUNT_RULES, discount);
-	return buildResult({
+	const ruleFindings = raiseFindings(DISCOUNT_RULES, discount);
+	return buildCheckReport({
 		name: "discount",
 		mode,
 		findings: [...storeFindings, ...ruleFindings],

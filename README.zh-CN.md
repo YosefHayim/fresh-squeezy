@@ -40,7 +40,7 @@
 
 ---
 
-**fresh-squeezy** 为 [Lemon Squeezy](https://www.lemonsqueezy.com/) 提供两样东西:
+**fresh-squeezy** 取代已不再维护的 Lemon Squeezy SDK，让每个应用无需自己写类型和测试，就能获得有类型、经过检查的计费。它为 [Lemon Squeezy](https://www.lemonsqueezy.com/) 提供两样东西:
 
 1. **一个带类型的客户端**,用来替换 [`@lemonsqueezy/lemonsqueezy.js`](https://github.com/lmsqueezy/lemonsqueezy.js)。官方 SDK 最后一次发布是 2024-11-05 的 4.0.0;fresh-squeezy 跟随 [API 更新日志](https://docs.lemonsqueezy.com/api/getting-started/changelog)。零运行时依赖,支持 ESM 和 CJS。
 2. **一个 doctor**,在上线前检查店铺:连接与模式、店铺、产品、订阅方案、webhook、折扣和许可证密钥。它给出稳定的 finding 代码、稳定的退出码,以及适合 CI 的 JSON。
@@ -163,7 +163,7 @@ doctor 从环境变量或工作目录中的 `.env` 文件读取其模式的密�
 		{
 			"ok": false,
 			"mode": "test",
-			"results": [
+			"checks": [
 				{
 					"name": "discount",
 					"ok": false,
@@ -200,7 +200,7 @@ doctor 从环境变量或工作目录中的 `.env` 文件读取其模式的密�
 
 ### 在 TypeScript 中运行检查
 
-每个检查都返回 `ValidationResult`,且从不抛出异常。
+每个检查都返回 `CheckReport`,且从不抛出异常。
 
 ```ts
 const freshSqueezy = createFreshSqueezy({ mode: "live" });
@@ -213,7 +213,7 @@ const discount = await freshSqueezy.validateDiscount({
 const report = await freshSqueezy.doctor({ storeId: "12", allResources: true });
 const storeIds = await freshSqueezy.listStoreIds();
 
-for (const check of report.results) {
+for (const check of report.checks) {
 	for (const finding of check.findings) {
 		console.error(`[${finding.severity}] ${finding.code}: ${finding.message}`);
 	}
@@ -299,6 +299,8 @@ SDK 导出的每个函数,以及替换它的 fresh-squeezy 调用。以下差异
 
 ## 从 0.3 升级
 
+- 结果改名为检查:`ValidationResult` 改为 `CheckReport`，`ValidationTarget` 改为 `CheckTarget`，`DoctorOptions` 改为 `DoctorTargets`，`buildResult` 改为 `buildCheckReport`，`DoctorReport` 的键 `results` 改为 `checks`。
+- `ENV_KEYS` 已移除。环境变量是 `LEMON_SQUEEZY_TEST_API_KEY`、`LEMON_SQUEEZY_LIVE_API_KEY`、`LEMON_SQUEEZY_MODE` 和 `LEMON_SQUEEZY_STORE_ID`。
 - ops 命令和动词注册表已移除。请使用[客户端](#客户端)。
 - `init`、`manage`、`validate` 子命令、augmentation 和启动菜单已移除。唯一的命令是 `fresh-squeezy doctor`,只接受参数。
 - `--store-ids a,b` 改为 `--store-id a --store-id b`。未指定店铺时 doctor 检查所有店铺,所以 `--all-stores` 是默认行为。
@@ -309,13 +311,14 @@ SDK 导出的每个函数,以及替换它的 fresh-squeezy 调用。以下差异
 ```ts
 // 之前
 import { validateStore } from "fresh-squeezy/validate/store";
-if (result.issues.length > 0) console.error(result.issues[0].code);
+if (report.issues.length > 0) console.error(report.issues[0].code);
 
 // 之后
 import { createFreshSqueezy } from "fresh-squeezy";
 const freshSqueezy = createFreshSqueezy();
-const result = await freshSqueezy.validateStore("12");
-if (result.findings.length > 0) console.error(result.findings[0].code);
+const storeReport = await freshSqueezy.validateStore("12");
+if (storeReport.findings.length > 0)
+	console.error(storeReport.findings[0].code);
 ```
 
 ## 保持类型最新
@@ -324,10 +327,13 @@ if (result.findings.length > 0) console.error(result.findings[0].code);
 
 修复方法:阅读该条目,然后手动编辑 `src/client/lemon-squeezy-types.ts` 和客户端,添加测试,并关闭 issue。也可以交给 agent 处理。
 
+`live-api-check` workflow 也在每月 1 日和 15 日运行。它把测试密钥能读取的每个 Lemon Squeezy 资源与类型对比，当 API 返回类型中没有的字段时，打开一个带 `live-api-drift` 标签的 issue。
+
 在公开仓库中,仓库 60 天没有活动后,GitHub 会停用定时工作流。用下面的命令重新启用:
 
 ```bash
 gh workflow enable lemon-squeezy-changelog
+gh workflow enable live-api-check
 ```
 
 ## Finding 代码
@@ -355,10 +361,10 @@ gh workflow enable lemon-squeezy-changelog
 git clone https://github.com/YosefHayim/fresh-squeezy.git
 cd fresh-squeezy
 pnpm install
-pnpm verify
+pnpm check
 ```
 
-目标和非目标见 [PROJECT.md](./PROJECT.md),命令、规则和流程见 [AGENTS.md](./AGENTS.md),代码结构见 [CONTEXT.md](./CONTEXT.md)。
+客户端在 `src/client/`，检查在 `src/doctor/`。`pnpm check` 运行与 CI 相同的 lint、typecheck、测试和构建。
 
 提交 issue 时,请附上 `fresh-squeezy` 版本、Node 版本、模式、最小复现,以及去掉密钥的 doctor `--json` 输出。
 

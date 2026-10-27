@@ -41,7 +41,7 @@ export type FindingCode = keyof typeof FINDING_CODES;
 
 export type Severity = "info" | "warning" | "error";
 
-export type ValidatorName =
+export type CheckName =
 	| "connection"
 	| "store"
 	| "product"
@@ -58,25 +58,25 @@ export interface Finding {
 	context?: Record<string, unknown>;
 }
 
-export interface ValidationTarget {
+export interface CheckTarget {
 	label: string;
 	id?: string;
 	url?: string;
 }
 
-export interface ValidationResult<Resource = unknown> {
-	name: ValidatorName;
+export interface CheckReport<Resource = unknown> {
+	name: CheckName;
 	ok: boolean;
 	mode: Mode;
 	findings: Finding[];
 	resource?: Resource;
-	target?: ValidationTarget;
+	target?: CheckTarget;
 }
 
 export interface DoctorReport {
 	ok: boolean;
 	mode: Mode;
-	results: ValidationResult[];
+	checks: CheckReport[];
 }
 
 type RuleText<Subject> = string | ((subject: Subject) => string);
@@ -92,12 +92,12 @@ export interface FindingRule<Subject> {
 
 const isError = (finding: Finding) => finding.severity === "error";
 
-const textOf = <Subject>(text: RuleText<Subject>, subject: Subject) => {
+const pickRuleText = <Subject>(text: RuleText<Subject>, subject: Subject) => {
 	const isTextComputed = typeof text === "function";
 	return isTextComputed ? text(subject) : text;
 };
 
-export const findingsFrom = <Subject>(
+export const raiseFindings = <Subject>(
 	rules: FindingRule<Subject>[],
 	subject: Subject,
 ): Finding[] => {
@@ -105,15 +105,15 @@ export const findingsFrom = <Subject>(
 	return raisedRules.map((rule) => ({
 		code: rule.code,
 		severity: rule.severity,
-		message: textOf(rule.message, subject),
-		suggestedFix: rule.suggestedFix && textOf(rule.suggestedFix, subject),
+		message: pickRuleText(rule.message, subject),
+		suggestedFix: rule.suggestedFix && pickRuleText(rule.suggestedFix, subject),
 		context: rule.context?.(subject),
 	}));
 };
 
-export const buildResult = <Resource>(
-	parts: Omit<ValidationResult<Resource>, "ok">,
-): ValidationResult<Resource> => {
+export const buildCheckReport = <Resource>(
+	parts: Omit<CheckReport<Resource>, "ok">,
+): CheckReport<Resource> => {
 	const { name, mode, findings, resource, target } = parts;
 	const hasError = findings.some(isError);
 	return { name, ok: !hasError, mode, findings, resource, target };

@@ -1,5 +1,5 @@
 import type { Mode } from "@/client/config.js";
-import { freshSqueezyErrorOf } from "@/client/errors.js";
+import { buildFreshSqueezyError } from "@/client/errors.js";
 import type { Http, JsonApiResource } from "@/client/http.js";
 import type {
 	DiscountAttributes,
@@ -11,12 +11,12 @@ import type {
 } from "@/client/lemon-squeezy-types.js";
 import { validateConnection } from "./connection.js";
 import { validateDiscount } from "./discount.js";
-import { type Fetched, fetchCollection } from "./fetch-resource.js";
+import { fetchCollection, type Lookup } from "./fetch-resource.js";
 import {
-	buildResult,
+	buildCheckReport,
+	type CheckName,
+	type CheckReport,
 	type DoctorReport,
-	type ValidationResult,
-	type ValidatorName,
 } from "./findings.js";
 import { validateLicenseKey } from "./license-key.js";
 import { validateProduct } from "./product.js";
@@ -24,7 +24,7 @@ import { validateStore } from "./store.js";
 import { validateSubscriptionPlan } from "./subscription-plan.js";
 import { validateWebhook } from "./webhook.js";
 
-export interface DoctorOptions {
+export interface DoctorTargets {
 	storeId?: string;
 	allResources?: boolean;
 	productIds?: string[];
@@ -35,90 +35,96 @@ export interface DoctorOptions {
 }
 
 interface Listing<Attributes> {
-	name: ValidatorName;
+	name: CheckName;
 	noun: string;
-	fetched: Fetched<JsonApiResource<Attributes>[]>;
+	lookup: Lookup<JsonApiResource<Attributes>[]>;
 }
 
-type Job = () => Promise<ValidationResult>;
+type PendingCheck = () => Promise<CheckReport>;
 
-const uniqueValues = (values: string[]) => [...new Set(values)];
+const dropDuplicates = (ids: string[]) => [...new Set(ids)];
 
-const resourcesOf = <Attributes>(
+const pickListedResources = <Attributes>(
 	listing: Listing<Attributes>,
 ): JsonApiResource<Attributes>[] => {
-	const { fetched } = listing;
-	const isFailed = fetched.kind === "failed";
+	const { lookup } = listing;
+	const isFailed = lookup.kind === "failed";
 	if (isFailed) return [];
-	return fetched.payload;
+	return lookup.resource;
 };
 
-const idsOf = <Attributes>(listing: Listing<Attributes>) =>
-	resourcesOf(listing).map((resource) => resource.id);
+const pickListedIds = <Attributes>(listing: Listing<Attributes>) =>
+	pickListedResources(listing).map((resource) => resource.id);
 
-const listingOf = async <Attributes>(
+const fetchListing = async <Attributes>(
 	http: Http,
-	listing: Omit<Listing<Attributes>, "fetched"> & {
+	listing: Omit<Listing<Attributes>, "lookup"> & {
 		path: string;
 		query: Record<string, string>;
 	},
 ): Promise<Listing<Attributes>> => {
 	const { name, noun, path, query } = listing;
-	const fetched = await fetchCollection<Attributes>(http, { path, query });
-	return { name, noun, fetched };
+	const lookup = await fetchCollection<Attributes>(http, { path, query });
+	return { name, noun, lookup };
 };
 
-const listingFailureResults = (
+const reportListingFailure = (
 	mode: Mode,
 	storeId: string,
 	listing: Listing<unknown>,
 ) => {
-	const { fetched, name, noun } = listing;
-	const isListed = fetched.kind === "found";
+	const { lookup, name, noun } = listing;
+	const isListed = lookup.kind === "found";
 	if (isListed) return [];
 	const target = { label: `${noun} of store ${storeId}` };
-	return [buildResult({ name, mode, findings: [fetched.finding], target })];
+	return [buildCheckReport({ name, mode, findings: [lookup.finding], target })];
 };
+
+const fetchVariantListing = (
+	http: Http,
+	product: JsonApiResource<ProductAttributes>,
+) =>
+	fetchListing<VariantAttributes>(http, {
+		name: "subscriptionPlan",
+		noun: `plans of product ${product.id}, listed for`,
+		path: "/v1/variants",
+		query: { "filter[product_id]": product.id },
+	});
 
 const listStoreResources = async (http: Http, storeId: string) => {
 	const storeQuery = { "filter[store_id]": storeId };
 	const [products, webhooks, discounts, licenseKeys] = await Promise.all([
-		listingOf<ProductAttributes>(http, {
+		fetchListing<ProductAttributes>(http, {
 			name: "product",
 			noun: "products",
 			path: "/v1/products",
 			query: storeQuery,
 		}),
-		listingOf<WebhookAttributes>(http, {
+		fetchListing<WebhookAttributes>(http, {
 			name: "webhook",
 			noun: "webhooks",
 			path: "/v1/webhooks",
 			query: storeQuery,
 		}),
-		listingOf<DiscountAttributes>(http, {
+		fetchListing<DiscountAttributes>(http, {
 			name: "discount",
 			noun: "discounts",
 			path: "/v1/discounts",
 			query: storeQuery,
 		}),
-		listingOf<LicenseKeyAttributes>(http, {
+		fetchListing<LicenseKeyAttributes>(http, {
 			name: "licenseKey",
 			noun: "license keys",
 			path: "/v1/license-keys",
 			query: storeQuery,
 		}),
 	]);
-	const listVariants = (product: JsonApiResource<ProductAttributes>) =>
-		listingOf<VariantAttributes>(http, {
-			name: "subscriptionPlan",
-			noun: `plans of product ${product.id}, listed for`,
-			path: "/v1/variants",
-			query: { "filter[product_id]": product.id },
-		});
-	const listedProducts = resourcesOf(products);
-	const variantJobs = listedProducts.map(listVariants);
-	const variantListings = await Promise.all(variantJobs);
-	const variants = variantListings.flatMap(resourcesOf);
+	const listedProducts = pickListedResources(products);
+	const variantFetches = listedProducts.map((product) =>
+		fetchVariantListing(http, product),
+	);
+	const variantListings = await Promise.all(variantFetches);
+	const variants = variantListings.flatMap(pickListedResources);
 	const subscriptionPlans = variants.filter(
 		(variant) => variant.attributes.is_subscription,
 	);
@@ -130,45 +136,47 @@ const listStoreResources = async (http: Http, storeId: string) => {
 		...variantListings,
 	];
 	return {
-		productIds: idsOf(products),
+		productIds: pickListedIds(products),
 		variantIds: subscriptionPlans.map((plan) => plan.id),
-		webhookUrls: resourcesOf(webhooks).map((webhook) => webhook.attributes.url),
-		discountIds: idsOf(discounts),
-		licenseKeyIds: idsOf(licenseKeys),
+		webhookUrls: pickListedResources(webhooks).map(
+			(webhook) => webhook.attributes.url,
+		),
+		discountIds: pickListedIds(discounts),
+		licenseKeyIds: pickListedIds(licenseKeys),
 		failedListings,
 	};
 };
 
 const assertStoreGivenForDependents = (
 	storeId: string | undefined,
-	dependentValues: Record<string, unknown[]>,
+	dependentTargets: Record<string, unknown[]>,
 ) => {
 	const isStoreGiven = storeId !== undefined;
 	if (isStoreGiven) return;
-	const dependentNames = Object.entries(dependentValues)
-		.filter(([, values]) => values.length > 0)
-		.map(([name]) => name);
-	const isEverythingCoherent = dependentNames.length === 0;
-	if (isEverythingCoherent) return;
-	throw freshSqueezyErrorOf({
-		code: "DOCTOR_OPTIONS_INVALID",
-		message: `doctor() received ${dependentNames.join(", ")} without storeId. These validators cannot run without a store; pass \`storeId\` or remove the dependent options.`,
+	const givenTargetNames = Object.entries(dependentTargets)
+		.filter(([, targets]) => targets.length > 0)
+		.map(([targetName]) => targetName);
+	const isNoTargetGiven = givenTargetNames.length === 0;
+	if (isNoTargetGiven) return;
+	throw buildFreshSqueezyError({
+		code: "DOCTOR_TARGETS_INVALID",
+		message: `doctor() received ${givenTargetNames.join(", ")} without storeId. These checks cannot run without a store; pass \`storeId\` or remove the dependent targets.`,
 	});
 };
 
 export const listStoreIds = async (http: Http) => {
-	const fetched = await fetchCollection<StoreAttributes>(http, {
+	const storesLookup = await fetchCollection<StoreAttributes>(http, {
 		path: "/v1/stores",
 	});
-	const isFetchFailed = fetched.kind === "failed";
+	const isFetchFailed = storesLookup.kind === "failed";
 	if (isFetchFailed) {
-		const { code, message } = fetched.finding;
-		throw freshSqueezyErrorOf({ code, message });
+		const { code, message } = storesLookup.finding;
+		throw buildFreshSqueezyError({ code, message });
 	}
-	const stores = fetched.payload;
+	const stores = storesLookup.resource;
 	const hasNoStores = stores.length === 0;
 	if (hasNoStores) {
-		throw freshSqueezyErrorOf({
+		throw buildFreshSqueezyError({
 			code: "NO_STORES",
 			message: "No stores reachable with this API key.",
 		});
@@ -176,7 +184,7 @@ export const listStoreIds = async (http: Http) => {
 	return stores.map((store) => store.id);
 };
 
-interface StoreChecks {
+interface StoreTargets {
 	productIds: string[];
 	variantIds: string[];
 	webhookUrls: string[];
@@ -184,115 +192,125 @@ interface StoreChecks {
 	licenseKeyIds: string[];
 }
 
-const checksOf = (
-	options: DoctorOptions,
-	discovered?: StoreChecks,
-): StoreChecks => {
-	const { productIds = [], variantIds = [], webhookUrls = [] } = options;
-	const { discountIds = [], licenseKeyIds = [] } = options;
+const mergeTargets = (
+	givenTargets: DoctorTargets,
+	discoveredTargets: StoreTargets | null,
+): StoreTargets => {
+	const { productIds = [], variantIds = [], webhookUrls = [] } = givenTargets;
+	const { discountIds = [], licenseKeyIds = [] } = givenTargets;
 	return {
-		productIds: uniqueValues([
+		productIds: dropDuplicates([
 			...productIds,
-			...(discovered?.productIds ?? []),
+			...(discoveredTargets?.productIds ?? []),
 		]),
-		variantIds: uniqueValues([
+		variantIds: dropDuplicates([
 			...variantIds,
-			...(discovered?.variantIds ?? []),
+			...(discoveredTargets?.variantIds ?? []),
 		]),
-		webhookUrls: uniqueValues([
+		webhookUrls: dropDuplicates([
 			...webhookUrls,
-			...(discovered?.webhookUrls ?? []),
+			...(discoveredTargets?.webhookUrls ?? []),
 		]),
-		discountIds: uniqueValues([
+		discountIds: dropDuplicates([
 			...discountIds,
-			...(discovered?.discountIds ?? []),
+			...(discoveredTargets?.discountIds ?? []),
 		]),
-		licenseKeyIds: uniqueValues([
+		licenseKeyIds: dropDuplicates([
 			...licenseKeyIds,
-			...(discovered?.licenseKeyIds ?? []),
+			...(discoveredTargets?.licenseKeyIds ?? []),
 		]),
 	};
 };
 
-interface StoreJobs {
+interface StoreCheckPlan {
 	http: Http;
 	mode: Mode;
 	storeId: string;
-	checks: StoreChecks;
+	targets: StoreTargets;
 }
 
-const jobsOf = ({ http, mode, storeId, checks }: StoreJobs): Job[] => {
-	const productJobs = checks.productIds.map(
+const listPendingChecks = ({
+	http,
+	mode,
+	storeId,
+	targets,
+}: StoreCheckPlan): PendingCheck[] => {
+	const productChecks = targets.productIds.map(
 		(productId) => () =>
 			validateProduct(http, mode, { productId, expectedStoreId: storeId }),
 	);
-	const webhookJobs = checks.webhookUrls.map(
+	const webhookChecks = targets.webhookUrls.map(
 		(url) => () => validateWebhook(http, mode, { storeId, url }),
 	);
-	const discountJobs = checks.discountIds.map(
+	const discountChecks = targets.discountIds.map(
 		(discountId) => () => validateDiscount(http, mode, { storeId, discountId }),
 	);
-	const licenseKeyJobs = checks.licenseKeyIds.map(
+	const licenseKeyChecks = targets.licenseKeyIds.map(
 		(licenseKeyId) => () =>
 			validateLicenseKey(http, mode, { storeId, licenseKeyId }),
 	);
-	const planJobs = checks.variantIds.map(
+	const planChecks = targets.variantIds.map(
 		(variantId) => () =>
 			validateSubscriptionPlan(http, mode, { storeId, variantId }),
 	);
-	const storeJob = () => validateStore(http, mode, storeId);
+	const storeCheck = () => validateStore(http, mode, storeId);
 	return [
-		storeJob,
-		...productJobs,
-		...webhookJobs,
-		...discountJobs,
-		...licenseKeyJobs,
-		...planJobs,
+		storeCheck,
+		...productChecks,
+		...webhookChecks,
+		...discountChecks,
+		...licenseKeyChecks,
+		...planChecks,
 	];
 };
 
-const runInOrder = async (jobs: Job[]) => {
-	const results: ValidationResult[] = [];
-	for (const runJob of jobs) {
-		const jobResult = await runJob();
-		results.push(jobResult);
+const runChecksInOrder = async (pendingChecks: PendingCheck[]) => {
+	const checkReports: CheckReport[] = [];
+	for (const runCheck of pendingChecks) {
+		const checkReport = await runCheck();
+		checkReports.push(checkReport);
 	}
-	return results;
+	return checkReports;
 };
 
 export const doctor = async (
 	http: Http,
 	mode: Mode,
-	options: DoctorOptions = {},
+	targets: DoctorTargets = {},
 ): Promise<DoctorReport> => {
-	const { storeId, allResources = false } = options;
+	const { storeId, allResources = false } = targets;
 	assertStoreGivenForDependents(storeId, {
 		allResources: allResources ? [true] : [],
-		productIds: options.productIds ?? [],
-		variantIds: options.variantIds ?? [],
-		webhookUrls: options.webhookUrls ?? [],
-		discountIds: options.discountIds ?? [],
-		licenseKeyIds: options.licenseKeyIds ?? [],
+		productIds: targets.productIds ?? [],
+		variantIds: targets.variantIds ?? [],
+		webhookUrls: targets.webhookUrls ?? [],
+		discountIds: targets.discountIds ?? [],
+		licenseKeyIds: targets.licenseKeyIds ?? [],
 	});
 
-	const connection = await validateConnection(http, mode);
-	const isConnectionFailed = !connection.ok;
+	const connectionReport = await validateConnection(http, mode);
+	const isConnectionFailed = !connectionReport.ok;
 	const isStoreMissing = storeId === undefined;
 	if (isConnectionFailed || isStoreMissing) {
-		return { ok: connection.ok, mode, results: [connection] };
+		return { ok: connectionReport.ok, mode, checks: [connectionReport] };
 	}
 
-	const discovered = allResources
+	const discoveredTargets = allResources
 		? await listStoreResources(http, storeId)
-		: undefined;
-	const failedListings = discovered?.failedListings ?? [];
+		: null;
+	const failedListings = discoveredTargets?.failedListings ?? [];
 	const listingFailures = failedListings.flatMap((listing) =>
-		listingFailureResults(mode, storeId, listing),
+		reportListingFailure(mode, storeId, listing),
 	);
-	const checks = checksOf(options, discovered);
-	const jobs = jobsOf({ http, mode, storeId, checks });
-	const jobResults = await runInOrder(jobs);
-	const results = [connection, ...listingFailures, ...jobResults];
-	const isEveryResultOk = results.every((entry) => entry.ok);
-	return { ok: isEveryResultOk, mode, results };
+	const storeTargets = mergeTargets(targets, discoveredTargets);
+	const pendingChecks = listPendingChecks({
+		http,
+		mode,
+		storeId,
+		targets: storeTargets,
+	});
+	const storeCheckReports = await runChecksInOrder(pendingChecks);
+	const checks = [connectionReport, ...listingFailures, ...storeCheckReports];
+	const isEveryCheckOk = checks.every((check) => check.ok);
+	return { ok: isEveryCheckOk, mode, checks };
 };

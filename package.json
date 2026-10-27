@@ -72,20 +72,17 @@
     "node": ">=22"
   },
   "scripts": {
+    "dev": "tsup --watch --onSuccess \"node dist/cli.js doctor\"",
+    "prod": "tsup && node dist/cli.js doctor",
     "build": "tsup",
-    "dev": "tsup --watch",
-    "cli": "node dist/cli.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
     "test:live": "vitest run --config vitest.live.config.ts",
-    "typecheck": "tsc --noEmit --incremental --tsBuildInfoFile node_modules/.cache/tsc/typecheck.tsbuildinfo",
-    "format": "biome format --write .",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "check:ci": "biome ci .",
-    "verify": "pnpm check:ci && pnpm typecheck && pnpm test && pnpm build",
-    "prepublishOnly": "pnpm typecheck && pnpm test && pnpm build",
+    "typecheck": "tsc --noEmit --incremental --tsBuildInfoFile node_modules/.cache/tsc/typecheck.tsbuildinfo",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "prepublishOnly": "pnpm check",
     "prepare": "husky"
   },
   "devDependencies": {

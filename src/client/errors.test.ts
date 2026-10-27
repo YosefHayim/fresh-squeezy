@@ -1,8 +1,11 @@
 import { expect, test } from "vitest";
-import { freshSqueezyErrorOf, isFreshSqueezyError } from "@/client/errors.js";
+import {
+	buildFreshSqueezyError,
+	isFreshSqueezyError,
+} from "@/client/errors.js";
 
-test("freshSqueezyErrorOf returns a real Error carrying code, status and detail", () => {
-	const error = freshSqueezyErrorOf({
+test("buildFreshSqueezyError returns a real Error carrying code, status and detail", () => {
+	const error = buildFreshSqueezyError({
 		code: "NOT_FOUND",
 		message: "missing",
 		status: 404,
@@ -17,15 +20,15 @@ test("freshSqueezyErrorOf returns a real Error carrying code, status and detail"
 	expect(error.stack).toContain("missing");
 });
 
-test("freshSqueezyErrorOf leaves status and detail undefined when omitted", () => {
-	const error = freshSqueezyErrorOf({ code: "X", message: "m" });
+test("buildFreshSqueezyError leaves status and detail undefined when omitted", () => {
+	const error = buildFreshSqueezyError({ code: "X", message: "m" });
 	expect(error.status).toBeUndefined();
 	expect(error.detail).toBeUndefined();
 });
 
 test("isFreshSqueezyError is true for an error made by the factory", () => {
 	expect(
-		isFreshSqueezyError(freshSqueezyErrorOf({ code: "X", message: "m" })),
+		isFreshSqueezyError(buildFreshSqueezyError({ code: "X", message: "m" })),
 	).toBe(true);
 });
 

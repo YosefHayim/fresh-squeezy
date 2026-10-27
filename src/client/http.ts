@@ -1,5 +1,5 @@
 import type { Config } from "./config.js";
-import { type FreshSqueezyError, freshSqueezyErrorOf } from "./errors.js";
+import { buildFreshSqueezyError, type FreshSqueezyError } from "./errors.js";
 
 const PAGE_SIZE = 100;
 
@@ -7,11 +7,11 @@ const LICENSE_API_URL = "https://api.lemonsqueezy.com";
 
 const API_CONTENT_TYPE = "application/vnd.api+json";
 
-const HTTP_STATUS_CODES = {
-	401: "UNAUTHORIZED",
-	404: "NOT_FOUND",
-	429: "RATE_LIMITED",
-} as const;
+const ERROR_CODES_BY_STATUS = new Map([
+	[401, "UNAUTHORIZED"],
+	[404, "NOT_FOUND"],
+	[429, "RATE_LIMITED"],
+]);
 
 export type HttpQuery = Record<string, string | number | undefined>;
 
@@ -19,7 +19,7 @@ export interface HttpRequest {
 	method?: "GET" | "POST" | "PATCH" | "DELETE";
 	path: string;
 	query?: HttpQuery;
-	body?: unknown;
+	document?: unknown;
 	signal?: AbortSignal;
 }
 
@@ -50,84 +50,100 @@ interface JsonApiError {
 	detail?: string;
 }
 
-const requestUrlOf = (config: Config, path: string, query?: HttpQuery) => {
+const buildRequestUrl = (config: Config, path: string, query?: HttpQuery) => {
 	const url = new URL(path, config.baseUrl);
 	const queryEntries = Object.entries(query ?? {});
-	for (const [key, value] of queryEntries) {
-		const isValueMissing = value === undefined;
-		if (isValueMissing) continue;
-		const valueText = String(value);
-		url.searchParams.append(key, valueText);
+	for (const [queryName, queryValue] of queryEntries) {
+		const isQueryValueMissing = queryValue === undefined;
+		if (isQueryValueMissing) continue;
+		const queryValueText = String(queryValue);
+		url.searchParams.append(queryName, queryValueText);
 	}
 	return url.toString();
 };
 
-const parseJsonBody = (text: string): unknown => {
+const parseReplyText = (replyText: string): unknown => {
 	try {
-		return JSON.parse(text);
+		return JSON.parse(replyText);
 	} catch {
-		return text;
+		return replyText;
 	}
 };
 
-const jsonApiErrorsOf = (responseBody: unknown): JsonApiError[] => {
-	const isBodyNotAnObject = !responseBody || typeof responseBody !== "object";
-	if (isBodyNotAnObject) return [];
-	const errors = (responseBody as { errors?: unknown }).errors;
-	const isErrorsNotAnArray = !Array.isArray(errors);
-	if (isErrorsNotAnArray) return [];
-	return errors.filter(
-		(entry): entry is JsonApiError =>
-			typeof entry === "object" && entry !== null,
-	);
+const isJsonObject = (replyDocument: unknown): replyDocument is object =>
+	typeof replyDocument === "object" && replyDocument !== null;
+
+const isJsonApiError = (apiError: unknown): apiError is JsonApiError =>
+	isJsonObject(apiError);
+
+const hasErrorList = (
+	replyDocument: unknown,
+): replyDocument is { errors: unknown[] } =>
+	isJsonObject(replyDocument) &&
+	"errors" in replyDocument &&
+	Array.isArray(replyDocument.errors);
+
+const readJsonApiErrors = (replyDocument: unknown): JsonApiError[] => {
+	const isErrorListMissing = !hasErrorList(replyDocument);
+	if (isErrorListMissing) return [];
+	return replyDocument.errors.filter(isJsonApiError);
 };
 
-const apiErrorOf = (
+const buildApiError = (
 	status: number,
-	responseBody: unknown,
+	replyDocument: unknown,
 ): FreshSqueezyError => {
-	const [firstError] = jsonApiErrorsOf(responseBody);
-	const mappedCode =
-		HTTP_STATUS_CODES[status as keyof typeof HTTP_STATUS_CODES];
-	const code = mappedCode ?? firstError?.code ?? `HTTP_${status}`;
+	const [firstError] = readJsonApiErrors(replyDocument);
+	const statusErrorCode = ERROR_CODES_BY_STATUS.get(status);
+	const code = statusErrorCode ?? firstError?.code ?? `HTTP_${status}`;
 	const message =
 		firstError?.detail ??
 		firstError?.title ??
 		`Lemon Squeezy request failed with status ${status}`;
-	return freshSqueezyErrorOf({ code, status, message, detail: responseBody });
+	return buildFreshSqueezyError({
+		code,
+		status,
+		message,
+		detail: replyDocument,
+	});
 };
 
-const networkErrorOf = (cause: unknown) => {
+const buildNetworkError = (cause: unknown) => {
 	const isCauseAnError = cause instanceof Error;
 	const message = isCauseAnError ? cause.message : "Network request failed";
-	return freshSqueezyErrorOf({ code: "NETWORK_ERROR", message, detail: cause });
+	return buildFreshSqueezyError({
+		code: "NETWORK_ERROR",
+		message,
+		detail: cause,
+	});
 };
 
-const sendRequest = async <Payload>(
+const sendRequest = async <ReplyDocument>(
 	config: Config,
-	{ method = "GET", path, query, body, signal }: HttpRequest,
+	{ method = "GET", path, query, document, signal }: HttpRequest,
 ) => {
-	const url = requestUrlOf(config, path, query);
+	const url = buildRequestUrl(config, path, query);
 	const headers: Record<string, string> = {
 		Authorization: `Bearer ${config.apiKey}`,
 		Accept: API_CONTENT_TYPE,
 	};
-	const hasBody = body !== undefined;
-	if (hasBody) headers["Content-Type"] = API_CONTENT_TYPE;
+	const hasDocument = document !== undefined;
+	if (hasDocument) headers["Content-Type"] = API_CONTENT_TYPE;
 
-	const bodyText = hasBody ? JSON.stringify(body) : undefined;
-	const response = await config
-		.fetch(url, { method, headers, body: bodyText, signal })
+	const documentText = hasDocument ? JSON.stringify(document) : undefined;
+	const reply = await config
+		.fetch(url, { method, headers, body: documentText, signal })
 		.catch((cause: unknown) => {
-			throw networkErrorOf(cause);
+			throw buildNetworkError(cause);
 		});
 
-	const text = await response.text();
-	const isBodyPresent = text.length > 0;
-	const parsedBody = isBodyPresent ? parseJsonBody(text) : undefined;
-	const isResponseFailed = !response.ok;
-	if (isResponseFailed) throw apiErrorOf(response.status, parsedBody);
-	return parsedBody as Payload;
+	const replyText = await reply.text();
+	const hasReplyText = replyText.length > 0;
+	const replyDocument = hasReplyText ? parseReplyText(replyText) : undefined;
+	const isReplyFailed = !reply.ok;
+	if (isReplyFailed) throw buildApiError(reply.status, replyDocument);
+	// The one place a reply gets its type; the live API check keeps the types honest.
+	return replyDocument as ReplyDocument;
 };
 
 export interface LicenseFormRequest {
@@ -135,37 +151,42 @@ export interface LicenseFormRequest {
 	fields: Record<string, string | undefined>;
 }
 
+const isFieldFilled = (
+	field: [string, string | undefined],
+): field is [string, string] => field[1] !== undefined;
+
 // The license API takes no API key and answers 4xx with a JSON body that carries `error`.
-export const postLicenseForm = async <Payload>({
+export const postLicenseForm = async <LicenseReply>({
 	action,
 	fields,
 }: LicenseFormRequest) => {
 	const url = new URL(`/v1/licenses/${action}`, LICENSE_API_URL);
-	const presentFields = Object.entries(fields).filter(
-		([, value]) => value !== undefined,
-	) as [string, string][];
-	const body = new URLSearchParams(presentFields);
-	const response = await fetch(url, {
+	const fieldEntries = Object.entries(fields);
+	const filledFields = fieldEntries.filter(isFieldFilled);
+	const licenseForm = new URLSearchParams(filledFields);
+	const reply = await fetch(url, {
 		method: "POST",
 		headers: { Accept: "application/json" },
-		body,
+		body: licenseForm,
 	}).catch((cause: unknown) => {
-		throw networkErrorOf(cause);
+		throw buildNetworkError(cause);
 	});
-	const text = await response.text();
-	const parsedBody = parseJsonBody(text);
-	const isBodyNotJson = typeof parsedBody !== "object" || parsedBody === null;
-	if (isBodyNotJson) throw apiErrorOf(response.status, parsedBody);
-	return parsedBody as Payload;
+	const replyText = await reply.text();
+	const licenseReply = parseReplyText(replyText);
+	const isLicenseReplyNotJson = !isJsonObject(licenseReply);
+	if (isLicenseReplyNotJson) throw buildApiError(reply.status, licenseReply);
+	return licenseReply as LicenseReply;
 };
 
 export const createHttp = (config: Config) => {
-	const request = <Payload>(httpRequest: HttpRequest) =>
-		sendRequest<Payload>(config, httpRequest);
+	const request = <ReplyDocument>(httpRequest: HttpRequest) =>
+		sendRequest<ReplyDocument>(config, httpRequest);
 
 	const getResource = async <Attributes>(path: string) => {
-		const document = await request<JsonApiDocument<Attributes>>({ path });
-		return document.data;
+		const resourceDocument = await request<JsonApiDocument<Attributes>>({
+			path,
+		});
+		return resourceDocument.data;
 	};
 
 	const getAll = async <Attributes>(

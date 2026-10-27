@@ -7,11 +7,11 @@ import type {
 } from "@/client/lemon-squeezy-types.js";
 import { fetchSafely } from "./fetch-resource.js";
 import {
-	buildResult,
+	buildCheckReport,
+	type CheckReport,
 	FINDING_CODES,
 	type FindingRule,
-	findingsFrom,
-	type ValidationResult,
+	raiseFindings,
 } from "./findings.js";
 
 export interface ConnectionSummary {
@@ -64,8 +64,8 @@ const CONNECTION_RULES: FindingRule<ConnectionSummary>[] = [
 export const validateConnection = async (
 	http: Http,
 	mode: Mode,
-): Promise<ValidationResult<ConnectionSummary>> => {
-	const fetched = await fetchSafely(async () => {
+): Promise<CheckReport<ConnectionSummary>> => {
+	const accountLookup = await fetchSafely(async () => {
 		const userDocument = await http.request<UserDocument>({
 			path: "/v1/users/me",
 		});
@@ -73,16 +73,16 @@ export const validateConnection = async (
 		return { userDocument, stores };
 	});
 
-	const isFetchFailed = fetched.kind === "failed";
+	const isFetchFailed = accountLookup.kind === "failed";
 	if (isFetchFailed) {
-		return buildResult({
+		return buildCheckReport({
 			name: "connection",
 			mode,
-			findings: [fetched.finding],
+			findings: [accountLookup.finding],
 		});
 	}
 
-	const { userDocument, stores } = fetched.payload;
+	const { userDocument, stores } = accountLookup.resource;
 	const actualMode = modeOfTestFlag(userDocument.meta?.test_mode);
 	const summary: ConnectionSummary = {
 		user: userDocument.data.attributes,
@@ -91,6 +91,11 @@ export const validateConnection = async (
 		declaredMode: mode,
 		...(actualMode ? { actualMode } : {}),
 	};
-	const findings = findingsFrom(CONNECTION_RULES, summary);
-	return buildResult({ name: "connection", mode, findings, resource: summary });
+	const findings = raiseFindings(CONNECTION_RULES, summary);
+	return buildCheckReport({
+		name: "connection",
+		mode,
+		findings,
+		resource: summary,
+	});
 };

@@ -23,8 +23,8 @@ export interface CollectionFetch {
 	query?: HttpQuery;
 }
 
-export type Fetched<Payload> =
-	| { kind: "found"; payload: Payload }
+export type Lookup<Resource> =
+	| { kind: "found"; resource: Resource }
 	| { kind: "failed"; finding: Finding };
 
 export interface StoreOwnership {
@@ -67,20 +67,20 @@ const findingOfError = (
 	};
 };
 
-export const fetchSafely = async <Payload>(
-	load: () => Promise<Payload>,
+export const fetchSafely = async <Resource>(
+	load: () => Promise<Resource>,
 	notFound?: NotFoundFinding,
-): Promise<Fetched<Payload>> => {
+): Promise<Lookup<Resource>> => {
 	try {
-		const payload = await load();
-		return { kind: "found", payload };
+		const resource = await load();
+		return { kind: "found", resource };
 	} catch (error) {
 		const finding = findingOfError(error, notFound);
 		return { kind: "failed", finding };
 	}
 };
 
-const attributesOf = async <Attributes>(http: Http, path: string) => {
+const fetchAttributes = async <Attributes>(http: Http, path: string) => {
 	const resource = await http.getResource<Attributes>(path);
 	return resource.attributes;
 };
@@ -88,7 +88,7 @@ const attributesOf = async <Attributes>(http: Http, path: string) => {
 export const fetchResource = <Attributes>(
 	http: Http,
 	{ path, notFound }: ResourceFetch,
-) => fetchSafely(() => attributesOf<Attributes>(http, path), notFound);
+) => fetchSafely(() => fetchAttributes<Attributes>(http, path), notFound);
 
 export const fetchCollection = <Attributes>(
 	http: Http,
@@ -96,19 +96,19 @@ export const fetchCollection = <Attributes>(
 ) => fetchSafely(() => http.getAll<Attributes>(path, query));
 
 export const storeMismatchFindings = (ownership: StoreOwnership): Finding[] => {
-	const expected = ownership.expectedStoreId;
-	const actual = String(ownership.actualStoreId);
-	const isSameStore = expected === actual;
+	const { expectedStoreId } = ownership;
+	const actualStoreId = String(ownership.actualStoreId);
+	const isSameStore = expectedStoreId === actualStoreId;
 	if (isSameStore) return [];
 	return [
 		{
 			code: ownership.code,
 			severity: "error",
-			message: `${ownership.label} belongs to store ${actual}, expected ${expected}.`,
+			message: `${ownership.label} belongs to store ${actualStoreId}, expected ${expectedStoreId}.`,
 			suggestedFix: ownership.suggestedFix,
 			context: {
-				expectedStoreId: expected,
-				actualStoreId: actual,
+				expectedStoreId,
+				actualStoreId,
 				...ownership.extraContext,
 			},
 		},

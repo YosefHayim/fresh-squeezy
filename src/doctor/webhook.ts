@@ -3,11 +3,11 @@ import type { Http } from "@/client/http.js";
 import type { WebhookAttributes } from "@/client/lemon-squeezy-types.js";
 import { fetchCollection } from "./fetch-resource.js";
 import {
-	buildResult,
+	buildCheckReport,
+	type CheckReport,
 	FINDING_CODES,
 	type FindingRule,
-	findingsFrom,
-	type ValidationResult,
+	raiseFindings,
 } from "./findings.js";
 
 export interface WebhookCheck {
@@ -40,12 +40,12 @@ const OPTIONAL_WEBHOOK_EVENTS = [
 	"license_key_updated",
 ] as const;
 
-const normalizedUrlOf = (url: string) => url.replace(/\/+$/, "").toLowerCase();
+const normalizeUrl = (url: string) => url.replace(/\/+$/, "").toLowerCase();
 
 const isSameUrl = (left: string, right: string) =>
-	normalizedUrlOf(left) === normalizedUrlOf(right);
+	normalizeUrl(left) === normalizeUrl(right);
 
-const eventGapsOf = (webhook: WebhookAttributes): WebhookEventGaps => {
+const findEventGaps = (webhook: WebhookAttributes): WebhookEventGaps => {
 	const subscribed = new Set(webhook.events);
 	const isUnsubscribed = (event: string) => !subscribed.has(event);
 	return {
@@ -102,29 +102,29 @@ export const validateWebhook = async (
 	http: Http,
 	mode: Mode,
 	{ storeId, url }: WebhookCheck,
-): Promise<ValidationResult<WebhookAttributes>> => {
-	const fetched = await fetchCollection<WebhookAttributes>(http, {
+): Promise<CheckReport<WebhookAttributes>> => {
+	const webhooksLookup = await fetchCollection<WebhookAttributes>(http, {
 		path: "/v1/webhooks",
 		query: { "filter[store_id]": storeId },
 	});
 	const unregisteredTarget = { label: url, url };
 
-	const isFetchFailed = fetched.kind === "failed";
+	const isFetchFailed = webhooksLookup.kind === "failed";
 	if (isFetchFailed) {
-		return buildResult({
+		return buildCheckReport({
 			name: "webhook",
 			mode,
-			findings: [fetched.finding],
+			findings: [webhooksLookup.finding],
 			target: unregisteredTarget,
 		});
 	}
 
-	const webhook = fetched.payload.find((entry) =>
-		isSameUrl(entry.attributes.url, url),
+	const webhook = webhooksLookup.resource.find((listedWebhook) =>
+		isSameUrl(listedWebhook.attributes.url, url),
 	);
 	const isWebhookMissing = webhook === undefined;
 	if (isWebhookMissing) {
-		return buildResult({
+		return buildCheckReport({
 			name: "webhook",
 			mode,
 			findings: [
@@ -141,11 +141,11 @@ export const validateWebhook = async (
 		});
 	}
 
-	const eventGaps = eventGapsOf(webhook.attributes);
-	return buildResult({
+	const eventGaps = findEventGaps(webhook.attributes);
+	return buildCheckReport({
 		name: "webhook",
 		mode,
-		findings: findingsFrom(WEBHOOK_RULES, eventGaps),
+		findings: raiseFindings(WEBHOOK_RULES, eventGaps),
 		resource: webhook.attributes,
 		target: {
 			label: webhook.attributes.url,

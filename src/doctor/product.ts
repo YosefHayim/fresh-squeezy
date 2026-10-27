@@ -10,12 +10,12 @@ import {
 	storeMismatchFindings,
 } from "./fetch-resource.js";
 import {
-	buildResult,
+	buildCheckReport,
+	type CheckReport,
 	FINDING_CODES,
 	type Finding,
 	type FindingRule,
-	findingsFrom,
-	type ValidationResult,
+	raiseFindings,
 } from "./findings.js";
 
 export interface ProductCheck {
@@ -87,21 +87,21 @@ const PRODUCT_RULES: FindingRule<ProductAttributes>[] = [
 	},
 ];
 
-const variantFindingsOf = async (
+const checkVariants = async (
 	http: Http,
 	productId: string,
 ): Promise<Finding[]> => {
-	const fetched = await fetchCollection<VariantAttributes>(http, {
+	const variantsLookup = await fetchCollection<VariantAttributes>(http, {
 		path: "/v1/variants",
 		query: { "filter[product_id]": productId },
 	});
 	// Listing variants is best-effort, so a failed list is only a warning.
-	const isListFailed = fetched.kind === "failed";
-	if (isListFailed) return [{ ...fetched.finding, severity: "warning" }];
-	return findingsFrom(VARIANT_RULES, fetched.payload);
+	const isListFailed = variantsLookup.kind === "failed";
+	if (isListFailed) return [{ ...variantsLookup.finding, severity: "warning" }];
+	return raiseFindings(VARIANT_RULES, variantsLookup.resource);
 };
 
-const storeFindingsOf = (
+const checkStoreMatch = (
 	product: ProductAttributes,
 	expectedStoreId?: string,
 ) => {
@@ -122,8 +122,8 @@ export const validateProduct = async (
 	http: Http,
 	mode: Mode,
 	{ productId, expectedStoreId }: ProductCheck,
-): Promise<ValidationResult<ProductAttributes>> => {
-	const fetched = await fetchResource<ProductAttributes>(http, {
+): Promise<CheckReport<ProductAttributes>> => {
+	const productLookup = await fetchResource<ProductAttributes>(http, {
 		path: `/v1/products/${productId}`,
 		notFound: {
 			code: FINDING_CODES.PRODUCT_NOT_FOUND,
@@ -133,21 +133,21 @@ export const validateProduct = async (
 		},
 	});
 
-	const isFetchFailed = fetched.kind === "failed";
+	const isFetchFailed = productLookup.kind === "failed";
 	if (isFetchFailed) {
-		return buildResult({
+		return buildCheckReport({
 			name: "product",
 			mode,
-			findings: [fetched.finding],
+			findings: [productLookup.finding],
 			target: { label: `product ${productId}`, id: productId },
 		});
 	}
 
-	const product = fetched.payload;
-	const storeFindings = storeFindingsOf(product, expectedStoreId);
-	const productFindings = findingsFrom(PRODUCT_RULES, product);
-	const variantFindings = await variantFindingsOf(http, productId);
-	return buildResult({
+	const product = productLookup.resource;
+	const storeFindings = checkStoreMatch(product, expectedStoreId);
+	const productFindings = raiseFindings(PRODUCT_RULES, product);
+	const variantFindings = await checkVariants(http, productId);
+	return buildCheckReport({
 		name: "product",
 		mode,
 		findings: [...storeFindings, ...productFindings, ...variantFindings],

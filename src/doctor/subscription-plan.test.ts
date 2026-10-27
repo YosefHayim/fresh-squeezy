@@ -1,3 +1,4 @@
+import { makeHttp, pathIs, route } from "@e2e/mock-fetch.js";
 import {
 	draftSubscriptionVariantDoc,
 	freePriceSubscriptionVariantDoc,
@@ -11,7 +12,6 @@ import {
 	trialInconsistentVariantDoc,
 	wrongStoreSubscriptionVariantDoc,
 } from "@e2e/sandbox-store.js";
-import { makeHttp, pathIs, route } from "@e2e/mock-fetch.js";
 import { expect, test } from "vitest";
 import { validateSubscriptionPlan } from "./subscription-plan.js";
 
@@ -20,12 +20,12 @@ test("validateSubscriptionPlan returns ok for a valid subscription variant", asy
 		{
 			match: pathIs("/v1/variants/800"),
 			status: 200,
-			body: subscriptionVariantDoc,
+			replyDocument: subscriptionVariantDoc,
 		},
 		{
 			match: pathIs("/v1/products/100"),
 			status: 200,
-			body: PUBLISHED_PRODUCT_DOC,
+			replyDocument: PUBLISHED_PRODUCT_DOC,
 		},
 	]);
 	const planValidation = await validateSubscriptionPlan(http, "test", {
@@ -39,7 +39,11 @@ test("validateSubscriptionPlan returns ok for a valid subscription variant", asy
 
 test("validateSubscriptionPlan returns PLAN_VARIANT_NOT_FOUND on 404", async () => {
 	const http = makeHttp([
-		{ match: pathIs("/v1/variants/9999"), status: 404, body: NOT_FOUND_ERROR },
+		{
+			match: pathIs("/v1/variants/9999"),
+			status: 404,
+			replyDocument: NOT_FOUND_ERROR,
+		},
 	]);
 	const planValidation = await validateSubscriptionPlan(http, "test", {
 		storeId: "42",
@@ -54,12 +58,12 @@ test("validateSubscriptionPlan returns PLAN_NOT_SUBSCRIPTION for non-subscriptio
 		{
 			match: pathIs("/v1/variants/801"),
 			status: 200,
-			body: nonSubscriptionVariantDoc,
+			replyDocument: nonSubscriptionVariantDoc,
 		},
 		{
 			match: pathIs("/v1/products/100"),
 			status: 200,
-			body: PUBLISHED_PRODUCT_DOC,
+			replyDocument: PUBLISHED_PRODUCT_DOC,
 		},
 	]);
 	const planValidation = await validateSubscriptionPlan(http, "test", {
@@ -75,12 +79,12 @@ test("validateSubscriptionPlan returns PLAN_INVALID_INTERVAL for missing/invalid
 		{
 			match: pathIs("/v1/variants/802"),
 			status: 200,
-			body: invalidIntervalVariantDoc,
+			replyDocument: invalidIntervalVariantDoc,
 		},
 		{
 			match: pathIs("/v1/products/100"),
 			status: 200,
-			body: PUBLISHED_PRODUCT_DOC,
+			replyDocument: PUBLISHED_PRODUCT_DOC,
 		},
 	]);
 	const planValidation = await validateSubscriptionPlan(http, "test", {
@@ -99,12 +103,12 @@ test("validateSubscriptionPlan returns PLAN_FREE_PRICE for zero-price subscripti
 		{
 			match: pathIs("/v1/variants/803"),
 			status: 200,
-			body: freePriceSubscriptionVariantDoc,
+			replyDocument: freePriceSubscriptionVariantDoc,
 		},
 		{
 			match: pathIs("/v1/products/100"),
 			status: 200,
-			body: PUBLISHED_PRODUCT_DOC,
+			replyDocument: PUBLISHED_PRODUCT_DOC,
 		},
 	]);
 	const planValidation = await validateSubscriptionPlan(http, "test", {
@@ -121,12 +125,12 @@ test("validateSubscriptionPlan returns PLAN_TRIAL_INCONSISTENT for misconfigured
 		{
 			match: pathIs("/v1/variants/804"),
 			status: 200,
-			body: trialInconsistentVariantDoc,
+			replyDocument: trialInconsistentVariantDoc,
 		},
 		{
 			match: pathIs("/v1/products/100"),
 			status: 200,
-			body: PUBLISHED_PRODUCT_DOC,
+			replyDocument: PUBLISHED_PRODUCT_DOC,
 		},
 	]);
 	const planValidation = await validateSubscriptionPlan(http, "test", {
@@ -143,12 +147,12 @@ test("validateSubscriptionPlan returns PLAN_DRAFT for draft subscription variant
 		{
 			match: pathIs("/v1/variants/805"),
 			status: 200,
-			body: draftSubscriptionVariantDoc,
+			replyDocument: draftSubscriptionVariantDoc,
 		},
 		{
 			match: pathIs("/v1/products/100"),
 			status: 200,
-			body: PUBLISHED_PRODUCT_DOC,
+			replyDocument: PUBLISHED_PRODUCT_DOC,
 		},
 	]);
 	const planValidation = await validateSubscriptionPlan(http, "test", {
@@ -165,12 +169,12 @@ test("validateSubscriptionPlan returns PLAN_STORE_MISMATCH when variant belongs 
 		{
 			match: pathIs("/v1/variants/806"),
 			status: 200,
-			body: wrongStoreSubscriptionVariantDoc,
+			replyDocument: wrongStoreSubscriptionVariantDoc,
 		},
 		{
 			match: pathIs("/v1/products/102"),
 			status: 200,
-			body: PRODUCT_ON_WRONG_STORE_DOC,
+			replyDocument: PRODUCT_ON_WRONG_STORE_DOC,
 		},
 	]);
 	const planValidation = await validateSubscriptionPlan(http, "test", {
@@ -192,7 +196,7 @@ test("validateSubscriptionPlan flags a subscription variant with no interval_cou
 	});
 	expect(planValidation.ok).toBe(false);
 	const intervalFinding = planValidation.findings.find(
-		(entry) => entry.code === "PLAN_INVALID_INTERVAL",
+		(finding) => finding.code === "PLAN_INVALID_INTERVAL",
 	);
 	expect(intervalFinding?.message).toContain("interval_count: missing");
 });

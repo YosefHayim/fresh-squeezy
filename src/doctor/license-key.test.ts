@@ -1,3 +1,4 @@
+import { makeHttp, pathIs } from "@e2e/mock-fetch.js";
 import {
 	activeLicenseKeyDoc,
 	atLimitLicenseKeyDoc,
@@ -6,7 +7,6 @@ import {
 	NOT_FOUND_ERROR,
 	wrongStoreLicenseKeyDoc,
 } from "@e2e/sandbox-store.js";
-import { makeHttp, pathIs } from "@e2e/mock-fetch.js";
 import { expect, test } from "vitest";
 import { validateLicenseKey } from "./license-key.js";
 
@@ -15,7 +15,7 @@ test("validateLicenseKey returns ok for an active license key under its activati
 		{
 			match: pathIs("/v1/license-keys/700"),
 			status: 200,
-			body: activeLicenseKeyDoc,
+			replyDocument: activeLicenseKeyDoc,
 		},
 	]);
 	const licenseKeyValidation = await validateLicenseKey(http, "test", {
@@ -32,7 +32,7 @@ test("validateLicenseKey returns LICENSE_KEY_NOT_FOUND on 404", async () => {
 		{
 			match: pathIs("/v1/license-keys/9999"),
 			status: 404,
-			body: NOT_FOUND_ERROR,
+			replyDocument: NOT_FOUND_ERROR,
 		},
 	]);
 	const licenseKeyValidation = await validateLicenseKey(http, "test", {
@@ -48,7 +48,7 @@ test("validateLicenseKey returns LICENSE_KEY_DISABLED for disabled keys", async 
 		{
 			match: pathIs("/v1/license-keys/701"),
 			status: 200,
-			body: disabledLicenseKeyDoc,
+			replyDocument: disabledLicenseKeyDoc,
 		},
 	]);
 	const licenseKeyValidation = await validateLicenseKey(http, "test", {
@@ -64,7 +64,7 @@ test("validateLicenseKey returns LICENSE_KEY_EXPIRED for past expires_at", async
 		{
 			match: pathIs("/v1/license-keys/702"),
 			status: 200,
-			body: expiredLicenseKeyDoc,
+			replyDocument: expiredLicenseKeyDoc,
 		},
 	]);
 	const licenseKeyValidation = await validateLicenseKey(http, "test", {
@@ -80,7 +80,7 @@ test("validateLicenseKey returns LICENSE_KEY_AT_ACTIVATION_LIMIT when instances 
 		{
 			match: pathIs("/v1/license-keys/703"),
 			status: 200,
-			body: atLimitLicenseKeyDoc,
+			replyDocument: atLimitLicenseKeyDoc,
 		},
 	]);
 	const licenseKeyValidation = await validateLicenseKey(http, "test", {
@@ -99,7 +99,7 @@ test("validateLicenseKey returns LICENSE_KEY_STORE_MISMATCH for wrong store", as
 		{
 			match: pathIs("/v1/license-keys/704"),
 			status: 200,
-			body: wrongStoreLicenseKeyDoc,
+			replyDocument: wrongStoreLicenseKeyDoc,
 		},
 	]);
 	const licenseKeyValidation = await validateLicenseKey(http, "test", {

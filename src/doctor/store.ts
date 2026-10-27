@@ -3,17 +3,17 @@ import type { Http } from "@/client/http.js";
 import type { StoreAttributes } from "@/client/lemon-squeezy-types.js";
 import { fetchResource } from "./fetch-resource.js";
 import {
-	buildResult,
+	buildCheckReport,
+	type CheckReport,
 	FINDING_CODES,
-	type ValidationResult,
 } from "./findings.js";
 
 export const validateStore = async (
 	http: Http,
 	mode: Mode,
 	storeId: string,
-): Promise<ValidationResult<StoreAttributes>> => {
-	const fetched = await fetchResource<StoreAttributes>(http, {
+): Promise<CheckReport<StoreAttributes>> => {
+	const storeLookup = await fetchResource<StoreAttributes>(http, {
 		path: `/v1/stores/${storeId}`,
 		notFound: {
 			code: FINDING_CODES.STORE_NOT_FOUND,
@@ -24,18 +24,18 @@ export const validateStore = async (
 		},
 	});
 
-	const isFetchFailed = fetched.kind === "failed";
+	const isFetchFailed = storeLookup.kind === "failed";
 	if (isFetchFailed) {
-		return buildResult({
+		return buildCheckReport({
 			name: "store",
 			mode,
-			findings: [fetched.finding],
+			findings: [storeLookup.finding],
 			target: { label: `store ${storeId}`, id: storeId },
 		});
 	}
 
-	const store = fetched.payload;
-	return buildResult({
+	const store = storeLookup.resource;
+	return buildCheckReport({
 		name: "store",
 		mode,
 		findings: [],

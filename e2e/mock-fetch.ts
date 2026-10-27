@@ -6,38 +6,38 @@ import { createHttp } from "@/client/http.js";
 export interface MockRoute {
 	match: (request: { method: string; url: string }) => boolean;
 	status: number;
-	body: unknown;
+	replyDocument: unknown;
 }
 
-export interface MockFetchResult {
+export interface MockFetchKit {
 	fetch: typeof fetch;
-	calls: Array<{ method: string; url: string; body?: string }>;
+	calls: Array<{ method: string; url: string; requestText?: string }>;
 }
 
 const API_CONTENT_TYPE = { "content-type": "application/vnd.api+json" };
 
-const urlOfInput = (input: Parameters<typeof fetch>[0]): string => {
-	const isInputAString = typeof input === "string";
-	if (isInputAString) return input;
-	const isInputAUrl = input instanceof URL;
-	if (isInputAUrl) return input.toString();
-	return input.url;
+const readUrlOfRequest = (requestUrl: Parameters<typeof fetch>[0]): string => {
+	const isRequestUrlAString = typeof requestUrl === "string";
+	if (isRequestUrlAString) return requestUrl;
+	const isRequestUrlAUrl = requestUrl instanceof URL;
+	if (isRequestUrlAUrl) return requestUrl.toString();
+	return requestUrl.url;
 };
 
-export const createMockFetch = (routes: MockRoute[]): MockFetchResult => {
-	const calls: MockFetchResult["calls"] = [];
+export const createMockFetch = (routes: MockRoute[]): MockFetchKit => {
+	const calls: MockFetchKit["calls"] = [];
 
-	const mock: typeof fetch = async (input, init) => {
-		const url = urlOfInput(input);
+	const mock: typeof fetch = async (requestUrl, init) => {
+		const url = readUrlOfRequest(requestUrl);
 		const method = (init?.method ?? "GET").toUpperCase();
 		const isBodyAString = typeof init?.body === "string";
-		const body = isBodyAString ? (init?.body as string) : undefined;
-		calls.push({ method, url, body });
+		const requestText = isBodyAString ? (init?.body as string) : undefined;
+		calls.push({ method, url, requestText });
 
-		const route = routes.find((entry) => entry.match({ method, url }));
+		const route = routes.find((mockRoute) => mockRoute.match({ method, url }));
 		const isRouteMissing = !route;
 		if (isRouteMissing) {
-			const noRouteBody = JSON.stringify({
+			const noRouteReply = JSON.stringify({
 				errors: [
 					{
 						status: "404",
@@ -47,14 +47,14 @@ export const createMockFetch = (routes: MockRoute[]): MockFetchResult => {
 					},
 				],
 			});
-			return new Response(noRouteBody, {
+			return new Response(noRouteReply, {
 				status: 404,
 				headers: API_CONTENT_TYPE,
 			});
 		}
 
-		const routeBody = JSON.stringify(route.body);
-		return new Response(routeBody, {
+		const routeReply = JSON.stringify(route.replyDocument);
+		return new Response(routeReply, {
 			status: route.status,
 			headers: API_CONTENT_TYPE,
 		});
@@ -87,14 +87,18 @@ export const pathIsWithQuery = (
 		if (isPathDifferent) return false;
 		const queryEntries = Object.entries(query);
 		return queryEntries.every(
-			([key, value]) => parsed.searchParams.get(key) === value,
+			([key, expectedValue]) => parsed.searchParams.get(key) === expectedValue,
 		);
 	};
 };
 
 export const SIGNED_IN_ROUTES: MockRoute[] = [
-	{ match: pathIs("/v1/users/me"), status: 200, body: USER_DOC },
-	{ match: pathIs("/v1/stores"), status: 200, body: STORES_COLLECTION },
+	{ match: pathIs("/v1/users/me"), status: 200, replyDocument: USER_DOC },
+	{
+		match: pathIs("/v1/stores"),
+		status: 200,
+		replyDocument: STORES_COLLECTION,
+	},
 ];
 
 export const makeHttp = (routes: MockRoute[]) => {
@@ -105,36 +109,39 @@ export const makeHttp = (routes: MockRoute[]) => {
 
 export const route = (
 	path: string,
-	body: unknown,
+	replyDocument: unknown,
 	status = 200,
 ): MockRoute => ({
 	match: pathIs(path),
 	status,
-	body,
+	replyDocument,
 });
 
-const okRoute = (match: MockRoute["match"], body: unknown): MockRoute => ({
+const okRoute = (
+	match: MockRoute["match"],
+	replyDocument: unknown,
+): MockRoute => ({
 	match,
 	status: 200,
-	body,
+	replyDocument,
 });
 
 export const storeListRoute = (
 	collection: string,
-	body: unknown,
+	replyDocument: unknown,
 ): MockRoute => {
 	const match = pathIsWithQuery(`/v1/${collection}`, {
 		"filter[store_id]": "42",
 	});
-	return okRoute(match, body);
+	return okRoute(match, replyDocument);
 };
 
 export const variantListRoute = (
 	productId: string,
-	body: unknown,
+	replyDocument: unknown,
 ): MockRoute => {
 	const match = pathIsWithQuery("/v1/variants", {
 		"filter[product_id]": productId,
 	});
-	return okRoute(match, body);
+	return okRoute(match, replyDocument);
 };

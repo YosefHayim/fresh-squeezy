@@ -1,32 +1,53 @@
-name: live-smoke
-
-# Opt-in live API smoke against a real Lemon Squeezy account.
-# Nightly runs require vars.LIVE_SMOKE_ENABLED=true; workflow_dispatch always runs.
+name: live-api-check
 
 on:
   schedule:
-    - cron: "0 6 * * *"
+    - cron: "0 7 1,15 * *"
   workflow_dispatch:
 
+permissions:
+  contents: read
+  issues: write
+
 jobs:
-  smoke:
-    name: Live API smoke
+  live-api-check:
+    name: Live API check
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Skip nightly runs when no API key secret is configured (forks, fresh clones).
-    # Manual workflow_dispatch still runs so maintainers can opt in explicitly.
-    if: ${{ github.event_name == 'workflow_dispatch' || vars.LIVE_SMOKE_ENABLED == 'true' }}
+    # Forks and fresh clones have no API key, so scheduled runs wait for this repo variable.
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.LIVE_API_CHECK_ENABLED == 'true' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup workspace
         uses: ./.github/actions/setup
 
-      - name: Build
-        run: pnpm build
-
-      - name: Run live smoke tests
+      - name: Compare the types with the live Lemon Squeezy API
         env:
           LEMON_SQUEEZY_TEST_API_KEY: ${{ secrets.LEMON_SQUEEZY_TEST_API_KEY }}
           LEMON_SQUEEZY_LIVE_API_KEY: ${{ secrets.LEMON_SQUEEZY_LIVE_API_KEY }}
         run: pnpm test:live
+
+      - name: Open an issue when the live API no longer matches the types
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Live API check failed"
+          open_count=$(gh issue list --state open --label live-api-drift --json title --jq "[.[] | select(.title == \"$title\")] | length")
+          if [ "$open_count" -gt 0 ]; then
+            echo "Already open: $title"
+            exit 0
+          fi
+
+          gh label create live-api-drift --color d93f0b --description "The live Lemon Squeezy API no longer matches the types" --force
+          gh issue create --title "$title" --label live-api-drift --body "The live API check failed: $RUN_URL
+
+          To fix it:
+          1. Open the failed step and read which resource and which field differ.
+          2. Edit src/client/lemon-squeezy-types.ts so the attributes match the live reply. Edit src/client/lemon-squeezy-client.ts too if a call changed.
+          3. Add or update a test next to the file you changed.
+          4. Run pnpm check, then rerun this workflow with: gh workflow run live-api-check.yml
+          5. Close this issue when the run is green."

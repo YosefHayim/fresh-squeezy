@@ -2,12 +2,12 @@ import { existsSync } from "node:fs";
 import { loadEnvFile } from "node:process";
 import { parseArgs } from "node:util";
 import packageJson from "@package.json" with { type: "json" };
+import { parseMode } from "@/client/config.js";
+import { formatReport } from "@/doctor/report-text.js";
 import {
 	createFreshSqueezy,
 	type FreshSqueezy,
 } from "./create-fresh-squeezy.js";
-import { reportTextOf } from "@/doctor/report-text.js";
-import { parseMode } from "@/client/config.js";
 
 const EXIT_CODES = { ok: 0, checkFailed: 1, usageError: 2 } as const;
 
@@ -49,8 +49,12 @@ const FLAGS = {
 } as const;
 
 const readFlags = () => {
-	const args = process.argv.slice(2);
-	return parseArgs({ args, options: FLAGS, allowPositionals: true });
+	const commandLine = process.argv.slice(2);
+	return parseArgs({
+		args: commandLine,
+		options: FLAGS,
+		allowPositionals: true,
+	});
 };
 
 type Flags = ReturnType<typeof readFlags>["values"];
@@ -90,7 +94,7 @@ const runDoctor = async (flags: Flags) => {
 	const isJsonAsked = flags.json;
 	const reportsText = isJsonAsked
 		? JSON.stringify(reportsJson, null, 2)
-		: reports.map(reportTextOf).join("\n\n");
+		: reports.map(formatReport).join("\n\n");
 	process.stdout.write(`${reportsText}\n`);
 	return isEveryReportOk ? EXIT_CODES.ok : EXIT_CODES.checkFailed;
 };

@@ -257,7 +257,10 @@ type DiscountAttributes = {
 	store_id: number;
 };
 
-const discountDocOf = (id: string, overrides: Partial<DiscountAttributes>) => ({
+const buildDiscountDocument = (
+	id: string,
+	overrides: Partial<DiscountAttributes>,
+) => ({
 	data: {
 		type: "discounts",
 		id,
@@ -279,11 +282,11 @@ const discountDocOf = (id: string, overrides: Partial<DiscountAttributes>) => ({
 	},
 });
 
-export const publishedDiscountDoc = discountDocOf("600", {
+export const publishedDiscountDoc = buildDiscountDocument("600", {
 	expires_at: "2099-12-31T23:59:59Z",
 });
 
-export const draftDiscountDoc = discountDocOf("601", {
+export const draftDiscountDoc = buildDiscountDocument("601", {
 	name: "Draft Discount",
 	code: "DRAFT10",
 	amount: 10,
@@ -291,14 +294,14 @@ export const draftDiscountDoc = discountDocOf("601", {
 	duration: "forever",
 });
 
-export const expiredDiscountDoc = discountDocOf("602", {
+export const expiredDiscountDoc = buildDiscountDocument("602", {
 	name: "Old Promo",
 	code: "OLD50",
 	amount: 50,
 	expires_at: "2020-01-01T00:00:00Z",
 });
 
-export const futureDiscountDoc = discountDocOf("603", {
+export const futureDiscountDoc = buildDiscountDocument("603", {
 	name: "Future Promo",
 	code: "FUTURE",
 	amount: 15,
@@ -307,7 +310,7 @@ export const futureDiscountDoc = discountDocOf("603", {
 	duration: "repeating",
 });
 
-export const exhaustedDiscountDoc = discountDocOf("604", {
+export const exhaustedDiscountDoc = buildDiscountDocument("604", {
 	name: "Exhausted",
 	code: "DONE",
 	amount: 5,
@@ -315,19 +318,19 @@ export const exhaustedDiscountDoc = discountDocOf("604", {
 	is_limited_redemptions: true,
 });
 
-export const invalidPercentDiscountDoc = discountDocOf("605", {
+export const invalidPercentDiscountDoc = buildDiscountDocument("605", {
 	name: "Bad Percent",
 	code: "BAD150",
 	amount: 150,
 });
 
-export const zeroAmountDiscountDoc = discountDocOf("606", {
+export const zeroAmountDiscountDoc = buildDiscountDocument("606", {
 	name: "Zero Discount",
 	code: "ZERO",
 	amount: 0,
 });
 
-export const wrongStoreDiscountDoc = discountDocOf("607", {
+export const wrongStoreDiscountDoc = buildDiscountDocument("607", {
 	name: "Other Store",
 	code: "OTHER",
 	amount: 10,
@@ -347,7 +350,7 @@ type LicenseKeyAttributes = {
 	store_id: number;
 };
 
-const licenseKeyDocOf = (
+const buildLicenseKeyDocument = (
 	id: string,
 	overrides: Partial<LicenseKeyAttributes>,
 ) => ({
@@ -367,19 +370,19 @@ const licenseKeyDocOf = (
 	},
 });
 
-export const activeLicenseKeyDoc = licenseKeyDocOf("700", {
+export const activeLicenseKeyDoc = buildLicenseKeyDocument("700", {
 	expires_at: "2099-12-31T23:59:59Z",
 	activation_limit: 5,
 	instances_count: 2,
 });
 
-export const disabledLicenseKeyDoc = licenseKeyDocOf("701", {
+export const disabledLicenseKeyDoc = buildLicenseKeyDocument("701", {
 	key_short: "DDDD-DDDD",
 	status: "disabled",
 	disabled: true,
 });
 
-export const expiredLicenseKeyDoc = licenseKeyDocOf("702", {
+export const expiredLicenseKeyDoc = buildLicenseKeyDocument("702", {
 	key_short: "EEEE-EEEE",
 	status: "expired",
 	expires_at: "2020-01-01T00:00:00Z",
@@ -387,20 +390,23 @@ export const expiredLicenseKeyDoc = licenseKeyDocOf("702", {
 	instances_count: 1,
 });
 
-export const atLimitLicenseKeyDoc = licenseKeyDocOf("703", {
+export const atLimitLicenseKeyDoc = buildLicenseKeyDocument("703", {
 	key_short: "LLLL-LLLL",
 	activation_limit: 3,
 	instances_count: 3,
 });
 
-export const wrongStoreLicenseKeyDoc = licenseKeyDocOf("704", {
+export const wrongStoreLicenseKeyDoc = buildLicenseKeyDocument("704", {
 	key_short: "WWWW-WWWW",
 	store_id: 99,
 });
 
 // --- Subscription variant fixtures ---
 
-const variantDocOf = (id: string, overrides: Record<string, unknown>) => ({
+const buildVariantDocument = (
+	id: string,
+	overrides: Record<string, unknown>,
+) => ({
 	data: {
 		type: "variants",
 		id,
@@ -421,9 +427,9 @@ const variantDocOf = (id: string, overrides: Record<string, unknown>) => ({
 	},
 });
 
-export const subscriptionVariantDoc = variantDocOf("800", {});
+export const subscriptionVariantDoc = buildVariantDocument("800", {});
 
-export const nonSubscriptionVariantDoc = variantDocOf("801", {
+export const nonSubscriptionVariantDoc = buildVariantDocument("801", {
 	name: "One-time Purchase",
 	slug: "one-time",
 	is_subscription: false,
@@ -432,39 +438,39 @@ export const nonSubscriptionVariantDoc = variantDocOf("801", {
 	price: 2900,
 });
 
-export const invalidIntervalVariantDoc = variantDocOf("802", {
+export const invalidIntervalVariantDoc = buildVariantDocument("802", {
 	name: "Bad Interval",
 	slug: "bad-interval",
 	interval: null,
 	interval_count: 0,
 });
 
-export const missingIntervalCountVariantDoc = variantDocOf("810", {
+export const missingIntervalCountVariantDoc = buildVariantDocument("810", {
 	name: "No Interval Count",
 	slug: "no-interval-count",
 	interval_count: undefined,
 });
 
-export const freePriceSubscriptionVariantDoc = variantDocOf("803", {
+export const freePriceSubscriptionVariantDoc = buildVariantDocument("803", {
 	name: "Free Plan",
 	slug: "free-plan",
 	price: 0,
 });
 
-export const trialInconsistentVariantDoc = variantDocOf("804", {
+export const trialInconsistentVariantDoc = buildVariantDocument("804", {
 	name: "Bad Trial",
 	slug: "bad-trial",
 	has_free_trial: true,
 	trial_interval_count: 0,
 });
 
-export const draftSubscriptionVariantDoc = variantDocOf("805", {
+export const draftSubscriptionVariantDoc = buildVariantDocument("805", {
 	name: "Draft Plan",
 	slug: "draft-plan",
 	status: "draft",
 });
 
-export const wrongStoreSubscriptionVariantDoc = variantDocOf("806", {
+export const wrongStoreSubscriptionVariantDoc = buildVariantDocument("806", {
 	product_id: 102,
 	name: "Wrong Store Plan",
 	slug: "wrong-store",
