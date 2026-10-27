@@ -18,8 +18,7 @@
 		"declarationMap": true,
 		"sourceMap": true,
 		"outDir": "./dist",
-		"rootDir": "./src",
-		"paths": { "@/*": ["./src/*"], "@e2e/*": ["./e2e/*"] },
+		"paths": { "@package.json": ["./package.json"], "@/*": ["./src/*"], "@e2e/*": ["./e2e/*"] },
 		"forceConsistentCasingInFileNames": true,
 		"noUnusedLocals": true,
 		"noUnusedParameters": true
