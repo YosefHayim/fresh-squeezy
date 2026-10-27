@@ -1,6 +1,6 @@
 {
   "name": "fresh-squeezy",
-  "version": "0.3.5",
+  "version": "0.4.0",
   "description": "Checks that your Lemon Squeezy store is ready to take payments, from the CLI or TypeScript, plus a small typed client for the Lemon Squeezy API.",
   "keywords": [
     "lemon-squeezy",
