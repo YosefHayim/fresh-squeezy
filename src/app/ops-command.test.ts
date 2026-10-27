@@ -1,12 +1,9 @@
 import { pathIs, stubFetch } from "@e2e/mock-fetch.js";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
-vi.mock("@inquirer/prompts", () => ({
-	select: vi.fn(),
-	checkbox: vi.fn(),
-	password: vi.fn(),
+vi.mock("@inquirer/prompts", async (importOriginal) => ({
+	...(await importOriginal<typeof import("@inquirer/prompts")>()),
 	confirm: vi.fn(),
-	input: vi.fn(),
 }));
 
 import { confirm } from "@inquirer/prompts";

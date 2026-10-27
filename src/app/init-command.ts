@@ -31,7 +31,12 @@ import {
 	type FreshSqueezyClient,
 } from "@/create-fresh-squeezy.js";
 import type { ConnectionSummary } from "@/features/validate/connection.js";
-import { ENV_KEYS, readEnvApiKey, readEnvMode } from "@/shared/config.js";
+import {
+	ENV_KEYS,
+	isMode,
+	readEnvApiKey,
+	readEnvMode,
+} from "@/shared/config.js";
 import type { Mode, ValidationResult } from "@/shared/contracts.js";
 
 export interface InitCommandOptions {
@@ -67,25 +72,45 @@ const runInitFlow = async (options: InitCommandOptions): Promise<number> => {
 	);
 	process.stdout.write(brandHeader);
 
-	const credentialsStep = renderStep(
-		1,
-		5,
-		"Credentials",
-		"reuse env when available",
-	);
-	process.stdout.write(credentialsStep);
-	const apiKey = await resolveApiKey();
-
-	const probeStep = renderStep(
-		2,
-		5,
-		"Account probe",
-		"detect mode and reachable stores",
-	);
-	process.stdout.write(probeStep);
-	const { client, connection } = await connectWithDetectedMode(apiKey);
+	const apiKey = await stepCredentials();
+	const { client, connection } = await stepAccountProbe(apiKey);
 	const mode = client.mode;
 
+	const gateExitCode = await findConnectionGateExitCode(client, connection);
+	const isGateClosed = gateExitCode !== undefined;
+	if (isGateClosed) return gateExitCode;
+
+	const stores = await listStoreChoices(client);
+	const areThereNoStores = stores.length === 0;
+	if (areThereNoStores) {
+		const noStoresMessage = chalk.yellow(
+			"No stores reachable with this key. Create a store in Lemon Squeezy and retry.\n",
+		);
+		process.stdout.write(noStoresMessage);
+		return 1;
+	}
+
+	const storeId = await stepStoreSelection(stores);
+	const validatorIds = await stepOptionalChecks(client, storeId);
+	const validatorNames = listValidatorNames(validatorIds);
+	const envPath = resolveEnvPath(options);
+	const setupSummary = renderSetupSummary({
+		envPath,
+		mode,
+		storeId,
+		validatorNames,
+	});
+	process.stdout.write(setupSummary);
+	await offerEnvFileWrite(envPath, { apiKey, mode, storeId });
+
+	return runDoctorStep(client, storeId, validatorIds, validatorNames);
+};
+
+const findConnectionGateExitCode = async (
+	client: FreshSqueezyClient,
+	connection: ValidationResult<ConnectionSummary>,
+): Promise<number | undefined> => {
+	const mode = client.mode;
 	const isConnectionBroken = !connection.ok;
 	if (isConnectionBroken) {
 		const connectionReport = renderReport({
@@ -98,23 +123,42 @@ const runInitFlow = async (options: InitCommandOptions): Promise<number> => {
 	}
 
 	const isLiveMode = mode === "live";
-	const isLiveRunDeclined = isLiveMode && !(await confirmLiveModeRun());
-	if (isLiveRunDeclined) {
-		const cancelMessage = renderCancelMessage();
-		process.stderr.write(cancelMessage);
-		return 130;
-	}
+	const isLiveRunApproved = !isLiveMode || (await confirmLiveModeRun());
+	if (isLiveRunApproved) return undefined;
+	const cancelMessage = renderCancelMessage();
+	process.stderr.write(cancelMessage);
+	return 130;
+};
 
-	const stores = await listStoreChoices(client);
-	const areThereNoStores = stores.length === 0;
-	if (areThereNoStores) {
-		const noStoresMessage = chalk.yellow(
-			"No stores reachable with this key. Create a store in Lemon Squeezy and retry.\n",
-		);
-		process.stdout.write(noStoresMessage);
-		return 1;
-	}
+const resolveEnvPath = (options: InitCommandOptions): string => {
+	const envFileName = options.envFile ?? ".env";
+	const workingDirectory = process.cwd();
+	return path.resolve(workingDirectory, envFileName);
+};
 
+const stepCredentials = (): Promise<string> => {
+	const credentialsStep = renderStep(
+		1,
+		5,
+		"Credentials",
+		"reuse env when available",
+	);
+	process.stdout.write(credentialsStep);
+	return resolveApiKey();
+};
+
+const stepAccountProbe = (apiKey: string): Promise<DetectedConnection> => {
+	const probeStep = renderStep(
+		2,
+		5,
+		"Account probe",
+		"detect mode and reachable stores",
+	);
+	process.stdout.write(probeStep);
+	return connectWithDetectedMode(apiKey);
+};
+
+const stepStoreSelection = (stores: StoreChoice[]): Promise<string> => {
 	const storeCount = String(stores.length);
 	const detectedStores = renderDetected(
 		"Stores",
@@ -129,8 +173,13 @@ const runInitFlow = async (options: InitCommandOptions): Promise<number> => {
 		"auto-select when unambiguous",
 	);
 	process.stdout.write(storeStep);
-	const storeId = await resolveStoreSelection(stores);
+	return resolveStoreSelection(stores);
+};
 
+const stepOptionalChecks = async (
+	client: FreshSqueezyClient,
+	storeId: string,
+): Promise<OptionalValidatorIds> => {
 	const checksStep = renderStep(
 		4,
 		5,
@@ -149,36 +198,33 @@ const runInitFlow = async (options: InitCommandOptions): Promise<number> => {
 		selectedValidators,
 	);
 	process.stdout.write(discoverySummary);
-	const validatorIds = await askForValidatorIds(
-		selectedValidators,
-		resourceChoices,
-	);
+	return askForValidatorIds(selectedValidators, resourceChoices);
+};
 
-	const envFileName = options.envFile ?? ".env";
-	const workingDirectory = process.cwd();
-	const envPath = path.resolve(workingDirectory, envFileName);
-	const validatorNames = listValidatorNames(validatorIds);
-	const setupSummary = renderSetupSummary({
-		envPath,
-		mode,
-		storeId,
-		validatorNames,
-	});
-	process.stdout.write(setupSummary);
+const offerEnvFileWrite = async (
+	envPath: string,
+	values: { apiKey: string; mode: string; storeId: string },
+): Promise<void> => {
 	const shouldWrite = await confirmWriteEnvFile(envPath);
-	if (shouldWrite) {
-		await writeEnvFile(envPath, { apiKey, mode, storeId });
-		const wroteMessage = chalk.green(`Wrote ${envPath}\n`);
-		process.stdout.write(wroteMessage);
-	}
+	const isWriteSkipped = !shouldWrite;
+	if (isWriteSkipped) return;
+	await writeEnvFile(envPath, values);
+	const wroteMessage = chalk.green(`Wrote ${envPath}\n`);
+	process.stdout.write(wroteMessage);
+};
 
+const runDoctorStep = async (
+	client: FreshSqueezyClient,
+	storeId: string,
+	validatorIds: OptionalValidatorIds,
+	validatorNames: string[],
+): Promise<number> => {
 	const checkList = validatorNames.join(", ");
 	const runningMessage = chalk.dim(`\nRunning doctor (${checkList})...\n\n`);
 	process.stdout.write(runningMessage);
 	const report = await client.doctor({ storeId, ...validatorIds });
 	const doctorReport = renderReport(report);
 	process.stdout.write(`${doctorReport}\n`);
-
 	return report.ok ? 0 : 1;
 };
 
@@ -259,8 +305,7 @@ const parseEnvMode = (): Mode | undefined => {
 	const envMode = readEnvMode();
 	const isModeMissing = !envMode;
 	if (isModeMissing) return undefined;
-	const isValidMode = envMode === "test" || envMode === "live";
-	if (isValidMode) return envMode;
+	if (isMode(envMode)) return envMode;
 
 	const invalidModeMessage = chalk.yellow(
 		`Ignoring invalid ${ENV_KEYS.mode}=${envMode}; expected test or live.\n`,

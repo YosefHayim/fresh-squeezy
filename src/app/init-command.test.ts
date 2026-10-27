@@ -15,10 +15,12 @@ import {
 } from "@e2e/fixtures/sandbox/data.js";
 import {
 	type MockRoute,
+	okRoute,
 	pathIs,
-	pathIsWithQuery,
 	silenceStdout,
+	storeListRoute,
 	stubFetch,
+	variantListRoute,
 } from "@e2e/mock-fetch.js";
 import { checkbox, confirm, input, password, select } from "@inquirer/prompts";
 import { afterEach, expect, test, vi } from "vitest";
@@ -34,10 +36,17 @@ vi.mock("@inquirer/prompts", () => ({
 }));
 
 const initRoutes = (user = userDoc): MockRoute[] => [
-	{ match: pathIs("/v1/users/me"), status: 200, body: user },
-	{ match: pathIs("/v1/stores"), status: 200, body: storesCollection },
-	{ match: pathIs("/v1/stores/42"), status: 200, body: storeDoc },
+	okRoute(pathIs("/v1/users/me"), user),
+	okRoute(pathIs("/v1/stores"), storesCollection),
+	okRoute(pathIs("/v1/stores/42"), storeDoc),
 ];
+
+const runInitAndReadOutput = async (): Promise<string> => {
+	const stdout = silenceStdout();
+	const code = await runInitCommand();
+	expect(code).toBe(0);
+	return stdout.mock.calls.map((call) => String(call[0])).join("");
+};
 
 type PromptConfig = {
 	message?: string;
@@ -70,58 +79,23 @@ test("runInitCommand runs every optional doctor validator selected during setup"
 
 	stubFetch([
 		...initRoutes(),
-		{
-			match: pathIsWithQuery("/v1/products", { "filter[store_id]": "42" }),
-			status: 200,
-			body: { data: [publishedProductDoc.data] },
-		},
-		{
-			match: pathIsWithQuery("/v1/discounts", { "filter[store_id]": "42" }),
-			status: 200,
-			body: { data: [publishedDiscountDoc.data] },
-		},
-		{
-			match: pathIsWithQuery("/v1/license-keys", { "filter[store_id]": "42" }),
-			status: 200,
-			body: { data: [activeLicenseKeyDoc.data] },
-		},
-		{
-			match: pathIs("/v1/products/100"),
-			status: 200,
-			body: publishedProductDoc,
-		},
-		{
-			match: pathIsWithQuery("/v1/variants", { "filter[product_id]": "100" }),
-			status: 200,
-			body: variantsCollectionPublished,
-		},
-		{
-			match: pathIsWithQuery("/v1/webhooks", { "filter[store_id]": "42" }),
-			status: 200,
-			body: webhooksCollectionComplete,
-		},
-		{
-			match: pathIs("/v1/discounts/600"),
-			status: 200,
-			body: publishedDiscountDoc,
-		},
-		{
-			match: pathIs("/v1/license-keys/700"),
-			status: 200,
-			body: activeLicenseKeyDoc,
-		},
-		{
-			match: pathIs("/v1/variants/800"),
-			status: 200,
-			body: subscriptionVariantDoc,
-		},
+		storeListRoute("products", {
+			data: [publishedProductDoc.data],
+		}),
+		storeListRoute("discounts", {
+			data: [publishedDiscountDoc.data],
+		}),
+		storeListRoute("license-keys", {
+			data: [activeLicenseKeyDoc.data],
+		}),
+		okRoute(pathIs("/v1/products/100"), publishedProductDoc),
+		variantListRoute("100", variantsCollectionPublished),
+		storeListRoute("webhooks", webhooksCollectionComplete),
+		okRoute(pathIs("/v1/discounts/600"), publishedDiscountDoc),
+		okRoute(pathIs("/v1/license-keys/700"), activeLicenseKeyDoc),
+		okRoute(pathIs("/v1/variants/800"), subscriptionVariantDoc),
 	]);
-	const stdout = silenceStdout();
-
-	const code = await runInitCommand();
-
-	expect(code).toBe(0);
-	const output = stdout.mock.calls.map((call) => String(call[0])).join("");
+	const output = await runInitAndReadOutput();
 	expect(output).toContain(
 		"Running doctor (connection, store, product, webhook, discount, licenseKey, subscriptionPlan)",
 	);
@@ -171,11 +145,7 @@ test("runInitCommand keeps manual and skip out of the discovered resource checkb
 
 	stubFetch([
 		...initRoutes(),
-		{
-			match: pathIsWithQuery("/v1/webhooks", { "filter[store_id]": "42" }),
-			status: 200,
-			body: webhooksCollectionComplete,
-		},
+		storeListRoute("webhooks", webhooksCollectionComplete),
 	]);
 	silenceStdout();
 
@@ -223,34 +193,15 @@ test("runInitCommand allows multiple discovered resources for one selected check
 
 	stubFetch([
 		...initRoutes(),
-		{
-			match: pathIsWithQuery("/v1/products", { "filter[store_id]": "42" }),
-			status: 200,
-			body: { data: [publishedProductDoc.data, secondProductDoc.data] },
-		},
-		{
-			match: pathIs("/v1/products/100"),
-			status: 200,
-			body: publishedProductDoc,
-		},
-		{ match: pathIs("/v1/products/101"), status: 200, body: secondProductDoc },
-		{
-			match: pathIsWithQuery("/v1/variants", { "filter[product_id]": "100" }),
-			status: 200,
-			body: variantsCollectionPublished,
-		},
-		{
-			match: pathIsWithQuery("/v1/variants", { "filter[product_id]": "101" }),
-			status: 200,
-			body: variantsCollectionPublished,
-		},
+		storeListRoute("products", {
+			data: [publishedProductDoc.data, secondProductDoc.data],
+		}),
+		okRoute(pathIs("/v1/products/100"), publishedProductDoc),
+		okRoute(pathIs("/v1/products/101"), secondProductDoc),
+		variantListRoute("100", variantsCollectionPublished),
+		variantListRoute("101", variantsCollectionPublished),
 	]);
-	const stdout = silenceStdout();
-
-	const code = await runInitCommand();
-
-	expect(code).toBe(0);
-	const output = stdout.mock.calls.map((call) => String(call[0])).join("");
+	const output = await runInitAndReadOutput();
 	expect(output).toContain("Running doctor (connection, store, product x2)");
 	expect(output).toContain("4 checks passed");
 	expect(output.match(/PASS \[test\] product/g)).toHaveLength(2);
@@ -262,12 +213,7 @@ test("runInitCommand uses env API key and auto-detects live mode without prompti
 	vi.mocked(checkbox).mockResolvedValueOnce([]);
 
 	stubFetch([...initRoutes(liveUserDoc)]);
-	const stdout = silenceStdout();
-
-	const code = await runInitCommand();
-
-	expect(code).toBe(0);
-	const output = stdout.mock.calls.map((call) => String(call[0])).join("");
+	const output = await runInitAndReadOutput();
 	expect(output).toContain(`Using ${ENV_KEYS.apiKey} from environment.`);
 	expect(output).toContain("Detected live-mode API key.");
 	expect(output).toContain("fresh-squeezy doctor: OK (mode: live)");

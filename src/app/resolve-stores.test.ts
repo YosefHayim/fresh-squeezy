@@ -2,6 +2,15 @@ import { expect, test, vi } from "vitest";
 import type { FreshSqueezyClient } from "@/create-fresh-squeezy.js";
 import { resolveStores } from "./resolve-stores.js";
 
+const connectionWithStores = (storeIds: string[]) =>
+	vi.fn().mockResolvedValue({
+		ok: true,
+		mode: "test",
+		name: "connection",
+		issues: [],
+		resource: { user: {}, storeCount: storeIds.length, storeIds },
+	});
+
 const stubClient = (
 	overrides: Partial<FreshSqueezyClient>,
 ): FreshSqueezyClient => {
@@ -28,13 +37,7 @@ test("resolveStores prefers --store-ids over anything else", async () => {
 
 test("resolveStores fetches every reachable store when --all-stores is set", async () => {
 	const client = stubClient({
-		validateConnection: vi.fn().mockResolvedValue({
-			ok: true,
-			mode: "test",
-			name: "connection",
-			issues: [],
-			resource: { user: {}, storeCount: 2, storeIds: ["10", "11"] },
-		}),
+		validateConnection: connectionWithStores(["10", "11"]),
 	});
 	const resolvedStores = await resolveStores(client, {
 		allStores: true,
@@ -52,13 +55,7 @@ test("resolveStores returns skipped=true when non-interactive and no flags", asy
 
 test("resolveStores throws NO_STORES when --all-stores is set but account has none", async () => {
 	const client = stubClient({
-		validateConnection: vi.fn().mockResolvedValue({
-			ok: true,
-			mode: "test",
-			name: "connection",
-			issues: [],
-			resource: { user: {}, storeCount: 0, storeIds: [] },
-		}),
+		validateConnection: connectionWithStores([]),
 	});
 	await expect(
 		resolveStores(client, { allStores: true, isInteractive: false }),

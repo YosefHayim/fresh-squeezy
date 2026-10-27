@@ -122,3 +122,28 @@ export const route = (
 	status,
 	body,
 });
+
+export const okRoute = (
+	match: MockRoute["match"],
+	body: unknown,
+): MockRoute => ({ match, status: 200, body });
+
+export const storeListRoute = (
+	collection: string,
+	body: unknown,
+): MockRoute => {
+	const match = pathIsWithQuery(`/v1/${collection}`, {
+		"filter[store_id]": "42",
+	});
+	return okRoute(match, body);
+};
+
+export const variantListRoute = (
+	productId: string,
+	body: unknown,
+): MockRoute => {
+	const match = pathIsWithQuery("/v1/variants", {
+		"filter[product_id]": productId,
+	});
+	return okRoute(match, body);
+};

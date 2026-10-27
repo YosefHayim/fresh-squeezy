@@ -90,6 +90,69 @@ const pickScopes = async (
 	return [{}];
 };
 
+const requireManageSpecs = (op: ManageOperationChoice) => {
+	const spec = findResourceVerb(op.resource, op.verb);
+	const listSpec = findResourceVerb(op.resource, "list");
+	const isOperationUnavailable = !spec || !listSpec;
+	if (isOperationUnavailable) {
+		throw freshSqueezyErrorOf({
+			code: "UNKNOWN_OP",
+			message: `${op.verb} ${op.resource} is not available.`,
+		});
+	}
+	return { spec, listSpec };
+};
+
+interface ManageScopeRun {
+	client: FreshSqueezyClient;
+	http: HttpClient;
+	op: ManageOperationChoice;
+	spec: ResourceVerbSpec;
+	scope: ManageScope;
+}
+
+const runManageScope = async (run: ManageScopeRun): Promise<number> => {
+	const { client, http, op, spec, scope } = run;
+	const targets = await collectBulkTargets(http, spec, scope);
+	const areThereNoTargets = targets.length === 0;
+	if (areThereNoTargets) {
+		const storeNote = scope.storeId ? ` in store ${scope.storeId}` : "";
+		process.stdout.write(`No ${op.resource} items found${storeNote}.\n`);
+		return 0;
+	}
+
+	const pickedIds = await pickBulkTargets(op.verb, targets);
+	const picked: BulkTarget[] = targets.filter((target) =>
+		pickedIds.includes(target.id),
+	);
+	const preview = previewTargets(picked);
+	const isLive = client.mode === "live";
+	const liveMark = isLive ? "LIVE mode: " : "";
+	const isConfirmed = await confirmResourceOp(
+		`${liveMark}${op.verb} ${picked.length} ${op.resource} item(s) (${preview})?`,
+	);
+	const isDeclined = !isConfirmed;
+	if (isDeclined) {
+		process.stdout.write("Skipped — nothing changed.\n");
+		return 0;
+	}
+
+	const summary = await executeBulk(http, spec, picked);
+	const summaryText = renderBulkSummary(spec, summary);
+	process.stdout.write(summaryText);
+	const equivalentCommand = renderEquivalentCommand({
+		verb: op.verb,
+		resource: op.resource,
+		mode: client.mode,
+		...scope,
+		picked: pickedIds,
+		total: targets.length,
+	});
+	process.stdout.write(`\nNext time:\n  ${equivalentCommand}\n`);
+	const hasFailures = summary.failed > 0;
+	return hasFailures ? 1 : 0;
+};
+
 export const runManageCommand = async (): Promise<number> => {
 	try {
 		const client = createFreshSqueezy();
@@ -97,60 +160,21 @@ export const runManageCommand = async (): Promise<number> => {
 		const http = new HttpClient(config);
 		const manageOperations = listManageOperations();
 		const op = await pickManageOperation(manageOperations);
-		const spec = findResourceVerb(op.resource, op.verb);
-		const listSpec = findResourceVerb(op.resource, "list");
-		const isOperationUnavailable = !spec || !listSpec;
-		if (isOperationUnavailable) {
-			throw freshSqueezyErrorOf({
-				code: "UNKNOWN_OP",
-				message: `${op.verb} ${op.resource} is not available.`,
-			});
-		}
+		const { spec, listSpec } = requireManageSpecs(op);
 
 		process.stdout.write(`\n${op.verb} ${op.resource} — mode=${client.mode}\n`);
 
 		const scopes = await pickScopes(client, op.resource, listSpec.idRole);
-		const isLive = client.mode === "live";
-		const liveMark = isLive ? "LIVE mode: " : "";
-
 		let exitCode = 0;
 		for (const scope of scopes) {
-			const targets = await collectBulkTargets(http, spec, scope);
-			const areThereNoTargets = targets.length === 0;
-			if (areThereNoTargets) {
-				const storeNote = scope.storeId ? ` in store ${scope.storeId}` : "";
-				process.stdout.write(`No ${op.resource} items found${storeNote}.\n`);
-				continue;
-			}
-
-			const pickedIds = await pickBulkTargets(op.verb, targets);
-			const picked: BulkTarget[] = targets.filter((target) =>
-				pickedIds.includes(target.id),
-			);
-			const preview = previewTargets(picked);
-			const isConfirmed = await confirmResourceOp(
-				`${liveMark}${op.verb} ${picked.length} ${op.resource} item(s) (${preview})?`,
-			);
-			const isDeclined = !isConfirmed;
-			if (isDeclined) {
-				process.stdout.write("Skipped — nothing changed.\n");
-				continue;
-			}
-
-			const summary = await executeBulk(http, spec, picked);
-			const summaryText = renderBulkSummary(spec, summary);
-			process.stdout.write(summaryText);
-			const equivalentCommand = renderEquivalentCommand({
-				verb: op.verb,
-				resource: op.resource,
-				mode: client.mode,
-				...scope,
-				picked: pickedIds,
-				total: targets.length,
+			const scopeExitCode = await runManageScope({
+				client,
+				http,
+				op,
+				spec,
+				scope,
 			});
-			process.stdout.write(`\nNext time:\n  ${equivalentCommand}\n`);
-			const hasFailures = summary.failed > 0;
-			if (hasFailures) exitCode = 1;
+			exitCode = Math.max(exitCode, scopeExitCode);
 		}
 		return exitCode;
 	} catch (err) {

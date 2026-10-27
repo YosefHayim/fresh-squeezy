@@ -50,18 +50,7 @@ export const runResourceOpCommand = async (
 ): Promise<number> => {
 	const spec = findResourceVerb(options.resource, options.verb);
 	const isThereNoSpec = !spec;
-	if (isThereNoSpec) {
-		const unknownOpScreen = renderCliError(
-			`Unknown or unsupported op: ${options.verb} ${options.resource}`,
-			[
-				"fresh-squeezy ops --list",
-				"fresh-squeezy get product --id 1",
-				"fresh-squeezy list webhook --store-ids 1",
-			],
-		);
-		process.stderr.write(unknownOpScreen);
-		return 2;
-	}
+	if (isThereNoSpec) return refuseUnknownOp(options);
 
 	const bulkError = validateBulkFlags(spec, options);
 	if (bulkError) {
@@ -74,15 +63,7 @@ export const runResourceOpCommand = async (
 	}
 
 	try {
-		const body = readBody(options);
-		const isBodyMissing = spec.body === "required" && body === undefined;
-		if (isBodyMissing) {
-			throw freshSqueezyErrorOf({
-				code: "MISSING_ARG",
-				message: "This op requires a JSON body (--body or --body-file).",
-			});
-		}
-
+		const body = readRequiredBody(spec, options);
 		const config = resolveConfig({ mode: options.mode });
 		const http = new HttpClient(config);
 		// CLI flag wins; LEMON_SQUEEZY_STORE_ID (already in config) is the fallback.
@@ -92,38 +73,74 @@ export const runResourceOpCommand = async (
 		if (isBulk) {
 			return await runBulk(http, spec, config.mode, options, { storeId, body });
 		}
-
-		const isAllowed = await isWriteAllowed(spec, config.mode, options);
-		const isWriteRefused = !isAllowed;
-		if (isWriteRefused) return 2;
-
-		const opBody = await invokeOp(http, options.resource, options.verb, {
-			id: options.id,
-			storeId,
-			parentId: options.parentId,
-			body,
-		});
-
-		const envelope = {
-			ok: true,
-			...opEnvelope(spec, config.mode),
-			data: opBody ?? null,
-		};
-
-		if (options.json) {
-			const envelopeText = JSON.stringify(envelope, null, 2);
-			process.stdout.write(`${envelopeText}\n`);
-			return 0;
-		}
-		const bodyText = JSON.stringify(opBody ?? null, null, 2);
-		process.stdout.write(
-			`${spec.verb} ${spec.resource} — ok (mode=${config.mode})\n${bodyText}\n`,
-		);
-		return 0;
+		return await runSingle(http, spec, config.mode, options, { storeId, body });
 	} catch (err) {
 		writeOpsFailure(err, options.json);
 		return 2;
 	}
+};
+
+const refuseUnknownOp = (options: ResourceOpCommandOptions): number => {
+	const unknownOpScreen = renderCliError(
+		`Unknown or unsupported op: ${options.verb} ${options.resource}`,
+		[
+			"fresh-squeezy ops --list",
+			"fresh-squeezy get product --id 1",
+			"fresh-squeezy list webhook --store-ids 1",
+		],
+	);
+	process.stderr.write(unknownOpScreen);
+	return 2;
+};
+
+const readRequiredBody = (
+	spec: ResourceVerbSpec,
+	options: ResourceOpCommandOptions,
+): unknown | undefined => {
+	const body = readBody(options);
+	const isBodyMissing = spec.body === "required" && body === undefined;
+	if (isBodyMissing) {
+		throw freshSqueezyErrorOf({
+			code: "MISSING_ARG",
+			message: "This op requires a JSON body (--body or --body-file).",
+		});
+	}
+	return body;
+};
+
+const runSingle = async (
+	http: HttpClient,
+	spec: ResourceVerbSpec,
+	mode: Mode,
+	options: ResourceOpCommandOptions,
+	scope: { storeId?: string; body?: unknown },
+): Promise<number> => {
+	const isAllowed = await isWriteAllowed(spec, mode, options);
+	const isWriteRefused = !isAllowed;
+	if (isWriteRefused) return 2;
+
+	const opBody = await invokeOp(http, options.resource, options.verb, {
+		id: options.id,
+		storeId: scope.storeId,
+		parentId: options.parentId,
+		body: scope.body,
+	});
+
+	if (options.json) {
+		const envelope = {
+			ok: true,
+			...opEnvelope(spec, mode),
+			data: opBody ?? null,
+		};
+		const envelopeText = JSON.stringify(envelope, null, 2);
+		process.stdout.write(`${envelopeText}\n`);
+		return 0;
+	}
+	const bodyText = JSON.stringify(opBody ?? null, null, 2);
+	process.stdout.write(
+		`${spec.verb} ${spec.resource} — ok (mode=${mode})\n${bodyText}\n`,
+	);
+	return 0;
 };
 
 const opEnvelope = (spec: ResourceVerbSpec, mode: Mode) => ({
