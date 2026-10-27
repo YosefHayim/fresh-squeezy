@@ -54,76 +54,105 @@ const relationshipsOf = (
 	return Object.fromEntries(linkages);
 };
 
-export const createLemonSqueezyClient = (http: Http) => {
-	const sendResource = async <Type extends ResourceType>(
-		method: "POST" | "PATCH" | "DELETE",
-		path: string,
-		body?: unknown,
-	) => {
-		const document = await http.request<
-			JsonApiDocument<ResourceAttributes[Type]>
-		>({ method, path, body });
-		return document.data;
-	};
+interface ResourceRequest {
+	method: "POST" | "PATCH" | "DELETE";
+	path: string;
+	body?: unknown;
+}
 
-	return {
-		get: <Type extends ResourceType>(type: Type, id: string) =>
-			http.getResource<ResourceAttributes[Type]>(`/v1/${type}/${id}`),
-
-		list: <Type extends ListableResource>(type: Type, filter?: ListFilter) => {
-			const query = filterQueryOf(filter);
-			return http.getAll<ResourceAttributes[Type]>(`/v1/${type}`, query);
-		},
-
-		create: <Type extends CreatableResource>(
-			type: Type,
-			input: CreateInput[Type],
-		) => {
-			const relationships = relationshipsOf(input.relationships);
-			const body = {
-				data: { type, attributes: input.attributes, relationships },
-			};
-			return sendResource<Type>("POST", `/v1/${type}`, body);
-		},
-
-		update: <Type extends UpdatableResource>(
-			type: Type,
-			id: string,
-			attributes: UpdateInput[Type],
-		) => {
-			const body = { data: { type, id, attributes } };
-			return sendResource<Type>("PATCH", `/v1/${type}/${id}`, body);
-		},
-
-		remove: (type: RemovableResource, id: string) =>
-			http.request<undefined>({ method: "DELETE", path: `/v1/${type}/${id}` }),
-
-		cancelSubscription: (id: string) =>
-			sendResource<"subscriptions">("DELETE", `/v1/subscriptions/${id}`),
-
-		refund: <Type extends RefundableResource>(
-			type: Type,
-			id: string,
-			amount?: number,
-		) => {
-			const body = { data: { type, id, attributes: { amount } } };
-			return sendResource<Type>("POST", `/v1/${type}/${id}/refund`, body);
-		},
-
-		generateInvoice: (
-			type: InvoiceResource,
-			id: string,
-			billing: InvoiceBilling,
-		) =>
-			http.request<InvoiceDownload>({
-				method: "POST",
-				path: `/v1/${type}/${id}/generate-invoice`,
-				query: { ...billing },
-			}),
-
-		currentUsage: (subscriptionItemId: string) =>
-			http.request<CurrentUsage>({
-				path: `/v1/subscription-items/${subscriptionItemId}/current-usage`,
-			}),
-	};
+const sendResource = async <Type extends ResourceType>(
+	http: Http,
+	resourceRequest: ResourceRequest,
+) => {
+	const document =
+		await http.request<JsonApiDocument<ResourceAttributes[Type]>>(
+			resourceRequest,
+		);
+	return document.data;
 };
+
+const createReadVerbs = (http: Http) => ({
+	get: <Type extends ResourceType>(type: Type, id: string) =>
+		http.getResource<ResourceAttributes[Type]>(`/v1/${type}/${id}`),
+
+	list: <Type extends ListableResource>(type: Type, filter?: ListFilter) => {
+		const query = filterQueryOf(filter);
+		return http.getAll<ResourceAttributes[Type]>(`/v1/${type}`, query);
+	},
+
+	currentUsage: (subscriptionItemId: string) =>
+		http.request<CurrentUsage>({
+			path: `/v1/subscription-items/${subscriptionItemId}/current-usage`,
+		}),
+});
+
+const createWriteVerbs = (http: Http) => ({
+	create: <Type extends CreatableResource>(
+		type: Type,
+		input: CreateInput[Type],
+	) => {
+		const relationships = relationshipsOf(input.relationships);
+		const body = {
+			data: { type, attributes: input.attributes, relationships },
+		};
+		return sendResource<Type>(http, {
+			method: "POST",
+			path: `/v1/${type}`,
+			body,
+		});
+	},
+
+	update: <Type extends UpdatableResource>(
+		type: Type,
+		id: string,
+		attributes: UpdateInput[Type],
+	) => {
+		const body = { data: { type, id, attributes } };
+		return sendResource<Type>(http, {
+			method: "PATCH",
+			path: `/v1/${type}/${id}`,
+			body,
+		});
+	},
+
+	remove: (type: RemovableResource, id: string) =>
+		http.request<undefined>({ method: "DELETE", path: `/v1/${type}/${id}` }),
+
+	cancelSubscription: (id: string) =>
+		sendResource<"subscriptions">(http, {
+			method: "DELETE",
+			path: `/v1/subscriptions/${id}`,
+		}),
+});
+
+const createBillingVerbs = (http: Http) => ({
+	refund: <Type extends RefundableResource>(
+		type: Type,
+		id: string,
+		amount?: number,
+	) => {
+		const body = { data: { type, id, attributes: { amount } } };
+		return sendResource<Type>(http, {
+			method: "POST",
+			path: `/v1/${type}/${id}/refund`,
+			body,
+		});
+	},
+
+	generateInvoice: (
+		type: InvoiceResource,
+		id: string,
+		billing: InvoiceBilling,
+	) =>
+		http.request<InvoiceDownload>({
+			method: "POST",
+			path: `/v1/${type}/${id}/generate-invoice`,
+			query: { ...billing },
+		}),
+});
+
+export const createLemonSqueezyClient = (http: Http) => ({
+	...createReadVerbs(http),
+	...createWriteVerbs(http),
+	...createBillingVerbs(http),
+});

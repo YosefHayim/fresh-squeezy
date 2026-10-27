@@ -154,8 +154,8 @@ export const postLicenseForm = async <Payload>({
 	});
 	const text = await response.text();
 	const parsedBody = parseJsonBody(text);
-	const isBodyJson = typeof parsedBody === "object" && parsedBody !== null;
-	if (!isBodyJson) throw apiErrorOf(response.status, parsedBody);
+	const isBodyNotJson = typeof parsedBody !== "object" || parsedBody === null;
+	if (isBodyNotJson) throw apiErrorOf(response.status, parsedBody);
 	return parsedBody as Payload;
 };
 

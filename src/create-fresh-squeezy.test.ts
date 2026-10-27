@@ -77,3 +77,11 @@ test("the check methods are all present", () => {
 	expect(typeof freshSqueezy.validateLicenseKey).toBe("function");
 	expect(typeof freshSqueezy.validateSubscriptionPlan).toBe("function");
 });
+
+test("the client verbs share the configured key and fetch", async () => {
+	const { freshSqueezy, calls } = freshSqueezyOf();
+
+	await freshSqueezy.get("stores", "42");
+
+	expect(calls[0]?.url).toContain("/v1/stores/42");
+});
