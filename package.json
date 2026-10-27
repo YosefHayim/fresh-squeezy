@@ -147,9 +147,9 @@
     "check:ci": "biome ci .",
     "check:standard": "code-standard check --repo .",
     "verify": "pnpm check:ci && pnpm check:standard && pnpm typecheck && pnpm test && pnpm build",
-    "check:changelog": "node src/scripts/check-changelog.mjs",
-    "generate:api-types": "node src/scripts/generate-api-types.mjs --update",
-    "check:api-types": "node src/scripts/generate-api-types.mjs",
+    "check:changelog": "node src/features/upkeep/check-changelog.mjs",
+    "generate:api-types": "node src/features/upkeep/generate-api-types.mjs --update",
+    "check:api-types": "node src/features/upkeep/generate-api-types.mjs",
     "prepublishOnly": "pnpm typecheck && pnpm test && pnpm build",
     "prepare": "husky"
   },

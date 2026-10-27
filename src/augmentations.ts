@@ -1,7 +1,7 @@
 import type {
 	GeneratedLemonSqueezyFieldMap,
 	GeneratedLemonSqueezyResourceName,
-} from "./generated/lemonSqueezyApiTypes.js";
+} from "./shared/lemon-squeezy-api-types.js";
 
 export interface LatestSubscriptionFields {
 	payment_processor?: "stripe" | "lemonsqueezy" | "paypal" | string;

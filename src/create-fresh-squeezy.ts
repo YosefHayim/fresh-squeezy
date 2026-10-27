@@ -1,50 +1,50 @@
+import { resolveConfig } from "@/shared/config.js";
 import type {
 	DoctorReport,
 	FreshSqueezyConfig,
 	Mode,
 	ValidationResult,
-} from "@/contracts/contracts.js";
-import { HttpClient, type RequestOptions } from "@/http/http.js";
-import { resolveConfig } from "@/shared/config.js";
+} from "@/shared/contracts.js";
+import { HttpClient, type RequestOptions } from "@/shared/http.js";
+import {
+	type InvokeOpArgs,
+	invokeOp,
+	type OpVerb,
+} from "./features/ops/resource-registry.js";
+import {
+	type ConnectionSummary,
+	validateConnection,
+} from "./features/validate/connection.js";
+import {
+	type DiscountValidationOptions,
+	validateDiscount,
+} from "./features/validate/discount.js";
+import { type DoctorOptions, doctor } from "./features/validate/doctor.js";
+import {
+	type LicenseKeyValidationOptions,
+	validateLicenseKey,
+} from "./features/validate/license-key.js";
+import {
+	type ProductValidationOptions,
+	validateProduct,
+} from "./features/validate/product.js";
+import { validateStore } from "./features/validate/store.js";
+import {
+	type SubscriptionPlanSummary,
+	type SubscriptionPlanValidationOptions,
+	validateSubscriptionPlan,
+} from "./features/validate/subscription-plan.js";
+import {
+	validateWebhook,
+	type WebhookValidationOptions,
+} from "./features/validate/webhook.js";
 import type {
 	DiscountAttributes,
 	LicenseKeyAttributes,
 	ProductAttributes,
 	StoreAttributes,
 	WebhookAttributes,
-} from "./resources/attributes.js";
-import {
-	type InvokeOpArgs,
-	invokeOp,
-	type OpVerb,
-} from "./resources/registry.js";
-import {
-	type ConnectionSummary,
-	validateConnection,
-} from "./validate/connection.js";
-import {
-	type DiscountValidationOptions,
-	validateDiscount,
-} from "./validate/discount.js";
-import { type DoctorOptions, doctor } from "./validate/doctor.js";
-import {
-	type LicenseKeyValidationOptions,
-	validateLicenseKey,
-} from "./validate/license-key.js";
-import {
-	type ProductValidationOptions,
-	validateProduct,
-} from "./validate/product.js";
-import { validateStore } from "./validate/store.js";
-import {
-	type SubscriptionPlanSummary,
-	type SubscriptionPlanValidationOptions,
-	validateSubscriptionPlan,
-} from "./validate/subscription-plan.js";
-import {
-	validateWebhook,
-	type WebhookValidationOptions,
-} from "./validate/webhook.js";
+} from "./shared/attributes.js";
 
 export interface FreshSqueezyOps {
 	users: {

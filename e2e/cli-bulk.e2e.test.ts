@@ -7,7 +7,7 @@ const root = resolve(import.meta.dirname, "..");
 const cacheDir = join(root, "node_modules/.cache/fresh-squeezy-e2e");
 // Empty cwd so dotenv never picks up a developer's real .env.
 const emptyCwd = join(cacheDir, "cwd");
-const cli = join(cacheDir, "main.js");
+const cli = join(cacheDir, "cli.js");
 const preload = join(root, "e2e/fake-api.mjs");
 
 const run = (args: string[]) => {
@@ -29,7 +29,7 @@ beforeAll(() => {
 		[
 			"exec",
 			"tsup",
-			"src/cli/main.ts",
+			"src/cli.ts",
 			"--no-config",
 			"--format",
 			"esm",

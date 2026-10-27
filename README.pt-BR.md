@@ -66,7 +66,7 @@ A primeira execução adiciona `fresh-squeezy` às devDependencies quando ele es
 - **Chave de produção apontando para staging.** `MODE_MISMATCH` dispara quando o `meta.test_mode` real da chave (changelog da API 2024-01-05) diverge do modo declarado. O doctor sai com 1. Nem o SDK nem um wrapper feito à mão detectam isso por padrão.
 - **Divergências silenciosas de propriedade de loja.** Produtos, descontos, chaves de licença e planos de assinatura cujo `store_id` não corresponde à loja para a qual você limitou a execução. Códigos estáveis: `PRODUCT_WRONG_STORE`, `DISCOUNT_STORE_MISMATCH`, `LICENSE_KEY_STORE_MISMATCH`, `PLAN_STORE_MISMATCH`.
 - **Webhook inscrito nos eventos errados.** Diff em relação a um manifesto de eventos recomendados (ciclo de vida de pedidos/assinaturas, reembolsos) e eventos mais novos, porém opcionais, que o SDK não incorpora.
-- **Drift da plataforma.** Uma GitHub Action semanal calcula o hash do [changelog da API do Lemon Squeezy](https://docs.lemonsqueezy.com/api/getting-started/changelog) em relação ao `src/support/changelog-snapshot.json`, atualiza os tipos de API derivados da documentação e abre trabalho de acompanhamento quando decisões de política são necessárias. As adições rastreadas incluem `customer_updated` (2026-02-25), `payment_processor` em Subscription (2025-06-11), Afiliados + `affiliate_activated` (2025-01-21), `quantity` em item de pedido (2024-12-06), estilização de checkout / `skip_trial` / `variant_quantities`, campos de reembolso de fatura de assinatura e `test_mode` em `/v1/users/me` (2024-01-05).
+- **Drift da plataforma.** Uma GitHub Action semanal calcula o hash do [changelog da API do Lemon Squeezy](https://docs.lemonsqueezy.com/api/getting-started/changelog) em relação ao `src/features/upkeep/changelog-snapshot.json`, atualiza os tipos de API derivados da documentação e abre trabalho de acompanhamento quando decisões de política são necessárias. As adições rastreadas incluem `customer_updated` (2026-02-25), `payment_processor` em Subscription (2025-06-11), Afiliados + `affiliate_activated` (2025-01-21), `quantity` em item de pedido (2024-12-06), estilização de checkout / `skip_trial` / `variant_quantities`, campos de reembolso de fatura de assinatura e `test_mode` em `/v1/users/me` (2024-01-05).
 - **Ping-pong entre Postman e dashboard.** Uma única chamada `doctor` substitui o loop de copiar IDs da interface, colá-los em arquivos de env e verificar cada um manualmente.
 
 ## fresh-squeezy vs as alternativas
@@ -137,7 +137,7 @@ if (!report.ok) {
 
 Para execuções multi-loja na camada de biblioteca, chame `doctor()` em um loop — a CLI faz exatamente isso. Faça o branch com base em `issue.code` na lógica de CI; os códigos são estáveis entre versões menores.
 
-Tipos públicos: [`FreshSqueezyClient`](src/create-fresh-squeezy.ts), [`ValidationResult<T>`](src/contracts/contracts.ts), [`DoctorReport`](src/contracts/contracts.ts), interfaces de atributos de recurso em [`src/resources/attributes.ts`](src/resources/attributes.ts), tipos de objeto do Lemon Squeezy gerados a partir da documentação em [`src/generated/lemonSqueezyApiTypes.ts`](src/generated/lemonSqueezyApiTypes.ts) e helpers de augmentação do changelog em [`src/augmentations.ts`](src/augmentations.ts).
+Tipos públicos: [`FreshSqueezyClient`](src/create-fresh-squeezy.ts), [`ValidationResult<T>`](src/shared/contracts.ts), [`DoctorReport`](src/shared/contracts.ts), interfaces de atributos de recurso em [`src/shared/attributes.ts`](src/shared/attributes.ts), tipos de objeto do Lemon Squeezy gerados a partir da documentação em [`src/shared/lemon-squeezy-api-types.ts`](src/shared/lemon-squeezy-api-types.ts) e helpers de augmentação do changelog em [`src/augmentations.ts`](src/augmentations.ts).
 
 Para endpoints ainda não encapsulados, use a saída de emergência bruta:
 
@@ -221,14 +221,14 @@ Faça o branch com base em `issue.code` na CI — todos os códigos são estáve
 
 Validadores — cada um retorna um `ValidationResult` estável:
 
-- **`validateConnection`** — acessibilidade, validade da chave, presença da loja, modo declarado vs. real. [→ código-fonte](src/validate/connection.ts)
-- **`validateStore`** — o ID da loja existe e pertence à conta da chave. [→ código-fonte](src/validate/store.ts)
-- **`validateProduct`** — publicado, na loja esperada, com variantes live e uma URL de compra. [→ código-fonte](src/validate/product.ts)
-- **`validateWebhook`** — URL do webhook registrada e inscrita nos eventos recomendados. [→ código-fonte](src/validate/webhook.ts)
-- **`validateDiscount`** — ativo, dentro da janela, valor válido, propriedade de loja correspondente. [→ código-fonte](src/validate/discount.ts)
-- **`validateLicenseKey`** — habilitada, não expirada, ativações disponíveis, propriedade de loja correspondente. [→ código-fonte](src/validate/license-key.ts)
-- **`validateSubscriptionPlan`** — tipo de assinatura, intervalo válido, preço não nulo, trial consistente. [→ código-fonte](src/validate/subscription-plan.ts)
-- **`doctor`** — compõe os anteriores em um único `DoctorReport`. [→ código-fonte](src/validate/doctor.ts)
+- **`validateConnection`** — acessibilidade, validade da chave, presença da loja, modo declarado vs. real. [→ código-fonte](src/features/validate/connection.ts)
+- **`validateStore`** — o ID da loja existe e pertence à conta da chave. [→ código-fonte](src/features/validate/store.ts)
+- **`validateProduct`** — publicado, na loja esperada, com variantes live e uma URL de compra. [→ código-fonte](src/features/validate/product.ts)
+- **`validateWebhook`** — URL do webhook registrada e inscrita nos eventos recomendados. [→ código-fonte](src/features/validate/webhook.ts)
+- **`validateDiscount`** — ativo, dentro da janela, valor válido, propriedade de loja correspondente. [→ código-fonte](src/features/validate/discount.ts)
+- **`validateLicenseKey`** — habilitada, não expirada, ativações disponíveis, propriedade de loja correspondente. [→ código-fonte](src/features/validate/license-key.ts)
+- **`validateSubscriptionPlan`** — tipo de assinatura, intervalo válido, preço não nulo, trial consistente. [→ código-fonte](src/features/validate/subscription-plan.ts)
+- **`doctor`** — compõe os anteriores em um único `DoctorReport`. [→ código-fonte](src/features/validate/doctor.ts)
 
 A cobertura de recursos é gerada a partir da documentação de objetos do Lemon Squeezy, então a maioria dos campos recém-documentados não precisa de edição manual:
 

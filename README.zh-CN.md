@@ -66,7 +66,7 @@ npx fresh-squeezy
 - **生产密钥指向了测试环境。** 当密钥真实的 `meta.test_mode`（API 更新日志 2024-01-05）与声明的模式不一致时，会触发 `MODE_MISMATCH`。Doctor 以 1 退出。SDK 和手写封装默认都无法捕获这一点。
 - **店铺归属静默不匹配。** 产品、折扣、许可证密钥和订阅计划的 `store_id` 与你为本次运行指定的店铺不匹配。稳定代码：`PRODUCT_WRONG_STORE`、`DISCOUNT_STORE_MISMATCH`、`LICENSE_KEY_STORE_MISMATCH`、`PLAN_STORE_MISMATCH`。
 - **Webhook 订阅了错误的事件。** 与推荐事件清单（订单/订阅生命周期、退款）以及 SDK 尚未实现的较新但可选的事件进行差异比对。
-- **平台漂移。** 每周运行的 GitHub Action 会将 [Lemon Squeezy API 更新日志](https://docs.lemonsqueezy.com/api/getting-started/changelog)与 `src/support/changelog-snapshot.json` 进行哈希比对，刷新由文档派生的 API 类型，并在需要做出策略决策时开启后续工作。已跟踪的新增项包括 `customer_updated`（2026-02-25）、Subscription 上的 `payment_processor`（2025-06-11）、Affiliates + `affiliate_activated`（2025-01-21）、订单项 `quantity`（2024-12-06）、结账样式 / `skip_trial` / `variant_quantities`、订阅发票退款字段，以及 `/v1/users/me` 上的 `test_mode`（2024-01-05）。
+- **平台漂移。** 每周运行的 GitHub Action 会将 [Lemon Squeezy API 更新日志](https://docs.lemonsqueezy.com/api/getting-started/changelog)与 `src/features/upkeep/changelog-snapshot.json` 进行哈希比对，刷新由文档派生的 API 类型，并在需要做出策略决策时开启后续工作。已跟踪的新增项包括 `customer_updated`（2026-02-25）、Subscription 上的 `payment_processor`（2025-06-11）、Affiliates + `affiliate_activated`（2025-01-21）、订单项 `quantity`（2024-12-06）、结账样式 / `skip_trial` / `variant_quantities`、订阅发票退款字段，以及 `/v1/users/me` 上的 `test_mode`（2024-01-05）。
 - **Postman + 控制台来回折腾。** 一次 `doctor` 调用即可替代从界面复制 ID、粘贴到环境文件、再逐个手动核验的循环。
 
 ## fresh-squeezy 与替代方案对比
@@ -137,7 +137,7 @@ if (!report.ok) {
 
 如需在库层进行多店铺运行，请在循环中调用 `doctor()` —— CLI 正是这样做的。在 CI 逻辑中对 `issue.code` 进行分支判断；这些代码在次版本之间保持稳定。
 
-公共类型：[`FreshSqueezyClient`](src/create-fresh-squeezy.ts)、[`ValidationResult<T>`](src/contracts/contracts.ts)、[`DoctorReport`](src/contracts/contracts.ts)、[`src/resources/attributes.ts`](src/resources/attributes.ts) 下的资源属性接口、[`src/generated/lemonSqueezyApiTypes.ts`](src/generated/lemonSqueezyApiTypes.ts) 中由文档生成的 Lemon Squeezy 对象类型，以及 [`src/augmentations.ts`](src/augmentations.ts) 中的更新日志增强辅助函数。
+公共类型：[`FreshSqueezyClient`](src/create-fresh-squeezy.ts)、[`ValidationResult<T>`](src/shared/contracts.ts)、[`DoctorReport`](src/shared/contracts.ts)、[`src/shared/attributes.ts`](src/shared/attributes.ts) 下的资源属性接口、[`src/shared/lemon-squeezy-api-types.ts`](src/shared/lemon-squeezy-api-types.ts) 中由文档生成的 Lemon Squeezy 对象类型，以及 [`src/augmentations.ts`](src/augmentations.ts) 中的更新日志增强辅助函数。
 
 对于尚未封装的端点，可使用原始转义出口：
 
@@ -221,14 +221,14 @@ CLI 不会读取 `LEMON_SQUEEZY_STORE_ID`；请使用 `--store-ids` 或 `--all-s
 
 验证器 —— 每个都返回一个稳定的 `ValidationResult`：
 
-- **`validateConnection`** —— 可达性、密钥有效性、店铺存在性、声明模式与实际模式。[→ 源码](src/validate/connection.ts)
-- **`validateStore`** —— 店铺 ID 存在且归属于密钥所在的账户。[→ 源码](src/validate/store.ts)
-- **`validateProduct`** —— 已发布、位于预期店铺、拥有正式变体和购买 URL。[→ 源码](src/validate/product.ts)
-- **`validateWebhook`** —— Webhook URL 已注册并订阅了推荐事件。[→ 源码](src/validate/webhook.ts)
-- **`validateDiscount`** —— 有效、在时间窗口内、金额有效、店铺归属匹配。[→ 源码](src/validate/discount.ts)
-- **`validateLicenseKey`** —— 已启用、未过期、有可用的激活次数、店铺归属匹配。[→ 源码](src/validate/license-key.ts)
-- **`validateSubscriptionPlan`** —— 订阅类型、有效的周期、非零价格、一致的试用期。[→ 源码](src/validate/subscription-plan.ts)
-- **`doctor`** —— 将上述各项组合成一份 `DoctorReport`。[→ 源码](src/validate/doctor.ts)
+- **`validateConnection`** —— 可达性、密钥有效性、店铺存在性、声明模式与实际模式。[→ 源码](src/features/validate/connection.ts)
+- **`validateStore`** —— 店铺 ID 存在且归属于密钥所在的账户。[→ 源码](src/features/validate/store.ts)
+- **`validateProduct`** —— 已发布、位于预期店铺、拥有正式变体和购买 URL。[→ 源码](src/features/validate/product.ts)
+- **`validateWebhook`** —— Webhook URL 已注册并订阅了推荐事件。[→ 源码](src/features/validate/webhook.ts)
+- **`validateDiscount`** —— 有效、在时间窗口内、金额有效、店铺归属匹配。[→ 源码](src/features/validate/discount.ts)
+- **`validateLicenseKey`** —— 已启用、未过期、有可用的激活次数、店铺归属匹配。[→ 源码](src/features/validate/license-key.ts)
+- **`validateSubscriptionPlan`** —— 订阅类型、有效的周期、非零价格、一致的试用期。[→ 源码](src/features/validate/subscription-plan.ts)
+- **`doctor`** —— 将上述各项组合成一份 `DoctorReport`。[→ 源码](src/features/validate/doctor.ts)
 
 资源覆盖范围是从 Lemon Squeezy 的对象文档生成的，因此大多数新文档化的字段不需要手动编辑：
 

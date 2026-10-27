@@ -10,17 +10,17 @@ vi.mock("@inquirer/prompts", () => ({
 	input: vi.fn(),
 	password: vi.fn(),
 }));
-vi.mock("@/cli/project-install.js", () => ({
+vi.mock("@/app/project-install.js", () => ({
 	ensureFreshSqueezyDevDependency: vi
 		.fn()
 		.mockResolvedValue({ status: "skipped" }),
 }));
-vi.mock("@/cli/resolve-stores.js", () => ({
+vi.mock("@/app/resolve-stores.js", () => ({
 	resolveStores: vi.fn().mockResolvedValue({ storeIds: ["1"], skipped: false }),
 }));
 
 import { checkbox, confirm, select } from "@inquirer/prompts";
-import { runLauncherCommand } from "@/cli/commands/launcher.js";
+import { runLauncherCommand } from "@/app/launcher-menu.js";
 
 const discount = (id: string, code: string) => ({
 	type: "discounts",

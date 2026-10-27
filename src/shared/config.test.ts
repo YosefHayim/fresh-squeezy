@@ -1,5 +1,5 @@
 import { expect, test, vi } from "vitest";
-import { isFreshSqueezyError } from "@/errors/errors.js";
+import { isFreshSqueezyError } from "@/shared/errors.js";
 import { ENV_KEYS, resolveConfig } from "./config.js";
 
 test("resolveConfig uses explicit argument over env vars", () => {
