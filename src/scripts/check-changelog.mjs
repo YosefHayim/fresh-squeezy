@@ -10,10 +10,19 @@ const CHANGELOG_URL =
 	"https://docs.lemonsqueezy.com/api/getting-started/changelog";
 
 const thisFile = fileURLToPath(import.meta.url);
-const repoRoot = resolve(dirname(thisFile), "../..");
+const thisFolder = dirname(thisFile);
+const repoRoot = resolve(thisFolder, "../..");
 const snapshotPath = resolve(repoRoot, "src/support/changelog-snapshot.json");
 
+const readFlagValue = (flagName) => {
+	const flagIndex = process.argv.indexOf(flagName);
+	const isFlagMissing = flagIndex === -1;
+	if (isFlagMissing) return undefined;
+	return process.argv[flagIndex + 1];
+};
+
 const updateMode = process.argv.includes("--update");
+const githubOutputPath = readFlagValue("--github-output");
 
 export const DATE_RE =
 	/\d{4}-\d{2}-\d{2}|(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4}/i;
@@ -22,10 +31,13 @@ const main = async () => {
 	const html = await fetchText(CHANGELOG_URL);
 	const normalized = normalize(html);
 	const currentEntries = extractEntries(normalized);
-	const hash = sha256(canonicalize(currentEntries));
+	const canonicalEntries = canonicalize(currentEntries);
+	const hash = sha256(canonicalEntries);
 	const fetchedAt = new Date().toISOString();
 
-	if (updateMode || !existsSync(snapshotPath)) {
+	const isSnapshotMissing = !existsSync(snapshotPath);
+	const shouldWriteSnapshot = updateMode || isSnapshotMissing;
+	if (shouldWriteSnapshot) {
 		await writeSnapshot({
 			url: CHANGELOG_URL,
 			fetchedAt,
@@ -33,17 +45,23 @@ const main = async () => {
 			entryCount: currentEntries.length,
 			entries: currentEntries,
 		});
-		console.log(`Snapshot written: ${snapshotPath}`);
-		console.log(`  url:        ${CHANGELOG_URL}`);
-		console.log(`  hash:       ${hash}`);
-		console.log(`  entries:    ${currentEntries.length}`);
+		process.stdout.write(`Snapshot written: ${snapshotPath}\n`);
+		process.stdout.write(`  url:        ${CHANGELOG_URL}\n`);
+		process.stdout.write(`  hash:       ${hash}\n`);
+		process.stdout.write(`  entries:    ${currentEntries.length}\n`);
 		return;
 	}
 
-	const previous = JSON.parse(await readFile(snapshotPath, "utf8"));
-	if (previous.hash === hash) {
-		console.log(`No drift. Changelog unchanged since ${previous.fetchedAt}.`);
-		console.log(`  ${currentEntries.length} entries match the snapshot.`);
+	const snapshotText = await readFile(snapshotPath, "utf8");
+	const previous = JSON.parse(snapshotText);
+	const isChangelogUnchanged = previous.hash === hash;
+	if (isChangelogUnchanged) {
+		process.stdout.write(
+			`No drift. Changelog unchanged since ${previous.fetchedAt}.\n`,
+		);
+		process.stdout.write(
+			`  ${currentEntries.length} entries match the snapshot.\n`,
+		);
 		return;
 	}
 
@@ -73,22 +91,24 @@ const main = async () => {
 	]
 		.filter(Boolean)
 		.join("\n");
-	console.error(message);
+	process.stderr.write(`${message}\n`);
 
-	if (process.env.GITHUB_OUTPUT) {
-		await appendGithubOutput("drifted", "true");
-		await appendGithubOutput("previous_hash", previous.hash);
-		await appendGithubOutput("current_hash", hash);
-		await appendGithubOutput("previous_seen", previous.fetchedAt);
-		await appendGithubOutput("current_seen", fetchedAt);
-		if (formattedDiff) {
-			const b64 = Buffer.from(formattedDiff, "utf8").toString("base64");
-			await appendGithubOutput("diff_b64", b64);
-		}
-	}
+	const isGithubOutputNotRequested = !githubOutputPath;
+	if (isGithubOutputNotRequested) return;
+
+	await appendGithubOutput("drifted", "true");
+	await appendGithubOutput("previous_hash", previous.hash);
+	await appendGithubOutput("current_hash", hash);
+	await appendGithubOutput("previous_seen", previous.fetchedAt);
+	await appendGithubOutput("current_seen", fetchedAt);
+	const isThereNoDiff = !formattedDiff;
+	if (isThereNoDiff) return;
+	const diffBytes = Buffer.from(formattedDiff, "utf8");
+	const diffBase64 = diffBytes.toString("base64");
+	await appendGithubOutput("diff_b64", diffBase64);
 };
 
-async function fetchText(url) {
+const fetchText = async (url) => {
 	const response = await fetch(url, {
 		headers: {
 			"user-agent":
@@ -96,47 +116,44 @@ async function fetchText(url) {
 			accept: "text/html,*/*",
 		},
 	});
-	if (!response.ok) {
+	const isResponseFailed = !response.ok;
+	if (isResponseFailed) {
 		throw new Error(`Fetch failed ${response.status} for ${url}`);
 	}
 	return response.text();
-}
+};
 
-function normalize(html) {
-	return isolateMain(html)
+const normalize = (html) => {
+	const mainHtml = isolateMain(html);
+	return mainHtml
 		.replace(/<script[\s\S]*?<\/script>/gi, "")
 		.replace(/<style[\s\S]*?<\/style>/gi, "")
 		.replace(/<!--[\s\S]*?-->/g, "")
 		.replace(/\s+/g, " ")
 		.trim();
-}
+};
 
-function isolateMain(html) {
+const isolateMain = (html) => {
 	const match = html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i);
 	return match ? match[1] : html;
-}
+};
 
-function sha256(value) {
-	return createHash("sha256").update(value, "utf8").digest("hex");
-}
+const sha256 = (value) =>
+	createHash("sha256").update(value, "utf8").digest("hex");
 
-async function writeSnapshot(snapshot) {
-	await writeFile(
-		snapshotPath,
-		`${JSON.stringify(snapshot, null, 2)}\n`,
-		"utf8",
-	);
-}
+const writeSnapshot = async (snapshot) => {
+	const snapshotJson = JSON.stringify(snapshot, null, 2);
+	await writeFile(snapshotPath, `${snapshotJson}\n`, "utf8");
+};
 
-async function appendGithubOutput(key, value) {
-	const line = `${key}=${String(value).replace(/\r?\n/g, "%0A")}\n`;
-	const path = process.env.GITHUB_OUTPUT;
-	if (!path) return;
-	await writeFile(path, line, { flag: "a", encoding: "utf8" });
-}
+const appendGithubOutput = async (key, value) => {
+	const singleLineValue = String(value).replace(/\r?\n/g, "%0A");
+	const line = `${key}=${singleLineValue}\n`;
+	await writeFile(githubOutputPath, line, { flag: "a", encoding: "utf8" });
+};
 
-const stripTags = (html) => {
-	return html
+const stripTags = (html) =>
+	html
 		.replace(/<[^>]+>/g, "")
 		.replace(/&amp;/g, "&")
 		.replace(/&lt;/g, "<")
@@ -146,39 +163,38 @@ const stripTags = (html) => {
 		.replace(/&#x27;/g, "'")
 		.replace(/&nbsp;/g, " ")
 		.trim();
-};
 
-export function extractEntries(html) {
-	if (!html) return [];
+export const extractEntries = (html) => {
+	const isHtmlEmpty = !html;
+	if (isHtmlEmpty) return [];
 
 	const entries = [];
 	// Raw row example: "heading"-like input should match.
 	const headingRe = /<(h[1-6])[^>]*>(.*?)<\/\1>/gi;
 	const headings = [];
-	let m;
-	// biome-ignore lint/suspicious/noAssignInExpressions: standard regex.exec() iteration idiom
-	while ((m = headingRe.exec(html)) !== null) {
-		const text = stripTags(m[2]);
-		if (DATE_RE.test(text)) {
-			headings.push({ index: m.index, end: m.index + m[0].length, text });
-		}
+	for (const headingMatch of html.matchAll(headingRe)) {
+		const text = stripTags(headingMatch[2]);
+		const isUndatedHeading = !DATE_RE.test(text);
+		if (isUndatedHeading) continue;
+		const index = headingMatch.index;
+		headings.push({ index, end: index + headingMatch[0].length, text });
 	}
 
-	for (let i = 0; i < headings.length; i++) {
-		const bodyStart = headings[i].end;
-		const bodyEnd =
-			i + 1 < headings.length ? headings[i + 1].index : html.length;
-		const excerpt = stripTags(html.slice(bodyStart, bodyEnd))
+	for (const [headingPosition, heading] of headings.entries()) {
+		const nextHeading = headings[headingPosition + 1];
+		const bodyEnd = nextHeading ? nextHeading.index : html.length;
+		const bodyHtml = html.slice(heading.end, bodyEnd);
+		const excerpt = stripTags(bodyHtml)
 			.replace(/\s+/g, " ")
 			.trim()
 			.slice(0, 400);
 
-		const dateMatch = headings[i].text.match(DATE_RE);
+		const dateMatch = heading.text.match(DATE_RE);
 		const date = dateMatch ? dateMatch[0] : "unknown";
 		entries.push({
 			date,
 			isoDate: toIsoDate(date),
-			heading: headings[i].text.trim(),
+			heading: heading.text.trim(),
 			excerpt,
 		});
 	}
@@ -188,7 +204,7 @@ export function extractEntries(html) {
 	return entries.sort((a, b) =>
 		(b.isoDate ?? "").localeCompare(a.isoDate ?? ""),
 	);
-}
+};
 
 const MONTHS = {
 	january: "01",
@@ -205,49 +221,62 @@ const MONTHS = {
 	december: "12",
 };
 
-export function toIsoDate(raw) {
-	if (!raw || raw === "unknown") return null;
-	if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+export const toIsoDate = (raw) => {
+	const isDateMissing = !raw || raw === "unknown";
+	if (isDateMissing) return null;
+	const isAlreadyIso = /^\d{4}-\d{2}-\d{2}$/.test(raw);
+	if (isAlreadyIso) return raw;
 	const m = raw.match(
 		/^(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})$/i,
 	);
-	if (!m) return null;
+	const isDateUnparseable = !m;
+	if (isDateUnparseable) return null;
 	const month = MONTHS[m[1].toLowerCase()];
-	if (!month) return null;
+	const isMonthUnknown = !month;
+	if (isMonthUnknown) return null;
 	const day = m[2].padStart(2, "0");
 	return `${m[3]}-${month}-${day}`;
-}
+};
 
-function canonicalize(entries) {
-	return JSON.stringify(
-		entries.map((e) => ({ heading: e.heading, excerpt: e.excerpt })),
-	);
-}
+const canonicalize = (entries) => {
+	const canonicalEntries = entries.map((e) => ({
+		heading: e.heading,
+		excerpt: e.excerpt,
+	}));
+	return JSON.stringify(canonicalEntries);
+};
 
-function previousSnapshotEntries(previous) {
+const previousSnapshotEntries = (previous) => {
 	if (Array.isArray(previous?.entries)) return previous.entries;
-	if (typeof previous?.html === "string") return extractEntries(previous.html);
+	const hasLegacyHtml = typeof previous?.html === "string";
+	if (hasLegacyHtml) return extractEntries(previous.html);
 	return [];
-}
+};
 
-export function diffEntries(previous, current) {
-	const prevHeadings = new Set(previous.map((e) => e.heading));
+export const diffEntries = (previous, current) => {
+	const previousHeadingList = previous.map((e) => e.heading);
+	const prevHeadings = new Set(previousHeadingList);
 	return current.filter((e) => !prevHeadings.has(e.heading));
-}
+};
 
-function formatDiff(newEntries) {
-	if (newEntries.length === 0) return "";
-	return newEntries
-		.map((e) => {
-			const title = e.heading === e.date ? e.date : `${e.date}: ${e.heading}`;
-			const block = [`### ${title}`];
-			if (e.excerpt) {
-				block.push("", e.excerpt + (e.excerpt.length >= 400 ? "…" : ""));
-			}
-			return block.join("\n");
-		})
-		.join("\n\n");
-}
+const formatEntry = (entry) => {
+	const hasHeadingOnlyDate = entry.heading === entry.date;
+	const title = hasHeadingOnlyDate
+		? entry.date
+		: `${entry.date}: ${entry.heading}`;
+	const block = [`### ${title}`];
+	const isExcerptMissing = !entry.excerpt;
+	if (isExcerptMissing) return block.join("\n");
+	const isExcerptTruncated = entry.excerpt.length >= 400;
+	block.push("", entry.excerpt + (isExcerptTruncated ? "…" : ""));
+	return block.join("\n");
+};
+
+const formatDiff = (newEntries) => {
+	const hasNoNewEntries = newEntries.length === 0;
+	if (hasNoNewEntries) return "";
+	return newEntries.map(formatEntry).join("\n\n");
+};
 
 // Only run as a CLI when invoked directly (e.g. `node src/scripts/check-changelog.mjs`).
 // Importing this module from a test or script should not trigger a network fetch.
@@ -255,9 +284,9 @@ const invokedAsCli =
 	process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (invokedAsCli) {
 	main().catch((err) => {
-		console.error(
-			err instanceof Error ? (err.stack ?? err.message) : String(err),
-		);
+		const isRealError = err instanceof Error;
+		const errorText = isRealError ? (err.stack ?? err.message) : String(err);
+		process.stderr.write(`${errorText}\n`);
 		process.exit(2);
 	});
 }
