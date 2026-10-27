@@ -38,7 +38,7 @@ Rules only this repo has:
 pnpm typecheck          # tsc --noEmit
 pnpm test               # vitest, fixtures, no network
 pnpm test:coverage      # thresholds 80/80/75/80
-pnpm test:live          # live API smoke, needs LEMON_SQUEEZY_LIVE_SMOKE=1
+pnpm test:live          # live API smoke, runs each mode whose API key is set
 pnpm build              # tsup, emits dist/
 pnpm dev                # tsup --watch
 pnpm check:standard     # code-standard check: health score and report link

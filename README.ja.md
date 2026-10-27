@@ -53,15 +53,16 @@ Node 22 以上。
 pnpm add fresh-squeezy
 ```
 
-キーは一度だけ設定します。モードの既定値は `test` です。
+API キーはモードごとに 1 つ設定します。`LEMON_SQUEEZY_MODE` が使うキーを選び、既定値は `test` です。
 
 ```bash
-LEMON_SQUEEZY_API_KEY=your-key
+LEMON_SQUEEZY_TEST_API_KEY=your-test-key
+LEMON_SQUEEZY_LIVE_API_KEY=your-live-key
 LEMON_SQUEEZY_MODE=test
 LEMON_SQUEEZY_STORE_ID=12
 ```
 
-`LEMON_SQUEEZY_STORE_ID` は任意です。同じ名前を `createFreshSqueezy({ apiKey, mode, storeId, baseUrl })` のオプションとしても使えます。
+必要なのは実行するモードのキーだけで、`LEMON_SQUEEZY_STORE_ID` は任意です。同じ設定を `createFreshSqueezy({ apiKey, mode, storeId, baseUrl })` のオプションとしても使えます。
 
 ## クライアント
 
@@ -144,7 +145,7 @@ npx fresh-squeezy doctor --store-id 12 --store-id 34 \
 | `--json`                | レポートを JSON で出力する                                                                           |
 | `--help`, `--version`   | ヘルプまたはバージョンを表示する                                                                     |
 
-doctor は `LEMON_SQUEEZY_API_KEY` を環境変数、または作業ディレクトリの `.env` ファイルから読みます。入力を求めることも、止まることもありません。
+doctor はモードに合うキー (`LEMON_SQUEEZY_TEST_API_KEY` または `LEMON_SQUEEZY_LIVE_API_KEY`) を環境変数、または作業ディレクトリの `.env` ファイルから読みます。入力を求めることも、止まることもありません。
 
 | 終了コード | 意味                                                       |
 | ---------- | ---------------------------------------------------------- |
@@ -191,7 +192,7 @@ doctor は `LEMON_SQUEEZY_API_KEY` を環境変数、または作業ディレク
 - name: Check Lemon Squeezy
   run: npx fresh-squeezy doctor --all-resources --json
   env:
-    LEMON_SQUEEZY_API_KEY: ${{ secrets.LEMON_SQUEEZY_API_KEY }}
+    LEMON_SQUEEZY_LIVE_API_KEY: ${{ secrets.LEMON_SQUEEZY_LIVE_API_KEY }}
     LEMON_SQUEEZY_MODE: live
 ```
 

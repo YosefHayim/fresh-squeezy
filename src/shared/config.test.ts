@@ -3,14 +3,14 @@ import { isFreshSqueezyError } from "@/shared/errors.js";
 import { ENV_KEYS, readConfig } from "./config.js";
 
 test("readConfig uses explicit argument over env vars", () => {
-	vi.stubEnv(ENV_KEYS.apiKey, "from-env");
+	vi.stubEnv(ENV_KEYS.apiKey.live, "from-env");
 	const config = readConfig({ apiKey: "from-arg", mode: "live" });
 	expect(config.apiKey).toBe("from-arg");
 	expect(config.mode).toBe("live");
 });
 
 test("readConfig falls back to env vars when no argument passed", () => {
-	vi.stubEnv(ENV_KEYS.apiKey, "from-env");
+	vi.stubEnv(ENV_KEYS.apiKey.live, "from-env");
 	vi.stubEnv(ENV_KEYS.mode, "live");
 	vi.stubEnv(ENV_KEYS.storeId, "42");
 	const config = readConfig();
@@ -20,15 +20,26 @@ test("readConfig falls back to env vars when no argument passed", () => {
 });
 
 test("readConfig defaults mode to test when nothing is set", () => {
-	vi.stubEnv(ENV_KEYS.apiKey, "k");
+	vi.stubEnv(ENV_KEYS.apiKey.test, "k");
 	vi.stubEnv(ENV_KEYS.mode, undefined);
 	expect(readConfig().mode).toBe("test");
 });
 
-test("readConfig throws MISSING_API_KEY when no key is provided", () => {
-	vi.stubEnv(ENV_KEYS.apiKey, undefined);
-	expect(() => readConfig()).toThrowError(
-		expect.objectContaining({ code: "MISSING_API_KEY" }),
+test("readConfig reads the API key of the chosen mode", () => {
+	vi.stubEnv(ENV_KEYS.apiKey.test, "test-key");
+	vi.stubEnv(ENV_KEYS.apiKey.live, "live-key");
+	expect(readConfig({ mode: "test" }).apiKey).toBe("test-key");
+	expect(readConfig({ mode: "live" }).apiKey).toBe("live-key");
+});
+
+test("readConfig throws MISSING_API_KEY naming the key of the chosen mode", () => {
+	vi.stubEnv(ENV_KEYS.apiKey.test, "test-key");
+	vi.stubEnv(ENV_KEYS.apiKey.live, undefined);
+	expect(() => readConfig({ mode: "live" })).toThrowError(
+		expect.objectContaining({
+			code: "MISSING_API_KEY",
+			message: expect.stringContaining(ENV_KEYS.apiKey.live),
+		}),
 	);
 });
 

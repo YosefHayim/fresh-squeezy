@@ -34,7 +34,7 @@ npx fresh-squeezy doctor --store-id 12 --all-resources --json
 ```ts
 import { createFreshSqueezy } from "fresh-squeezy";
 
-const freshSqueezy = createFreshSqueezy(); // reads LEMON_SQUEEZY_API_KEY, LEMON_SQUEEZY_MODE
+const freshSqueezy = createFreshSqueezy(); // reads LEMON_SQUEEZY_MODE and the API key of that mode
 
 const subscription = await freshSqueezy.get("subscriptions", "123");
 const paidOrders = await freshSqueezy.list("orders", {

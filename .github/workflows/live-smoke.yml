@@ -27,8 +27,6 @@ jobs:
 
       - name: Run live smoke tests
         env:
-          LEMON_SQUEEZY_LIVE_SMOKE: "1"
-          LEMON_SQUEEZY_API_KEY: ${{ secrets.LEMON_SQUEEZY_API_KEY }}
-          LEMON_SQUEEZY_STORE_ID: ${{ secrets.LEMON_SQUEEZY_STORE_ID }}
-          LEMON_SQUEEZY_MODE: ${{ secrets.LEMON_SQUEEZY_MODE || 'test' }}
+          LEMON_SQUEEZY_TEST_API_KEY: ${{ secrets.LEMON_SQUEEZY_TEST_API_KEY }}
+          LEMON_SQUEEZY_LIVE_API_KEY: ${{ secrets.LEMON_SQUEEZY_LIVE_API_KEY }}
         run: pnpm test:live

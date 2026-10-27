@@ -5,7 +5,10 @@ const DEFAULT_BASE_URL = "https://api.lemonsqueezy.com";
 const DEFAULT_MODE = "test";
 
 export const ENV_KEYS = {
-	apiKey: "LEMON_SQUEEZY_API_KEY",
+	apiKey: {
+		test: "LEMON_SQUEEZY_TEST_API_KEY",
+		live: "LEMON_SQUEEZY_LIVE_API_KEY",
+	},
 	storeId: "LEMON_SQUEEZY_STORE_ID",
 	mode: "LEMON_SQUEEZY_MODE",
 } as const;
@@ -28,10 +31,7 @@ export interface Config {
 	fetch: typeof fetch;
 }
 
-const readEnv = (key: keyof typeof ENV_KEYS) => {
-	const envName = ENV_KEYS[key];
-	return process.env[envName]?.trim();
-};
+const readEnv = (envName: string) => process.env[envName]?.trim();
 
 const isMode = (value: string): value is Mode =>
 	value === "test" || value === "live";
@@ -46,19 +46,21 @@ export const parseMode = (value: string): Mode => {
 };
 
 export const readConfig = (input: FreshSqueezyConfig = {}): Config => {
-	const apiKey = input.apiKey ?? readEnv("apiKey");
+	const modeText = input.mode ?? readEnv(ENV_KEYS.mode) ?? DEFAULT_MODE;
+	const mode = parseMode(modeText);
+	const apiKeyEnvName = ENV_KEYS.apiKey[mode];
+	const apiKey = input.apiKey ?? readEnv(apiKeyEnvName);
 	const isApiKeyMissing = !apiKey;
 	if (isApiKeyMissing) {
 		throw freshSqueezyErrorOf({
 			code: "MISSING_API_KEY",
-			message: `No API key provided. Pass \`apiKey\` or set ${ENV_KEYS.apiKey}.`,
+			message: `No API key provided. Pass \`apiKey\` or set ${apiKeyEnvName}.`,
 		});
 	}
-	const modeText = input.mode ?? readEnv("mode") ?? DEFAULT_MODE;
 	return {
 		apiKey,
-		storeId: input.storeId ?? readEnv("storeId"),
-		mode: parseMode(modeText),
+		storeId: input.storeId ?? readEnv(ENV_KEYS.storeId),
+		mode,
 		baseUrl: input.baseUrl ?? DEFAULT_BASE_URL,
 		fetch: input.fetch ?? globalThis.fetch,
 	};

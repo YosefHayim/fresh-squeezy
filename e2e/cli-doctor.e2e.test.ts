@@ -23,7 +23,7 @@ interface ReportedResult {
 
 const run = (args: string[], { env, cwd = EMPTY_CWD }: RunOptions = {}) => {
 	const processEnv = {
-		LEMON_SQUEEZY_API_KEY: "test-key",
+		LEMON_SQUEEZY_TEST_API_KEY: "test-key",
 		LEMON_SQUEEZY_MODE: "test",
 		NO_COLOR: "1",
 		...env,
@@ -115,7 +115,7 @@ test("doctor exits 1 when a check fails", () => {
 
 test("doctor reports AUTH_FAILED once for a rejected key", () => {
 	const { exitCode, stdout } = run(["doctor", "--store-id", "1", "--json"], {
-		env: { LEMON_SQUEEZY_API_KEY: "rejected-key" },
+		env: { LEMON_SQUEEZY_TEST_API_KEY: "rejected-key" },
 	});
 
 	const parsed = JSON.parse(stdout);
@@ -127,7 +127,7 @@ test("doctor reports AUTH_FAILED once for a rejected key", () => {
 test("doctor reports AUTH_FAILED in every check when the key is revoked after connecting", () => {
 	const { exitCode, stdout } = run(
 		["doctor", "--store-id", "1", "--product-id", "100", "--json"],
-		{ env: { LEMON_SQUEEZY_API_KEY: "revoked-after-connect" } },
+		{ env: { LEMON_SQUEEZY_TEST_API_KEY: "revoked-after-connect" } },
 	);
 
 	const parsed = JSON.parse(stdout);
@@ -198,13 +198,24 @@ test("doctor exits 2 for a bad mode", () => {
 	expect(stderr).toContain("staging");
 });
 
+test("--mode picks the API key of that mode", () => {
+	const { stdout } = run(
+		["doctor", "--store-id", "1", "--mode", "live", "--json"],
+		{ env: { LEMON_SQUEEZY_LIVE_API_KEY: "rejected-key" } },
+	);
+
+	const parsed = JSON.parse(stdout);
+	expect(parsed.mode).toBe("live");
+	expect(parsed.reports[0].results[0].findings[0].code).toBe("AUTH_FAILED");
+});
+
 test("doctor exits 2 when there is no API key", () => {
 	const { exitCode, stderr } = run(["doctor"], {
-		env: { LEMON_SQUEEZY_API_KEY: undefined },
+		env: { LEMON_SQUEEZY_TEST_API_KEY: undefined },
 	});
 
 	expect(exitCode).toBe(2);
-	expect(stderr).toContain("LEMON_SQUEEZY_API_KEY");
+	expect(stderr).toContain("LEMON_SQUEEZY_TEST_API_KEY");
 });
 
 test("running without the doctor command prints the help to stderr and exits 2", () => {
@@ -230,13 +241,13 @@ test("--version prints the package version", () => {
 
 test("doctor reads the API key from the settings file in the working directory", () => {
 	writeSettingsFile([
-		"LEMON_SQUEEZY_API_KEY=from-file",
+		"LEMON_SQUEEZY_TEST_API_KEY=from-file",
 		"LEMON_SQUEEZY_MODE=test",
 	]);
 
 	const { exitCode, stdout } = run(["doctor", "--store-id", "1"], {
 		cwd: FILE_CWD,
-		env: { LEMON_SQUEEZY_API_KEY: undefined },
+		env: { LEMON_SQUEEZY_TEST_API_KEY: undefined },
 	});
 
 	expect(exitCode).toBe(0);
@@ -245,7 +256,7 @@ test("doctor reads the API key from the settings file in the working directory",
 
 test("a variable already set in the environment wins over the settings file", () => {
 	writeSettingsFile([
-		"LEMON_SQUEEZY_API_KEY=from-file",
+		"LEMON_SQUEEZY_TEST_API_KEY=from-file",
 		"LEMON_SQUEEZY_MODE=live",
 	]);
 
