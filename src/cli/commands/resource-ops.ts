@@ -43,38 +43,41 @@ export interface ResourceOpCommandOptions {
 export const runResourceOpCommand = async (
 	options: ResourceOpCommandOptions,
 ): Promise<number> => {
-	if (options.listCatalog) {
+	const shouldListCatalog = options.listCatalog;
+	if (shouldListCatalog) {
 		writeCatalog(options.json ?? false);
 		return 0;
 	}
 
 	const spec = findResourceVerb(options.resource, options.verb);
-	if (!spec) {
-		process.stderr.write(
-			renderCliError(
-				`Unknown or unsupported op: ${options.verb} ${options.resource}`,
-				[
-					"fresh-squeezy ops --list",
-					"fresh-squeezy get product --id 1",
-					"fresh-squeezy list webhook --store-ids 1",
-				],
-			),
+	const isThereNoSpec = !spec;
+	if (isThereNoSpec) {
+		const unknownOpScreen = renderCliError(
+			`Unknown or unsupported op: ${options.verb} ${options.resource}`,
+			[
+				"fresh-squeezy ops --list",
+				"fresh-squeezy get product --id 1",
+				"fresh-squeezy list webhook --store-ids 1",
+			],
 		);
+		process.stderr.write(unknownOpScreen);
 		return 2;
 	}
 
 	const bulkError = validateBulkFlags(spec, options);
 	if (bulkError) {
-		writeFatal(
-			freshSqueezyErrorOf({ code: "INVALID_ARGS", message: bulkError }),
-			options.json ?? false,
-		);
+		const invalidArgsError = freshSqueezyErrorOf({
+			code: "INVALID_ARGS",
+			message: bulkError,
+		});
+		writeFatal(invalidArgsError, options.json ?? false);
 		return 2;
 	}
 
 	try {
 		const body = readBody(options);
-		if (spec.body === "required" && body === undefined) {
+		const isBodyMissing = spec.body === "required" && body === undefined;
+		if (isBodyMissing) {
 			throw freshSqueezyErrorOf({
 				code: "MISSING_ARG",
 				message: "This op requires a JSON body (--body or --body-file).",
@@ -86,12 +89,14 @@ export const runResourceOpCommand = async (
 		// CLI flag wins; LEMON_SQUEEZY_STORE_ID (already in config) is the fallback.
 		const storeId = options.storeIds?.[0] ?? config.storeId;
 
-		if (options.all || options.ids) {
+		const isBulk = Boolean(options.all || options.ids);
+		if (isBulk) {
 			return await runBulk(http, spec, config.mode, options, { storeId, body });
 		}
 
 		const allowed = await assertWriteSafety(spec, config.mode, options);
-		if (!allowed) return 2;
+		const isWriteRefused = !allowed;
+		if (isWriteRefused) return 2;
 
 		const opBody = await invokeOp(http, options.resource, options.verb, {
 			id: options.id,
@@ -110,13 +115,14 @@ export const runResourceOpCommand = async (
 		};
 
 		if (options.json) {
-			process.stdout.write(`${JSON.stringify(envelope, null, 2)}\n`);
-		} else {
-			process.stdout.write(
-				`${spec.verb} ${spec.resource} — ok (mode=${config.mode})\n` +
-					`${JSON.stringify(opBody ?? null, null, 2)}\n`,
-			);
+			const envelopeText = JSON.stringify(envelope, null, 2);
+			process.stdout.write(`${envelopeText}\n`);
+			return 0;
 		}
+		const bodyText = JSON.stringify(opBody ?? null, null, 2);
+		process.stdout.write(
+			`${spec.verb} ${spec.resource} — ok (mode=${config.mode})\n${bodyText}\n`,
+		);
 		return 0;
 	} catch (err) {
 		writeFatal(err, options.json ?? false);
@@ -126,30 +132,29 @@ export const runResourceOpCommand = async (
 
 const writeCatalog = (asJson: boolean): void => {
 	if (asJson) {
-		process.stdout.write(
-			`${JSON.stringify(
-				{
-					resources: listRegisteredResources(),
-					ops: resourceRegistry,
-				},
-				null,
-				2,
-			)}\n`,
-		);
+		const catalog = {
+			resources: listRegisteredResources(),
+			ops: resourceRegistry,
+		};
+		const catalogText = JSON.stringify(catalog, null, 2);
+		process.stdout.write(`${catalogText}\n`);
 		return;
 	}
 	process.stdout.write(
 		"Docs-backed ops (Lemon Squeezy official API only):\n\n",
 	);
 	for (const entry of resourceRegistry) {
-		const flags = [
+		const hasBody = entry.body && entry.body !== "none";
+		const flagList = [
 			entry.destructive ? "destructive" : undefined,
-			entry.body && entry.body !== "none" ? `body=${entry.body}` : undefined,
-		]
-			.filter(Boolean)
-			.join(", ");
+			hasBody ? `body=${entry.body}` : undefined,
+		].filter(Boolean);
+		const flags = flagList.join(", ");
+		const flagsSuffix = flags ? `  (${flags})` : "";
+		const verbColumn = entry.verb.padEnd(18);
+		const resourceColumn = entry.resource.padEnd(22);
 		process.stdout.write(
-			`  ${entry.verb.padEnd(18)} ${entry.resource.padEnd(22)} ${entry.docsPath}${flags ? `  (${flags})` : ""}\n`,
+			`  ${verbColumn} ${resourceColumn} ${entry.docsPath}${flagsSuffix}\n`,
 		);
 	}
 	process.stdout.write(
@@ -163,19 +168,22 @@ const validateBulkFlags = (
 	spec: VerbSpec,
 	options: ResourceOpCommandOptions,
 ): string | undefined => {
-	const bulk = Boolean(options.all || options.ids);
-	if (!bulk) {
-		if (options.match) return "--match needs --all.";
-		if (options.dryRun) return "--dry-run needs --all or --ids.";
-		return undefined;
-	}
-	if (!supportsBulk(spec)) {
+	const isBulk = Boolean(options.all || options.ids);
+	const isMatchWithoutAll = Boolean(options.match) && !options.all;
+	const isBulkAndSingleSelector = Boolean(options.all && options.ids);
+	const isSingle = !isBulk;
+	if (isSingle && options.match) return "--match needs --all.";
+	if (isSingle && options.dryRun) return "--dry-run needs --all or --ids.";
+	if (isSingle) return undefined;
+	const isBulkUnsupported = !supportsBulk(spec);
+	if (isBulkUnsupported) {
 		return `--all/--ids only apply to delete, cancel, and refund ops (not ${spec.verb} ${spec.resource}).`;
 	}
-	if (options.all && options.ids) return "Use either --all or --ids, not both.";
-	if (options.id)
+	if (isBulkAndSingleSelector) return "Use either --all or --ids, not both.";
+	if (options.id) {
 		return "--id targets one resource; drop it when using --all or --ids.";
-	if (options.match && !options.all) return "--match needs --all.";
+	}
+	if (isMatchWithoutAll) return "--match needs --all.";
 	return undefined;
 };
 
@@ -195,19 +203,25 @@ const runBulk = async (
 	};
 	const targets = await collectBulkTargets(http, spec, selector);
 
-	if (!options.dryRun && targets.length > 0) {
-		const allowed = await assertWriteSafety(spec, mode, options, {
-			count: targets.length,
-			preview: previewTargets(targets),
-		});
-		if (!allowed) return 2;
-	}
+	const hasTargets = targets.length > 0;
+	const shouldConfirm = !options.dryRun && hasTargets;
+	const preview = previewTargets(targets);
+	const allowed = shouldConfirm
+		? await assertWriteSafety(spec, mode, options, {
+				count: targets.length,
+				preview,
+			})
+		: true;
+	const isWriteRefused = !allowed;
+	if (isWriteRefused) return 2;
 
 	const summary = await executeBulk(http, spec, targets, {
 		dryRun: options.dryRun,
 		body: scope.body,
 	});
 
+	const hasFailures = summary.failed > 0;
+	const exitCode = hasFailures ? 1 : 0;
 	if (options.json) {
 		const envelope = {
 			ok: summary.failed === 0,
@@ -217,12 +231,14 @@ const runBulk = async (
 			docs: `https://docs.lemonsqueezy.com/api/${spec.docsPath}`,
 			...summary,
 		};
-		process.stdout.write(`${JSON.stringify(envelope, null, 2)}\n`);
-	} else {
-		process.stdout.write(`${spec.verb} ${spec.resource} (mode=${mode})\n`);
-		process.stdout.write(renderBulkSummary(spec, summary));
+		const envelopeText = JSON.stringify(envelope, null, 2);
+		process.stdout.write(`${envelopeText}\n`);
+		return exitCode;
 	}
-	return summary.failed > 0 ? 1 : 0;
+	process.stdout.write(`${spec.verb} ${spec.resource} (mode=${mode})\n`);
+	const summaryText = renderBulkSummary(spec, summary);
+	process.stdout.write(summaryText);
+	return exitCode;
 };
 
 const assertWriteSafety = async (
@@ -235,10 +251,12 @@ const assertWriteSafety = async (
 		spec.verb !== "get" &&
 		spec.verb !== "list" &&
 		spec.verb !== "current-usage";
-	if (!isWrite) return true;
+	const isRead = !isWrite;
+	if (isRead) return true;
 
 	const needsGate = Boolean(spec.destructive) || mode === "live";
-	if (!needsGate) return true;
+	const isUngated = !needsGate;
+	if (isUngated) return true;
 
 	if (options.yes) return true;
 
@@ -246,44 +264,50 @@ const assertWriteSafety = async (
 		const what = bulk
 			? `${spec.verb} ${bulk.count} ${spec.resource} item(s) (${bulk.preview})`
 			: `${spec.verb} ${spec.resource}`;
-		return confirmResourceOp(
-			mode === "live" ? `LIVE mode: allow ${what}?` : `Confirm ${what}?`,
-		);
+		const isLive = mode === "live";
+		const question = isLive ? `LIVE mode: allow ${what}?` : `Confirm ${what}?`;
+		return confirmResourceOp(question);
 	}
 
-	process.stderr.write(
-		renderCliError(
-			`${spec.verb} ${spec.resource} requires --yes in non-interactive ${mode} mode${spec.destructive ? " (destructive op)" : ""}`,
-			[
-				`fresh-squeezy ${spec.verb} ${spec.resource}${bulk ? " --all" : ""} --yes …`,
-				"Use test mode for safer experimentation: --mode test",
-			],
-		),
+	const destructiveNote = spec.destructive ? " (destructive op)" : "";
+	const allFlag = bulk ? " --all" : "";
+	const refusalScreen = renderCliError(
+		`${spec.verb} ${spec.resource} requires --yes in non-interactive ${mode} mode${destructiveNote}`,
+		[
+			`fresh-squeezy ${spec.verb} ${spec.resource}${allFlag} --yes …`,
+			"Use test mode for safer experimentation: --mode test",
+		],
 	);
+	process.stderr.write(refusalScreen);
 	return false;
 };
 
 const readBody = (options: ResourceOpCommandOptions): unknown | undefined => {
 	// Bodies come from flags only — never auto-read stdin (would hang non-TTY pipes).
 	if (options.bodyFile) {
-		return JSON.parse(readFileSync(options.bodyFile, "utf8")) as unknown;
+		const bodyFileText = readFileSync(options.bodyFile, "utf8");
+		return JSON.parse(bodyFileText) as unknown;
 	}
-	if (options.body !== undefined) {
-		return JSON.parse(options.body) as unknown;
-	}
+	const isBodyGiven = options.body !== undefined;
+	if (isBodyGiven) return JSON.parse(options.body as string) as unknown;
 	return undefined;
 };
 
 const writeFatal = (err: unknown, json: boolean): void => {
+	const isKnownError = isFreshSqueezyError(err);
+	const isNativeError = err instanceof Error;
+	const message = isNativeError ? err.message : String(err);
 	if (json) {
-		const code = isFreshSqueezyError(err) ? err.code : "FATAL";
-		const message = err instanceof Error ? err.message : String(err);
-		const status = isFreshSqueezyError(err) ? err.status : undefined;
-		process.stderr.write(
-			`${JSON.stringify({ ok: false, error: { code, message, status } }, null, 2)}\n`,
+		const code = isKnownError ? err.code : "FATAL";
+		const status = isKnownError ? err.status : undefined;
+		const errorText = JSON.stringify(
+			{ ok: false, error: { code, message, status } },
+			null,
+			2,
 		);
+		process.stderr.write(`${errorText}\n`);
 		return;
 	}
-	const message = err instanceof Error ? err.message : String(err);
-	process.stderr.write(renderCliError(message, ["fresh-squeezy ops --list"]));
+	const errorScreen = renderCliError(message, ["fresh-squeezy ops --list"]);
+	process.stderr.write(errorScreen);
 };

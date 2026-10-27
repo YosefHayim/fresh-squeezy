@@ -14,15 +14,11 @@ import { createMockFetch, pathIs, pathIsWithQuery } from "@e2e/mock-fetch.js";
 import { ENV_KEYS } from "@/shared/config.js";
 import { runDoctorCommand } from "./doctor.js";
 
-const ORIGINAL = { ...process.env };
-
 beforeEach(() => {
-	process.env[ENV_KEYS.apiKey] = "k_test_abc";
+	vi.stubEnv(ENV_KEYS.apiKey, "k_test_abc");
 });
 
 afterEach(() => {
-	for (const key of Object.values(ENV_KEYS)) delete process.env[key];
-	Object.assign(process.env, ORIGINAL);
 	vi.restoreAllMocks();
 });
 
@@ -61,7 +57,8 @@ test("runDoctorCommand returns exit code 0 when every validator passes for an ex
 
 	expect(code).toBe(0);
 	const firstCall = stdout.mock.calls[0]?.[0];
-	const payload = JSON.parse(typeof firstCall === "string" ? firstCall : "{}");
+	const isFirstCallText = typeof firstCall === "string";
+	const payload = JSON.parse(isFirstCallText ? firstCall : "{}");
 	expect(payload.ok).toBe(true);
 	expect(Array.isArray(payload.reports)).toBe(true);
 	expect(payload.reports).toHaveLength(1);
@@ -177,7 +174,7 @@ test("runDoctorCommand discovers and validates all resource targets when --all-r
 	expect(code).toBe(0);
 	const payload = JSON.parse(String(stdout.mock.calls[0]?.[0] ?? "{}"));
 	const names = payload.reports[0].results.map(
-		(result: { name: string }) => result.name,
+		(validation: { name: string }) => validation.name,
 	);
 	expect(names).toEqual([
 		"connection",
@@ -230,7 +227,7 @@ test("runDoctorCommand returns exit code 1 when auth fails", async () => {
 });
 
 test("runDoctorCommand returns exit code 2 when config throws (e.g. no API key)", async () => {
-	delete process.env[ENV_KEYS.apiKey];
+	vi.stubEnv(ENV_KEYS.apiKey, undefined);
 	const stderr = vi
 		.spyOn(process.stderr, "write")
 		.mockImplementation(() => true);

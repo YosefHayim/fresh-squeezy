@@ -2,7 +2,10 @@ import { resolveConfig } from "@/shared/config.js";
 import { freshSqueezyErrorOf } from "@/errors/errors.js";
 import { HttpClient } from "@/http/http.js";
 import type { Mode } from "@/contracts/contracts.js";
-import { createFreshSqueezy } from "@/create-fresh-squeezy.js";
+import {
+	type FreshSqueezyClient,
+	createFreshSqueezy,
+} from "@/create-fresh-squeezy.js";
 import { findResourceVerb, resourceRegistry } from "@/resources/registry.js";
 import {
 	type ManageOperationChoice,
@@ -23,12 +26,18 @@ import {
 	supportsBulk,
 } from "./bulk-ops.js";
 
-export const listManageOperations = (): ManageOperationChoice[] =>
-	resourceRegistry
-		.filter(
-			(spec) => supportsBulk(spec) && findResourceVerb(spec.resource, "list"),
-		)
-		.map((spec) => ({ resource: spec.resource, verb: spec.verb }));
+export const listManageOperations = (): ManageOperationChoice[] => {
+	const isManageable = (spec: (typeof resourceRegistry)[number]): boolean => {
+		const listVerb = findResourceVerb(spec.resource, "list");
+		const hasListVerb = Boolean(listVerb);
+		return supportsBulk(spec) && hasListVerb;
+	};
+	const manageableSpecs = resourceRegistry.filter(isManageable);
+	return manageableSpecs.map((spec) => ({
+		resource: spec.resource,
+		verb: spec.verb,
+	}));
+};
 
 export const renderEquivalentCommand = (input: {
 	verb: string;
@@ -40,26 +49,54 @@ export const renderEquivalentCommand = (input: {
 	total: number;
 }): string => {
 	const parts = ["fresh-squeezy", input.verb, input.resource];
-	if (input.picked.length === input.total) {
-		parts.push("--all");
-		if (input.storeId) parts.push("--store-ids", input.storeId);
-		if (input.parentId) parts.push("--parent-id", input.parentId);
-	} else {
-		parts.push("--ids", input.picked.join(","));
+	const isEverythingPicked = input.picked.length === input.total;
+	if (isEverythingPicked) parts.push("--all");
+	if (isEverythingPicked && input.storeId) {
+		parts.push("--store-ids", input.storeId);
 	}
+	if (isEverythingPicked && input.parentId) {
+		parts.push("--parent-id", input.parentId);
+	}
+	const pickedIdList = input.picked.join(",");
+	const isSubsetPicked = !isEverythingPicked;
+	if (isSubsetPicked) parts.push("--ids", pickedIdList);
 	parts.push("--yes");
-	if (input.mode === "live") parts.push("--mode", "live");
+	const isLive = input.mode === "live";
+	if (isLive) parts.push("--mode", "live");
 	return parts.join(" ");
+};
+
+type ManageScope = { storeId?: string; parentId?: string };
+
+const pickScopes = async (
+	client: FreshSqueezyClient,
+	resource: string,
+	idRole: string | undefined,
+): Promise<ManageScope[]> => {
+	const isStoreScoped = idRole === "store";
+	const isParentScoped = idRole === "parent";
+	if (isStoreScoped) {
+		const { storeIds } = await resolveStores(client, { isInteractive: true });
+		return storeIds.map((storeId) => ({ storeId }));
+	}
+	if (isParentScoped) {
+		const parentId = await askParentId(resource);
+		return [{ parentId }];
+	}
+	return [{}];
 };
 
 export const runManageCommand = async (): Promise<number> => {
 	try {
 		const client = createFreshSqueezy();
-		const http = new HttpClient(resolveConfig());
-		const op = await pickManageOperation(listManageOperations());
+		const config = resolveConfig();
+		const http = new HttpClient(config);
+		const manageOperations = listManageOperations();
+		const op = await pickManageOperation(manageOperations);
 		const spec = findResourceVerb(op.resource, op.verb);
 		const listSpec = findResourceVerb(op.resource, "list");
-		if (!spec || !listSpec) {
+		const isOperationUnavailable = !spec || !listSpec;
+		if (isOperationUnavailable) {
 			throw freshSqueezyErrorOf({
 				code: "UNKNOWN_OP",
 				message: `${op.verb} ${op.resource} is not available.`,
@@ -68,13 +105,9 @@ export const runManageCommand = async (): Promise<number> => {
 
 		process.stdout.write(`\n${op.verb} ${op.resource} — mode=${client.mode}\n`);
 
-		let scopes: Array<{ storeId?: string; parentId?: string }> = [{}];
-		if (listSpec.idRole === "store") {
-			const { storeIds } = await resolveStores(client, { isInteractive: true });
-			scopes = storeIds.map((storeId) => ({ storeId }));
-		} else if (listSpec.idRole === "parent") {
-			scopes = [{ parentId: await askParentId(op.resource) }];
-		}
+		const scopes = await pickScopes(client, op.resource, listSpec.idRole);
+		const isLive = client.mode === "live";
+		const liveMark = isLive ? "LIVE mode: " : "";
 
 		let exitCode = 0;
 		for (const scope of scopes) {
@@ -82,45 +115,50 @@ export const runManageCommand = async (): Promise<number> => {
 				all: true,
 				...scope,
 			});
-			if (targets.length === 0) {
-				process.stdout.write(
-					`No ${op.resource} items found${scope.storeId ? ` in store ${scope.storeId}` : ""}.\n`,
-				);
+			const areThereNoTargets = targets.length === 0;
+			if (areThereNoTargets) {
+				const storeNote = scope.storeId ? ` in store ${scope.storeId}` : "";
+				process.stdout.write(`No ${op.resource} items found${storeNote}.\n`);
 				continue;
 			}
 
 			const pickedIds = await pickBulkTargets(op.verb, targets);
-			const picked: BulkTarget[] = targets.filter((t) =>
-				pickedIds.includes(t.id),
+			const picked: BulkTarget[] = targets.filter((target) =>
+				pickedIds.includes(target.id),
 			);
-			const mark = client.mode === "live" ? "LIVE mode: " : "";
-			const go = await confirmResourceOp(
-				`${mark}${op.verb} ${picked.length} ${op.resource} item(s) (${previewTargets(picked)})?`,
+			const preview = previewTargets(picked);
+			const isConfirmed = await confirmResourceOp(
+				`${liveMark}${op.verb} ${picked.length} ${op.resource} item(s) (${preview})?`,
 			);
-			if (!go) {
+			const isDeclined = !isConfirmed;
+			if (isDeclined) {
 				process.stdout.write("Skipped — nothing changed.\n");
 				continue;
 			}
 
 			const summary = await executeBulk(http, spec, picked);
-			process.stdout.write(renderBulkSummary(spec, summary));
-			process.stdout.write(
-				`\nNext time:\n  ${renderEquivalentCommand({
-					verb: op.verb,
-					resource: op.resource,
-					mode: client.mode,
-					...scope,
-					picked: pickedIds,
-					total: targets.length,
-				})}\n`,
-			);
-			if (summary.failed > 0) exitCode = 1;
+			const summaryText = renderBulkSummary(spec, summary);
+			process.stdout.write(summaryText);
+			const equivalentCommand = renderEquivalentCommand({
+				verb: op.verb,
+				resource: op.resource,
+				mode: client.mode,
+				...scope,
+				picked: pickedIds,
+				total: targets.length,
+			});
+			process.stdout.write(`\nNext time:\n  ${equivalentCommand}\n`);
+			const hasFailures = summary.failed > 0;
+			if (hasFailures) exitCode = 1;
 		}
 		return exitCode;
 	} catch (err) {
-		if (isPromptCancel(err)) throw err;
-		const message = err instanceof Error ? err.message : String(err);
-		process.stderr.write(renderCliError(message, ["fresh-squeezy ops --list"]));
+		const isCancel = isPromptCancel(err);
+		if (isCancel) throw err;
+		const isNativeError = err instanceof Error;
+		const message = isNativeError ? err.message : String(err);
+		const errorScreen = renderCliError(message, ["fresh-squeezy ops --list"]);
+		process.stderr.write(errorScreen);
 		return 2;
 	}
 };
