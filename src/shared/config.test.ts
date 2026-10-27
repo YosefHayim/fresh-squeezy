@@ -1,25 +1,18 @@
-import { afterEach, expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { ENV_KEYS, resolveConfig } from "./config.js";
 import { isFreshSqueezyError } from "@/errors/errors.js";
 
-const ORIGINAL = { ...process.env };
-
-afterEach(() => {
-	for (const key of Object.values(ENV_KEYS)) delete process.env[key];
-	Object.assign(process.env, ORIGINAL);
-});
-
 test("resolveConfig uses explicit argument over env vars", () => {
-	process.env[ENV_KEYS.apiKey] = "from-env";
+	vi.stubEnv(ENV_KEYS.apiKey, "from-env");
 	const resolved = resolveConfig({ apiKey: "from-arg", mode: "live" });
 	expect(resolved.apiKey).toBe("from-arg");
 	expect(resolved.mode).toBe("live");
 });
 
 test("resolveConfig falls back to env vars when no argument passed", () => {
-	process.env[ENV_KEYS.apiKey] = "from-env";
-	process.env[ENV_KEYS.mode] = "live";
-	process.env[ENV_KEYS.storeId] = "42";
+	vi.stubEnv(ENV_KEYS.apiKey, "from-env");
+	vi.stubEnv(ENV_KEYS.mode, "live");
+	vi.stubEnv(ENV_KEYS.storeId, "42");
 	const resolved = resolveConfig();
 	expect(resolved.apiKey).toBe("from-env");
 	expect(resolved.mode).toBe("live");
@@ -27,13 +20,13 @@ test("resolveConfig falls back to env vars when no argument passed", () => {
 });
 
 test("resolveConfig defaults mode to test when nothing is set", () => {
-	process.env[ENV_KEYS.apiKey] = "k";
-	delete process.env[ENV_KEYS.mode];
+	vi.stubEnv(ENV_KEYS.apiKey, "k");
+	vi.stubEnv(ENV_KEYS.mode, undefined);
 	expect(resolveConfig().mode).toBe("test");
 });
 
 test("resolveConfig throws MISSING_API_KEY when no key is provided", () => {
-	delete process.env[ENV_KEYS.apiKey];
+	vi.stubEnv(ENV_KEYS.apiKey, undefined);
 	expect(() => resolveConfig()).toThrowError(
 		expect.objectContaining({ code: "MISSING_API_KEY" }),
 	);

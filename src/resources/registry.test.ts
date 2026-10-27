@@ -1,4 +1,4 @@
-import { describe, expect, test, vi } from "vitest";
+import { expect, test, vi } from "vitest";
 import { isFreshSqueezyError } from "@/errors/errors.js";
 import type { HttpClient } from "@/http/http.js";
 import {
@@ -35,7 +35,7 @@ const READ_ONLY_RESOURCES = [
 	"license-key-instance",
 ] as const;
 
-test("resourceRegistry includes docs-backed webhook CRUD and excludes product create", () => {
+test("invokeOp: resourceRegistry includes docs-backed webhook CRUD and excludes product create", () => {
 	expect(findResourceVerb("webhook", "create")?.docsPath).toBe(
 		"webhooks/create-webhook",
 	);
@@ -45,7 +45,7 @@ test("resourceRegistry includes docs-backed webhook CRUD and excludes product cr
 	expect(findResourceVerb("products", "list")?.resource).toBe("product");
 });
 
-test("resourceRegistry derives docs paths from the verb, with the one documented exception", () => {
+test("invokeOp: resourceRegistry derives docs paths from the verb, with the one documented exception", () => {
 	const docsPath = (resource: string, verb: OpVerb) =>
 		findResourceVerb(resource, verb)?.docsPath;
 	expect(docsPath("store", "list")).toBe("stores/list-all-stores");
@@ -61,7 +61,7 @@ test("resourceRegistry derives docs paths from the verb, with the one documented
 	);
 });
 
-test("resourceRegistry lists unique resources and only known verbs with docsPath", () => {
+test("invokeOp: resourceRegistry lists unique resources and only known verbs with docsPath", () => {
 	const resources = listRegisteredResources();
 	expect(resources).toContain("webhook");
 	expect(resources).toContain("product");
@@ -75,7 +75,7 @@ test("resourceRegistry lists unique resources and only known verbs with docsPath
 	).toBe(true);
 });
 
-test("resourceRegistry normalizes plurals, underscores, and mixed case to singular keys", () => {
+test("invokeOp: resourceRegistry normalizes plurals, underscores, and mixed case to singular keys", () => {
 	expect(normalizeResourceName("products")).toBe("product");
 	expect(normalizeResourceName("order_items")).toBe("order-item");
 	expect(normalizeResourceName("subscription-invoices")).toBe(
@@ -90,7 +90,7 @@ test("resourceRegistry normalizes plurals, underscores, and mixed case to singul
 	).toBe("subscription-item");
 });
 
-test("resourceRegistry marks only delete/cancel/refund as destructive", () => {
+test("invokeOp: resourceRegistry marks only delete/cancel/refund as destructive", () => {
 	for (const entry of resourceRegistry) {
 		if (entry.destructive) {
 			expect(["delete", "cancel", "refund"]).toContain(entry.verb);
@@ -102,7 +102,7 @@ test("resourceRegistry marks only delete/cancel/refund as destructive", () => {
 	expect(findResourceVerb("webhook", "update")?.destructive).toBeUndefined();
 });
 
-test("resourceRegistry keeps catalog resources free of write verbs", () => {
+test("invokeOp: resourceRegistry keeps catalog resources free of write verbs", () => {
 	for (const resource of READ_ONLY_RESOURCES) {
 		for (const verb of ["create", "update", "delete"] as const) {
 			expect(findResourceVerb(resource, verb)).toBeUndefined();
@@ -110,7 +110,7 @@ test("resourceRegistry keeps catalog resources free of write verbs", () => {
 	}
 });
 
-test("resourceRegistry has unique resource:verb pairs and listRegisteredVerbs matches", () => {
+test("invokeOp: resourceRegistry has unique resource:verb pairs and listRegisteredVerbs matches", () => {
 	const keys = resourceRegistry.map(
 		(entry) => `${entry.resource}:${entry.verb}`,
 	);
@@ -127,7 +127,7 @@ test("resourceRegistry has unique resource:verb pairs and listRegisteredVerbs ma
 	expect(listRegisteredVerbs("nope")).toEqual([]);
 });
 
-test("resourceRegistry requires bodies for documented creates and optional bodies for refunds", () => {
+test("invokeOp: resourceRegistry requires bodies for documented creates and optional bodies for refunds", () => {
 	expect(findResourceVerb("checkout", "create")?.body).toBe("required");
 	expect(findResourceVerb("customer", "create")?.body).toBe("required");
 	expect(findResourceVerb("order", "refund")?.body).toBe("optional");
@@ -150,127 +150,117 @@ const fakeHttp = () => {
 	};
 };
 
-describe("invokeOp", () => {
-	test.each([
-		["product", "get", { id: 42 }, "GET", "/v1/products/42", undefined],
-		["webhook", "create", { body: { a: 1 } }, "POST", "/v1/webhooks", { a: 1 }],
-		[
-			"subscription",
-			"update",
-			{ id: 3, body: { a: 1 } },
-			"PATCH",
-			"/v1/subscriptions/3",
-			{ a: 1 },
-		],
-		[
-			"subscription",
-			"cancel",
-			{ id: 3, body: { ignored: true } },
-			"DELETE",
-			"/v1/subscriptions/3",
-			undefined,
-		],
-		["order", "refund", { id: 100 }, "POST", "/v1/orders/100/refund", {}],
-		[
-			"order",
-			"generate-invoice",
-			{ id: 100, body: { locale: "en" } },
-			"POST",
-			"/v1/orders/100/generate-invoice",
-			{ locale: "en" },
-		],
-		[
-			"subscription-item",
-			"current-usage",
-			{ id: 5 },
-			"GET",
-			"/v1/subscription-items/5/current-usage",
-			undefined,
-		],
-		["webhook", "delete", { id: 12 }, "DELETE", "/v1/webhooks/12", undefined],
-	] as const)(
-		"%s %s → %s %s",
-		async (resource, verb, args, method, path, body) => {
-			const http = fakeHttp();
-			await invokeOp(http, resource, verb, args);
-			expect(http.request).toHaveBeenCalledWith({ method, path, body });
-		},
+test.each([
+	["product", "get", { id: 42 }, "GET", "/v1/products/42", undefined],
+	["webhook", "create", { body: { a: 1 } }, "POST", "/v1/webhooks", { a: 1 }],
+	[
+		"subscription",
+		"update",
+		{ id: 3, body: { a: 1 } },
+		"PATCH",
+		"/v1/subscriptions/3",
+		{ a: 1 },
+	],
+	[
+		"subscription",
+		"cancel",
+		{ id: 3, body: { ignored: true } },
+		"DELETE",
+		"/v1/subscriptions/3",
+		undefined,
+	],
+	["order", "refund", { id: 100 }, "POST", "/v1/orders/100/refund", {}],
+	[
+		"order",
+		"generate-invoice",
+		{ id: 100, body: { locale: "en" } },
+		"POST",
+		"/v1/orders/100/generate-invoice",
+		{ locale: "en" },
+	],
+	[
+		"subscription-item",
+		"current-usage",
+		{ id: 5 },
+		"GET",
+		"/v1/subscription-items/5/current-usage",
+		undefined,
+	],
+	["webhook", "delete", { id: 12 }, "DELETE", "/v1/webhooks/12", undefined],
+] as const)(
+	"%s %s → %s %s",
+	async (resource, verb, args, method, path, body) => {
+		const http = fakeHttp();
+		await invokeOp(http, resource, verb, args);
+		expect(http.request).toHaveBeenCalledWith({ method, path, body });
+	},
+);
+
+test("invokeOp: lists with the store filter or the parent filter", async () => {
+	const http = fakeHttp();
+	await invokeOp(http, "product", "list", { storeId: 7 });
+	expect(http.paginate).toHaveBeenCalledWith("/v1/products", {
+		"filter[store_id]": "7",
+	});
+
+	await invokeOp(http, "usage-record", "list", { parentId: 9 });
+	expect(http.paginate).toHaveBeenCalledWith("/v1/usage-records", {
+		"filter[subscription_item_id]": "9",
+	});
+
+	await invokeOp(http, "stores", "list", { storeId: 7 });
+	expect(http.paginate).toHaveBeenCalledWith("/v1/stores", undefined);
+});
+
+test("invokeOp: returns data, the whole document when there is no data, and nothing after a 204", async () => {
+	const http = fakeHttp();
+	expect(await invokeOp(http, "product", "get", { id: 1 })).toMatchObject({
+		id: "1",
+	});
+
+	http.request.mockResolvedValueOnce({
+		meta: { urls: { download_invoice_url: "https://x" } },
+	});
+	expect(await invokeOp(http, "order", "generate-invoice", { id: 1 })).toEqual({
+		meta: { urls: { download_invoice_url: "https://x" } },
+	});
+
+	http.request.mockResolvedValueOnce(undefined);
+	expect(await invokeOp(http, "webhook", "delete", { id: 1 })).toBeUndefined();
+});
+
+test("invokeOp: returns user resource data from the authenticated-user document", async () => {
+	const http = fakeHttp();
+	const user = await invokeOp(http, "user", "get", {});
+	expect(http.request).toHaveBeenCalledWith({ path: "/v1/users/me" });
+	expect(user).toEqual({
+		type: "webhooks",
+		id: "1",
+		attributes: { url: "https://x.test" },
+	});
+});
+
+test("invokeOp: rejects unknown ops and missing required args with FreshSqueezyError codes", async () => {
+	const http = fakeHttp();
+
+	await expect(invokeOp(http, "product", "create", {})).rejects.toMatchObject({
+		code: "UNKNOWN_OP",
+	});
+	await expect(invokeOp(http, "product", "get", {})).rejects.toMatchObject({
+		code: "MISSING_ARG",
+		message: "--id is required for this product operation.",
+	});
+	await expect(invokeOp(http, "product", "list", {})).rejects.toMatchObject({
+		code: "MISSING_ARG",
+	});
+	await expect(invokeOp(http, "variant", "list", {})).rejects.toMatchObject({
+		code: "MISSING_ARG",
+		message: "--parent-id (product id) is required for this list operation.",
+	});
+	await expect(invokeOp(http, "webhook", "create", {})).rejects.toMatchObject({
+		code: "MISSING_ARG",
+	});
+	await expect(invokeOp(http, "product", "get", {})).rejects.toSatisfy(
+		isFreshSqueezyError,
 	);
-
-	test("lists with the store filter or the parent filter", async () => {
-		const http = fakeHttp();
-		await invokeOp(http, "product", "list", { storeId: 7 });
-		expect(http.paginate).toHaveBeenCalledWith("/v1/products", {
-			"filter[store_id]": "7",
-		});
-
-		await invokeOp(http, "usage-record", "list", { parentId: 9 });
-		expect(http.paginate).toHaveBeenCalledWith("/v1/usage-records", {
-			"filter[subscription_item_id]": "9",
-		});
-
-		await invokeOp(http, "stores", "list", { storeId: 7 });
-		expect(http.paginate).toHaveBeenCalledWith("/v1/stores", undefined);
-	});
-
-	test("returns data, the whole document when there is no data, and nothing after a 204", async () => {
-		const http = fakeHttp();
-		expect(await invokeOp(http, "product", "get", { id: 1 })).toMatchObject({
-			id: "1",
-		});
-
-		http.request.mockResolvedValueOnce({
-			meta: { urls: { download_invoice_url: "https://x" } },
-		});
-		expect(
-			await invokeOp(http, "order", "generate-invoice", { id: 1 }),
-		).toEqual({
-			meta: { urls: { download_invoice_url: "https://x" } },
-		});
-
-		http.request.mockResolvedValueOnce(undefined);
-		expect(
-			await invokeOp(http, "webhook", "delete", { id: 1 }),
-		).toBeUndefined();
-	});
-
-	test("returns user resource data from the authenticated-user document", async () => {
-		const http = fakeHttp();
-		const user = await invokeOp(http, "user", "get", {});
-		expect(http.request).toHaveBeenCalledWith({ path: "/v1/users/me" });
-		expect(user).toEqual({
-			type: "webhooks",
-			id: "1",
-			attributes: { url: "https://x.test" },
-		});
-	});
-
-	test("rejects unknown ops and missing required args with FreshSqueezyError codes", async () => {
-		const http = fakeHttp();
-
-		await expect(invokeOp(http, "product", "create", {})).rejects.toMatchObject(
-			{
-				code: "UNKNOWN_OP",
-			},
-		);
-		await expect(invokeOp(http, "product", "get", {})).rejects.toMatchObject({
-			code: "MISSING_ARG",
-			message: "--id is required for this product operation.",
-		});
-		await expect(invokeOp(http, "product", "list", {})).rejects.toMatchObject({
-			code: "MISSING_ARG",
-		});
-		await expect(invokeOp(http, "variant", "list", {})).rejects.toMatchObject({
-			code: "MISSING_ARG",
-			message: "--parent-id (product id) is required for this list operation.",
-		});
-		await expect(invokeOp(http, "webhook", "create", {})).rejects.toMatchObject(
-			{
-				code: "MISSING_ARG",
-			},
-		);
-		await expect(invokeOp(http, "product", "get", {})).rejects.toSatisfy(
-			isFreshSqueezyError,
-		);
-	});
 });

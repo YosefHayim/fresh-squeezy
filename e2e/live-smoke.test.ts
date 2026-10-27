@@ -1,15 +1,22 @@
-import { describe, expect, test } from "vitest";
+import { expect, inject, test } from "vitest";
 import { createFreshSqueezy } from "@/create-fresh-squeezy.js";
 
-const enabled =
-	process.env.LEMON_SQUEEZY_LIVE_SMOKE === "1" &&
-	Boolean(process.env.LEMON_SQUEEZY_API_KEY);
+declare module "vitest" {
+	interface ProvidedContext {
+		liveSmokeApiKey: string | undefined;
+	}
+}
 
-describe.runIf(enabled)("live smoke", () => {
-	test("authenticates and lists stores against the real API", async () => {
-		const lemon = createFreshSqueezy();
-		const result = await lemon.validateConnection();
-		expect(result.ok).toBe(true);
-		expect(result.resource?.storeCount).toBeGreaterThan(0);
-	}, 15_000);
-});
+const liveSmokeApiKey = inject("liveSmokeApiKey");
+const isLiveSmokeEnabled = Boolean(liveSmokeApiKey);
+
+test.runIf(isLiveSmokeEnabled)(
+	"live smoke authenticates and lists stores against the real API",
+	async () => {
+		const lemon = createFreshSqueezy({ apiKey: liveSmokeApiKey });
+		const connection = await lemon.validateConnection();
+		expect(connection.ok).toBe(true);
+		expect(connection.resource?.storeCount).toBeGreaterThan(0);
+	},
+	15_000,
+);

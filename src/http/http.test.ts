@@ -124,7 +124,8 @@ test("HttpClient request sends a POST body as JSON and returns the parsed docume
 
 test("HttpClient request accepts empty success bodies", async () => {
 	const fetchImpl: typeof fetch = async (input, init) => {
-		const url = typeof input === "string" ? input : (input as URL).toString();
+		const isInputAString = typeof input === "string";
+		const url = isInputAString ? input : (input as URL).toString();
 		expect(new URL(url).pathname).toBe("/v1/webhooks/7");
 		expect((init?.method ?? "GET").toUpperCase()).toBe("DELETE");
 		// null body — undici rejects non-null body with 204
@@ -139,7 +140,8 @@ test("HttpClient request accepts empty success bodies", async () => {
 
 test("HttpClient paginate() walks every page until lastPage and concatenates results", async () => {
 	const fetchImpl: typeof fetch = async (input) => {
-		const url = typeof input === "string" ? input : (input as URL).toString();
+		const isInputAString = typeof input === "string";
+		const url = isInputAString ? input : (input as URL).toString();
 		const page = Number(new URL(url).searchParams.get("page[number]") ?? 1);
 		const pageBody = {
 			data: [
@@ -181,7 +183,8 @@ test("HttpClient paginate() returns immediately when meta.page is absent", async
 
 test("HttpClient paginate() honors a caller-supplied starting page[number]", async () => {
 	const fetchImpl: typeof fetch = async (input) => {
-		const url = typeof input === "string" ? input : (input as URL).toString();
+		const isInputAString = typeof input === "string";
+		const url = isInputAString ? input : (input as URL).toString();
 		const page = Number(new URL(url).searchParams.get("page[number]") ?? 1);
 		const pageBody = {
 			data: [{ type: "x", id: `${page}`, attributes: {} }],
