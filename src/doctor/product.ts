@@ -1,4 +1,4 @@
-import type { Mode } from "@/client/config.js";
+import type { Mode } from "@/client/environment.js";
 import type { Http } from "@/client/http.js";
 import type {
 	ProductAttributes,
@@ -10,8 +10,8 @@ import {
 	storeMismatchFindings,
 } from "./fetch-resource.js";
 import {
-	buildCheckReport,
 	type CheckReport,
+	createCheckReport,
 	FINDING_CODES,
 	type Finding,
 	type FindingRule,
@@ -101,7 +101,7 @@ const checkVariants = async (
 	return raiseFindings(VARIANT_RULES, variantsLookup.resource);
 };
 
-const checkStoreMatch = (
+const checkStoreOwnership = (
 	product: ProductAttributes,
 	expectedStoreId?: string,
 ) => {
@@ -135,7 +135,7 @@ export const validateProduct = async (
 
 	const isFetchFailed = productLookup.kind === "failed";
 	if (isFetchFailed) {
-		return buildCheckReport({
+		return createCheckReport({
 			name: "product",
 			mode,
 			findings: [productLookup.finding],
@@ -144,10 +144,10 @@ export const validateProduct = async (
 	}
 
 	const product = productLookup.resource;
-	const storeFindings = checkStoreMatch(product, expectedStoreId);
+	const storeFindings = checkStoreOwnership(product, expectedStoreId);
 	const productFindings = raiseFindings(PRODUCT_RULES, product);
 	const variantFindings = await checkVariants(http, productId);
-	return buildCheckReport({
+	return createCheckReport({
 		name: "product",
 		mode,
 		findings: [...storeFindings, ...productFindings, ...variantFindings],

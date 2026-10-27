@@ -4,7 +4,7 @@ export default defineConfig([
 	{
 		entry: {
 			index: "src/create-fresh-squeezy.ts",
-			config: "src/client/config.ts",
+			environment: "src/client/environment.ts",
 			errors: "src/client/errors.ts",
 			findings: "src/doctor/findings.ts",
 			types: "src/client/lemon-squeezy-types.ts",

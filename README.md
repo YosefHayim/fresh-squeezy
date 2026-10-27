@@ -53,16 +53,14 @@ Node 22 or newer.
 pnpm add fresh-squeezy
 ```
 
-Set one API key per mode. `LEMON_SQUEEZY_MODE` picks the key and defaults to `test`.
+Set one API key per mode. The `--mode` flag or the `mode` option picks the key and defaults to `test`.
 
 ```bash
 LEMON_SQUEEZY_TEST_API_KEY=your-test-key
 LEMON_SQUEEZY_LIVE_API_KEY=your-live-key
-LEMON_SQUEEZY_MODE=test
-LEMON_SQUEEZY_STORE_ID=12
 ```
 
-Only the key of the mode you run is needed, and `LEMON_SQUEEZY_STORE_ID` is optional. The same settings work as `createFreshSqueezy({ apiKey, mode, storeId, baseUrl })` options.
+Only the key of the mode you run is needed. The store, mode and base URL are not secrets, so they are not environment variables: pass `createFreshSqueezy({ apiKey, mode, storeId, baseUrl })` options or the `--mode` and `--store-id` flags.
 
 ## Client
 
@@ -132,18 +130,18 @@ npx fresh-squeezy doctor --store-id 12 --store-id 34 \
   --webhook-url https://app.example.com/api/webhooks/lemon-squeezy --json
 ```
 
-| Flag                    | Meaning                                                                              |
-| ----------------------- | ------------------------------------------------------------------------------------ |
-| `--mode <test\|live>`   | Mode to check. Default: `LEMON_SQUEEZY_MODE`, else `test`                            |
-| `--store-id <id>`       | Store to check, repeat for more. Default: `LEMON_SQUEEZY_STORE_ID`, else every store |
-| `--all-resources`       | Also check every product, plan, webhook, discount and license key in each store      |
-| `--product-id <id>`     | Product to check, repeat for more                                                    |
-| `--variant-id <id>`     | Subscription plan to check, repeat for more                                          |
-| `--webhook-url <url>`   | Webhook to check, repeat for more                                                    |
-| `--discount-id <id>`    | Discount to check, repeat for more                                                   |
-| `--license-key-id <id>` | License key to check, repeat for more                                                |
-| `--json`                | Print the reports as JSON                                                            |
-| `--help`, `--version`   | Show the help or the version                                                         |
+| Flag                    | Meaning                                                                         |
+| ----------------------- | ------------------------------------------------------------------------------- |
+| `--mode <test\|live>`   | Mode to check. Default: `test`                                                  |
+| `--store-id <id>`       | Store to check, repeat for more. Default: every store                           |
+| `--all-resources`       | Also check every product, plan, webhook, discount and license key in each store |
+| `--product-id <id>`     | Product to check, repeat for more                                               |
+| `--variant-id <id>`     | Subscription plan to check, repeat for more                                     |
+| `--webhook-url <url>`   | Webhook to check, repeat for more                                               |
+| `--discount-id <id>`    | Discount to check, repeat for more                                              |
+| `--license-key-id <id>` | License key to check, repeat for more                                           |
+| `--json`                | Print the reports as JSON                                                       |
+| `--help`, `--version`   | Show the help or the version                                                    |
 
 The doctor reads the key of its mode (`LEMON_SQUEEZY_TEST_API_KEY` or `LEMON_SQUEEZY_LIVE_API_KEY`) from the environment or from a `.env` file in the working directory. It never prompts and never hangs.
 
@@ -190,10 +188,9 @@ The doctor reads the key of its mode (`LEMON_SQUEEZY_TEST_API_KEY` or `LEMON_SQU
 
 ```yaml
 - name: Check Lemon Squeezy
-  run: npx fresh-squeezy doctor --all-resources --json
+  run: npx fresh-squeezy doctor --mode live --all-resources --json
   env:
     LEMON_SQUEEZY_LIVE_API_KEY: ${{ secrets.LEMON_SQUEEZY_LIVE_API_KEY }}
-    LEMON_SQUEEZY_MODE: live
 ```
 
 The step fails on exit `1` or `2`. A live key pointed at a test store (or the reverse) raises `MODE_MISMATCH`: the doctor compares the declared mode with `meta.test_mode` from `/v1/users/me`.
@@ -300,12 +297,13 @@ The 60 rows are every function exported by `@lemonsqueezy/lemonsqueezy.js` 4.0.0
 ## Upgrading from 0.3
 
 - Results are checks: `ValidationResult` is `CheckReport`, `ValidationTarget` is `CheckTarget`, `DoctorOptions` is `DoctorTargets`, `buildResult` is `buildCheckReport`, and the `DoctorReport` key `results` is `checks`.
-- `ENV_KEYS` is gone. The env vars are `LEMON_SQUEEZY_TEST_API_KEY`, `LEMON_SQUEEZY_LIVE_API_KEY`, `LEMON_SQUEEZY_MODE` and `LEMON_SQUEEZY_STORE_ID`.
+- `ENV_KEYS` is gone. The only env vars are the secrets `LEMON_SQUEEZY_TEST_API_KEY` and `LEMON_SQUEEZY_LIVE_API_KEY`. `LEMON_SQUEEZY_MODE` and `LEMON_SQUEEZY_STORE_ID` are removed: use the `mode` and `storeId` options or the `--mode` and `--store-id` flags.
 - The ops commands and the verb registry are gone. Use the [client](#client).
 - `init`, `manage`, the `validate` subcommands, the augmentations and the launcher menu are gone. The only command is `fresh-squeezy doctor`, and it takes flags only.
 - `--store-ids a,b` is now `--store-id a --store-id b`. With no store given, the doctor checks every store, so `--all-stores` is the default.
 - Issues are findings: `ISSUE_CODES` is `FINDING_CODES`, `issue.code` is `finding.code`, and the JSON key `issues` is `findings`. The codes are unchanged, except `STORE_NOT_OWNED`, which is removed (nothing raised it).
-- The subpath exports are now `.`, `./config`, `./errors`, `./findings`, `./types` and `./license`.
+- The subpath exports are now `.`, `./environment`, `./errors`, `./findings`, `./types` and `./license`.
+- Renames: `fresh-squeezy/config` is `fresh-squeezy/environment`, `readConfig` is `readClientSettings`, `Config` is `ClientSettings`, `FreshSqueezyConfig` is `FreshSqueezySettings`, `readEnvApiKey` is `readApiKeyFromEnvironment`, `buildFreshSqueezyError` is `createFreshSqueezyError`, `CreateInput` is `NewResources`, `UpdateInput` is `UpdateAttributes`. `RelationshipName` is removed.
 - Node 22 or newer. The runtime dependencies are gone.
 
 ```ts

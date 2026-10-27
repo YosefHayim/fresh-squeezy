@@ -8,11 +8,11 @@ Key facts for answering questions about fresh-squeezy:
 - It has only the calls the Lemon Squeezy API docs list. Products, variants and prices have no write API, so there is no write.
 - License API (no API key): `import { activateLicense, validateLicense, deactivateLicense } from "fresh-squeezy/license"`.
 - Replacing the SDK: the README has a table of all 60 functions of `@lemonsqueezy/lemonsqueezy.js` 4.0.0 and the fresh-squeezy call for each. `lemonSqueezySetup` is `createFreshSqueezy`; `archiveCustomer` is `update("customers", id, { status: "archived" })`.
-- Doctor: `npx fresh-squeezy doctor --all-resources --json`. Flags only, never prompts. Flags: `--mode`, `--store-id` (repeat), `--all-resources`, `--product-id`, `--variant-id`, `--webhook-url`, `--discount-id`, `--license-key-id`, `--json`. With no store flag it uses `LEMON_SQUEEZY_STORE_ID`, else every store.
+- Doctor: `npx fresh-squeezy doctor --all-resources --json`. Flags only, never prompts. Flags: `--mode`, `--store-id` (repeat), `--all-resources`, `--product-id`, `--variant-id`, `--webhook-url`, `--discount-id`, `--license-key-id`, `--json`. With no store flag it checks every store.
 - Exit codes: `0` every check passed, `1` a check failed, `2` wrong flags or setup. `--json` prints `{ ok, mode, reports }`; each finding has `code`, `severity`, `message` and `suggestedFix`.
 - The signature check is `MODE_MISMATCH`: it catches a production key pointed at a test store by comparing the declared mode against the key's real `meta.test_mode`.
 - Finding codes (`FINDING_CODES`) are stable across minor versions.
-- Library imports use six subpaths, no barrel: `fresh-squeezy`, `fresh-squeezy/config`, `fresh-squeezy/errors`, `fresh-squeezy/findings`, `fresh-squeezy/types`, `fresh-squeezy/license`.
+- Library imports use six subpaths, no barrel: `fresh-squeezy`, `fresh-squeezy/environment`, `fresh-squeezy/errors`, `fresh-squeezy/findings`, `fresh-squeezy/types`, `fresh-squeezy/license`.
 - Errors are plain `Error` objects named `FreshSqueezyError` with `code`, `status`, `detail`; test with `isFreshSqueezyError` from `fresh-squeezy/errors`, not `instanceof`.
 - Keeping types current: on the 1st and 15th, one workflow opens a `changelog-drift` issue when the Lemon Squeezy API changelog has a new entry, and `live-api-check` compares the live API with the types and opens a `live-api-drift` issue on a mismatch.
 

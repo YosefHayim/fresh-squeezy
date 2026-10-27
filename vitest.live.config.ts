@@ -1,27 +1,26 @@
-import { existsSync } from "node:fs";
-import { loadEnvFile } from "node:process";
 import { defineConfig } from "vitest/config";
-import { type Mode, readEnvApiKey } from "./src/client/config.js";
-import baseConfig from "./vitest.config.js";
-
-const ENV_FILE = ".env";
+import {
+	loadEnvironmentFileWhenPresent,
+	type Mode,
+	readApiKeyFromEnvironment,
+} from "./src/client/environment.js";
+import baseSettings from "./vitest.config.js";
 
 const MODES: Mode[] = ["test", "live"];
 
-const isEnvFilePresent = existsSync(ENV_FILE);
-if (isEnvFilePresent) loadEnvFile(ENV_FILE);
+loadEnvironmentFileWhenPresent();
 
 const isApiKeySet = (mode: Mode) => {
-	const apiKey = readEnvApiKey(mode);
+	const apiKey = readApiKeyFromEnvironment(mode);
 	return apiKey !== undefined;
 };
 
 const liveApiModes = MODES.filter(isApiKeySet);
 
 export default defineConfig({
-	...baseConfig,
+	...baseSettings,
 	test: {
-		...baseConfig.test,
+		...baseSettings.test,
 		provide: { liveApiModes },
 		include: ["e2e/live-api.test.ts"],
 	},

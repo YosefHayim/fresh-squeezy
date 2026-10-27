@@ -1,26 +1,27 @@
-import { makeHttp, pathIs } from "@e2e/mock-fetch.js";
+import { makeHttp, route } from "@e2e/mock-fetch.js";
 import { NOT_FOUND_ERROR, STORE_DOC } from "@e2e/sandbox-store.js";
-import { expect, test } from "vitest";
+import { describe, expect, test } from "vitest";
 import { validateStore } from "./store.js";
 
-test("validateStore returns ok for reachable store", async () => {
-	const http = makeHttp([
-		{ match: pathIs("/v1/stores/42"), status: 200, replyDocument: STORE_DOC },
-	]);
-	const storeValidation = await validateStore(http, "test", "42");
-	expect(storeValidation.ok).toBe(true);
-	expect(storeValidation.resource?.slug).toBe("fresh-squeezy-test");
-});
+describe("validateStore", () => {
+	test("returns ok for a reachable store", async () => {
+		const http = makeHttp([route("/v1/stores/42", STORE_DOC)]);
 
-test("validateStore returns STORE_NOT_FOUND on 404", async () => {
-	const http = makeHttp([
-		{
-			match: pathIs("/v1/stores/9999"),
-			status: 404,
-			replyDocument: NOT_FOUND_ERROR,
-		},
-	]);
-	const storeValidation = await validateStore(http, "test", "9999");
-	expect(storeValidation.ok).toBe(false);
-	expect(storeValidation.findings[0]?.code).toBe("STORE_NOT_FOUND");
+		const storeReport = await validateStore(http, "test", "42");
+
+		expect(storeReport.ok).toBe(true);
+		expect(storeReport.resource?.slug).toBe("fresh-squeezy-test");
+		expect(storeReport.target?.id).toBe("42");
+	});
+
+	test("returns STORE_NOT_FOUND on a 404", async () => {
+		const http = makeHttp([route("/v1/stores/9999", NOT_FOUND_ERROR, 404)]);
+
+		const storeReport = await validateStore(http, "test", "9999");
+
+		expect(storeReport.ok).toBe(false);
+		expect(storeReport.findings[0]?.code).toBe("STORE_NOT_FOUND");
+		expect(storeReport.findings[0]?.context).toEqual({ storeId: "9999" });
+		expect(storeReport.target?.label).toBe("store 9999");
+	});
 });

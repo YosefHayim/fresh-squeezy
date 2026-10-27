@@ -1,9 +1,10 @@
-import { existsSync } from "node:fs";
-import { loadEnvFile } from "node:process";
 import { parseArgs } from "node:util";
 import packageJson from "@package.json" with { type: "json" };
-import { parseMode } from "@/client/config.js";
-import { formatReport } from "@/doctor/report-text.js";
+import {
+	loadEnvironmentFileWhenPresent,
+	parseMode,
+} from "@/client/environment.js";
+import { describeReport } from "@/doctor/describe-report.js";
 import {
 	createFreshSqueezy,
 	type FreshSqueezy,
@@ -11,15 +12,13 @@ import {
 
 const EXIT_CODES = { ok: 0, checkFailed: 1, usageError: 2 } as const;
 
-const ENV_FILE = ".env";
-
-const HELP_TEXT = `Usage: fresh-squeezy doctor [flags]
+const HELP_MESSAGE = `Usage: fresh-squeezy doctor [flags]
 
 Checks that your Lemon Squeezy store is ready to take payments.
 
 Flags:
-  --mode <test|live>      Mode to check. Default: LEMON_SQUEEZY_MODE, else test
-  --store-id <id>         Store to check, repeat for more. Default: LEMON_SQUEEZY_STORE_ID, else every store
+  --mode <test|live>      Mode to check. Default: test
+  --store-id <id>         Store to check, repeat for more. Default: every store
   --all-resources         Also check every product, plan, webhook, discount and license key in each store
   --product-id <id>       Product to check, repeat for more
   --variant-id <id>       Subscription plan to check, repeat for more
@@ -59,12 +58,10 @@ const readFlags = () => {
 
 type Flags = ReturnType<typeof readFlags>["values"];
 
-const loadEnvFileWhenPresent = () => {
-	const isEnvFilePresent = existsSync(ENV_FILE);
-	if (isEnvFilePresent) loadEnvFile(ENV_FILE);
-};
-
-const storeIdsToCheck = async (freshSqueezy: FreshSqueezy, flags: Flags) => {
+const pickStoreIdsToCheck = async (
+	freshSqueezy: FreshSqueezy,
+	flags: Flags,
+) => {
 	const storeIdFlags = flags["store-id"];
 	const areStoresGiven = storeIdFlags !== undefined;
 	if (areStoresGiven) return storeIdFlags;
@@ -76,7 +73,7 @@ const runDoctor = async (flags: Flags) => {
 	const isModeGiven = modeFlag !== undefined;
 	const mode = isModeGiven ? parseMode(modeFlag) : undefined;
 	const freshSqueezy = createFreshSqueezy({ mode });
-	const storeIds = await storeIdsToCheck(freshSqueezy, flags);
+	const storeIds = await pickStoreIdsToCheck(freshSqueezy, flags);
 	const doctorForStore = (storeId: string) =>
 		freshSqueezy.doctor({
 			storeId,
@@ -90,12 +87,16 @@ const runDoctor = async (flags: Flags) => {
 	const reportJobs = storeIds.map(doctorForStore);
 	const reports = await Promise.all(reportJobs);
 	const isEveryReportOk = reports.every((report) => report.ok);
-	const reportsJson = { ok: isEveryReportOk, mode: freshSqueezy.mode, reports };
+	const reportsDocument = {
+		ok: isEveryReportOk,
+		mode: freshSqueezy.mode,
+		reports,
+	};
 	const isJsonAsked = flags.json;
-	const reportsText = isJsonAsked
-		? JSON.stringify(reportsJson, null, 2)
-		: reports.map(formatReport).join("\n\n");
-	process.stdout.write(`${reportsText}\n`);
+	const printedReports = isJsonAsked
+		? JSON.stringify(reportsDocument, null, 2)
+		: reports.map(describeReport).join("\n\n");
+	process.stdout.write(`${printedReports}\n`);
 	return isEveryReportOk ? EXIT_CODES.ok : EXIT_CODES.checkFailed;
 };
 
@@ -103,7 +104,7 @@ const main = async () => {
 	const { values: flags, positionals } = readFlags();
 	const isHelpAsked = flags.help;
 	if (isHelpAsked) {
-		process.stdout.write(`${HELP_TEXT}\n`);
+		process.stdout.write(`${HELP_MESSAGE}\n`);
 		return EXIT_CODES.ok;
 	}
 	const isVersionAsked = flags.version;
@@ -115,10 +116,10 @@ const main = async () => {
 		positionals.length === 1 && positionals[0] === "doctor";
 	const isOtherCommand = !isDoctorCommand;
 	if (isOtherCommand) {
-		process.stderr.write(`${HELP_TEXT}\n`);
+		process.stderr.write(`${HELP_MESSAGE}\n`);
 		return EXIT_CODES.usageError;
 	}
-	loadEnvFileWhenPresent();
+	loadEnvironmentFileWhenPresent();
 	return runDoctor(flags);
 };
 
@@ -130,12 +131,9 @@ const printUsageError = (error: unknown) => {
 	);
 };
 
-main().then(
-	(exitCode) => {
-		process.exitCode = exitCode;
-	},
-	(error) => {
-		printUsageError(error);
-		process.exitCode = EXIT_CODES.usageError;
-	},
-);
+try {
+	process.exitCode = await main();
+} catch (error) {
+	printUsageError(error);
+	process.exitCode = EXIT_CODES.usageError;
+}

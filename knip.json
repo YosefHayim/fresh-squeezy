@@ -1,0 +1,3 @@
+{
+	"entry": ["e2e/fake-api.mjs"]
+}

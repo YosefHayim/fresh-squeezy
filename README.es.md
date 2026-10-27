@@ -53,16 +53,14 @@ Node 22 o superior.
 pnpm add fresh-squeezy
 ```
 
-Define una clave de API por modo. `LEMON_SQUEEZY_MODE` elige la clave y es `test` por defecto.
+Define una clave de API por modo. La opción `mode` o el flag `--mode` elige la clave y es `test` por defecto.
 
 ```bash
 LEMON_SQUEEZY_TEST_API_KEY=your-test-key
 LEMON_SQUEEZY_LIVE_API_KEY=your-live-key
-LEMON_SQUEEZY_MODE=test
-LEMON_SQUEEZY_STORE_ID=12
 ```
 
-Solo hace falta la clave del modo que usas, y `LEMON_SQUEEZY_STORE_ID` es opcional. Los mismos ajustes funcionan como opciones de `createFreshSqueezy({ apiKey, mode, storeId, baseUrl })`.
+Solo hace falta la clave del modo que usas. La tienda, el modo y la URL base no son secretos, así que no son variables de entorno: usa las opciones de `createFreshSqueezy({ apiKey, mode, storeId, baseUrl })` o los flags `--mode` y `--store-id`.
 
 ## Cliente
 
@@ -132,18 +130,18 @@ npx fresh-squeezy doctor --store-id 12 --store-id 34 \
   --webhook-url https://app.example.com/api/webhooks/lemon-squeezy --json
 ```
 
-| Opción                  | Significado                                                                                       |
-| ----------------------- | ------------------------------------------------------------------------------------------------- |
-| `--mode <test\|live>`   | Modo a revisar. Por defecto: `LEMON_SQUEEZY_MODE`, si no `test`                                   |
-| `--store-id <id>`       | Tienda a revisar, repite para más. Por defecto: `LEMON_SQUEEZY_STORE_ID`, si no todas las tiendas |
-| `--all-resources`       | Revisa también cada producto, plan, webhook, descuento y clave de licencia de cada tienda         |
-| `--product-id <id>`     | Producto a revisar, repite para más                                                               |
-| `--variant-id <id>`     | Plan de suscripción a revisar, repite para más                                                    |
-| `--webhook-url <url>`   | Webhook a revisar, repite para más                                                                |
-| `--discount-id <id>`    | Descuento a revisar, repite para más                                                              |
-| `--license-key-id <id>` | Clave de licencia a revisar, repite para más                                                      |
-| `--json`                | Imprime los informes como JSON                                                                    |
-| `--help`, `--version`   | Muestra la ayuda o la versión                                                                     |
+| Opción                  | Significado                                                                               |
+| ----------------------- | ----------------------------------------------------------------------------------------- |
+| `--mode <test\|live>`   | Modo a revisar. Por defecto: `test`                                                       |
+| `--store-id <id>`       | Tienda a revisar, repite para más. Por defecto: todas las tiendas                         |
+| `--all-resources`       | Revisa también cada producto, plan, webhook, descuento y clave de licencia de cada tienda |
+| `--product-id <id>`     | Producto a revisar, repite para más                                                       |
+| `--variant-id <id>`     | Plan de suscripción a revisar, repite para más                                            |
+| `--webhook-url <url>`   | Webhook a revisar, repite para más                                                        |
+| `--discount-id <id>`    | Descuento a revisar, repite para más                                                      |
+| `--license-key-id <id>` | Clave de licencia a revisar, repite para más                                              |
+| `--json`                | Imprime los informes como JSON                                                            |
+| `--help`, `--version`   | Muestra la ayuda o la versión                                                             |
 
 El doctor lee la clave de su modo (`LEMON_SQUEEZY_TEST_API_KEY` o `LEMON_SQUEEZY_LIVE_API_KEY`) del entorno o de un archivo `.env` en el directorio de trabajo. Nunca pregunta y nunca se queda colgado.
 
@@ -190,10 +188,9 @@ El doctor lee la clave de su modo (`LEMON_SQUEEZY_TEST_API_KEY` o `LEMON_SQUEEZY
 
 ```yaml
 - name: Check Lemon Squeezy
-  run: npx fresh-squeezy doctor --all-resources --json
+  run: npx fresh-squeezy doctor --mode live --all-resources --json
   env:
     LEMON_SQUEEZY_LIVE_API_KEY: ${{ secrets.LEMON_SQUEEZY_LIVE_API_KEY }}
-    LEMON_SQUEEZY_MODE: live
 ```
 
 El paso falla con salida `1` o `2`. Una clave de producción apuntando a una tienda de prueba (o al revés) genera `MODE_MISMATCH`: el doctor compara el modo declarado con `meta.test_mode` de `/v1/users/me`.
@@ -300,12 +297,13 @@ Las 60 filas son todas las funciones que exporta `@lemonsqueezy/lemonsqueezy.js`
 ## Actualizar desde 0.3
 
 - Los resultados ahora son checks: `ValidationResult` es `CheckReport`, `ValidationTarget` es `CheckTarget`, `DoctorOptions` es `DoctorTargets`, `buildResult` es `buildCheckReport`, y la clave `results` de `DoctorReport` es `checks`.
-- `ENV_KEYS` ya no existe. Las variables de entorno son `LEMON_SQUEEZY_TEST_API_KEY`, `LEMON_SQUEEZY_LIVE_API_KEY`, `LEMON_SQUEEZY_MODE` y `LEMON_SQUEEZY_STORE_ID`.
+- `ENV_KEYS` ya no existe. Las únicas variables de entorno son los secretos `LEMON_SQUEEZY_TEST_API_KEY` y `LEMON_SQUEEZY_LIVE_API_KEY`. `LEMON_SQUEEZY_MODE` y `LEMON_SQUEEZY_STORE_ID` se eliminaron: usa las opciones `mode` y `storeId` o los flags `--mode` y `--store-id`.
 - Los comandos ops y el registro de verbos ya no existen. Usa el [cliente](#cliente).
 - `init`, `manage`, los subcomandos `validate`, las augmentations y el menú del lanzador ya no existen. El único comando es `fresh-squeezy doctor`, y solo acepta opciones.
 - `--store-ids a,b` ahora es `--store-id a --store-id b`. Sin tienda indicada, el doctor revisa todas las tiendas, así que `--all-stores` es el valor por defecto.
 - Los issues ahora son hallazgos: `ISSUE_CODES` es `FINDING_CODES`, `issue.code` es `finding.code` y la clave JSON `issues` es `findings`. Los códigos no cambian, salvo `STORE_NOT_OWNED`, que se eliminó (nada lo generaba).
-- Los subpaths exportados ahora son `.`, `./config`, `./errors`, `./findings`, `./types` y `./license`.
+- Los subpaths exportados ahora son `.`, `./environment`, `./errors`, `./findings`, `./types` y `./license`.
+- Nombres nuevos: `fresh-squeezy/config` es `fresh-squeezy/environment`, `readConfig` es `readClientSettings`, `Config` es `ClientSettings`, `FreshSqueezyConfig` es `FreshSqueezySettings`, `readEnvApiKey` es `readApiKeyFromEnvironment`, `buildFreshSqueezyError` es `createFreshSqueezyError`, `CreateInput` es `NewResources`, `UpdateInput` es `UpdateAttributes`. `RelationshipName` se eliminó.
 - Node 22 o superior. Las dependencias en tiempo de ejecución desaparecieron.
 
 ```ts

@@ -1,17 +1,17 @@
 import { STORES_COLLECTION, USER_DOC } from "@e2e/sandbox-store.js";
 
-import { readConfig } from "@/client/config.js";
+import { readClientSettings } from "@/client/environment.js";
 import { createHttp } from "@/client/http.js";
 
 export interface MockRoute {
-	match: (request: { method: string; url: string }) => boolean;
+	accepts: (request: { method: string; url: string }) => boolean;
 	status: number;
 	replyDocument: unknown;
 }
 
 export interface MockFetchKit {
 	fetch: typeof fetch;
-	calls: Array<{ method: string; url: string; requestText?: string }>;
+	calls: Array<{ method: string; url: string; requestString?: string }>;
 }
 
 const API_CONTENT_TYPE = { "content-type": "application/vnd.api+json" };
@@ -30,11 +30,15 @@ export const createMockFetch = (routes: MockRoute[]): MockFetchKit => {
 	const mock: typeof fetch = async (requestUrl, init) => {
 		const url = readUrlOfRequest(requestUrl);
 		const method = (init?.method ?? "GET").toUpperCase();
-		const isBodyAString = typeof init?.body === "string";
-		const requestText = isBodyAString ? (init?.body as string) : undefined;
-		calls.push({ method, url, requestText });
+		const isRequestDocumentString = typeof init?.body === "string";
+		const requestString = isRequestDocumentString
+			? (init?.body as string)
+			: undefined;
+		calls.push({ method, url, requestString });
 
-		const route = routes.find((mockRoute) => mockRoute.match({ method, url }));
+		const route = routes.find((mockRoute) =>
+			mockRoute.accepts({ method, url }),
+		);
 		const isRouteMissing = !route;
 		if (isRouteMissing) {
 			const noRouteReply = JSON.stringify({
@@ -66,11 +70,11 @@ export const createMockFetch = (routes: MockRoute[]): MockFetchKit => {
 export const pathIs = (
 	expected: string,
 	method = "GET",
-): MockRoute["match"] => {
+): MockRoute["accepts"] => {
 	return ({ method: requestMethod, url }) => {
-		const isMethodMatching = requestMethod === method;
+		const isMethodSame = requestMethod === method;
 		const { pathname } = new URL(url);
-		return isMethodMatching && pathname === expected;
+		return isMethodSame && pathname === expected;
 	};
 };
 
@@ -78,24 +82,25 @@ export const pathIsWithQuery = (
 	expected: string,
 	query: Record<string, string>,
 	method = "GET",
-): MockRoute["match"] => {
+): MockRoute["accepts"] => {
 	return ({ method: requestMethod, url }) => {
 		const isMethodDifferent = requestMethod !== method;
 		if (isMethodDifferent) return false;
-		const parsed = new URL(url);
-		const isPathDifferent = parsed.pathname !== expected;
+		const requestedUrl = new URL(url);
+		const isPathDifferent = requestedUrl.pathname !== expected;
 		if (isPathDifferent) return false;
-		const queryEntries = Object.entries(query);
-		return queryEntries.every(
-			([key, expectedValue]) => parsed.searchParams.get(key) === expectedValue,
+		const queryPairs = Object.entries(query);
+		return queryPairs.every(
+			([name, expectedTerm]) =>
+				requestedUrl.searchParams.get(name) === expectedTerm,
 		);
 	};
 };
 
 export const SIGNED_IN_ROUTES: MockRoute[] = [
-	{ match: pathIs("/v1/users/me"), status: 200, replyDocument: USER_DOC },
+	{ accepts: pathIs("/v1/users/me"), status: 200, replyDocument: USER_DOC },
 	{
-		match: pathIs("/v1/stores"),
+		accepts: pathIs("/v1/stores"),
 		status: 200,
 		replyDocument: STORES_COLLECTION,
 	},
@@ -103,8 +108,8 @@ export const SIGNED_IN_ROUTES: MockRoute[] = [
 
 export const makeHttp = (routes: MockRoute[]) => {
 	const { fetch } = createMockFetch(routes);
-	const config = readConfig({ apiKey: "k", fetch });
-	return createHttp(config);
+	const settings = readClientSettings({ apiKey: "k", fetch });
+	return createHttp(settings);
 };
 
 export const route = (
@@ -112,16 +117,16 @@ export const route = (
 	replyDocument: unknown,
 	status = 200,
 ): MockRoute => ({
-	match: pathIs(path),
+	accepts: pathIs(path),
 	status,
 	replyDocument,
 });
 
 const okRoute = (
-	match: MockRoute["match"],
+	accepts: MockRoute["accepts"],
 	replyDocument: unknown,
 ): MockRoute => ({
-	match,
+	accepts,
 	status: 200,
 	replyDocument,
 });
@@ -130,18 +135,18 @@ export const storeListRoute = (
 	collection: string,
 	replyDocument: unknown,
 ): MockRoute => {
-	const match = pathIsWithQuery(`/v1/${collection}`, {
+	const accepts = pathIsWithQuery(`/v1/${collection}`, {
 		"filter[store_id]": "42",
 	});
-	return okRoute(match, replyDocument);
+	return okRoute(accepts, replyDocument);
 };
 
 export const variantListRoute = (
 	productId: string,
 	replyDocument: unknown,
 ): MockRoute => {
-	const match = pathIsWithQuery("/v1/variants", {
+	const accepts = pathIsWithQuery("/v1/variants", {
 		"filter[product_id]": productId,
 	});
-	return okRoute(match, replyDocument);
+	return okRoute(accepts, replyDocument);
 };

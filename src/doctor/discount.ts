@@ -1,10 +1,10 @@
-import type { Mode } from "@/client/config.js";
+import type { Mode } from "@/client/environment.js";
 import type { Http } from "@/client/http.js";
 import type { DiscountAttributes } from "@/client/lemon-squeezy-types.js";
 import { fetchResource, storeMismatchFindings } from "./fetch-resource.js";
 import {
-	buildCheckReport,
 	type CheckReport,
+	createCheckReport,
 	FINDING_CODES,
 	type FindingRule,
 	raiseFindings,
@@ -126,7 +126,7 @@ export const validateDiscount = async (
 
 	const isFetchFailed = discountLookup.kind === "failed";
 	if (isFetchFailed) {
-		return buildCheckReport({
+		return createCheckReport({
 			name: "discount",
 			mode,
 			findings: [discountLookup.finding],
@@ -144,7 +144,7 @@ export const validateDiscount = async (
 			"Use the correct store ID or discount ID — discounts should not cross stores.",
 	});
 	const ruleFindings = raiseFindings(DISCOUNT_RULES, discount);
-	return buildCheckReport({
+	return createCheckReport({
 		name: "discount",
 		mode,
 		findings: [...storeFindings, ...ruleFindings],

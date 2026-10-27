@@ -1,9 +1,9 @@
-export type FreshSqueezyError = Error & {
+export interface FreshSqueezyError extends Error {
 	name: "FreshSqueezyError";
 	code: string;
 	status?: number;
 	detail?: unknown;
-};
+}
 
 export interface FreshSqueezyErrorFields {
 	code: string;
@@ -12,7 +12,7 @@ export interface FreshSqueezyErrorFields {
 	detail?: unknown;
 }
 
-export const buildFreshSqueezyError = (
+export const createFreshSqueezyError = (
 	fields: FreshSqueezyErrorFields,
 ): FreshSqueezyError => {
 	const { code, message, status, detail } = fields;

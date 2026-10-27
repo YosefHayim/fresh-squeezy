@@ -1,6 +1,6 @@
-import { expect, test } from "vitest";
+import { describe, expect, test } from "vitest";
 import {
-	buildCheckReport,
+	createCheckReport,
 	type Finding,
 	type FindingRule,
 	raiseFindings,
@@ -9,16 +9,22 @@ import {
 const isNegative = (amount: number) => amount < 0;
 const isZero = (amount: number) => amount === 0;
 
-const NUMBER_RULES: FindingRule<number>[] = [
+const AMOUNT_RULES: FindingRule<number>[] = [
 	{
 		code: "UNKNOWN",
 		severity: "error",
 		when: isNegative,
 		message: (amount) => `${amount} is negative.`,
-		suggestedFix: "Use a positive number.",
+		suggestedFix: (amount) => `Replace ${amount} with a positive number.`,
 		context: (amount) => ({ amount }),
 	},
-	{ code: "UNKNOWN", severity: "warning", when: isZero, message: "Zero." },
+	{
+		code: "UNKNOWN",
+		severity: "warning",
+		when: isZero,
+		message: "Zero.",
+		suggestedFix: "Use a positive number.",
+	},
 ];
 
 const ERROR_FINDING: Finding = {
@@ -32,52 +38,81 @@ const WARNING_FINDING: Finding = {
 	message: "meh",
 };
 
-test("raiseFindings returns only the rules that apply, with computed text", () => {
-	const findings = raiseFindings(NUMBER_RULES, -3);
+describe("raiseFindings", () => {
+	test("returns only the rules that apply, with computed text", () => {
+		const findings = raiseFindings(AMOUNT_RULES, -3);
 
-	expect(findings).toHaveLength(1);
-	expect(findings[0]?.message).toBe("-3 is negative.");
-	expect(findings[0]?.suggestedFix).toBe("Use a positive number.");
-	expect(findings[0]?.context).toEqual({ amount: -3 });
-});
-
-test("raiseFindings keeps plain text and leaves the fix empty when the rule has none", () => {
-	const [finding] = raiseFindings(NUMBER_RULES, 0);
-
-	expect(finding?.message).toBe("Zero.");
-	expect(finding?.suggestedFix).toBeUndefined();
-});
-
-test("raiseFindings returns nothing when no rule applies", () => {
-	expect(raiseFindings(NUMBER_RULES, 5)).toEqual([]);
-});
-
-test("buildCheckReport is ok with warnings only", () => {
-	const validation = buildCheckReport({
-		name: "store",
-		mode: "test",
-		findings: [WARNING_FINDING],
+		expect(findings).toHaveLength(1);
+		expect(findings[0]?.message).toBe("-3 is negative.");
+		expect(findings[0]?.suggestedFix).toBe(
+			"Replace -3 with a positive number.",
+		);
+		expect(findings[0]?.context).toEqual({ amount: -3 });
 	});
 
-	expect(validation.ok).toBe(true);
-});
+	test("keeps plain text and leaves the context empty when the rule has none", () => {
+		const [finding] = raiseFindings(AMOUNT_RULES, 0);
 
-test("buildCheckReport is not ok with an error finding", () => {
-	const validation = buildCheckReport({
-		name: "store",
-		mode: "live",
-		findings: [WARNING_FINDING, ERROR_FINDING],
-		resource: { id: 1 },
-		target: { label: "store 1", id: "1" },
+		expect(finding?.message).toBe("Zero.");
+		expect(finding?.suggestedFix).toBe("Use a positive number.");
+		expect(finding?.context).toBeUndefined();
 	});
 
-	expect(validation.ok).toBe(false);
-	expect(Object.keys(validation)).toEqual([
-		"name",
-		"ok",
-		"mode",
-		"findings",
-		"resource",
-		"target",
-	]);
+	test("leaves the fix empty when the rule has none", () => {
+		const rulesWithoutFix: FindingRule<number>[] = [
+			{ code: "UNKNOWN", severity: "info", when: isZero, message: "Zero." },
+		];
+
+		const [finding] = raiseFindings(rulesWithoutFix, 0);
+
+		expect(finding?.suggestedFix).toBeUndefined();
+	});
+
+	test("returns nothing when no rule applies", () => {
+		const findings = raiseFindings(AMOUNT_RULES, 5);
+
+		expect(findings).toEqual([]);
+	});
+});
+
+describe("createCheckReport", () => {
+	test("is ok with warnings only", () => {
+		const report = createCheckReport({
+			name: "store",
+			mode: "test",
+			findings: [WARNING_FINDING],
+		});
+
+		expect(report.ok).toBe(true);
+	});
+
+	test("is ok with no findings", () => {
+		const report = createCheckReport({
+			name: "store",
+			mode: "test",
+			findings: [],
+		});
+
+		expect(report.ok).toBe(true);
+	});
+
+	test("is not ok with an error finding and keeps its fields in order", () => {
+		const report = createCheckReport({
+			name: "store",
+			mode: "live",
+			findings: [WARNING_FINDING, ERROR_FINDING],
+			resource: { id: 1 },
+			target: { label: "store 1", id: "1" },
+		});
+
+		expect(report.ok).toBe(false);
+		expect(Object.keys(report)).toEqual([
+			"name",
+			"ok",
+			"mode",
+			"findings",
+			"resource",
+			"target",
+		]);
+	});
 });

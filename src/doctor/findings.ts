@@ -1,4 +1,4 @@
-import type { Mode } from "@/client/config.js";
+import type { Mode } from "@/client/environment.js";
 
 export const FINDING_CODES = {
 	AUTH_FAILED: "AUTH_FAILED",
@@ -79,22 +79,25 @@ export interface DoctorReport {
 	checks: CheckReport[];
 }
 
-type RuleText<Subject> = string | ((subject: Subject) => string);
+type RuleMessage<Subject> = string | ((subject: Subject) => string);
 
 export interface FindingRule<Subject> {
 	code: FindingCode;
 	severity: Severity;
 	when: (subject: Subject) => boolean;
-	message: RuleText<Subject>;
-	suggestedFix?: RuleText<Subject>;
+	message: RuleMessage<Subject>;
+	suggestedFix?: RuleMessage<Subject>;
 	context?: (subject: Subject) => Finding["context"];
 }
 
 const isError = (finding: Finding) => finding.severity === "error";
 
-const pickRuleText = <Subject>(text: RuleText<Subject>, subject: Subject) => {
-	const isTextComputed = typeof text === "function";
-	return isTextComputed ? text(subject) : text;
+const pickRuleMessage = <Subject>(
+	message: RuleMessage<Subject>,
+	subject: Subject,
+) => {
+	const isMessageComputed = typeof message === "function";
+	return isMessageComputed ? message(subject) : message;
 };
 
 export const raiseFindings = <Subject>(
@@ -105,13 +108,14 @@ export const raiseFindings = <Subject>(
 	return raisedRules.map((rule) => ({
 		code: rule.code,
 		severity: rule.severity,
-		message: pickRuleText(rule.message, subject),
-		suggestedFix: rule.suggestedFix && pickRuleText(rule.suggestedFix, subject),
+		message: pickRuleMessage(rule.message, subject),
+		suggestedFix:
+			rule.suggestedFix && pickRuleMessage(rule.suggestedFix, subject),
 		context: rule.context?.(subject),
 	}));
 };
 
-export const buildCheckReport = <Resource>(
+export const createCheckReport = <Resource>(
 	parts: Omit<CheckReport<Resource>, "ok">,
 ): CheckReport<Resource> => {
 	const { name, mode, findings, resource, target } = parts;

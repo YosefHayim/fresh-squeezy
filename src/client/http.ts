@@ -1,5 +1,5 @@
-import type { Config } from "./config.js";
-import { buildFreshSqueezyError, type FreshSqueezyError } from "./errors.js";
+import type { ClientSettings } from "./environment.js";
+import { createFreshSqueezyError, type FreshSqueezyError } from "./errors.js";
 
 const PAGE_SIZE = 100;
 
@@ -50,36 +50,40 @@ interface JsonApiError {
 	detail?: string;
 }
 
-const buildRequestUrl = (config: Config, path: string, query?: HttpQuery) => {
-	const url = new URL(path, config.baseUrl);
-	const queryEntries = Object.entries(query ?? {});
-	for (const [queryName, queryValue] of queryEntries) {
-		const isQueryValueMissing = queryValue === undefined;
-		if (isQueryValueMissing) continue;
-		const queryValueText = String(queryValue);
-		url.searchParams.append(queryName, queryValueText);
+const createRequestUrl = (
+	settings: ClientSettings,
+	path: string,
+	query?: HttpQuery,
+) => {
+	const url = new URL(path, settings.baseUrl);
+	const queryFields = Object.entries(query ?? {});
+	for (const [queryName, queryField] of queryFields) {
+		const isQueryFieldMissing = queryField === undefined;
+		if (isQueryFieldMissing) continue;
+		url.searchParams.append(queryName, String(queryField));
 	}
 	return url.toString();
 };
 
-const parseReplyText = (replyText: string): unknown => {
+// Error replies can be plain text, so a reply that is not JSON stays a string.
+const parseReplyString = (replyString: string): unknown => {
 	try {
-		return JSON.parse(replyText);
+		return JSON.parse(replyString);
 	} catch {
-		return replyText;
+		return replyString;
 	}
 };
 
-const isJsonObject = (replyDocument: unknown): replyDocument is object =>
-	typeof replyDocument === "object" && replyDocument !== null;
+const isObject = (candidate: unknown): candidate is object =>
+	typeof candidate === "object" && candidate !== null;
 
 const isJsonApiError = (apiError: unknown): apiError is JsonApiError =>
-	isJsonObject(apiError);
+	isObject(apiError);
 
 const hasErrorList = (
 	replyDocument: unknown,
 ): replyDocument is { errors: unknown[] } =>
-	isJsonObject(replyDocument) &&
+	isObject(replyDocument) &&
 	"errors" in replyDocument &&
 	Array.isArray(replyDocument.errors);
 
@@ -89,7 +93,7 @@ const readJsonApiErrors = (replyDocument: unknown): JsonApiError[] => {
 	return replyDocument.errors.filter(isJsonApiError);
 };
 
-const buildApiError = (
+const createApiError = (
 	status: number,
 	replyDocument: unknown,
 ): FreshSqueezyError => {
@@ -100,7 +104,7 @@ const buildApiError = (
 		firstError?.detail ??
 		firstError?.title ??
 		`Lemon Squeezy request failed with status ${status}`;
-	return buildFreshSqueezyError({
+	return createFreshSqueezyError({
 		code,
 		status,
 		message,
@@ -108,40 +112,55 @@ const buildApiError = (
 	});
 };
 
-const buildNetworkError = (cause: unknown) => {
+const createNetworkError = (cause: unknown) => {
 	const isCauseAnError = cause instanceof Error;
 	const message = isCauseAnError ? cause.message : "Network request failed";
-	return buildFreshSqueezyError({
+	return createFreshSqueezyError({
 		code: "NETWORK_ERROR",
 		message,
 		detail: cause,
 	});
 };
 
+const sendFetch = async (
+	fetchRequest: typeof fetch,
+	url: string | URL,
+	requestInit: RequestInit,
+) => {
+	try {
+		return await fetchRequest(url, requestInit);
+	} catch (cause) {
+		throw createNetworkError(cause);
+	}
+};
+
 const sendRequest = async <ReplyDocument>(
-	config: Config,
+	settings: ClientSettings,
 	{ method = "GET", path, query, document, signal }: HttpRequest,
 ) => {
-	const url = buildRequestUrl(config, path, query);
+	const url = createRequestUrl(settings, path, query);
 	const headers: Record<string, string> = {
-		Authorization: `Bearer ${config.apiKey}`,
+		Authorization: `Bearer ${settings.apiKey}`,
 		Accept: API_CONTENT_TYPE,
 	};
 	const hasDocument = document !== undefined;
 	if (hasDocument) headers["Content-Type"] = API_CONTENT_TYPE;
 
-	const documentText = hasDocument ? JSON.stringify(document) : undefined;
-	const reply = await config
-		.fetch(url, { method, headers, body: documentText, signal })
-		.catch((cause: unknown) => {
-			throw buildNetworkError(cause);
-		});
+	const documentString = hasDocument ? JSON.stringify(document) : undefined;
+	const reply = await sendFetch(settings.fetch, url, {
+		method,
+		headers,
+		body: documentString,
+		signal,
+	});
 
-	const replyText = await reply.text();
-	const hasReplyText = replyText.length > 0;
-	const replyDocument = hasReplyText ? parseReplyText(replyText) : undefined;
+	const replyString = await reply.text();
+	const hasReplyString = replyString.length > 0;
+	const replyDocument = hasReplyString
+		? parseReplyString(replyString)
+		: undefined;
 	const isReplyFailed = !reply.ok;
-	if (isReplyFailed) throw buildApiError(reply.status, replyDocument);
+	if (isReplyFailed) throw createApiError(reply.status, replyDocument);
 	// The one place a reply gets its type; the live API check keeps the types honest.
 	return replyDocument as ReplyDocument;
 };
@@ -161,26 +180,24 @@ export const postLicenseForm = async <LicenseReply>({
 	fields,
 }: LicenseFormRequest) => {
 	const url = new URL(`/v1/licenses/${action}`, LICENSE_API_URL);
-	const fieldEntries = Object.entries(fields);
-	const filledFields = fieldEntries.filter(isFieldFilled);
+	const fieldPairs = Object.entries(fields);
+	const filledFields = fieldPairs.filter(isFieldFilled);
 	const licenseForm = new URLSearchParams(filledFields);
-	const reply = await fetch(url, {
+	const reply = await sendFetch(fetch, url, {
 		method: "POST",
 		headers: { Accept: "application/json" },
 		body: licenseForm,
-	}).catch((cause: unknown) => {
-		throw buildNetworkError(cause);
 	});
-	const replyText = await reply.text();
-	const licenseReply = parseReplyText(replyText);
-	const isLicenseReplyNotJson = !isJsonObject(licenseReply);
-	if (isLicenseReplyNotJson) throw buildApiError(reply.status, licenseReply);
+	const replyString = await reply.text();
+	const licenseReply = parseReplyString(replyString);
+	const isLicenseReplyNotObject = !isObject(licenseReply);
+	if (isLicenseReplyNotObject) throw createApiError(reply.status, licenseReply);
 	return licenseReply as LicenseReply;
 };
 
-export const createHttp = (config: Config) => {
+export const createHttp = (settings: ClientSettings) => {
 	const request = <ReplyDocument>(httpRequest: HttpRequest) =>
-		sendRequest<ReplyDocument>(config, httpRequest);
+		sendRequest<ReplyDocument>(settings, httpRequest);
 
 	const getResource = async <Attributes>(path: string) => {
 		const resourceDocument = await request<JsonApiDocument<Attributes>>({

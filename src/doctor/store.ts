@@ -1,10 +1,10 @@
-import type { Mode } from "@/client/config.js";
+import type { Mode } from "@/client/environment.js";
 import type { Http } from "@/client/http.js";
 import type { StoreAttributes } from "@/client/lemon-squeezy-types.js";
 import { fetchResource } from "./fetch-resource.js";
 import {
-	buildCheckReport,
 	type CheckReport,
+	createCheckReport,
 	FINDING_CODES,
 } from "./findings.js";
 
@@ -26,7 +26,7 @@ export const validateStore = async (
 
 	const isFetchFailed = storeLookup.kind === "failed";
 	if (isFetchFailed) {
-		return buildCheckReport({
+		return createCheckReport({
 			name: "store",
 			mode,
 			findings: [storeLookup.finding],
@@ -35,7 +35,7 @@ export const validateStore = async (
 	}
 
 	const store = storeLookup.resource;
-	return buildCheckReport({
+	return createCheckReport({
 		name: "store",
 		mode,
 		findings: [],

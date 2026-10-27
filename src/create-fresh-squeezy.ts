@@ -1,4 +1,7 @@
-import { type FreshSqueezyConfig, readConfig } from "@/client/config.js";
+import {
+	type FreshSqueezySettings,
+	readClientSettings,
+} from "@/client/environment.js";
 import { createHttp } from "@/client/http.js";
 import { createLemonSqueezyClient } from "@/client/lemon-squeezy-client.js";
 import { validateConnection } from "@/doctor/connection.js";
@@ -16,12 +19,14 @@ import {
 } from "@/doctor/subscription-plan.js";
 import { validateWebhook, type WebhookCheck } from "@/doctor/webhook.js";
 
-export const createFreshSqueezy = (givenConfig: FreshSqueezyConfig = {}) => {
-	const config = readConfig(givenConfig);
-	const http = createHttp(config);
-	const { mode, storeId } = config;
+export const createFreshSqueezy = (
+	givenSettings: FreshSqueezySettings = {},
+) => {
+	const settings = readClientSettings(givenSettings);
+	const http = createHttp(settings);
+	const { mode, storeId } = settings;
 
-	const storeIdsToCheck = async () => {
+	const pickStoreIdsToCheck = async () => {
 		const isStoreSet = storeId !== undefined;
 		if (isStoreSet) return [storeId];
 		return listStoreIds(http);
@@ -42,7 +47,7 @@ export const createFreshSqueezy = (givenConfig: FreshSqueezyConfig = {}) => {
 			validateLicenseKey(http, mode, check),
 		validateSubscriptionPlan: (check: SubscriptionPlanCheck) =>
 			validateSubscriptionPlan(http, mode, check),
-		listStoreIds: storeIdsToCheck,
+		listStoreIds: pickStoreIdsToCheck,
 		doctor: (targets: DoctorTargets = {}) =>
 			doctor(http, mode, { storeId, ...targets }),
 	};

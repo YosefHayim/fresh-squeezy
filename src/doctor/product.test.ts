@@ -1,8 +1,9 @@
-import { makeHttp, pathIs, pathIsWithQuery, route } from "@e2e/mock-fetch.js";
+import { makeHttp, route, variantListRoute } from "@e2e/mock-fetch.js";
 import {
 	NOT_FOUND_ERROR,
 	PRODUCT_ON_WRONG_STORE_DOC,
 	PUBLISHED_PRODUCT_DOC,
+	UNAUTHORIZED_ERROR,
 	UNPUBLISHED_PRODUCT_DOC,
 	VARIANTS_COLLECTION_ALL_DRAFT,
 	VARIANTS_COLLECTION_DEFAULT_ONLY,
@@ -10,151 +11,167 @@ import {
 	VARIANTS_COLLECTION_PENDING_AND_DRAFT,
 	VARIANTS_COLLECTION_PUBLISHED,
 } from "@e2e/sandbox-store.js";
-import { expect, test } from "vitest";
+import { describe, expect, test } from "vitest";
 import { validateProduct } from "./product.js";
 
-const publishedProductRoutes = (
+const createPublishedProductRoutes = (
 	variantsStatus: number,
 	variantsReplyDocument: unknown,
-) => [
-	route("/v1/products/100", PUBLISHED_PRODUCT_DOC),
-	{
-		match: pathIsWithQuery("/v1/variants", { "filter[product_id]": "100" }),
+) => {
+	const variantsRoute = {
+		...variantListRoute("100", variantsReplyDocument),
 		status: variantsStatus,
-		replyDocument: variantsReplyDocument,
-	},
-];
+	};
+	return [route("/v1/products/100", PUBLISHED_PRODUCT_DOC), variantsRoute];
+};
 
 const validatePublishedProduct = (
 	variantsStatus: number,
 	variantsReplyDocument: unknown,
 ) => {
-	const routes = publishedProductRoutes(variantsStatus, variantsReplyDocument);
+	const routes = createPublishedProductRoutes(
+		variantsStatus,
+		variantsReplyDocument,
+	);
 	const http = makeHttp(routes);
 	return validateProduct(http, "test", { productId: "100" });
 };
 
-test("validateProduct passes a published product with a published variant", async () => {
-	const http = makeHttp(
-		publishedProductRoutes(200, VARIANTS_COLLECTION_PUBLISHED),
-	);
+const listCodes = (productReport: { findings: { code: string }[] }) =>
+	productReport.findings.map((finding) => finding.code);
 
-	const productValidation = await validateProduct(http, "test", {
-		productId: "100",
-		expectedStoreId: "42",
+describe("validateProduct", () => {
+	test("passes a published product with a published variant", async () => {
+		const routes = createPublishedProductRoutes(
+			200,
+			VARIANTS_COLLECTION_PUBLISHED,
+		);
+		const http = makeHttp(routes);
+
+		const productReport = await validateProduct(http, "test", {
+			productId: "100",
+			expectedStoreId: "42",
+		});
+
+		expect(productReport.ok).toBe(true);
+		expect(productReport.findings).toHaveLength(0);
+		expect(productReport.target).toEqual({ label: "Pro Plan", id: "100" });
 	});
 
-	expect(productValidation.ok).toBe(true);
-	expect(productValidation.findings).toHaveLength(0);
-});
+	test("passes a product whose only variant is the pending default variant", async () => {
+		const productReport = await validatePublishedProduct(
+			200,
+			VARIANTS_COLLECTION_DEFAULT_ONLY,
+		);
 
-test("validateProduct passes a product whose only variant is the pending default variant", async () => {
-	const productValidation = await validatePublishedProduct(
-		200,
-		VARIANTS_COLLECTION_DEFAULT_ONLY,
-	);
-
-	expect(productValidation.ok).toBe(true);
-	expect(productValidation.findings).toHaveLength(0);
-});
-
-test("validateProduct flags VARIANT_UNPUBLISHED when a pending variant has only draft siblings", async () => {
-	const productValidation = await validatePublishedProduct(
-		200,
-		VARIANTS_COLLECTION_PENDING_AND_DRAFT,
-	);
-
-	expect(productValidation.ok).toBe(false);
-	expect(productValidation.findings.map((finding) => finding.code)).toContain(
-		"VARIANT_UNPUBLISHED",
-	);
-});
-
-test("validateProduct flags unpublished product and draft-only variants", async () => {
-	const http = makeHttp([
-		{
-			match: pathIs("/v1/products/101"),
-			status: 200,
-			replyDocument: UNPUBLISHED_PRODUCT_DOC,
-		},
-		{
-			match: pathIsWithQuery("/v1/variants", { "filter[product_id]": "101" }),
-			status: 200,
-			replyDocument: VARIANTS_COLLECTION_ALL_DRAFT,
-		},
-	]);
-
-	const productValidation = await validateProduct(http, "test", {
-		productId: "101",
+		expect(productReport.ok).toBe(true);
+		expect(productReport.findings).toHaveLength(0);
 	});
 
-	expect(productValidation.ok).toBe(false);
-	const codes = productValidation.findings.map((finding) => finding.code);
-	expect(codes).toContain("PRODUCT_UNPUBLISHED");
-	expect(codes).toContain("VARIANT_UNPUBLISHED");
-	expect(codes).toContain("PRODUCT_NO_BUY_URL");
-});
+	test("flags VARIANT_UNPUBLISHED when a pending variant has only draft siblings", async () => {
+		const productReport = await validatePublishedProduct(
+			200,
+			VARIANTS_COLLECTION_PENDING_AND_DRAFT,
+		);
 
-test("validateProduct flags product on wrong store when expectedStoreId mismatches", async () => {
-	const http = makeHttp([
-		{
-			match: pathIs("/v1/products/102"),
-			status: 200,
-			replyDocument: PRODUCT_ON_WRONG_STORE_DOC,
-		},
-		{
-			match: pathIsWithQuery("/v1/variants", { "filter[product_id]": "102" }),
-			status: 200,
-			replyDocument: VARIANTS_COLLECTION_PUBLISHED,
-		},
-	]);
-
-	const productValidation = await validateProduct(http, "test", {
-		productId: "102",
-		expectedStoreId: "42",
+		expect(productReport.ok).toBe(false);
+		expect(listCodes(productReport)).toContain("VARIANT_UNPUBLISHED");
 	});
 
-	expect(productValidation.ok).toBe(false);
-	expect(productValidation.findings.map((finding) => finding.code)).toContain(
-		"PRODUCT_WRONG_STORE",
-	);
-});
+	test("flags an unpublished product, a missing buy URL and draft-only variants", async () => {
+		const http = makeHttp([
+			route("/v1/products/101", UNPUBLISHED_PRODUCT_DOC),
+			variantListRoute("101", VARIANTS_COLLECTION_ALL_DRAFT),
+		]);
 
-test("validateProduct returns PRODUCT_NOT_FOUND on 404", async () => {
-	const http = makeHttp([
-		{
-			match: pathIs("/v1/products/9999"),
-			status: 404,
-			replyDocument: NOT_FOUND_ERROR,
-		},
-	]);
-	const productValidation = await validateProduct(http, "test", {
-		productId: "9999",
-	});
-	expect(productValidation.ok).toBe(false);
-	expect(productValidation.findings[0]?.code).toBe("PRODUCT_NOT_FOUND");
-});
+		const productReport = await validateProduct(http, "test", {
+			productId: "101",
+		});
 
-test("validateProduct flags VARIANT_MISSING when no variants exist", async () => {
-	const productValidation = await validatePublishedProduct(
-		200,
-		VARIANTS_COLLECTION_EMPTY,
-	);
-
-	expect(productValidation.ok).toBe(false);
-	expect(productValidation.findings.map((finding) => finding.code)).toContain(
-		"VARIANT_MISSING",
-	);
-});
-
-test("validateProduct soft-fails variant listing as a warning without failing the product check", async () => {
-	const productValidation = await validatePublishedProduct(500, {
-		errors: [{ detail: "upstream" }],
+		const unpublishedFinding = productReport.findings.find(
+			(finding) => finding.code === "PRODUCT_UNPUBLISHED",
+		);
+		const buyUrlFinding = productReport.findings.find(
+			(finding) => finding.code === "PRODUCT_NO_BUY_URL",
+		);
+		expect(productReport.ok).toBe(false);
+		expect(unpublishedFinding?.severity).toBe("error");
+		expect(unpublishedFinding?.context).toEqual({ status: "draft" });
+		expect(buyUrlFinding?.severity).toBe("warning");
+		expect(listCodes(productReport)).toContain("VARIANT_UNPUBLISHED");
 	});
 
-	expect(productValidation.ok).toBe(true);
-	const variantFinding = productValidation.findings.find(
-		(finding) => finding.code === "UNKNOWN",
-	);
-	expect(variantFinding?.severity).toBe("warning");
+	test("flags a product on another store when expectedStoreId differs", async () => {
+		const http = makeHttp([
+			route("/v1/products/102", PRODUCT_ON_WRONG_STORE_DOC),
+			variantListRoute("102", VARIANTS_COLLECTION_PUBLISHED),
+		]);
+
+		const productReport = await validateProduct(http, "test", {
+			productId: "102",
+			expectedStoreId: "42",
+		});
+
+		expect(productReport.ok).toBe(false);
+		expect(listCodes(productReport)).toContain("PRODUCT_WRONG_STORE");
+	});
+
+	test("skips the store check when no expectedStoreId is given", async () => {
+		const http = makeHttp([
+			route("/v1/products/102", PRODUCT_ON_WRONG_STORE_DOC),
+			variantListRoute("102", VARIANTS_COLLECTION_PUBLISHED),
+		]);
+
+		const productReport = await validateProduct(http, "test", {
+			productId: "102",
+		});
+
+		expect(productReport.ok).toBe(true);
+		expect(listCodes(productReport)).not.toContain("PRODUCT_WRONG_STORE");
+	});
+
+	test("returns PRODUCT_NOT_FOUND on a 404", async () => {
+		const http = makeHttp([route("/v1/products/9999", NOT_FOUND_ERROR, 404)]);
+
+		const productReport = await validateProduct(http, "test", {
+			productId: "9999",
+		});
+
+		expect(productReport.ok).toBe(false);
+		expect(productReport.findings[0]?.code).toBe("PRODUCT_NOT_FOUND");
+		expect(productReport.target).toEqual({ label: "product 9999", id: "9999" });
+	});
+
+	test("returns AUTH_FAILED when the key is rejected", async () => {
+		const http = makeHttp([route("/v1/products/100", UNAUTHORIZED_ERROR, 401)]);
+
+		const productReport = await validateProduct(http, "test", {
+			productId: "100",
+		});
+
+		expect(productReport.ok).toBe(false);
+		expect(productReport.findings[0]?.code).toBe("AUTH_FAILED");
+	});
+
+	test("flags VARIANT_MISSING when no variants exist", async () => {
+		const productReport = await validatePublishedProduct(
+			200,
+			VARIANTS_COLLECTION_EMPTY,
+		);
+
+		expect(productReport.ok).toBe(false);
+		expect(listCodes(productReport)).toEqual(["VARIANT_MISSING"]);
+	});
+
+	test("turns a failed variant listing into a warning without failing the check", async () => {
+		const productReport = await validatePublishedProduct(500, {
+			errors: [{ detail: "upstream" }],
+		});
+
+		const variantFinding = productReport.findings.find(
+			(finding) => finding.code === "UNKNOWN",
+		);
+		expect(productReport.ok).toBe(true);
+		expect(variantFinding?.severity).toBe("warning");
+	});
 });
