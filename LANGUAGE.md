@@ -3,35 +3,41 @@
 The human↔agent glossary: names only. Use these exact terms in code, comments,
 commits, and docs; avoid the listed aliases. Orientation lives in `CONTEXT.md`.
 
+## Client
+
+**Client**
+The object `createFreshSqueezy` returns: `get`, `list`, `create`, `update`, `remove`, `cancelSubscription`, `refund`, `generateInvoice`, `currentUsage`, plus the checks and the doctor.
+_Avoid_: SDK, wrapper, API layer.
+
+**Resource type**
+A Lemon Squeezy object name like `"subscriptions"` or `"order-items"`. It picks the attribute, create and update types of a client call.
+_Avoid_: endpoint, model, entity.
+
+**FreshSqueezyError**
+The one error type: a plain `Error` with `code`, `status` and `detail`, made by `freshSqueezyErrorOf` and checked with `isFreshSqueezyError`.
+_Avoid_: ApiError, HttpError.
+
 ## Checks
 
-**Validator**
-A `validate<Resource>` function that fetches one resource and returns a `ValidationResult`.
-_Avoid_: check (as a noun), rule, test.
-
 **Check**
-The pure `check<Resource>(attributes)` half of a validator: assertions only, no I/O.
-_Avoid_: validate (for the pure half).
-
-**Optional validator**
-A validator `init` and `doctor --all-resources` can add: product, webhook, discount, license key, subscription plan.
-_Avoid_: doctor target, resource check.
+A `validate<Resource>` function that fetches one resource and returns a `ValidationResult`.
+_Avoid_: validator, rule, test.
 
 **Doctor**
-The run of every configured validator into one `DoctorReport`.
+The run of every check for one store into one `DoctorReport`.
 _Avoid_: healthcheck, audit, scan.
 
-**Issue**
-One `ValidationIssue`: `{ code, severity, message }`. Not an error.
-_Avoid_: error, failure, problem.
+**Finding**
+One `Finding`: `{ code, severity, message, suggestedFix }`. Not an error.
+_Avoid_: issue, error, failure, problem.
 
-**Issue code**
-The stable string in `ISSUE_CODES` that CI switches on, like `MODE_MISMATCH`. Renaming one is a major bump.
+**Finding code**
+The stable string in `FINDING_CODES` that CI switches on, like `MODE_MISMATCH`. Renaming one is a major bump.
 _Avoid_: error code, key.
 
-**Probe**
-The wrapper (`probeFetch`, `probeCollection`) that turns a failed fetch into an issue.
-_Avoid_: fetch wrapper, guard.
+**Finding rule**
+One entry of a check's list: when it applies, the code, the message and the suggested fix.
+_Avoid_: condition, assertion.
 
 **Mode**
 `"test"` or `"live"`: the key's environment. Declared mode against `meta.test_mode` drives `MODE_MISMATCH`.
@@ -41,46 +47,14 @@ _Avoid_: environment, stage, sandbox.
 The `ValidationTarget` (label, id, url) a result points at, like `store 42`.
 _Avoid_: subject, entity.
 
-## Ops
-
-**Resource**
-A Lemon Squeezy object type (store, product, variant, webhook...) with one `RESOURCES` row and one `*Attributes` type.
-_Avoid_: endpoint, model.
-
-**Resource verb**
-One docs-backed operation on a resource: `get`, `create`, `cancel`, `refund`...
-_Avoid_: endpoint method, CRUD (when not CRUD).
-
-**Resource registry**
-The `resourceRegistry` table of implemented resource verbs with their `docsPath`. It is what the CLI and the client ship.
-_Avoid_: OpenAPI, route table.
-
-**Ops command**
-A CLI command shaped `<verb> <resource>`, like `get store` or `refund order`.
-_Avoid_: admin API, SDK call.
-
-**Write safety**
-The gates on a write: delete, cancel and refund always confirm; every live write confirms; `--yes` or a TTY confirm; never a prompt without a TTY.
-_Avoid_: confirm flag only.
-
-**Body input**
-A JSON:API document passed with `--body` or `--body-file`, never one flag per field.
-_Avoid_: form fields, query params.
-
-**FreshSqueezyError**
-The one error type: a plain `Error` with `code`, `status` and `detail`, made by `freshSqueezyErrorOf` and checked with `isFreshSqueezyError`.
-_Avoid_: ApiError, HttpError.
-
 ## Upkeep
 
-**Support manifest**
-The reviewed webhook policy: the recommended and optional webhook events.
-_Avoid_: config, registry.
+**Changelog issue**
+The GitHub issue labeled `changelog-drift` that the `lemon-squeezy-changelog` workflow opens when the Lemon Squeezy API changelog has a new entry. It is closed by hand after the types and the client follow the entry.
+_Avoid_: drift report, update ticket.
 
-**Drift**
-The difference between the live Lemon Squeezy changelog and the committed snapshot.
-_Avoid_: diff, delta.
+## Swaps
 
-**Augmentation**
-A `Latest*Fields` type that adds new changelog fields to the official SDK's types.
-_Avoid_: patch, override, shim.
+| Avoid in code | Use     |
+| ------------- | ------- |
+| issue         | finding |
