@@ -1,4 +1,3 @@
-import { expect, test } from "vitest";
 import {
 	activeLicenseKeyDoc,
 	publishedDiscountDoc,
@@ -12,8 +11,9 @@ import {
 	webhooksCollectionComplete,
 } from "@e2e/fixtures/sandbox/data.js";
 import { createMockFetch, pathIs, pathIsWithQuery } from "@e2e/mock-fetch.js";
-import { resolveConfig } from "@/shared/config.js";
+import { expect, test } from "vitest";
 import { HttpClient } from "@/http/http.js";
+import { resolveConfig } from "@/shared/config.js";
 import { doctor } from "./doctor.js";
 
 const makeClient = (routes: Parameters<typeof createMockFetch>[0]) => {

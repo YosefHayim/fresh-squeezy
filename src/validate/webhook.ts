@@ -1,15 +1,15 @@
-import type { HttpClient } from "@/http/http.js";
 import type {
 	Mode,
 	ValidationIssue,
 	ValidationResult,
 } from "@/contracts/contracts.js";
+import type { HttpClient } from "@/http/http.js";
 import type { WebhookAttributes } from "@/resources/attributes.js";
 import {
 	OPTIONAL_WEBHOOK_EVENTS,
 	RECOMMENDED_WEBHOOK_EVENTS,
 } from "@/support/manifest.js";
-import { ISSUE_CODES, buildResult, issue } from "./issues.js";
+import { buildResult, ISSUE_CODES, issue } from "./issues.js";
 import { probeCollection } from "./probe.js";
 
 export interface WebhookValidationOptions {

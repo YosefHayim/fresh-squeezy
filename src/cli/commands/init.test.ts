@@ -1,8 +1,6 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { checkbox, confirm, input, password, select } from "@inquirer/prompts";
-import { afterEach, expect, test, vi } from "vitest";
 import {
 	activeLicenseKeyDoc,
 	liveUserDoc,
@@ -16,6 +14,8 @@ import {
 	webhooksCollectionComplete,
 } from "@e2e/fixtures/sandbox/data.js";
 import { createMockFetch, pathIs, pathIsWithQuery } from "@e2e/mock-fetch.js";
+import { checkbox, confirm, input, password, select } from "@inquirer/prompts";
+import { afterEach, expect, test, vi } from "vitest";
 import { ENV_KEYS } from "@/shared/config.js";
 import { runInitCommand } from "./init.js";
 

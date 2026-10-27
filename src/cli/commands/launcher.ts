@@ -1,12 +1,11 @@
 import chalk from "chalk";
-import { readEnvApiKey } from "@/shared/config.js";
 import {
-	type ProjectInstallResult,
 	ensureFreshSqueezyDevDependency,
+	type ProjectInstallResult,
 } from "@/cli/project-install.js";
 import {
-	type LauncherAction,
 	isPromptCancel,
+	type LauncherAction,
 	pickLauncherAction,
 } from "@/cli/prompts.js";
 import {
@@ -16,6 +15,7 @@ import {
 	renderDetected,
 	renderStep,
 } from "@/cli/render.js";
+import { readEnvApiKey } from "@/shared/config.js";
 import { runDoctorCommand } from "./doctor.js";
 import { runInitCommand } from "./init.js";
 import { runManageCommand } from "./manage.js";

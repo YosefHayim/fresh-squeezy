@@ -1,4 +1,3 @@
-import { expect, test } from "vitest";
 import {
 	draftSubscriptionVariantDoc,
 	freePriceSubscriptionVariantDoc,
@@ -12,8 +11,9 @@ import {
 	wrongStoreSubscriptionVariantDoc,
 } from "@e2e/fixtures/sandbox/data.js";
 import { createMockFetch, pathIs } from "@e2e/mock-fetch.js";
-import { resolveConfig } from "@/shared/config.js";
+import { expect, test } from "vitest";
 import { HttpClient } from "@/http/http.js";
+import { resolveConfig } from "@/shared/config.js";
 import { validateSubscriptionPlan } from "./subscription-plan.js";
 
 const makeClient = (routes: Parameters<typeof createMockFetch>[0]) => {

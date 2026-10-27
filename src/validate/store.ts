@@ -1,7 +1,7 @@
-import type { HttpClient } from "@/http/http.js";
 import type { Mode, ValidationResult } from "@/contracts/contracts.js";
+import type { HttpClient } from "@/http/http.js";
 import type { StoreAttributes } from "@/resources/attributes.js";
-import { ISSUE_CODES, buildResult } from "./issues.js";
+import { buildResult, ISSUE_CODES } from "./issues.js";
 import { probeFetch } from "./probe.js";
 
 export const validateStore = async (

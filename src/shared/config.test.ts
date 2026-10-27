@@ -1,6 +1,6 @@
 import { expect, test, vi } from "vitest";
-import { ENV_KEYS, resolveConfig } from "./config.js";
 import { isFreshSqueezyError } from "@/errors/errors.js";
+import { ENV_KEYS, resolveConfig } from "./config.js";
 
 test("resolveConfig uses explicit argument over env vars", () => {
 	vi.stubEnv(ENV_KEYS.apiKey, "from-env");

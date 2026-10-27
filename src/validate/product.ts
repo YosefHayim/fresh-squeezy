@@ -1,17 +1,17 @@
-import type { HttpClient } from "@/http/http.js";
 import type {
 	Mode,
 	ValidationIssue,
 	ValidationResult,
 } from "@/contracts/contracts.js";
+import type { HttpClient } from "@/http/http.js";
 import type {
 	ProductAttributes,
 	VariantAttributes,
 } from "@/resources/attributes.js";
-import { ISSUE_CODES, buildResult, issue } from "./issues.js";
+import { buildResult, ISSUE_CODES, issue } from "./issues.js";
 import {
-	type FetchProbeOutcome,
 	checkStoreOwnership,
+	type FetchProbeOutcome,
 	probeCollection,
 	probeFetch,
 } from "./probe.js";

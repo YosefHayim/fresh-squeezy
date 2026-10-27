@@ -1,17 +1,17 @@
 import { readFileSync } from "node:fs";
-import { resolveConfig } from "@/shared/config.js";
+import { confirmResourceOp } from "@/cli/prompts.js";
+import { renderCliError } from "@/cli/render.js";
+import type { Mode } from "@/contracts/contracts.js";
 import { freshSqueezyErrorOf, isFreshSqueezyError } from "@/errors/errors.js";
 import { HttpClient } from "@/http/http.js";
-import type { Mode } from "@/contracts/contracts.js";
 import {
-	type OpVerb,
 	findResourceVerb,
 	invokeOp,
 	listRegisteredResources,
+	type OpVerb,
 	resourceRegistry,
 } from "@/resources/registry.js";
-import { confirmResourceOp } from "@/cli/prompts.js";
-import { renderCliError } from "@/cli/render.js";
+import { resolveConfig } from "@/shared/config.js";
 import {
 	type BulkSelector,
 	collectBulkTargets,

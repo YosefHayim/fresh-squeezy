@@ -1,12 +1,12 @@
 import chalk from "chalk";
-import { ENV_KEYS } from "@/shared/config.js";
-import { isFreshSqueezyError } from "@/errors/errors.js";
 import type {
 	DoctorReport,
 	ValidationIssue,
 	ValidationResult,
 	ValidationTarget,
 } from "@/contracts/contracts.js";
+import { isFreshSqueezyError } from "@/errors/errors.js";
+import { ENV_KEYS } from "@/shared/config.js";
 
 export const MISSING_API_KEY_HINTS = [
 	"fresh-squeezy init",

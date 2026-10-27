@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { createMockFetch, pathIs } from "@e2e/mock-fetch.js";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 vi.mock("@/cli/prompts.js", () => ({
 	pickManageOperation: vi.fn(),

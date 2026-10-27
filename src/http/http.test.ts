@@ -1,8 +1,8 @@
-import { expect, test } from "vitest";
 import { storeDoc, unauthorizedError } from "@e2e/fixtures/sandbox/data.js";
 import { createMockFetch, pathIs } from "@e2e/mock-fetch.js";
-import { resolveConfig } from "@/shared/config.js";
+import { expect, test } from "vitest";
 import { isFreshSqueezyError } from "@/errors/errors.js";
+import { resolveConfig } from "@/shared/config.js";
 import { HttpClient } from "./http.js";
 
 test("HttpClient sends bearer auth and returns parsed JSON", async () => {

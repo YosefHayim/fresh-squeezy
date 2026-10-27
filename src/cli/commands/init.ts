@@ -1,19 +1,12 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import chalk from "chalk";
-import { ENV_KEYS, readEnvApiKey, readEnvMode } from "@/shared/config.js";
-import type { Mode, ValidationResult } from "@/contracts/contracts.js";
-import {
-	type FreshSqueezyClient,
-	createFreshSqueezy,
-} from "@/create-fresh-squeezy.js";
-import type { ConnectionSummary } from "@/validate/connection.js";
 import {
 	type DiscoveredChoices,
+	discoverChoices,
 	OPTIONAL_VALIDATORS,
 	type OptionalValidatorIds,
 	type OptionalValidatorName,
-	discoverChoices,
 } from "@/cli/optional-validators.js";
 import {
 	askForApiKey,
@@ -32,7 +25,14 @@ import {
 	renderReport,
 	renderStep,
 } from "@/cli/render.js";
-import { type StoreChoice, listStoreChoices } from "@/cli/resolve-stores.js";
+import { listStoreChoices, type StoreChoice } from "@/cli/resolve-stores.js";
+import type { Mode, ValidationResult } from "@/contracts/contracts.js";
+import {
+	createFreshSqueezy,
+	type FreshSqueezyClient,
+} from "@/create-fresh-squeezy.js";
+import { ENV_KEYS, readEnvApiKey, readEnvMode } from "@/shared/config.js";
+import type { ConnectionSummary } from "@/validate/connection.js";
 
 export interface InitCommandOptions {
 	envFile?: string;

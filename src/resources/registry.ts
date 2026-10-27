@@ -1,6 +1,6 @@
+import type { JsonApiDocument } from "@/contracts/contracts.js";
 import { freshSqueezyErrorOf } from "@/errors/errors.js";
 import type { HttpClient, RequestOptions } from "@/http/http.js";
-import type { JsonApiDocument } from "@/contracts/contracts.js";
 import type { UserAttributes } from "./attributes.js";
 
 export type OpVerb =

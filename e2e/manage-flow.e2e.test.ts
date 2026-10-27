@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { createMockFetch, pathIs } from "@e2e/mock-fetch.js";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 // Only the inquirer layer and project install are mocked: launcher → menu →
 // manage → prompt wrappers → bulk executor → HTTP all run for real.

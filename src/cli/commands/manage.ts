@@ -1,22 +1,22 @@
-import { resolveConfig } from "@/shared/config.js";
-import { freshSqueezyErrorOf } from "@/errors/errors.js";
-import { HttpClient } from "@/http/http.js";
-import type { Mode } from "@/contracts/contracts.js";
 import {
-	type FreshSqueezyClient,
-	createFreshSqueezy,
-} from "@/create-fresh-squeezy.js";
-import { findResourceVerb, resourceRegistry } from "@/resources/registry.js";
-import {
-	type ManageOperationChoice,
 	askParentId,
 	confirmResourceOp,
 	isPromptCancel,
+	type ManageOperationChoice,
 	pickBulkTargets,
 	pickManageOperation,
 } from "@/cli/prompts.js";
 import { renderCliError } from "@/cli/render.js";
 import { resolveStores } from "@/cli/resolve-stores.js";
+import type { Mode } from "@/contracts/contracts.js";
+import {
+	createFreshSqueezy,
+	type FreshSqueezyClient,
+} from "@/create-fresh-squeezy.js";
+import { freshSqueezyErrorOf } from "@/errors/errors.js";
+import { HttpClient } from "@/http/http.js";
+import { findResourceVerb, resourceRegistry } from "@/resources/registry.js";
+import { resolveConfig } from "@/shared/config.js";
 import {
 	type BulkTarget,
 	collectBulkTargets,

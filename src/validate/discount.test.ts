@@ -1,4 +1,3 @@
-import { expect, test } from "vitest";
 import {
 	draftDiscountDoc,
 	exhaustedDiscountDoc,
@@ -11,8 +10,9 @@ import {
 	zeroAmountDiscountDoc,
 } from "@e2e/fixtures/sandbox/data.js";
 import { createMockFetch, pathIs } from "@e2e/mock-fetch.js";
-import { resolveConfig } from "@/shared/config.js";
+import { expect, test } from "vitest";
 import { HttpClient } from "@/http/http.js";
+import { resolveConfig } from "@/shared/config.js";
 import { validateDiscount } from "./discount.js";
 
 const makeClient = (routes: Parameters<typeof createMockFetch>[0]) => {

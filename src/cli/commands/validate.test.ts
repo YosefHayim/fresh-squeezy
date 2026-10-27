@@ -1,10 +1,10 @@
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import {
 	storeDoc,
 	storesCollection,
 	userDoc,
 } from "@e2e/fixtures/sandbox/data.js";
 import { createMockFetch, pathIs } from "@e2e/mock-fetch.js";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { ENV_KEYS } from "@/shared/config.js";
 import { runValidateCommand } from "./validate.js";
 

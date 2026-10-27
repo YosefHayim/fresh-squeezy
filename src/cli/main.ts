@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { Command } from "commander";
 import dotenv from "dotenv";
-import { freshSqueezyErrorOf } from "@/errors/errors.js";
 import type { Mode } from "@/contracts/contracts.js";
+import { freshSqueezyErrorOf } from "@/errors/errors.js";
 import type { OpVerb } from "@/resources/registry.js";
 import { runAugmentCommand } from "./commands/augment.js";
 import {
@@ -13,11 +13,11 @@ import { runInitCommand } from "./commands/init.js";
 import { runLauncherCommand } from "./commands/launcher.js";
 import { runResourceOpCommand } from "./commands/resource-ops.js";
 import {
+	runValidateCommand,
 	VALIDATE_SUBCOMMANDS,
 	type ValidateCommandOptions,
 	type ValidateSubcommand,
 	type ValidateSubcommandSpec,
-	runValidateCommand,
 } from "./commands/validate.js";
 import { renderCliError } from "./render.js";
 

@@ -1,4 +1,3 @@
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import {
 	activeLicenseKeyDoc,
 	publishedDiscountDoc,
@@ -11,6 +10,7 @@ import {
 	webhooksCollectionComplete,
 } from "@e2e/fixtures/sandbox/data.js";
 import { createMockFetch, pathIs, pathIsWithQuery } from "@e2e/mock-fetch.js";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { ENV_KEYS } from "@/shared/config.js";
 import { runDoctorCommand } from "./doctor.js";
 

@@ -1,9 +1,9 @@
 import { freshSqueezyErrorOf } from "@/errors/errors.js";
 import type { HttpClient } from "@/http/http.js";
 import {
-	type ResourceVerbSpec,
 	findResourceVerb,
 	invokeOp,
+	type ResourceVerbSpec,
 } from "@/resources/registry.js";
 
 export interface BulkTarget {

@@ -1,11 +1,11 @@
-import { resolveConfig } from "@/shared/config.js";
-import { HttpClient, type RequestOptions } from "@/http/http.js";
 import type {
 	DoctorReport,
 	FreshSqueezyConfig,
 	Mode,
 	ValidationResult,
 } from "@/contracts/contracts.js";
+import { HttpClient, type RequestOptions } from "@/http/http.js";
+import { resolveConfig } from "@/shared/config.js";
 import type {
 	DiscountAttributes,
 	LicenseKeyAttributes,
@@ -15,8 +15,8 @@ import type {
 } from "./resources/attributes.js";
 import {
 	type InvokeOpArgs,
-	type OpVerb,
 	invokeOp,
+	type OpVerb,
 } from "./resources/registry.js";
 import {
 	type ConnectionSummary,
@@ -42,8 +42,8 @@ import {
 	validateSubscriptionPlan,
 } from "./validate/subscription-plan.js";
 import {
-	type WebhookValidationOptions,
 	validateWebhook,
+	type WebhookValidationOptions,
 } from "./validate/webhook.js";
 
 export interface FreshSqueezyOps {

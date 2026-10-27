@@ -3,8 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import {
-	type RunPackageCommand,
 	ensureFreshSqueezyDevDependency,
+	type RunPackageCommand,
 } from "./project-install.js";
 
 let workdir: string;

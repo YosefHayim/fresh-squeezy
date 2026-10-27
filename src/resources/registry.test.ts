@@ -2,12 +2,12 @@ import { expect, test, vi } from "vitest";
 import { isFreshSqueezyError } from "@/errors/errors.js";
 import type { HttpClient } from "@/http/http.js";
 import {
-	type OpVerb,
 	findResourceVerb,
 	invokeOp,
 	listRegisteredResources,
 	listRegisteredVerbs,
 	normalizeResourceName,
+	type OpVerb,
 	resourceRegistry,
 } from "./registry.js";
 

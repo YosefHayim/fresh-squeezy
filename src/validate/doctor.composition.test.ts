@@ -1,8 +1,8 @@
-import { expect, test } from "vitest";
 import { createFakeValidators } from "@e2e/fake-validators.js";
+import { expect, test } from "vitest";
 import type { HttpClient } from "@/http/http.js";
 import { doctor } from "./doctor.js";
-import { ISSUE_CODES, buildResult, issue } from "./issues.js";
+import { buildResult, ISSUE_CODES, issue } from "./issues.js";
 
 const HTTP_STUB = {} as HttpClient;
 
