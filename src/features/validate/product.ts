@@ -4,11 +4,18 @@ import type {
 } from "@/shared/attributes.js";
 import type {
 	Mode,
+	ResourceId,
 	ValidationIssue,
 	ValidationResult,
 } from "@/shared/contracts.js";
 import type { HttpClient } from "@/shared/http.js";
-import { buildResult, ISSUE_CODES, issue } from "./issues.js";
+import {
+	buildResult,
+	failedResult,
+	ISSUE_CODES,
+	type IssueRule,
+	issuesOf,
+} from "./issues.js";
 import {
 	checkStoreOwnership,
 	type FetchProbeOutcome,
@@ -17,44 +24,60 @@ import {
 } from "./probe.js";
 
 export interface ProductValidationOptions {
-	productId: string | number;
-	expectedStoreId?: string | number;
+	productId: ResourceId;
+	expectedStoreId?: ResourceId;
 }
 
+type Variants = { attributes: VariantAttributes }[];
+
+const variantIssueRules: IssueRule<Variants>[] = [
+	{
+		code: ISSUE_CODES.VARIANT_MISSING,
+		severity: "error",
+		isRaised: (variants) => variants.length === 0,
+		message: "Product has no variants. Customers cannot purchase it.",
+		suggestedFix: "Add at least one variant in the product configuration.",
+	},
+	{
+		code: ISSUE_CODES.VARIANT_UNPUBLISHED,
+		severity: "error",
+		isRaised: (variants) =>
+			variants.length > 0 &&
+			!variants.some((variant) => variant.attributes.status === "published"),
+		message: "Product has variants but none are published.",
+		suggestedFix: "Publish at least one variant.",
+	},
+];
+
+const productIssueRules: IssueRule<ProductAttributes>[] = [
+	{
+		code: ISSUE_CODES.PRODUCT_UNPUBLISHED,
+		severity: "error",
+		isRaised: (attributes) => attributes.status !== "published",
+		message: (attributes) =>
+			`Product is in "${attributes.status}" state, not "published".`,
+		suggestedFix:
+			"Publish the product in the Lemon Squeezy dashboard before selling.",
+		context: (attributes) => ({ status: attributes.status }),
+	},
+	{
+		code: ISSUE_CODES.PRODUCT_NO_BUY_URL,
+		severity: "warning",
+		isRaised: (attributes) => !attributes.buy_now_url,
+		message: "Product has no buy-now URL. Hosted checkout may be disabled.",
+		suggestedFix:
+			"Enable buy-now in product settings, or use a custom checkout flow.",
+	},
+];
+
 const checkVariants = (
-	variantsProbed: FetchProbeOutcome<{ attributes: VariantAttributes }[]>,
+	variantsProbed: FetchProbeOutcome<Variants>,
 ): ValidationIssue[] => {
 	const isVariantListFailed = !variantsProbed.ok;
 	if (isVariantListFailed) {
 		return [{ ...variantsProbed.issue, severity: "warning" }];
 	}
-
-	const variants = variantsProbed.resource;
-	const isThereNoVariant = variants.length === 0;
-	if (isThereNoVariant) {
-		const noVariantIssue = issue(
-			ISSUE_CODES.VARIANT_MISSING,
-			"error",
-			"Product has no variants. Customers cannot purchase it.",
-			{
-				suggestedFix: "Add at least one variant in the product configuration.",
-			},
-		);
-		return [noVariantIssue];
-	}
-
-	const isAnyVariantPublished = variants.some(
-		(variant) => variant.attributes.status === "published",
-	);
-	if (isAnyVariantPublished) return [];
-
-	const unpublishedVariantIssue = issue(
-		ISSUE_CODES.VARIANT_UNPUBLISHED,
-		"error",
-		"Product has variants but none are published.",
-		{ suggestedFix: "Publish at least one variant." },
-	);
-	return [unpublishedVariantIssue];
+	return issuesOf(variantIssueRules, variantsProbed.resource);
 };
 
 export const validateProduct = async (
@@ -62,7 +85,6 @@ export const validateProduct = async (
 	mode: Mode,
 	options: ProductValidationOptions,
 ): Promise<ValidationResult<ProductAttributes>> => {
-	const issues: ValidationIssue[] = [];
 	const target = {
 		label: `product ${options.productId}`,
 		id: String(options.productId),
@@ -72,29 +94,22 @@ export const validateProduct = async (
 		() =>
 			http.getResource<ProductAttributes>(`/v1/products/${options.productId}`),
 		{
-			notFoundCode: ISSUE_CODES.PRODUCT_NOT_FOUND,
-			notFoundMessage: `Product ${options.productId} not found.`,
-			notFoundFix: "Verify the product ID in the Lemon Squeezy dashboard.",
-			notFoundContext: { productId: String(options.productId) },
+			code: ISSUE_CODES.PRODUCT_NOT_FOUND,
+			message: `Product ${options.productId} not found.`,
+			suggestedFix: "Verify the product ID in the Lemon Squeezy dashboard.",
+			context: { productId: String(options.productId) },
 		},
 	);
 
 	const isFetchFailed = !fetched.ok;
 	if (isFetchFailed) {
-		return buildResult<ProductAttributes>(
-			"product",
-			mode,
-			[fetched.issue],
-			undefined,
-			target,
-		);
+		return failedResult("product", mode, fetched.issue, target);
 	}
 
-	const attrs = fetched.resource.attributes;
-	const productIssues = checkProduct(attrs, {
+	const attributes = fetched.resource.attributes;
+	const productIssues = checkProduct(attributes, {
 		expectedStoreId: options.expectedStoreId,
 	});
-	issues.push(...productIssues);
 
 	// Variant population needs a second fetch, so it stays out of the pure check.
 	// Listing is best-effort: map via probeCollection, then soft-fail as warning.
@@ -104,62 +119,31 @@ export const validateProduct = async (
 		}),
 	);
 	const variantIssues = checkVariants(variantsProbed);
-	issues.push(...variantIssues);
 
-	return buildResult("product", mode, issues, attrs, {
-		label: attrs.name,
-		id: String(options.productId),
-	});
+	return buildResult(
+		"product",
+		mode,
+		[...productIssues, ...variantIssues],
+		attributes,
+		{ label: attributes.name, id: String(options.productId) },
+	);
 };
 
 export const checkProduct = (
-	attrs: ProductAttributes,
-	options: { expectedStoreId?: string | number } = {},
+	attributes: ProductAttributes,
+	options: { expectedStoreId?: ResourceId } = {},
 ): ValidationIssue[] => {
-	const issues: ValidationIssue[] = [];
-
 	const { expectedStoreId } = options;
 	const isStoreExpected = expectedStoreId !== undefined;
-	const mismatch = isStoreExpected
+	const ownershipIssues = isStoreExpected
 		? checkStoreOwnership({
 				expectedStoreId,
-				actualStoreId: attrs.store_id,
+				actualStoreId: attributes.store_id,
 				code: ISSUE_CODES.PRODUCT_WRONG_STORE,
 				label: "Product",
 				suggestedFix:
 					"Either use the correct store ID or the correct product ID — IDs should not cross stores.",
 			})
-		: null;
-	if (mismatch) issues.push(mismatch);
-
-	const isUnpublished = attrs.status !== "published";
-	if (isUnpublished) {
-		const unpublishedIssue = issue(
-			ISSUE_CODES.PRODUCT_UNPUBLISHED,
-			"error",
-			`Product is in "${attrs.status}" state, not "published".`,
-			{
-				suggestedFix:
-					"Publish the product in the Lemon Squeezy dashboard before selling.",
-				context: { status: attrs.status },
-			},
-		);
-		issues.push(unpublishedIssue);
-	}
-
-	const isBuyUrlMissing = !attrs.buy_now_url;
-	if (isBuyUrlMissing) {
-		const noBuyUrlIssue = issue(
-			ISSUE_CODES.PRODUCT_NO_BUY_URL,
-			"warning",
-			"Product has no buy-now URL. Hosted checkout may be disabled.",
-			{
-				suggestedFix:
-					"Enable buy-now in product settings, or use a custom checkout flow.",
-			},
-		);
-		issues.push(noBuyUrlIssue);
-	}
-
-	return issues;
+		: [];
+	return [...ownershipIssues, ...issuesOf(productIssueRules, attributes)];
 };

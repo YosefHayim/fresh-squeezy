@@ -1,23 +1,23 @@
-import type { ValidationIssue } from "@/shared/contracts.js";
+import type { ResourceId, ValidationIssue } from "@/shared/contracts.js";
 import { isFreshSqueezyError } from "@/shared/errors.js";
-import { ISSUE_CODES, issue } from "./issues.js";
+import { ISSUE_CODES, type IssueExtras, issue } from "./issues.js";
+
+export interface IssueTemplate extends IssueExtras {
+	code: string;
+	message: string;
+}
 
 export interface IssueMapping {
-	unauthorized?: { code: string; message: string; suggestedFix?: string };
-	notFound?: {
-		code: string;
-		message: string;
-		suggestedFix?: string;
-		context?: ValidationIssue["context"];
-	};
+	unauthorized?: Omit<IssueTemplate, "context">;
+	notFound?: IssueTemplate;
 }
 
 export const mapErrorToIssue = (
 	err: unknown,
 	mapping: IssueMapping = {},
 ): ValidationIssue => {
-	const isPlainError = !isFreshSqueezyError(err);
-	if (isPlainError) {
+	const isNotFreshSqueezyError = !isFreshSqueezyError(err);
+	if (isNotFreshSqueezyError) {
 		const isErrorInstance = err instanceof Error;
 		const message = isErrorInstance ? err.message : "Unknown error";
 		return issue(ISSUE_CODES.UNKNOWN, "error", message);
@@ -55,30 +55,14 @@ export const mapErrorToIssue = (
 	});
 };
 
-export interface FetchProbeOptions {
-	notFoundCode: string;
-	notFoundMessage: string;
-	notFoundFix?: string;
-	notFoundContext?: ValidationIssue["context"];
-}
-
 export type FetchProbeOutcome<T> =
 	| { ok: true; resource: T }
 	| { ok: false; issue: ValidationIssue };
 
-export const probeFetch = async <T>(
+export const probeFetch = <T>(
 	fetcher: () => Promise<T>,
-	options: FetchProbeOptions,
-): Promise<FetchProbeOutcome<T>> => {
-	return probeCollection(fetcher, {
-		notFound: {
-			code: options.notFoundCode,
-			message: options.notFoundMessage,
-			suggestedFix: options.notFoundFix,
-			context: options.notFoundContext,
-		},
-	});
-};
+	notFound: IssueTemplate,
+): Promise<FetchProbeOutcome<T>> => probeCollection(fetcher, { notFound });
 
 export const probeCollection = async <T>(
 	fetcher: () => Promise<T>,
@@ -92,8 +76,8 @@ export const probeCollection = async <T>(
 };
 
 export interface OwnershipCheck {
-	expectedStoreId: string | number;
-	actualStoreId: string | number;
+	expectedStoreId: ResourceId;
+	actualStoreId: ResourceId;
 	code: string;
 	label: string;
 	suggestedFix?: string;
@@ -102,13 +86,13 @@ export interface OwnershipCheck {
 
 export const checkStoreOwnership = (
 	check: OwnershipCheck,
-): ValidationIssue | null => {
+): ValidationIssue[] => {
 	const expected = String(check.expectedStoreId);
 	const actual = String(check.actualStoreId);
 	const isOwnedByExpectedStore = expected === actual;
-	if (isOwnedByExpectedStore) return null;
+	if (isOwnedByExpectedStore) return [];
 
-	return issue(
+	const mismatchIssue = issue(
 		check.code,
 		"error",
 		`${check.label} belongs to store ${actual}, expected ${expected}.`,
@@ -117,8 +101,9 @@ export const checkStoreOwnership = (
 			context: {
 				expectedStoreId: expected,
 				actualStoreId: actual,
-				...(check.extraContext ?? {}),
+				...check.extraContext,
 			},
 		},
 	);
+	return [mismatchIssue];
 };

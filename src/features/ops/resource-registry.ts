@@ -1,18 +1,7 @@
 import type { UserAttributes } from "@/shared/attributes.js";
-import type { JsonApiDocument } from "@/shared/contracts.js";
+import type { JsonApiDocument, ResourceId } from "@/shared/contracts.js";
 import { freshSqueezyErrorOf } from "@/shared/errors.js";
 import type { HttpClient, RequestOptions } from "@/shared/http.js";
-
-export type OpVerb =
-	| "get"
-	| "list"
-	| "create"
-	| "update"
-	| "delete"
-	| "cancel"
-	| "refund"
-	| "generate-invoice"
-	| "current-usage";
 
 export interface ResourceVerbSpec {
 	resource: string;
@@ -24,9 +13,9 @@ export interface ResourceVerbSpec {
 }
 
 export interface InvokeOpArgs {
-	id?: string | number;
-	storeId?: string | number;
-	parentId?: string | number;
+	id?: ResourceId;
+	storeId?: ResourceId;
+	parentId?: ResourceId;
 	body?: unknown;
 }
 
@@ -38,7 +27,7 @@ interface VerbRule {
 	destructive?: true;
 }
 
-const VERB_RULES: Record<OpVerb, VerbRule> = {
+const VERB_RULES = {
 	get: { method: "GET", path: "/{id}", docs: "retrieve-{r}", body: "none" },
 	list: { method: "GET", path: "", docs: "list-all-{r}s", body: "none" },
 	create: { method: "POST", path: "", docs: "create-{r}", body: "required" },
@@ -81,7 +70,9 @@ const VERB_RULES: Record<OpVerb, VerbRule> = {
 		docs: "retrieve-{r}-current-usage",
 		body: "none",
 	},
-};
+} satisfies Record<string, VerbRule>;
+
+export type OpVerb = keyof typeof VERB_RULES;
 
 type ResourceRow = [resource: string, verbs: OpVerb[], listScope?: string];
 
@@ -132,21 +123,29 @@ const listIdRole = (
 	return isStoreScoped ? "store" : "parent";
 };
 
+const idRoleOf = (
+	resource: string,
+	verb: OpVerb,
+	rule: VerbRule,
+	listScope: string | undefined,
+): ResourceVerbSpec["idRole"] => {
+	const isUserResource = resource === "user";
+	if (isUserResource) return "none";
+	const isListVerb = verb === "list";
+	if (isListVerb) return listIdRole(listScope);
+	const hasIdInPath = rule.path.includes("{id}");
+	return hasIdInPath ? "id" : "none";
+};
+
 const toSpec = (
 	resource: string,
 	verb: OpVerb,
 	listScope?: string,
 ): ResourceVerbSpec => {
-	const rule = VERB_RULES[verb];
+	const rule: VerbRule = VERB_RULES[verb];
 	const docsPath =
 		DOCS_PATH_EXCEPTIONS[`${resource}:${verb}`] ??
 		`${resource}s/${rule.docs.replaceAll("{r}", resource)}`;
-	const hasIdInPath = rule.path.includes("{id}");
-	let idRole: ResourceVerbSpec["idRole"] = hasIdInPath ? "id" : "none";
-	const isListVerb = verb === "list";
-	if (isListVerb) idRole = listIdRole(listScope);
-	const isUserResource = resource === "user";
-	if (isUserResource) idRole = "none";
 	const isDestructive = rule.destructive;
 	return {
 		resource,
@@ -154,7 +153,7 @@ const toSpec = (
 		docsPath,
 		body: rule.body,
 		...(isDestructive ? { destructive: true } : {}),
-		idRole,
+		idRole: idRoleOf(resource, verb, rule, listScope),
 	};
 };
 
@@ -194,54 +193,15 @@ export const listRegisteredVerbs = (resource: string): OpVerb[] => {
 		.sort();
 };
 
-const requireId = (
-	args: InvokeOpArgs,
-	spec: ResourceVerbSpec,
-): string | number => {
-	const { id } = args;
-	const isIdMissing = id === undefined || id === "";
-	if (isIdMissing) {
-		throw freshSqueezyErrorOf({
-			code: "MISSING_ARG",
-			message: `--id is required for this ${spec.resource} operation.`,
-		});
-	}
-	return id;
-};
-
-const requireStore = (args: InvokeOpArgs): string | number => {
-	const { storeId } = args;
-	const isStoreIdMissing = storeId === undefined || storeId === "";
-	if (isStoreIdMissing) {
-		throw freshSqueezyErrorOf({
-			code: "MISSING_ARG",
-			message: "--store-ids (or store id) is required for this list operation.",
-		});
-	}
-	return storeId;
-};
-
-const requireParent = (args: InvokeOpArgs, parent: string): string | number => {
-	const { parentId } = args;
-	const isParentIdMissing = parentId === undefined || parentId === "";
-	if (isParentIdMissing) {
-		throw freshSqueezyErrorOf({
-			code: "MISSING_ARG",
-			message: `--parent-id (${parent} id) is required for this list operation.`,
-		});
-	}
-	return parentId;
-};
-
-const requireBody = (args: InvokeOpArgs): unknown => {
-	const isBodyMissing = args.body === undefined;
-	if (isBodyMissing) {
-		throw freshSqueezyErrorOf({
-			code: "MISSING_ARG",
-			message: "A JSON body is required (--body or --body-file).",
-		});
-	}
-	return args.body;
+const requireArg = <T>(
+	value: T | undefined,
+	message: string,
+	isEmptyStringMissing = true,
+): T => {
+	const isEmptyStringRejected = isEmptyStringMissing && value === "";
+	const isMissing = value === undefined || isEmptyStringRejected;
+	if (isMissing) throw freshSqueezyErrorOf({ code: "MISSING_ARG", message });
+	return value;
 };
 
 const listFilter = (
@@ -255,8 +215,14 @@ const listFilter = (
 	if (isListUnscoped) return undefined;
 	const isStoreScoped = listScope === "store";
 	const scopeId = isStoreScoped
-		? requireStore(args)
-		: requireParent(args, listScope);
+		? requireArg(
+				args.storeId,
+				"--store-ids (or store id) is required for this list operation.",
+			)
+		: requireArg(
+				args.parentId,
+				`--parent-id (${listScope} id) is required for this list operation.`,
+			);
 	const scopeName = listScope.replace(/-/g, "_");
 	return { [`filter[${scopeName}_id]`]: String(scopeId) };
 };
@@ -264,7 +230,13 @@ const listFilter = (
 const requestBody = (rule: VerbRule, args: InvokeOpArgs): unknown => {
 	const isBodyRequired = rule.body === "required";
 	const isBodyOptional = rule.body === "optional";
-	if (isBodyRequired) return requireBody(args);
+	if (isBodyRequired) {
+		return requireArg(
+			args.body,
+			"A JSON body is required (--body or --body-file).",
+			false,
+		);
+	}
 	if (isBodyOptional) return args.body ?? {};
 	return undefined;
 };
@@ -299,11 +271,16 @@ export const invokeOp = async (
 		return http.paginate(collectionPath, filter);
 	}
 
-	const rule = VERB_RULES[spec.verb];
-	const idPath = rule.path.replace("{id}", () => {
-		const id = requireId(args, spec);
-		return String(id);
-	});
+	const rule: VerbRule = VERB_RULES[spec.verb];
+	const isIdInPath = spec.idRole === "id";
+	const id = isIdInPath
+		? requireArg(
+				args.id,
+				`--id is required for this ${spec.resource} operation.`,
+			)
+		: undefined;
+	const idText = String(id);
+	const idPath = rule.path.replace("{id}", idText);
 	const body = requestBody(rule, args);
 	const document = await http.request<{ data?: unknown } | undefined>({
 		method: rule.method,

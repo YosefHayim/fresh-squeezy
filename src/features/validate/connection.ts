@@ -3,13 +3,15 @@ import type {
 	StoreAttributes,
 	UserAttributes,
 } from "@/shared/attributes.js";
-import type {
-	Mode,
-	ValidationIssue,
-	ValidationResult,
-} from "@/shared/contracts.js";
+import type { Mode, ValidationResult } from "@/shared/contracts.js";
 import type { HttpClient } from "@/shared/http.js";
-import { buildResult, ISSUE_CODES, issue } from "./issues.js";
+import {
+	buildResult,
+	failedResult,
+	ISSUE_CODES,
+	type IssueRule,
+	issuesOf,
+} from "./issues.js";
 import { probeCollection } from "./probe.js";
 
 export interface ConnectionSummary {
@@ -30,11 +32,30 @@ export const resolveActualMode = (
 	return undefined;
 };
 
-const fetchUserDocument = (
-	http: HttpClient,
-): Promise<AuthenticatedUserDocument> => {
-	return http.request<AuthenticatedUserDocument>({ path: "/v1/users/me" });
-};
+const connectionIssueRules: IssueRule<ConnectionSummary>[] = [
+	{
+		code: ISSUE_CODES.MODE_MISMATCH,
+		severity: "error",
+		isRaised: ({ actualMode, declaredMode }) =>
+			actualMode !== undefined && actualMode !== declaredMode,
+		message: ({ actualMode, declaredMode }) =>
+			`API key is a ${actualMode}-mode key but was run with --mode ${declaredMode}.`,
+		suggestedFix: ({ actualMode, declaredMode }) =>
+			`Either pass --mode ${actualMode} or use a ${declaredMode}-mode key from https://app.lemonsqueezy.com/settings/api.`,
+		context: ({ actualMode, declaredMode }) => ({
+			declared: declaredMode,
+			actual: actualMode ?? null,
+		}),
+	},
+	{
+		code: ISSUE_CODES.STORE_NOT_FOUND,
+		severity: "warning",
+		isRaised: ({ storeCount }) => storeCount === 0,
+		message: "API key authenticated but no stores are reachable.",
+		suggestedFix:
+			"Confirm the API key belongs to an account that owns at least one store.",
+	},
+];
 
 export const validateConnection = async (
 	http: HttpClient,
@@ -42,9 +63,11 @@ export const validateConnection = async (
 ): Promise<ValidationResult<ConnectionSummary>> => {
 	const fetched = await probeCollection(
 		async () => {
-			const userDoc = await fetchUserDocument(http);
+			const userDocument = await http.request<AuthenticatedUserDocument>({
+				path: "/v1/users/me",
+			});
 			const stores = await http.paginate<StoreAttributes>("/v1/stores");
-			return { userDoc, stores };
+			return { userDocument, stores };
 		},
 		{
 			unauthorized: {
@@ -57,56 +80,18 @@ export const validateConnection = async (
 	);
 
 	const isFetchFailed = !fetched.ok;
-	if (isFetchFailed) {
-		return buildResult("connection", mode, [fetched.issue]);
-	}
+	if (isFetchFailed) return failedResult("connection", mode, fetched.issue);
 
-	const { userDoc, stores } = fetched.resource;
-	const actualMode = resolveActualMode(userDoc.meta?.test_mode);
+	const { userDocument, stores } = fetched.resource;
+	const actualMode = resolveActualMode(userDocument.meta?.test_mode);
 	const summary: ConnectionSummary = {
-		user: userDoc.data.attributes,
+		user: userDocument.data.attributes,
 		storeCount: stores.length,
 		storeIds: stores.map((store) => store.id),
 		declaredMode: mode,
 		...(actualMode ? { actualMode } : {}),
 	};
 
-	const issues: ValidationIssue[] = [];
-
-	const isModeMismatched = actualMode && actualMode !== mode;
-	if (isModeMismatched) {
-		const modeMismatchIssue = issue(
-			ISSUE_CODES.MODE_MISMATCH,
-			"error",
-			`API key is a ${actualMode}-mode key but was run with --mode ${mode}.`,
-			{
-				suggestedFix: `Either pass --mode ${actualMode} or use a ${mode}-mode key from https://app.lemonsqueezy.com/settings/api.`,
-				context: { declared: mode, actual: actualMode },
-			},
-		);
-		issues.push(modeMismatchIssue);
-	}
-
-	const isThereNoStore = stores.length === 0;
-	if (isThereNoStore) {
-		const noStoreIssue = issue(
-			ISSUE_CODES.STORE_NOT_FOUND,
-			"warning",
-			"API key authenticated but no stores are reachable.",
-			{
-				suggestedFix:
-					"Confirm the API key belongs to an account that owns at least one store.",
-			},
-		);
-		issues.push(noStoreIssue);
-	}
-
+	const issues = issuesOf(connectionIssueRules, summary);
 	return buildResult("connection", mode, issues, summary);
-};
-
-export const fetchActualMode = async (
-	http: HttpClient,
-): Promise<Mode | undefined> => {
-	const doc = await fetchUserDocument(http);
-	return resolveActualMode(doc.meta?.test_mode);
 };

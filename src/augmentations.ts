@@ -1,4 +1,10 @@
 import type {
+	CheckoutOptions,
+	OrderItemAttributes,
+	PriceAttributes,
+	SubscriptionItemUpdateAttributes,
+} from "./shared/attributes.js";
+import type {
 	GeneratedLemonSqueezyFieldMap,
 	GeneratedLemonSqueezyResourceName,
 } from "./shared/lemon-squeezy-api-types.js";
@@ -44,35 +50,35 @@ export interface LatestOrderFields {
 	};
 }
 
-export interface LatestOrderItemFields {
-	quantity?: number;
-}
+export type LatestOrderItemFields = Partial<
+	Pick<OrderItemAttributes, "quantity">
+>;
 
 export interface LatestVariantFields {
 	links?: Array<{ title: string; url: string }> | Record<string, string>;
 }
 
-export interface LatestPriceFields {
-	setup_fee_enabled?: boolean | null;
-	setup_fee?: number | null;
-	unit_price_decimal?: string | null;
-}
+export type LatestPriceFields = Pick<
+	PriceAttributes,
+	"setup_fee_enabled" | "setup_fee" | "unit_price_decimal"
+>;
 
-export interface LatestCheckoutOptionsFields {
-	skip_trial?: boolean;
-	dark?: boolean;
-	background_color?: string;
-	headings_color?: string;
-	primary_text_color?: string;
-	secondary_text_color?: string;
-	links_color?: string;
-	borders_color?: string;
-	checkbox_color?: string;
-	active_state_color?: string;
-	button_color?: string;
-	button_text_color?: string;
-	terms_privacy_color?: string;
-}
+export type LatestCheckoutOptionsFields = Pick<
+	CheckoutOptions,
+	| "skip_trial"
+	| "dark"
+	| "background_color"
+	| "headings_color"
+	| "primary_text_color"
+	| "secondary_text_color"
+	| "links_color"
+	| "borders_color"
+	| "checkbox_color"
+	| "active_state_color"
+	| "button_color"
+	| "button_text_color"
+	| "terms_privacy_color"
+>;
 
 export interface LatestCheckoutDataFields {
 	variant_quantities?: Array<{ variant_id: number; quantity: number }>;
@@ -83,10 +89,10 @@ export interface LatestCheckoutFields {
 	checkout_data?: LatestCheckoutDataFields & Record<string, unknown>;
 }
 
-export interface LatestSubscriptionItemUpdateFields {
-	invoice_immediately?: boolean;
-	disable_prorations?: boolean;
-}
+export type LatestSubscriptionItemUpdateFields = Pick<
+	SubscriptionItemUpdateAttributes,
+	"invoice_immediately" | "disable_prorations"
+>;
 
 export interface LatestLemonSqueezyFieldMap {
 	subscription: LatestSubscriptionFields;

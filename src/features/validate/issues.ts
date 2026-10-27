@@ -42,11 +42,13 @@ export const ISSUE_CODES = {
 	UNKNOWN: "UNKNOWN",
 } as const;
 
+export type IssueExtras = Pick<ValidationIssue, "suggestedFix" | "context">;
+
 export const issue = (
 	code: string,
 	severity: ValidationSeverity,
 	message: string,
-	extras: { suggestedFix?: string; context?: ValidationIssue["context"] } = {},
+	extras: IssueExtras = {},
 ): ValidationIssue => {
 	const base: ValidationIssue = { code, severity, message };
 	const isThereSuggestedFix = extras.suggestedFix !== undefined;
@@ -56,7 +58,7 @@ export const issue = (
 	return base;
 };
 
-export const isOk = (issues: ValidationIssue[]): boolean => {
+const isOk = (issues: ValidationIssue[]): boolean => {
 	return !issues.some((entry) => entry.severity === "error");
 };
 
@@ -78,4 +80,42 @@ export const buildResult = <T>(
 	if (isThereResource) validation.resource = resource;
 	if (isThereTarget) validation.target = target;
 	return validation;
+};
+
+export const failedResult = <T>(
+	name: string,
+	mode: ValidationResult["mode"],
+	failedIssue: ValidationIssue,
+	target?: ValidationTarget,
+): ValidationResult<T> =>
+	buildResult<T>(name, mode, [failedIssue], undefined, target);
+
+type RuleText<Subject> = string | ((subject: Subject) => string);
+
+export interface IssueRule<Subject> {
+	code: string;
+	severity: ValidationSeverity;
+	isRaised: (subject: Subject) => boolean;
+	message: RuleText<Subject>;
+	suggestedFix?: RuleText<Subject>;
+	context?: (subject: Subject) => ValidationIssue["context"];
+}
+
+const textOf = <Subject>(text: RuleText<Subject>, subject: Subject): string => {
+	const isTextComputed = typeof text === "function";
+	return isTextComputed ? text(subject) : text;
+};
+
+export const issuesOf = <Subject>(
+	rules: IssueRule<Subject>[],
+	subject: Subject,
+): ValidationIssue[] => {
+	const raisedRules = rules.filter((rule) => rule.isRaised(subject));
+	return raisedRules.map((rule) => {
+		const message = textOf(rule.message, subject);
+		const suggestedFix =
+			rule.suggestedFix && textOf(rule.suggestedFix, subject);
+		const context = rule.context?.(subject);
+		return issue(rule.code, rule.severity, message, { suggestedFix, context });
+	});
 };

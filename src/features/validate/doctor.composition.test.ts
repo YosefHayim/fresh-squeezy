@@ -29,11 +29,11 @@ test("doctor composition runs validators in the documented order when every targ
 		"test",
 		{
 			storeId: 42,
-			productId: 100,
-			webhookUrl: "https://x/y",
-			discountId: 600,
-			licenseKeyId: 700,
-			variantId: 800,
+			productIds: [100],
+			webhookUrls: ["https://x/y"],
+			discountIds: [600],
+			licenseKeyIds: [700],
+			variantIds: [800],
 		},
 		validators,
 	);
@@ -74,7 +74,7 @@ test("doctor composition short-circuits when connection fails and never invokes 
 	const report = await doctor(
 		HTTP_STUB,
 		"test",
-		{ storeId: 42, productId: 100 },
+		{ storeId: 42, productIds: [100] },
 		validators,
 	);
 
@@ -99,7 +99,12 @@ test("doctor composition propagates expectedStoreId from options.storeId into th
 		},
 	});
 
-	await doctor(HTTP_STUB, "test", { storeId: 42, productId: 100 }, validators);
+	await doctor(
+		HTTP_STUB,
+		"test",
+		{ storeId: 42, productIds: [100] },
+		validators,
+	);
 
 	expect(captured).toEqual({ productId: 100, expectedStoreId: 42 });
 });
@@ -163,13 +168,9 @@ test("doctor composition throws DOCTOR_OPTIONS_INVALID when a dependent option i
 	const validators = createFakeValidators();
 
 	for (const opts of [
-		{ discountId: 1 },
 		{ discountIds: [1] },
-		{ licenseKeyId: 1 },
 		{ licenseKeyIds: [1] },
-		{ webhookUrl: "https://x" },
 		{ webhookUrls: ["https://x"] },
-		{ variantId: 1 },
 		{ variantIds: [1] },
 	]) {
 		await expect(
@@ -186,7 +187,7 @@ test("doctor composition does not throw when only productId is set without store
 	const report = await doctor(
 		HTTP_STUB,
 		"test",
-		{ productId: 100 },
+		{ productIds: [100] },
 		validators,
 	);
 	expect(report.ok).toBe(true);
@@ -204,7 +205,7 @@ test("doctor composition marks report.ok false when any downstream validator rep
 	const report = await doctor(
 		HTTP_STUB,
 		"test",
-		{ storeId: 42, discountId: 9 },
+		{ storeId: 42, discountIds: [9] },
 		validators,
 	);
 

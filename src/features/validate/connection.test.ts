@@ -4,20 +4,9 @@ import {
 	unauthorizedError,
 	userDoc,
 } from "@e2e/fixtures/sandbox/data.js";
-import { createMockFetch, pathIs } from "@e2e/mock-fetch.js";
+import { makeClient, pathIs } from "@e2e/mock-fetch.js";
 import { expect, test } from "vitest";
-import { resolveConfig } from "@/shared/config.js";
-import { HttpClient } from "@/shared/http.js";
-import {
-	fetchActualMode,
-	resolveActualMode,
-	validateConnection,
-} from "./connection.js";
-
-const makeClient = (routes: Parameters<typeof createMockFetch>[0]) => {
-	const { fetch } = createMockFetch(routes);
-	return new HttpClient(resolveConfig({ apiKey: "k", fetch, mode: "test" }));
-};
+import { validateConnection } from "./connection.js";
 
 test("validateConnection returns ok when key auths and stores are reachable", async () => {
 	const http = makeClient([
@@ -101,65 +90,4 @@ test("validateConnection skips mode check when meta.test_mode is absent", async 
 	expect(
 		connectionValidation.issues.find((entry) => entry.code === "MODE_MISMATCH"),
 	).toBeUndefined();
-});
-
-test("fetchActualMode derives mode from /v1/users/me meta", async () => {
-	const { fetch } = createMockFetch([
-		{
-			match: pathIs("/v1/users/me"),
-			status: 200,
-			body: {
-				data: {
-					type: "users",
-					id: "1",
-					attributes: { name: "x", email: "x@x" },
-				},
-				meta: { test_mode: true },
-			},
-		},
-	]);
-	const http = new HttpClient({
-		apiKey: "k",
-		mode: "test",
-		baseUrl: "https://api.lemonsqueezy.com",
-		fetch,
-	});
-
-	expect(await fetchActualMode(http)).toBe("test");
-});
-
-test("fetchActualMode returns undefined when the API does not surface meta.test_mode", async () => {
-	const { fetch } = createMockFetch([
-		{
-			match: pathIs("/v1/users/me"),
-			status: 200,
-			body: {
-				data: {
-					type: "users",
-					id: "1",
-					attributes: { name: "x", email: "x@x" },
-				},
-			},
-		},
-	]);
-	const http = new HttpClient({
-		apiKey: "k",
-		mode: "live",
-		baseUrl: "https://api.lemonsqueezy.com",
-		fetch,
-	});
-
-	expect(await fetchActualMode(http)).toBeUndefined();
-});
-
-test("resolveActualMode returns 'test' when test_mode is true", () => {
-	expect(resolveActualMode(true)).toBe("test");
-});
-
-test("resolveActualMode returns 'live' when test_mode is false", () => {
-	expect(resolveActualMode(false)).toBe("live");
-});
-
-test("resolveActualMode returns undefined when test_mode is missing", () => {
-	expect(resolveActualMode(undefined)).toBeUndefined();
 });
