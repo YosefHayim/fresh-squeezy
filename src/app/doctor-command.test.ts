@@ -9,7 +9,13 @@ import {
 	variantsCollectionPublished,
 	webhooksCollectionComplete,
 } from "@e2e/fixtures/sandbox/data.js";
-import { createMockFetch, pathIs, pathIsWithQuery } from "@e2e/mock-fetch.js";
+import {
+	pathIs,
+	pathIsWithQuery,
+	SIGNED_IN_ROUTES,
+	silenceStdout,
+	stubFetch,
+} from "@e2e/mock-fetch.js";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { ENV_KEYS } from "@/shared/config.js";
 import { runDoctorCommand } from "./doctor-command.js";
@@ -23,9 +29,8 @@ afterEach(() => {
 });
 
 test("runDoctorCommand returns exit code 0 when every validator passes for an explicit store id", async () => {
-	const { fetch } = createMockFetch([
-		{ match: pathIs("/v1/users/me"), status: 200, body: userDoc },
-		{ match: pathIs("/v1/stores"), status: 200, body: storesCollection },
+	stubFetch([
+		...SIGNED_IN_ROUTES,
 		{
 			match: pathIs("/v1/stores/42"),
 			status: 200,
@@ -42,10 +47,7 @@ test("runDoctorCommand returns exit code 0 when every validator passes for an ex
 			body: variantsCollectionPublished,
 		},
 	]);
-	vi.stubGlobal("fetch", fetch);
-	const stdout = vi
-		.spyOn(process.stdout, "write")
-		.mockImplementation(() => true);
+	const stdout = silenceStdout();
 
 	const code = await runDoctorCommand({
 		mode: "test",
@@ -72,7 +74,7 @@ test("runDoctorCommand runs against every reachable store when --all-stores is s
 			{ type: "stores", id: "43", attributes: { name: "B", slug: "b" } },
 		],
 	};
-	const { fetch } = createMockFetch([
+	stubFetch([
 		{ match: pathIs("/v1/users/me"), status: 200, body: userDoc },
 		{ match: pathIs("/v1/stores"), status: 200, body: multi },
 		{
@@ -86,10 +88,7 @@ test("runDoctorCommand runs against every reachable store when --all-stores is s
 			body: { data: multi.data[1] },
 		},
 	]);
-	vi.stubGlobal("fetch", fetch);
-	const stdout = vi
-		.spyOn(process.stdout, "write")
-		.mockImplementation(() => true);
+	const stdout = silenceStdout();
 
 	const code = await runDoctorCommand({
 		mode: "test",
@@ -104,9 +103,8 @@ test("runDoctorCommand runs against every reachable store when --all-stores is s
 });
 
 test("runDoctorCommand discovers and validates all resource targets when --all-resources is set", async () => {
-	const { fetch } = createMockFetch([
-		{ match: pathIs("/v1/users/me"), status: 200, body: userDoc },
-		{ match: pathIs("/v1/stores"), status: 200, body: storesCollection },
+	stubFetch([
+		...SIGNED_IN_ROUTES,
 		{
 			match: pathIsWithQuery("/v1/products", { "filter[store_id]": "42" }),
 			status: 200,
@@ -158,10 +156,7 @@ test("runDoctorCommand discovers and validates all resource targets when --all-r
 			body: subscriptionVariantDoc,
 		},
 	]);
-	vi.stubGlobal("fetch", fetch);
-	const stdout = vi
-		.spyOn(process.stdout, "write")
-		.mockImplementation(() => true);
+	const stdout = silenceStdout();
 
 	const code = await runDoctorCommand({
 		mode: "test",
@@ -188,14 +183,8 @@ test("runDoctorCommand discovers and validates all resource targets when --all-r
 });
 
 test("runDoctorCommand falls back to connection-only when non-interactive and no store flag", async () => {
-	const { fetch } = createMockFetch([
-		{ match: pathIs("/v1/users/me"), status: 200, body: userDoc },
-		{ match: pathIs("/v1/stores"), status: 200, body: storesCollection },
-	]);
-	vi.stubGlobal("fetch", fetch);
-	const stdout = vi
-		.spyOn(process.stdout, "write")
-		.mockImplementation(() => true);
+	stubFetch([...SIGNED_IN_ROUTES]);
+	const stdout = silenceStdout();
 
 	const code = await runDoctorCommand({
 		mode: "test",
@@ -211,11 +200,10 @@ test("runDoctorCommand falls back to connection-only when non-interactive and no
 });
 
 test("runDoctorCommand returns exit code 1 when auth fails", async () => {
-	const { fetch } = createMockFetch([
+	stubFetch([
 		{ match: pathIs("/v1/users/me"), status: 401, body: unauthorizedError },
 	]);
-	vi.stubGlobal("fetch", fetch);
-	vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+	silenceStdout();
 	vi.spyOn(process.stderr, "write").mockImplementation(() => true);
 
 	const code = await runDoctorCommand({
@@ -226,7 +214,7 @@ test("runDoctorCommand returns exit code 1 when auth fails", async () => {
 	expect(code).toBe(1);
 });
 
-test("runDoctorCommand returns exit code 2 when config throws (e.g. no API key)", async () => {
+test("runDoctorCommand returns exit code 2 when the API key is missing", async () => {
 	vi.stubEnv(ENV_KEYS.apiKey, undefined);
 	const stderr = vi
 		.spyOn(process.stderr, "write")

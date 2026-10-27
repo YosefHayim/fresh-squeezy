@@ -1,3 +1,4 @@
+import { silenceStdout } from "@e2e/mock-fetch.js";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { ensureFreshSqueezyDevDependency } from "@/app/project-install.js";
 import { pickLauncherAction } from "@/app/prompts.js";
@@ -27,6 +28,11 @@ vi.mock("@/app/prompts.js", async (importOriginal) => ({
 const API_KEY_ENV = "LEMON_SQUEEZY_API_KEY";
 beforeEach(() => {
 	vi.stubEnv(API_KEY_ENV, undefined);
+	silenceStdout();
+	vi.mocked(ensureFreshSqueezyDevDependency).mockResolvedValue({
+		status: "skipped",
+	});
+	vi.mocked(runInitCommand).mockResolvedValue(0);
 });
 
 afterEach(() => {
@@ -39,13 +45,9 @@ test("runLauncherCommand installs the project dependency and starts guided setup
 		status: "installed",
 		packageManager: "npm",
 	});
-	vi.mocked(runInitCommand).mockResolvedValueOnce(0);
-	const stdout = vi
-		.spyOn(process.stdout, "write")
-		.mockImplementation(() => true);
+	const stdout = silenceStdout();
 
 	const code = await runLauncherCommand({
-		isInteractive: true,
 		packageVersion: "0.1.8",
 	});
 
@@ -63,14 +65,7 @@ test("runLauncherCommand installs the project dependency and starts guided setup
 });
 
 test("runLauncherCommand honors --no-install and still runs guided setup", async () => {
-	vi.mocked(ensureFreshSqueezyDevDependency).mockResolvedValueOnce({
-		status: "skipped",
-	});
-	vi.mocked(runInitCommand).mockResolvedValueOnce(0);
-	vi.spyOn(process.stdout, "write").mockImplementation(() => true);
-
 	const code = await runLauncherCommand({
-		isInteractive: true,
 		install: false,
 	});
 
@@ -86,12 +81,11 @@ test("runLauncherCommand does not run setup when dependency installation fails",
 	vi.mocked(ensureFreshSqueezyDevDependency).mockRejectedValueOnce(
 		new Error("npm failed"),
 	);
-	vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 	const stderr = vi
 		.spyOn(process.stderr, "write")
 		.mockImplementation(() => true);
 
-	const code = await runLauncherCommand({ isInteractive: true });
+	const code = await runLauncherCommand({});
 
 	expect(code).toBe(1);
 	expect(runInitCommand).not.toHaveBeenCalled();
@@ -100,25 +94,13 @@ test("runLauncherCommand does not run setup when dependency installation fails",
 	expect(output).toContain("npm failed");
 });
 
-test("runLauncherCommand does not bootstrap in non-interactive mode", async () => {
-	const code = await runLauncherCommand({ isInteractive: false });
-
-	expect(code).toBe(2);
-	expect(ensureFreshSqueezyDevDependency).not.toHaveBeenCalled();
-	expect(runInitCommand).not.toHaveBeenCalled();
-});
-
 test("runLauncherCommand routes the Manage resources menu choice to the bulk manager", async () => {
 	vi.stubEnv(API_KEY_ENV, "test-key");
-	vi.mocked(ensureFreshSqueezyDevDependency).mockResolvedValueOnce({
-		status: "skipped",
-	});
 	vi.mocked(pickLauncherAction).mockResolvedValueOnce("manage");
 	vi.mocked(runManageCommand).mockResolvedValueOnce(1);
-	vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+	silenceStdout();
 
 	const code = await runLauncherCommand({
-		isInteractive: true,
 		install: false,
 	});
 

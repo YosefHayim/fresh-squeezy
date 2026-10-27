@@ -1,4 +1,4 @@
-import { createMockFetch, pathIs } from "@e2e/mock-fetch.js";
+import { pathIs, stubFetch } from "@e2e/mock-fetch.js";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 vi.mock("@inquirer/prompts", () => ({
@@ -48,12 +48,6 @@ afterEach(() => {
 	vi.restoreAllMocks();
 });
 
-const stub = (routes: Parameters<typeof createMockFetch>[0]) => {
-	const mock = createMockFetch(routes);
-	vi.stubGlobal("fetch", mock.fetch);
-	return mock;
-};
-
 const emptyDelete = (id: string) => ({
 	match: pathIs(`/v1/discounts/${id}`, "DELETE"),
 	status: 200,
@@ -61,7 +55,7 @@ const emptyDelete = (id: string) => ({
 });
 
 test("--all lists every page then deletes each item", async () => {
-	const mock = stub([
+	const mock = stubFetch([
 		{
 			match: ({ method, url }) =>
 				method === "GET" &&
@@ -114,7 +108,7 @@ test("--all lists every page then deletes each item", async () => {
 });
 
 test("--dry-run sends no writes and needs no --yes", async () => {
-	const mock = stub([
+	const mock = stubFetch([
 		{
 			match: pathIs("/v1/discounts"),
 			status: 200,
@@ -141,7 +135,7 @@ test("--dry-run sends no writes and needs no --yes", async () => {
 });
 
 test("--ids skips list and deletes exactly those ids", async () => {
-	const mock = stub([emptyDelete("7"), emptyDelete("8")]);
+	const mock = stubFetch([emptyDelete("7"), emptyDelete("8")]);
 
 	const code = await runResourceOpCommand({
 		verb: "delete",
@@ -158,7 +152,7 @@ test("--ids skips list and deletes exactly those ids", async () => {
 });
 
 test("--match keeps only items containing the text (case-insensitive)", async () => {
-	const mock = stub([
+	const mock = stubFetch([
 		{
 			match: pathIs("/v1/discounts"),
 			status: 200,
@@ -187,7 +181,7 @@ test("--match keeps only items containing the text (case-insensitive)", async ()
 
 test("falls back to LEMON_SQUEEZY_STORE_ID for --all scope", async () => {
 	vi.stubEnv("LEMON_SQUEEZY_STORE_ID", "42");
-	const mock = stub([
+	const mock = stubFetch([
 		{ match: pathIs("/v1/discounts"), status: 200, body: listBody([]) },
 	]);
 
@@ -207,7 +201,7 @@ test("falls back to LEMON_SQUEEZY_STORE_ID for --all scope", async () => {
 });
 
 test("returns 1 and reports per-item errors on partial failure", async () => {
-	stub([
+	stubFetch([
 		{
 			match: pathIs("/v1/discounts"),
 			status: 200,
@@ -247,7 +241,7 @@ test("returns 1 and reports per-item errors on partial failure", async () => {
 });
 
 test("refuses non-interactive bulk without --yes and sends nothing", async () => {
-	const mock = stub([
+	const mock = stubFetch([
 		{
 			match: pathIs("/v1/discounts"),
 			status: 200,
@@ -270,7 +264,7 @@ test("refuses non-interactive bulk without --yes and sends nothing", async () =>
 });
 
 test("asks once with count and labels when interactive, and honors a No", async () => {
-	const mock = stub([
+	const mock = stubFetch([
 		{
 			match: pathIs("/v1/discounts"),
 			status: 200,
@@ -296,7 +290,7 @@ test("asks once with count and labels when interactive, and honors a No", async 
 });
 
 test("errors when --all has no store scope", async () => {
-	stub([]);
+	stubFetch([]);
 	const code = await runResourceOpCommand({
 		verb: "delete",
 		resource: "discount",
@@ -314,7 +308,7 @@ test.each([
 	["--match without --all", { ids: ["1"], match: "x" }, "--match needs --all"],
 	["--dry-run without bulk", { dryRun: true }, "--dry-run needs"],
 ])("rejects %s", async (_name, flags, message) => {
-	stub([]);
+	stubFetch([]);
 	const code = await runResourceOpCommand({
 		verb: "delete",
 		resource: "discount",
@@ -328,7 +322,7 @@ test.each([
 });
 
 test("rejects --all on verbs that are not delete/cancel/refund", async () => {
-	stub([]);
+	stubFetch([]);
 	const code = await runResourceOpCommand({
 		verb: "list",
 		resource: "discount",

@@ -1,6 +1,7 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { silenceStdout } from "@e2e/mock-fetch.js";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { runAugmentCommand } from "./augment-command.js";
 
@@ -23,7 +24,7 @@ test("runAugmentCommand emits the with-sdk file when @lemonsqueezy/lemonsqueezy.
 			dependencies: { "@lemonsqueezy/lemonsqueezy.js": "^4.0.0" },
 		}),
 	);
-	vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+	silenceStdout();
 
 	const code = await runAugmentCommand({ cwd: workdir });
 
@@ -49,7 +50,7 @@ test("runAugmentCommand emits the generic file when the SDK is not installed", a
 		join(workdir, "package.json"),
 		JSON.stringify({ name: "consumer", dependencies: { other: "^1.0.0" } }),
 	);
-	vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+	silenceStdout();
 
 	const code = await runAugmentCommand({ cwd: workdir });
 
@@ -70,7 +71,7 @@ test("runAugmentCommand emits the generic file with --force even when the SDK is
 			dependencies: { "@lemonsqueezy/lemonsqueezy.js": "^4.0.0" },
 		}),
 	);
-	vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+	silenceStdout();
 
 	const code = await runAugmentCommand({ cwd: workdir, force: true });
 
@@ -81,7 +82,7 @@ test("runAugmentCommand emits the generic file with --force even when the SDK is
 });
 
 test("runAugmentCommand falls back to generic when no package.json exists", async () => {
-	vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+	silenceStdout();
 
 	const code = await runAugmentCommand({ cwd: workdir });
 
@@ -95,7 +96,7 @@ test("runAugmentCommand honors the --out path", async () => {
 		join(workdir, "package.json"),
 		JSON.stringify({ name: "consumer" }),
 	);
-	vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+	silenceStdout();
 
 	const code = await runAugmentCommand({
 		cwd: workdir,
