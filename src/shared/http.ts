@@ -1,13 +1,9 @@
-import type {
-	JsonApiCollection,
-	JsonApiDocument,
-	JsonApiResource,
-	ResolvedConfig,
-} from "@/shared/contracts.js";
-import {
-	type FreshSqueezyError,
-	freshSqueezyErrorOf,
-} from "@/shared/errors.js";
+import type { Config } from "./config.js";
+import { type FreshSqueezyError, freshSqueezyErrorOf } from "./errors.js";
+
+const PAGE_SIZE = 100;
+
+const API_CONTENT_TYPE = "application/vnd.api+json";
 
 const HTTP_STATUS_CODES = {
 	401: "UNAUTHORIZED",
@@ -15,12 +11,34 @@ const HTTP_STATUS_CODES = {
 	429: "RATE_LIMITED",
 } as const;
 
-export interface RequestOptions {
+export type HttpQuery = Record<string, string | number | undefined>;
+
+export interface HttpRequest {
 	method?: "GET" | "POST" | "PATCH" | "DELETE";
 	path: string;
-	query?: Record<string, string | number | undefined>;
+	query?: HttpQuery;
 	body?: unknown;
 	signal?: AbortSignal;
+}
+
+export interface JsonApiResource<Attributes> {
+	type: string;
+	id: string;
+	attributes: Attributes;
+	relationships?: Record<string, unknown>;
+	links?: Record<string, string>;
+}
+
+export interface JsonApiDocument<Attributes> {
+	data: JsonApiResource<Attributes>;
+	links?: Record<string, string>;
+	meta?: Record<string, unknown>;
+}
+
+export interface JsonApiCollection<Attributes> {
+	data: JsonApiResource<Attributes>[];
+	links?: Record<string, string>;
+	meta?: { page?: { currentPage: number; lastPage: number; total: number } };
 }
 
 interface JsonApiError {
@@ -30,91 +48,14 @@ interface JsonApiError {
 	detail?: string;
 }
 
-export class HttpClient {
-	constructor(readonly config: ResolvedConfig) {}
-
-	async request<T>(options: RequestOptions): Promise<T> {
-		const url = requestUrlOf(this.config, options.path, options.query);
-		const headers: Record<string, string> = {
-			Authorization: `Bearer ${this.config.apiKey}`,
-			Accept: "application/vnd.api+json",
-		};
-		const hasBody = options.body !== undefined;
-		if (hasBody) {
-			headers["Content-Type"] = "application/vnd.api+json";
-		}
-
-		let httpResponse: Response;
-		try {
-			httpResponse = await this.config.fetch(url, {
-				method: options.method ?? "GET",
-				headers,
-				body: hasBody ? JSON.stringify(options.body) : undefined,
-				signal: options.signal,
-			});
-		} catch (cause) {
-			const isCauseAnError = cause instanceof Error;
-			throw freshSqueezyErrorOf({
-				code: "NETWORK_ERROR",
-				message: isCauseAnError ? cause.message : "Network request failed",
-				detail: cause,
-			});
-		}
-
-		const text = await httpResponse.text();
-		const isBodyPresent = text.length > 0;
-		const parsed = isBodyPresent ? parseJsonBody(text) : undefined;
-
-		const isResponseFailed = !httpResponse.ok;
-		if (isResponseFailed) {
-			throw apiError(httpResponse.status, parsed);
-		}
-
-		return parsed as T;
-	}
-
-	async getResource<TAttr>(path: string): Promise<JsonApiResource<TAttr>> {
-		const doc = await this.request<JsonApiDocument<TAttr>>({ path });
-		return doc.data;
-	}
-
-	async paginate<TAttr>(
-		path: string,
-		query?: RequestOptions["query"],
-	): Promise<JsonApiResource<TAttr>[]> {
-		const startPage = Number(query?.["page[number]"] ?? 1);
-		const all: JsonApiResource<TAttr>[] = [];
-
-		let pageNumber = startPage;
-		while (true) {
-			const pagedQuery = { ...(query ?? {}), "page[number]": pageNumber };
-			const doc = await this.request<JsonApiCollection<TAttr>>({
-				path,
-				query: pagedQuery,
-			});
-			all.push(...doc.data);
-
-			const lastPage = doc.meta?.page?.lastPage;
-			const isLastPageReached =
-				lastPage === undefined || pageNumber >= lastPage;
-			if (isLastPageReached) return all;
-			pageNumber += 1;
-		}
-	}
-}
-
-const requestUrlOf = (
-	config: ResolvedConfig,
-	path: string,
-	query?: RequestOptions["query"],
-): string => {
+const requestUrlOf = (config: Config, path: string, query?: HttpQuery) => {
 	const url = new URL(path, config.baseUrl);
 	const queryEntries = Object.entries(query ?? {});
 	for (const [key, value] of queryEntries) {
 		const isValueMissing = value === undefined;
 		if (isValueMissing) continue;
-		const queryValue = String(value);
-		url.searchParams.append(key, queryValue);
+		const valueText = String(value);
+		url.searchParams.append(key, valueText);
 	}
 	return url.toString();
 };
@@ -127,19 +68,7 @@ const parseJsonBody = (text: string): unknown => {
 	}
 };
 
-const apiError = (status: number, responseBody: unknown): FreshSqueezyError => {
-	const errors = extractJsonApiErrors(responseBody);
-	const first = errors[0];
-	const mapped = HTTP_STATUS_CODES[status as keyof typeof HTTP_STATUS_CODES];
-	const code = mapped ?? first?.code ?? `HTTP_${status}`;
-	const message =
-		first?.detail ??
-		first?.title ??
-		`Lemon Squeezy request failed with status ${status}`;
-	return freshSqueezyErrorOf({ code, status, message, detail: responseBody });
-};
-
-const extractJsonApiErrors = (responseBody: unknown): JsonApiError[] => {
+const jsonApiErrorsOf = (responseBody: unknown): JsonApiError[] => {
 	const isBodyNotAnObject = !responseBody || typeof responseBody !== "object";
 	if (isBodyNotAnObject) return [];
 	const errors = (responseBody as { errors?: unknown }).errors;
@@ -150,3 +79,93 @@ const extractJsonApiErrors = (responseBody: unknown): JsonApiError[] => {
 			typeof entry === "object" && entry !== null,
 	);
 };
+
+const apiErrorOf = (
+	status: number,
+	responseBody: unknown,
+): FreshSqueezyError => {
+	const [firstError] = jsonApiErrorsOf(responseBody);
+	const mappedCode =
+		HTTP_STATUS_CODES[status as keyof typeof HTTP_STATUS_CODES];
+	const code = mappedCode ?? firstError?.code ?? `HTTP_${status}`;
+	const message =
+		firstError?.detail ??
+		firstError?.title ??
+		`Lemon Squeezy request failed with status ${status}`;
+	return freshSqueezyErrorOf({ code, status, message, detail: responseBody });
+};
+
+const sendRequest = async <Payload>(
+	config: Config,
+	{ method = "GET", path, query, body, signal }: HttpRequest,
+) => {
+	const url = requestUrlOf(config, path, query);
+	const headers: Record<string, string> = {
+		Authorization: `Bearer ${config.apiKey}`,
+		Accept: API_CONTENT_TYPE,
+	};
+	const hasBody = body !== undefined;
+	if (hasBody) headers["Content-Type"] = API_CONTENT_TYPE;
+
+	const bodyText = hasBody ? JSON.stringify(body) : undefined;
+	let response: Response;
+	try {
+		response = await config.fetch(url, {
+			method,
+			headers,
+			body: bodyText,
+			signal,
+		});
+	} catch (cause) {
+		const isCauseAnError = cause instanceof Error;
+		throw freshSqueezyErrorOf({
+			code: "NETWORK_ERROR",
+			message: isCauseAnError ? cause.message : "Network request failed",
+			detail: cause,
+		});
+	}
+
+	const text = await response.text();
+	const isBodyPresent = text.length > 0;
+	const parsedBody = isBodyPresent ? parseJsonBody(text) : undefined;
+	const isResponseFailed = !response.ok;
+	if (isResponseFailed) throw apiErrorOf(response.status, parsedBody);
+	return parsedBody as Payload;
+};
+
+export const createHttp = (config: Config) => {
+	const request = <Payload>(httpRequest: HttpRequest) =>
+		sendRequest<Payload>(config, httpRequest);
+
+	const getResource = async <Attributes>(path: string) => {
+		const document = await request<JsonApiDocument<Attributes>>({ path });
+		return document.data;
+	};
+
+	const getAll = async <Attributes>(path: string, query?: HttpQuery) => {
+		const firstPage = Number(query?.["page[number]"] ?? 1);
+		const resources: JsonApiResource<Attributes>[] = [];
+		let pageNumber = firstPage;
+		while (true) {
+			const pageQuery = {
+				...query,
+				"page[size]": PAGE_SIZE,
+				"page[number]": pageNumber,
+			};
+			const collection = await request<JsonApiCollection<Attributes>>({
+				path,
+				query: pageQuery,
+			});
+			resources.push(...collection.data);
+			const lastPage = collection.meta?.page?.lastPage;
+			const isLastPageReached =
+				lastPage === undefined || pageNumber >= lastPage;
+			if (isLastPageReached) return resources;
+			pageNumber += 1;
+		}
+	};
+
+	return { request, getResource, getAll };
+};
+
+export type Http = ReturnType<typeof createHttp>;
