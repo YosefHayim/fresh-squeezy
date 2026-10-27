@@ -53,15 +53,16 @@ Node 22 ou superior.
 pnpm add fresh-squeezy
 ```
 
-Defina a chave uma vez. O modo padrão é `test`.
+Defina uma chave de API por modo. `LEMON_SQUEEZY_MODE` escolhe a chave, e o padrão é `test`.
 
 ```bash
-LEMON_SQUEEZY_API_KEY=your-key
+LEMON_SQUEEZY_TEST_API_KEY=your-test-key
+LEMON_SQUEEZY_LIVE_API_KEY=your-live-key
 LEMON_SQUEEZY_MODE=test
 LEMON_SQUEEZY_STORE_ID=12
 ```
 
-`LEMON_SQUEEZY_STORE_ID` é opcional. Os mesmos nomes funcionam como opções de `createFreshSqueezy({ apiKey, mode, storeId, baseUrl })`.
+Só a chave do modo que você usa é necessária, e `LEMON_SQUEEZY_STORE_ID` é opcional. As mesmas configurações funcionam como opções de `createFreshSqueezy({ apiKey, mode, storeId, baseUrl })`.
 
 ## Cliente
 
@@ -144,7 +145,7 @@ npx fresh-squeezy doctor --store-id 12 --store-id 34 \
 | `--json`                | Imprime os relatórios em JSON                                                             |
 | `--help`, `--version`   | Mostra a ajuda ou a versão                                                                |
 
-O doctor lê `LEMON_SQUEEZY_API_KEY` do ambiente ou de um arquivo `.env` no diretório de trabalho. Ele nunca pergunta nada e nunca trava.
+O doctor lê a chave do seu modo (`LEMON_SQUEEZY_TEST_API_KEY` ou `LEMON_SQUEEZY_LIVE_API_KEY`) do ambiente ou de um arquivo `.env` no diretório de trabalho. Ele nunca pergunta nada e nunca trava.
 
 | Saída | Significado                                                           |
 | ----- | --------------------------------------------------------------------- |
@@ -191,7 +192,7 @@ O doctor lê `LEMON_SQUEEZY_API_KEY` do ambiente ou de um arquivo `.env` no dire
 - name: Check Lemon Squeezy
   run: npx fresh-squeezy doctor --all-resources --json
   env:
-    LEMON_SQUEEZY_API_KEY: ${{ secrets.LEMON_SQUEEZY_API_KEY }}
+    LEMON_SQUEEZY_LIVE_API_KEY: ${{ secrets.LEMON_SQUEEZY_LIVE_API_KEY }}
     LEMON_SQUEEZY_MODE: live
 ```
 

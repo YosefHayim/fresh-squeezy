@@ -30,7 +30,7 @@ Flags:
   --help                  Show this help
   --version               Show the version
 
-Reads LEMON_SQUEEZY_API_KEY from the environment or ./.env.
+Reads LEMON_SQUEEZY_TEST_API_KEY or LEMON_SQUEEZY_LIVE_API_KEY, by mode, from the environment or ./.env.
 
 Exit codes: 0 every check passed, 1 a check failed, 2 wrong flags or setup.`;
 

@@ -53,15 +53,16 @@ Node 22 或更高版本。
 pnpm add fresh-squeezy
 ```
 
-只需设置一次密钥。模式默认为 `test`。
+每种模式设置一个 API 密钥。`LEMON_SQUEEZY_MODE` 决定使用哪个密钥,默认为 `test`。
 
 ```bash
-LEMON_SQUEEZY_API_KEY=your-key
+LEMON_SQUEEZY_TEST_API_KEY=your-test-key
+LEMON_SQUEEZY_LIVE_API_KEY=your-live-key
 LEMON_SQUEEZY_MODE=test
 LEMON_SQUEEZY_STORE_ID=12
 ```
 
-`LEMON_SQUEEZY_STORE_ID` 是可选的。同样的名称也可作为 `createFreshSqueezy({ apiKey, mode, storeId, baseUrl })` 的选项。
+只需设置所运行模式的密钥,`LEMON_SQUEEZY_STORE_ID` 是可选的。同样的设置也可作为 `createFreshSqueezy({ apiKey, mode, storeId, baseUrl })` 的选项。
 
 ## 客户端
 
@@ -144,7 +145,7 @@ npx fresh-squeezy doctor --store-id 12 --store-id 34 \
 | `--json`                | 以 JSON 输出报告                                                |
 | `--help`, `--version`   | 显示帮助或版本                                                  |
 
-doctor 从环境变量或工作目录中的 `.env` 文件读取 `LEMON_SQUEEZY_API_KEY`。它从不提问,也不会卡住。
+doctor 从环境变量或工作目录中的 `.env` 文件读取其模式的密钥 (`LEMON_SQUEEZY_TEST_API_KEY` 或 `LEMON_SQUEEZY_LIVE_API_KEY`)。它从不提问,也不会卡住。
 
 | 退出码 | 含义                                         |
 | ------ | -------------------------------------------- |
@@ -191,7 +192,7 @@ doctor 从环境变量或工作目录中的 `.env` 文件读取 `LEMON_SQUEEZY_A
 - name: Check Lemon Squeezy
   run: npx fresh-squeezy doctor --all-resources --json
   env:
-    LEMON_SQUEEZY_API_KEY: ${{ secrets.LEMON_SQUEEZY_API_KEY }}
+    LEMON_SQUEEZY_LIVE_API_KEY: ${{ secrets.LEMON_SQUEEZY_LIVE_API_KEY }}
     LEMON_SQUEEZY_MODE: live
 ```
 

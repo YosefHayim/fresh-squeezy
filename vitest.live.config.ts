@@ -1,16 +1,29 @@
+import { existsSync } from "node:fs";
+import { loadEnvFile } from "node:process";
 import { defineConfig } from "vitest/config";
+import { ENV_KEYS, type Mode } from "./src/shared/config.js";
 import baseConfig from "./vitest.config.js";
 
-const isLiveSmokeEnabled = process.env.LEMON_SQUEEZY_LIVE_SMOKE === "1";
-const liveSmokeApiKey = isLiveSmokeEnabled
-	? process.env.LEMON_SQUEEZY_API_KEY?.trim()
-	: undefined;
+const ENV_FILE = ".env";
+
+const MODES: Mode[] = ["test", "live"];
+
+const isEnvFilePresent = existsSync(ENV_FILE);
+if (isEnvFilePresent) loadEnvFile(ENV_FILE);
+
+const isApiKeySet = (mode: Mode) => {
+	const apiKeyEnvName = ENV_KEYS.apiKey[mode];
+	const apiKey = process.env[apiKeyEnvName]?.trim();
+	return Boolean(apiKey);
+};
+
+const liveSmokeModes = MODES.filter(isApiKeySet);
 
 export default defineConfig({
 	...baseConfig,
 	test: {
 		...baseConfig.test,
-		provide: { liveSmokeApiKey },
+		provide: { liveSmokeModes },
 		include: ["e2e/live-smoke.test.ts"],
 	},
 });

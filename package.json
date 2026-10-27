@@ -78,7 +78,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:live": "LEMON_SQUEEZY_LIVE_SMOKE=1 vitest run --config vitest.live.config.ts",
+    "test:live": "vitest run --config vitest.live.config.ts",
     "typecheck": "tsc --noEmit --incremental --tsBuildInfoFile node_modules/.cache/tsc/typecheck.tsbuildinfo",
     "format": "biome format --write .",
     "lint": "biome check .",
