@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { FreshSqueezyError } from "../core/errors.js";
+import { isFreshSqueezyError } from "../core/errors.js";
 import type { HttpClient } from "../core/http.js";
 import {
   type OpVerb,
@@ -219,6 +219,6 @@ describe("invokeOp", () => {
     await expect(invokeOp(http, "webhook", "create", {})).rejects.toMatchObject({
       code: "MISSING_ARG",
     });
-    await expect(invokeOp(http, "product", "get", {})).rejects.toBeInstanceOf(FreshSqueezyError);
+    await expect(invokeOp(http, "product", "get", {})).rejects.toSatisfy(isFreshSqueezyError);
   });
 });

@@ -34,6 +34,91 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
+    },
+    "./errors": {
+      "types": "./dist/errors.d.ts",
+      "import": "./dist/errors.js",
+      "require": "./dist/errors.cjs"
+    },
+    "./config": {
+      "types": "./dist/config.d.ts",
+      "import": "./dist/config.js",
+      "require": "./dist/config.cjs"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "import": "./dist/types.js",
+      "require": "./dist/types.cjs"
+    },
+    "./api-types": {
+      "types": "./dist/api-types.d.ts",
+      "import": "./dist/api-types.js",
+      "require": "./dist/api-types.cjs"
+    },
+    "./resources/attributes": {
+      "types": "./dist/resources/attributes.d.ts",
+      "import": "./dist/resources/attributes.js",
+      "require": "./dist/resources/attributes.cjs"
+    },
+    "./resources/registry": {
+      "types": "./dist/resources/registry.d.ts",
+      "import": "./dist/resources/registry.js",
+      "require": "./dist/resources/registry.cjs"
+    },
+    "./validate/connection": {
+      "types": "./dist/validate/connection.d.ts",
+      "import": "./dist/validate/connection.js",
+      "require": "./dist/validate/connection.cjs"
+    },
+    "./validate/discount": {
+      "types": "./dist/validate/discount.d.ts",
+      "import": "./dist/validate/discount.js",
+      "require": "./dist/validate/discount.cjs"
+    },
+    "./validate/doctor": {
+      "types": "./dist/validate/doctor.d.ts",
+      "import": "./dist/validate/doctor.js",
+      "require": "./dist/validate/doctor.cjs"
+    },
+    "./validate/license-key": {
+      "types": "./dist/validate/license-key.d.ts",
+      "import": "./dist/validate/license-key.js",
+      "require": "./dist/validate/license-key.cjs"
+    },
+    "./validate/product": {
+      "types": "./dist/validate/product.d.ts",
+      "import": "./dist/validate/product.js",
+      "require": "./dist/validate/product.cjs"
+    },
+    "./validate/issues": {
+      "types": "./dist/validate/issues.d.ts",
+      "import": "./dist/validate/issues.js",
+      "require": "./dist/validate/issues.cjs"
+    },
+    "./validate/store": {
+      "types": "./dist/validate/store.d.ts",
+      "import": "./dist/validate/store.js",
+      "require": "./dist/validate/store.cjs"
+    },
+    "./validate/subscription-plan": {
+      "types": "./dist/validate/subscription-plan.d.ts",
+      "import": "./dist/validate/subscription-plan.js",
+      "require": "./dist/validate/subscription-plan.cjs"
+    },
+    "./validate/webhook": {
+      "types": "./dist/validate/webhook.d.ts",
+      "import": "./dist/validate/webhook.js",
+      "require": "./dist/validate/webhook.cjs"
+    },
+    "./manifest": {
+      "types": "./dist/manifest.d.ts",
+      "import": "./dist/manifest.js",
+      "require": "./dist/manifest.cjs"
+    },
+    "./augmentations": {
+      "types": "./dist/augmentations.d.ts",
+      "import": "./dist/augmentations.js",
+      "require": "./dist/augmentations.cjs"
     }
   },
   "bin": {

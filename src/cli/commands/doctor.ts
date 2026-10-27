@@ -1,4 +1,4 @@
-import { FreshSqueezyError } from "../../core/errors.js";
+import { isFreshSqueezyError } from "../../core/errors.js";
 import type { DoctorReport, Mode } from "../../core/types.js";
 import { type FreshSqueezyClient, createFreshSqueezy } from "../../createFreshSqueezy.js";
 import {
@@ -170,9 +170,9 @@ const runConnectionOnly = async (
 
 const writeFatal = (err: unknown, asJson: boolean): void => {
   if (asJson) {
-    const code = err instanceof FreshSqueezyError ? err.code : "UNKNOWN";
+    const code = isFreshSqueezyError(err) ? err.code : "UNKNOWN";
     const message = err instanceof Error ? err.message : String(err);
-    const status = err instanceof FreshSqueezyError ? (err.status ?? null) : null;
+    const status = isFreshSqueezyError(err) ? (err.status ?? null) : null;
     process.stderr.write(`${JSON.stringify({ ok: false, error: { code, message, status } })}\n`);
     return;
   }

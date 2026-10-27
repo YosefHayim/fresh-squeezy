@@ -1,4 +1,4 @@
-import { FreshSqueezyError } from "../core/errors.js";
+import { freshSqueezyErrorOf } from "../core/errors.js";
 import type { JsonApiResource } from "../core/types.js";
 import type { FreshSqueezyClient } from "../createFreshSqueezy.js";
 import type { StoreAttributes } from "../resources/attributes.js";
@@ -68,7 +68,7 @@ export const resolveStores = async (
   if (input.allStores) {
     const ids = await fetchReachableStoreIds(client);
     if (ids.length === 0) {
-      throw new FreshSqueezyError({
+      throw freshSqueezyErrorOf({
         code: "NO_STORES",
         message: "No stores reachable with this API key.",
       });
@@ -82,7 +82,7 @@ export const resolveStores = async (
 
   const ids = await fetchReachableStoreIds(client);
   if (ids.length === 0) {
-    throw new FreshSqueezyError({
+    throw freshSqueezyErrorOf({
       code: "NO_STORES",
       message: "No stores reachable with this API key.",
     });
@@ -93,7 +93,7 @@ export const resolveStores = async (
 
   const picked = await pickStores(await listStoreChoices(client));
   if (picked.length === 0) {
-    throw new FreshSqueezyError({
+    throw freshSqueezyErrorOf({
       code: "NO_SELECTION",
       message: "No store selected. Pick at least one to continue.",
     });
@@ -110,7 +110,7 @@ const fetchReachableStoreIds = async (client: FreshSqueezyClient): Promise<strin
   if (!connection.ok) {
     const authIssue = connection.issues.find((entry) => entry.code === "AUTH_FAILED");
     if (authIssue) {
-      throw new FreshSqueezyError({
+      throw freshSqueezyErrorOf({
         code: "AUTH_FAILED",
         message: authIssue.message,
       });

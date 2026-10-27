@@ -1,23 +1,27 @@
-/**
- * Unified error type for fresh-squeezy. All HTTP and validation failures that
- * bubble up to consumers pass through this class so caller code can branch on
- * a single `instanceof` check.
- *
- * Why a class over a discriminated union: Node's `fetch` rejections interleave
- * with library errors in user stack traces. A class keeps the stack readable
- * and gives one stable prototype chain for consumer `catch` blocks.
- */
-export class FreshSqueezyError extends Error {
-  public readonly code: string;
-  public readonly status?: number;
-  public readonly detail?: unknown;
+// A plain Error with fields: no class, so it survives duplicated bundles; consumers branch with `isFreshSqueezyError`.
+export type FreshSqueezyError = Error & {
+  name: "FreshSqueezyError";
+  code: string;
+  status?: number;
+  detail?: unknown;
+};
 
-  constructor(opts: { code: string; message: string; status?: number; detail?: unknown }) {
-    super(opts.message);
-    this.name = "FreshSqueezyError";
-    this.code = opts.code;
-    this.status = opts.status;
-    this.detail = opts.detail;
-    Object.setPrototypeOf(this, FreshSqueezyError.prototype);
-  }
-}
+export const freshSqueezyErrorOf = (fields: {
+  code: string;
+  message: string;
+  status?: number;
+  detail?: unknown;
+}): FreshSqueezyError => {
+  const { code, message, status, detail } = fields;
+  return Object.assign(new Error(message), {
+    name: "FreshSqueezyError" as const,
+    code,
+    status,
+    detail,
+  });
+};
+
+export const isFreshSqueezyError = (error: unknown): error is FreshSqueezyError => {
+  const isErrorObject = error instanceof Error;
+  return isErrorObject && error.name === "FreshSqueezyError" && "code" in error;
+};

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FreshSqueezyError } from "../core/errors.js";
+import { freshSqueezyErrorOf } from "../core/errors.js";
 import { checkStoreOwnership, mapErrorToIssue, probeFetch } from "./probe.js";
 
 describe("probeFetch", () => {
@@ -14,7 +14,7 @@ describe("probeFetch", () => {
   it("maps a 404 to the caller-supplied notFoundCode", async () => {
     const result = await probeFetch(
       async () => {
-        throw new FreshSqueezyError({ code: "NOT_FOUND", status: 404, message: "missing" });
+        throw freshSqueezyErrorOf({ code: "NOT_FOUND", status: 404, message: "missing" });
       },
       {
         notFoundCode: "PRODUCT_NOT_FOUND",
@@ -34,7 +34,7 @@ describe("probeFetch", () => {
   it("maps a NETWORK_ERROR to ISSUE_CODES.NETWORK_ERROR", async () => {
     const result = await probeFetch(
       async () => {
-        throw new FreshSqueezyError({ code: "NETWORK_ERROR", message: "boom" });
+        throw freshSqueezyErrorOf({ code: "NETWORK_ERROR", message: "boom" });
       },
       { notFoundCode: "X_NOT_FOUND", notFoundMessage: "x" },
     );
@@ -47,7 +47,7 @@ describe("probeFetch", () => {
   it("maps any other FreshSqueezyError to UNKNOWN with status + code context", async () => {
     const result = await probeFetch(
       async () => {
-        throw new FreshSqueezyError({ code: "RATE_LIMITED", status: 429, message: "slow down" });
+        throw freshSqueezyErrorOf({ code: "RATE_LIMITED", status: 429, message: "slow down" });
       },
       { notFoundCode: "X_NOT_FOUND", notFoundMessage: "x" },
     );
@@ -74,7 +74,7 @@ describe("probeFetch", () => {
 describe("mapErrorToIssue", () => {
   it("maps 401 to the caller-supplied unauthorized code when present", () => {
     const result = mapErrorToIssue(
-      new FreshSqueezyError({ code: "UNAUTHORIZED", status: 401, message: "no" }),
+      freshSqueezyErrorOf({ code: "UNAUTHORIZED", status: 401, message: "no" }),
       {
         unauthorized: {
           code: "AUTH_FAILED",
@@ -90,7 +90,7 @@ describe("mapErrorToIssue", () => {
 
   it("falls through 401 to UNKNOWN when no unauthorized mapping is provided", () => {
     const result = mapErrorToIssue(
-      new FreshSqueezyError({ code: "UNAUTHORIZED", status: 401, message: "no" }),
+      freshSqueezyErrorOf({ code: "UNAUTHORIZED", status: 401, message: "no" }),
     );
     expect(result.code).toBe("UNKNOWN");
     expect(result.context).toEqual({ status: 401, code: "UNAUTHORIZED" });

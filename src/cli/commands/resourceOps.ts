@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { resolveConfig } from "../../core/config.js";
-import { FreshSqueezyError } from "../../core/errors.js";
+import { freshSqueezyErrorOf, isFreshSqueezyError } from "../../core/errors.js";
 import { HttpClient } from "../../core/http.js";
 import type { Mode } from "../../core/types.js";
 import {
@@ -87,7 +87,7 @@ export const runResourceOpCommand = async (options: ResourceOpCommandOptions): P
   const bulkError = validateBulkFlags(spec, options);
   if (bulkError) {
     writeFatal(
-      new FreshSqueezyError({ code: "INVALID_ARGS", message: bulkError }),
+      freshSqueezyErrorOf({ code: "INVALID_ARGS", message: bulkError }),
       options.json ?? false,
     );
     return 2;
@@ -96,7 +96,7 @@ export const runResourceOpCommand = async (options: ResourceOpCommandOptions): P
   try {
     const body = readBody(options);
     if (spec.body === "required" && body === undefined) {
-      throw new FreshSqueezyError({
+      throw freshSqueezyErrorOf({
         code: "MISSING_ARG",
         message: "This op requires a JSON body (--body or --body-file).",
       });
@@ -304,9 +304,9 @@ const readBody = (options: ResourceOpCommandOptions): unknown | undefined => {
 
 const writeFatal = (err: unknown, json: boolean): void => {
   if (json) {
-    const code = err instanceof FreshSqueezyError ? err.code : "FATAL";
+    const code = isFreshSqueezyError(err) ? err.code : "FATAL";
     const message = err instanceof Error ? err.message : String(err);
-    const status = err instanceof FreshSqueezyError ? err.status : undefined;
+    const status = isFreshSqueezyError(err) ? err.status : undefined;
     process.stderr.write(
       `${JSON.stringify({ ok: false, error: { code, message, status } }, null, 2)}\n`,
     );

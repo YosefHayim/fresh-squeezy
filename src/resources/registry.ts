@@ -1,4 +1,4 @@
-import { FreshSqueezyError } from "../core/errors.js";
+import { freshSqueezyErrorOf } from "../core/errors.js";
 import type { HttpClient, RequestOptions } from "../core/http.js";
 import type { JsonApiDocument } from "../core/types.js";
 import type { UserAttributes } from "./attributes.js";
@@ -217,7 +217,7 @@ export const listRegisteredVerbs = (resource: string): OpVerb[] => {
 
 const requireId = (args: InvokeOpArgs, spec: ResourceVerbSpec): string | number => {
   if (args.id === undefined || args.id === "") {
-    throw new FreshSqueezyError({
+    throw freshSqueezyErrorOf({
       code: "MISSING_ARG",
       message: `--id is required for this ${spec.resource} operation.`,
     });
@@ -227,7 +227,7 @@ const requireId = (args: InvokeOpArgs, spec: ResourceVerbSpec): string | number 
 
 const requireStore = (args: InvokeOpArgs): string | number => {
   if (args.storeId === undefined || args.storeId === "") {
-    throw new FreshSqueezyError({
+    throw freshSqueezyErrorOf({
       code: "MISSING_ARG",
       message: "--store-ids (or store id) is required for this list operation.",
     });
@@ -237,7 +237,7 @@ const requireStore = (args: InvokeOpArgs): string | number => {
 
 const requireParent = (args: InvokeOpArgs, parent: string): string | number => {
   if (args.parentId === undefined || args.parentId === "") {
-    throw new FreshSqueezyError({
+    throw freshSqueezyErrorOf({
       code: "MISSING_ARG",
       message: `--parent-id (${parent} id) is required for this list operation.`,
     });
@@ -247,7 +247,7 @@ const requireParent = (args: InvokeOpArgs, parent: string): string | number => {
 
 const requireBody = (args: InvokeOpArgs): unknown => {
   if (args.body === undefined) {
-    throw new FreshSqueezyError({
+    throw freshSqueezyErrorOf({
       code: "MISSING_ARG",
       message: "A JSON body is required (--body or --body-file).",
     });
@@ -294,7 +294,7 @@ export const invokeOp = async (
 ): Promise<unknown> => {
   const spec = findResourceVerb(resource, verb);
   if (!spec) {
-    throw new FreshSqueezyError({
+    throw freshSqueezyErrorOf({
       code: "UNKNOWN_OP",
       message: `Unknown or unsupported op: ${verb} ${resource}. Run \`fresh-squeezy ops --list\`.`,
     });

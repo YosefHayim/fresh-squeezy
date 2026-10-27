@@ -125,7 +125,7 @@ const created = await lemon.webhooks.create({
 await lemon.subscriptions.cancel(9);
 ```
 
-HTTP failures throw `FreshSqueezyError` (`code` / `status`). Validators return `ValidationResult` and never throw for findings.
+HTTP failures throw a plain `Error` named `FreshSqueezyError` with `code` / `status`; check with `isFreshSqueezyError` from `fresh-squeezy/errors`. Validators import from subpaths such as `fresh-squeezy/validate/store`. Validators return `ValidationResult` and never throw for findings.
 
 ## Extending — golden path (resource verb)
 

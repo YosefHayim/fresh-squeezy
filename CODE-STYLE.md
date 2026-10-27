@@ -61,23 +61,17 @@ const parseMode = (value: string): Mode => { /* … */ };
 ```
 _Why:_ one call-shape everywhere; no hoisting games; matches how agents and modern TS write. Helpers must be declared before use (const is not hoisted).
 
-### Named exports only, pure wildcard barrels
-Zero `export default`. Public surface is **only** `export * from "…"` in barrel files
-(`src/index.ts`, and any future `index.ts` / `index.tsx`). No named re-export lists,
-no `export { foo } from`, no import-then-re-export after the import block.
+### Named exports only, no barrels
+Zero `export default`. There is no `index.ts` barrel: every public module is its own
+subpath in `package.json` `exports` and its own entry in `tsup.config.ts`. The package root
+(`fresh-squeezy`) exports only `createFreshSqueezy`; it never re-exports other modules.
 
 ```ts
-// ✓ src/index.ts — pure wildcard barrel
-export * from "./validate/store.js";
-export * from "./resources/registry.js";
-
-// ✗ not this — after-imports re-export / named barrel
-import { validateStore } from "./validate/store.js";
-export { validateStore };
-export { createFreshSqueezy } from "./createFreshSqueezy.js";
-export type { Mode } from "./core/types.js"; // use export * (types ride along)
+import { createFreshSqueezy } from "fresh-squeezy";
+import { validateStore } from "fresh-squeezy/validate/store";
+import { isFreshSqueezyError } from "fresh-squeezy/errors";
 ```
-_Why:_ one greppable public graph; barrels stay mechanical and agent-safe.
+_Why:_ consumers import only what they use, and each subpath is a stable, greppable public module.
 
 ### No backward-compatibility shims
 When style or API shape changes, **rewrite callers** — do not leave dual forms,
@@ -110,8 +104,9 @@ export const ISSUE_CODES = { STORE_NOT_FOUND: "STORE_NOT_FOUND", /* … */ } as 
 
 ### unknown never any; one FreshSqueezyError
 Boundaries take `unknown` and narrow with a cast. Never `any` in hand-written code. All
-failures use the single `FreshSqueezyError` (carries `code`/`status`); callers branch on
-`.code`. Validators convert it to an issue and never re-throw.
+failures use the single `FreshSqueezyError`: a plain `Error` with `code`/`status`/`detail`,
+made by `freshSqueezyErrorOf` and checked with `isFreshSqueezyError` (never `instanceof`);
+callers branch on `.code`. Validators convert it to an issue and never re-throw.
 ```ts
 // src/core/http.ts:181
 const errors = (body as { errors?: unknown }).errors;
@@ -234,7 +229,7 @@ commas everywhere, `node:` → third-party → local import order. Run `npm run 
 1. If the resource has no `*Attributes` in `src/resources/attributes.ts`, add one (`extends Generated*Attributes`).
 2. Add issue codes to `ISSUE_CODES` in `src/validate/issues.ts` (stable public API).
 3. Add `src/validate/<name>.ts`. Rich logic → extract a pure `check<Name>(attributes): ValidationIssue[]`; fetch with `http.getResource`/`http.paginate` inside `probeFetch`/`probeCollection`; build with `buildResult`.
-4. Export it from `src/index.ts` (`export * from "./validate/<name>.js"`).
+4. Add its subpath: an `exports` entry in `package.json` (`./validate/<name>`) and an entry in `tsup.config.ts`.
 5. Unit-test the pure `check<Name>` with plain fixtures; test the async validator via `makeClient` + `createMockFetch`.
 6. Wire into `doctor()` if it belongs in the default sweep.
 7. Add a `VALIDATE_SUBCOMMANDS` row in `src/cli/commands/validate.ts` (`fresh-squeezy validate <name>`); if `init`/`doctor --all-resources` should discover it, add an `OPTIONAL_VALIDATORS` row in `src/cli/optionalValidators.ts`.

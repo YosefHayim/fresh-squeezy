@@ -29,7 +29,7 @@ These are held as firmly as the goals:
 
 1. **Not an app-embedding SDK.** Prefer `@lemonsqueezy/lemonsqueezy.js` inside apps.
    fresh-squeezy is dual-mode **ops + doctor**. Mutations are explicit, docs-backed resource
-   verbs (throw `FreshSqueezyError`) — never silent passthroughs and never invented catalog
+   verbs (throw via `freshSqueezyErrorOf`) — never silent passthroughs and never invented catalog
    writes (products/variants/prices have no create API).
 2. **One HTTP layer.** Everything goes through `src/core/http.ts` for auth, error
    normalization, and retry.

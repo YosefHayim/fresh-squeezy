@@ -20,9 +20,9 @@ Single-context layout: one `CONTEXT.md` at the repo root.
 
 <!-- rules digest — full guide in CODE-STYLE.md; edit there -->
 
-- **Functions:** `const` arrows only (sync/async) — never `function` / `async function` declarations (class methods ok). Named exports only — zero `export default`. `src/index.ts` is a pure `export *` wildcard barrel — no after-import re-exports, no named `export { x } from`. No BC shims; rewrite callers.
-- **Control flow:** guard-clause early returns; validators accumulate `const issues: ValidationIssue[] = []` + `push`, end in `buildResult` — never throw. Resource ops throw `FreshSqueezyError`.
-- **Types:** `interface` for shapes, `type` for unions, `as const` for lookup tables (positioned top-of-file, after imports). `unknown` never `any`. One `FreshSqueezyError` (`code`/`status`); callers branch on `.code`. Single named return — no multi-object bags.
+- **Functions:** `const` arrows only (sync/async) — never `function` / `async function` declarations (class methods ok). Named exports only — zero `export default`. No barrel files: every public module is its own `package.json` `exports` subpath (built by `tsup.config.ts`); `fresh-squeezy` itself exports only `createFreshSqueezy`. No BC shims; rewrite callers.
+- **Control flow:** guard-clause early returns; validators accumulate `const issues: ValidationIssue[] = []` + `push`, end in `buildResult` — never throw. Resource ops throw via `freshSqueezyErrorOf`.
+- **Types:** `interface` for shapes, `type` for unions, `as const` for lookup tables (positioned top-of-file, after imports). `unknown` never `any`. One `FreshSqueezyError` (a plain `Error` with `code`/`status`/`detail`, built by `freshSqueezyErrorOf`, checked with `isFreshSqueezyError`, never `instanceof`); callers branch on `.code`. Single named return — no multi-object bags.
 - **Layers:** strict `generated → core → resources → validate → cli`. `core/` imports only `core/` + `generated/` — never upward. `fetch` only in `core/http.ts`.
 - **Validators:** rich ones (`product`/`discount`/`licenseKey`/`subscriptionPlan`) split a pure `check*(attributes)` from the fetch; thin ones stay fused. Error → issue mapping goes through `probeFetch`/`probeCollection` — no hand-rolled mapping, no silent `catch {}`.
 - **Ops:** docs-backed only. `src/resources/registry.ts` holds one `RESOURCES` row per resource; `VERB_RULES` maps each verb to one HTTP call and a docs slug, from which `docsPath` is built. No inventing product/variant create. Nested client + CLI hybrid verbs via `invokeOp`.

@@ -12,7 +12,6 @@ export default defineConfig({
       include: ["src/**/*.ts"],
       exclude: [
         "**/*.test.ts",
-        "src/index.ts",
         "src/cli/main.ts",
         "src/cli/prompts.ts",
         "src/cli/commands/init.ts",

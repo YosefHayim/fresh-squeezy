@@ -2,7 +2,26 @@ import { defineConfig } from "tsup";
 
 export default defineConfig([
   {
-    entry: { index: "src/index.ts" },
+    entry: {
+      index: "src/createFreshSqueezy.ts",
+      errors: "src/core/errors.ts",
+      config: "src/core/config.ts",
+      types: "src/core/types.ts",
+      "api-types": "src/generated/lemonSqueezyApiTypes.ts",
+      "resources/attributes": "src/resources/attributes.ts",
+      "resources/registry": "src/resources/registry.ts",
+      "validate/connection": "src/validate/connection.ts",
+      "validate/discount": "src/validate/discount.ts",
+      "validate/doctor": "src/validate/doctor.ts",
+      "validate/license-key": "src/validate/licenseKey.ts",
+      "validate/product": "src/validate/product.ts",
+      "validate/issues": "src/validate/issues.ts",
+      "validate/store": "src/validate/store.ts",
+      "validate/subscription-plan": "src/validate/subscriptionPlan.ts",
+      "validate/webhook": "src/validate/webhook.ts",
+      manifest: "src/support/manifest.ts",
+      augmentations: "src/augmentations.ts",
+    },
     format: ["esm", "cjs"],
     dts: true,
     sourcemap: true,

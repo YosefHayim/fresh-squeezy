@@ -17,7 +17,7 @@ issues, and PRs. Definitions plus aliases to avoid. Orientation lives in `CONTEX
 | **augmentation** | A `Latest*Fields` `.d.ts` helper that adds changelog fields to the official SDK's types. | patch, override, shim |
 | **support manifest** | `src/support/manifest.ts` — locally reviewed webhook policy + acknowledged changelog entries. | config, registry |
 | **drift** | Divergence between the live Lemon Squeezy changelog and the committed snapshot. | diff, delta |
-| **FreshSqueezyError** | The single error class (`code`/`status`) thrown by the HTTP layer and for programmer-errors. | ApiError, HttpError |
+| **FreshSqueezyError** | The single error type (a plain `Error` with `code`/`status`/`detail`, made by `freshSqueezyErrorOf`, checked with `isFreshSqueezyError`) thrown by the HTTP layer and for programmer-errors. | ApiError, HttpError |
 | **resource verb** | One docs-backed operation on a resource (`get`, `create`, `cancel`, `refund`, …). | endpoint method, CRUD (when non-CRUD) |
 | **resourceRegistry** | `src/resources/registry.ts` — implemented ops with `docsPath`, built from `RESOURCES` × `VERB_RULES`; what ships in CLI/client. | OpenAPI, route table |
 | **optional validator** | A resource validator (product, webhook, discount, license key, subscription plan) that `init` and `doctor --all-resources` can add; one `OPTIONAL_VALIDATORS` row in `src/cli/optionalValidators.ts`. | doctor target, resource check |

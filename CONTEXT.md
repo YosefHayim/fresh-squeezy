@@ -30,7 +30,7 @@ cli`):
 
 ```
 generated/        auto-generated Lemon Squeezy attribute types
-core/             HttpClient (the one I/O chokepoint), config, FreshSqueezyError, shared types
+core/             HttpClient (the one I/O chokepoint), config, FreshSqueezyError (plain Error + fields), shared types
 resources/        registry.ts (one table of docs-backed ops + invokeOp) + attributes.ts
 support/          static manifest (webhook policy, acknowledged changelog) + drift snapshot
 validate/         doctor validators — check*/validate* + composition + issues/probe
@@ -38,7 +38,7 @@ skills/           agent SKILL.md for ops+doctor usage
 augmentations.ts  isolated .d.ts helpers for SDK users (imports only generated/)
 cli/              commander + @inquirer/prompts shell over the library
 scripts/          build/CI tooling (.mjs) — changelog drift + API-type generation
-index.ts          flat public barrel (export * — the whole graph is public)
+(no index.ts: each public module is a package.json exports subpath, see tsup.config.ts)
 ```
 
 ## Core flow

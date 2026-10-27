@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import { ENV_KEYS } from "../core/config.js";
-import { FreshSqueezyError } from "../core/errors.js";
+import { isFreshSqueezyError } from "../core/errors.js";
 import type {
   DoctorReport,
   ValidationIssue,
@@ -133,10 +133,6 @@ export const renderCliError = (message: string, hints: string[] = []): string =>
   }
 
   return `${lines.join("\n")}\n`;
-};
-
-const isFreshSqueezyError = (err: unknown): err is FreshSqueezyError => {
-  return err instanceof FreshSqueezyError;
 };
 
 export const getDoctorHints = (err: unknown): string[] => {

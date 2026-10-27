@@ -1,4 +1,4 @@
-import { FreshSqueezyError } from "./errors.js";
+import { freshSqueezyErrorOf } from "./errors.js";
 import type { FreshSqueezyConfig, Mode, ResolvedConfig } from "./types.js";
 
 /**
@@ -28,7 +28,7 @@ export const ENV_KEYS = {
 export const resolveConfig = (input: FreshSqueezyConfig = {}): ResolvedConfig => {
   const apiKey = input.apiKey ?? process.env[ENV_KEYS.apiKey];
   if (!apiKey) {
-    throw new FreshSqueezyError({
+    throw freshSqueezyErrorOf({
       code: "MISSING_API_KEY",
       message: `No API key provided. Pass \`apiKey\` or set ${ENV_KEYS.apiKey}.`,
     });
@@ -48,7 +48,7 @@ export const resolveConfig = (input: FreshSqueezyConfig = {}): ResolvedConfig =>
 
 const normalizeMode = (value: string): Mode => {
   if (value === "test" || value === "live") return value;
-  throw new FreshSqueezyError({
+  throw freshSqueezyErrorOf({
     code: "INVALID_MODE",
     message: `Mode must be "test" or "live", got "${value}".`,
   });
