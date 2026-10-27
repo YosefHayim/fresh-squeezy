@@ -74,6 +74,8 @@ await validateLicense({ licenseKey, instanceId });
 await deactivateLicense({ licenseKey, instanceId });
 ```
 
+Each call returns the API answer, also on a 4xx: check `activated`, `valid` or `deactivated`, and `error`. It throws a `FreshSqueezyError` only when the network fails or the answer is not JSON.
+
 ## Safety
 
 - Ask the user for a clear yes before any `create`, `update`, `remove`, `cancelSubscription`, `refund` or `generateInvoice` in live mode. In test mode, say what you will change, then do it.

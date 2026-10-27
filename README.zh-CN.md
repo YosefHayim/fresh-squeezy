@@ -115,6 +115,8 @@ await validateLicense({ licenseKey, instanceId }); // instanceId 可选
 await deactivateLicense({ licenseKey, instanceId });
 ```
 
+每次调用都会返回 API 的响应，4xx 时也一样：检查 `activated`、`valid` 或 `deactivated`，以及 `error`。只有在网络失败或响应不是 JSON 时才会抛出 `FreshSqueezyError`。
+
 ## Doctor
 
 ```bash

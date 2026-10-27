@@ -115,6 +115,8 @@ await validateLicense({ licenseKey, instanceId }); // instanceId は任意
 await deactivateLicense({ licenseKey, instanceId });
 ```
 
+各呼び出しは 4xx の場合も API の応答をそのまま返します。`activated`、`valid` または `deactivated` と `error` を確認してください。`FreshSqueezyError` を投げるのは、ネットワークが失敗したときか応答が JSON でないときだけです。
+
 ## Doctor
 
 ```bash

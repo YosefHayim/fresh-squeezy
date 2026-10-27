@@ -115,6 +115,8 @@ await validateLicense({ licenseKey, instanceId }); // instanceId is optional
 await deactivateLicense({ licenseKey, instanceId });
 ```
 
+Each call returns the API answer, also on a 4xx: check `activated`, `valid` or `deactivated`, and `error`. It throws a `FreshSqueezyError` only when the network fails or the answer is not JSON.
+
 ## Doctor
 
 ```bash

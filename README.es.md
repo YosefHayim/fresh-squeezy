@@ -115,6 +115,8 @@ await validateLicense({ licenseKey, instanceId }); // instanceId es opcional
 await deactivateLicense({ licenseKey, instanceId });
 ```
 
+Cada llamada devuelve la respuesta de la API, también en un 4xx: revisa `activated`, `valid` o `deactivated`, y `error`. Solo lanza un `FreshSqueezyError` cuando falla la red o la respuesta no es JSON.
+
 ## Doctor
 
 ```bash
