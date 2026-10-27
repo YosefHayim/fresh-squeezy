@@ -121,8 +121,8 @@ test("validateProduct soft-fails variant listing as a warning without failing th
 	});
 
 	expect(productValidation.ok).toBe(true);
-	const variantIssue = productValidation.findings.find(
+	const variantFinding = productValidation.findings.find(
 		(entry) => entry.code === "UNKNOWN",
 	);
-	expect(variantIssue?.severity).toBe("warning");
+	expect(variantFinding?.severity).toBe("warning");
 });

@@ -88,10 +88,10 @@ test("validateSubscriptionPlan returns PLAN_INVALID_INTERVAL for missing/invalid
 		variantId: "802",
 	});
 	expect(planValidation.ok).toBe(false);
-	const intervalIssues = planValidation.findings.filter(
+	const intervalFindings = planValidation.findings.filter(
 		(i) => i.code === "PLAN_INVALID_INTERVAL",
 	);
-	expect(intervalIssues.length).toBe(2);
+	expect(intervalFindings.length).toBe(2);
 });
 
 test("validateSubscriptionPlan returns PLAN_FREE_PRICE for zero-price subscription", async () => {
