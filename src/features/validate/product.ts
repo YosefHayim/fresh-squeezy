@@ -27,12 +27,21 @@ type Variants = { attributes: VariantAttributes }[];
 
 const hasNoVariants = (variants: Variants) => variants.length === 0;
 
-const hasNoPublishedVariant = (variants: Variants) => {
+const isPublished = (variant: Variants[number]) =>
+	variant.attributes.status === "published";
+
+// A pending variant with no siblings is the default variant, sold at checkout: https://docs.lemonsqueezy.com/api/variants/the-variant-object
+const isDefaultVariantOnly = (variants: Variants) => {
+	const isOneVariant = variants.length === 1;
+	const isPending = variants[0]?.attributes.status === "pending";
+	return isOneVariant && isPending;
+};
+
+const hasNoSellableVariant = (variants: Variants) => {
 	const hasVariants = variants.length > 0;
-	const isAnyPublished = variants.some(
-		(variant) => variant.attributes.status === "published",
-	);
-	return hasVariants && !isAnyPublished;
+	const isAnyPublished = variants.some(isPublished);
+	const isSellable = isAnyPublished || isDefaultVariantOnly(variants);
+	return hasVariants && !isSellable;
 };
 
 const isNotPublished = (product: ProductAttributes) =>
@@ -51,7 +60,7 @@ const VARIANT_RULES: FindingRule<Variants>[] = [
 	{
 		code: FINDING_CODES.VARIANT_UNPUBLISHED,
 		severity: "error",
-		when: hasNoPublishedVariant,
+		when: hasNoSellableVariant,
 		message: "Product has variants but none are published.",
 		suggestedFix: "Publish at least one variant.",
 	},
