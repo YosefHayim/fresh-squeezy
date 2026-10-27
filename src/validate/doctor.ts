@@ -111,64 +111,80 @@ export const doctor = async (
 	const connection = await validators.connection(http, mode);
 	results.push(connection);
 
-	if (!connection.ok) {
+	const isConnectionFailed = !connection.ok;
+	if (isConnectionFailed) {
 		return { ok: false, mode, results };
 	}
 
-	if (options.storeId !== undefined) {
-		results.push(await validators.store(http, mode, options.storeId));
+	const { storeId } = options;
+	const isStoreGiven = storeId !== undefined;
+	if (isStoreGiven) {
+		const storeResult = await validators.store(http, mode, storeId);
+		results.push(storeResult);
 	}
 
 	for (const productId of productIds) {
-		results.push(
-			await validators.product(http, mode, {
-				productId,
-				expectedStoreId: options.storeId,
-			}),
-		);
+		const productResult = await validators.product(http, mode, {
+			productId,
+			expectedStoreId: storeId,
+		});
+		results.push(productResult);
 	}
 
 	// webhook / discount / licenseKey / subscriptionPlan all require storeId
 	// (assertOptionsCoherent rejects those options when storeId is absent).
-	if (options.storeId !== undefined) {
-		const storeId = options.storeId;
+	if (isStoreGiven) {
 		for (const url of webhookUrls) {
-			results.push(await validators.webhook(http, mode, { storeId, url }));
+			const webhookResult = await validators.webhook(http, mode, {
+				storeId,
+				url,
+			});
+			results.push(webhookResult);
 		}
 		for (const discountId of discountIds) {
-			results.push(
-				await validators.discount(http, mode, { storeId, discountId }),
-			);
+			const discountResult = await validators.discount(http, mode, {
+				storeId,
+				discountId,
+			});
+			results.push(discountResult);
 		}
 		for (const licenseKeyId of licenseKeyIds) {
-			results.push(
-				await validators.licenseKey(http, mode, { storeId, licenseKeyId }),
-			);
+			const licenseKeyResult = await validators.licenseKey(http, mode, {
+				storeId,
+				licenseKeyId,
+			});
+			results.push(licenseKeyResult);
 		}
 		for (const variantId of variantIds) {
-			results.push(
-				await validators.subscriptionPlan(http, mode, { storeId, variantId }),
-			);
+			const planResult = await validators.subscriptionPlan(http, mode, {
+				storeId,
+				variantId,
+			});
+			results.push(planResult);
 		}
 	}
 
-	return { ok: results.every((entry) => entry.ok), mode, results };
+	const isEveryResultOk = results.every((entry) => entry.ok);
+	return { ok: isEveryResultOk, mode, results };
 };
 
 const assertOptionsCoherent = (options: DoctorOptions): void => {
-	if (options.storeId !== undefined) return;
+	const isStoreGiven = options.storeId !== undefined;
+	if (isStoreGiven) return;
+
+	const isWebhookGiven = hasAny(options.webhookUrl, options.webhookUrls);
+	const isDiscountGiven = hasAny(options.discountId, options.discountIds);
+	const isLicenseKeyGiven = hasAny(options.licenseKeyId, options.licenseKeyIds);
+	const isVariantGiven = hasAny(options.variantId, options.variantIds);
 
 	const dependent: Array<keyof DoctorOptions> = [];
-	if (hasAny(options.webhookUrl, options.webhookUrls))
-		dependent.push("webhookUrl");
-	if (hasAny(options.discountId, options.discountIds))
-		dependent.push("discountId");
-	if (hasAny(options.licenseKeyId, options.licenseKeyIds))
-		dependent.push("licenseKeyId");
-	if (hasAny(options.variantId, options.variantIds))
-		dependent.push("variantId");
+	if (isWebhookGiven) dependent.push("webhookUrl");
+	if (isDiscountGiven) dependent.push("discountId");
+	if (isLicenseKeyGiven) dependent.push("licenseKeyId");
+	if (isVariantGiven) dependent.push("variantId");
 
-	if (dependent.length === 0) return;
+	const isEverythingCoherent = dependent.length === 0;
+	if (isEverythingCoherent) return;
 
 	throw freshSqueezyErrorOf({
 		code: "DOCTOR_OPTIONS_INVALID",
@@ -181,13 +197,16 @@ const collectValues = <T>(
 	many: T[] | undefined,
 ): T[] => {
 	const values = new Set<T>();
-	if (single !== undefined) values.add(single);
+	const isSingleGiven = single !== undefined;
+	if (isSingleGiven) values.add(single);
 	for (const value of many ?? []) {
-		if (value !== undefined) values.add(value);
+		const isValueGiven = value !== undefined;
+		if (isValueGiven) values.add(value);
 	}
 	return Array.from(values);
 };
 
 const hasAny = <T>(single: T | undefined, many: T[] | undefined): boolean => {
-	return single !== undefined || (many?.length ?? 0) > 0;
+	const manyCount = many?.length ?? 0;
+	return single !== undefined || manyCount > 0;
 };

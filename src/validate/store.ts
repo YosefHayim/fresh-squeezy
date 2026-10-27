@@ -22,7 +22,8 @@ export const validateStore = async (
 		},
 	);
 
-	if (!fetched.ok) {
+	const isFetchFailed = !fetched.ok;
+	if (isFetchFailed) {
 		return buildResult<StoreAttributes>(
 			"store",
 			mode,

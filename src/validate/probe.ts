@@ -16,40 +16,43 @@ export const mapErrorToIssue = (
 	err: unknown,
 	mapping: IssueMapping = {},
 ): ValidationIssue => {
-	if (isFreshSqueezyError(err)) {
-		if (
-			mapping.unauthorized &&
-			(err.status === 401 || err.code === "UNAUTHORIZED")
-		) {
-			return issue(
-				mapping.unauthorized.code,
-				"error",
-				mapping.unauthorized.message,
-				{
-					suggestedFix: mapping.unauthorized.suggestedFix,
-					context: { status: err.status ?? null },
-				},
-			);
-		}
-		if (mapping.notFound && err.status === 404) {
-			return issue(mapping.notFound.code, "error", mapping.notFound.message, {
-				suggestedFix: mapping.notFound.suggestedFix,
-				context: mapping.notFound.context,
-			});
-		}
-		if (err.code === "NETWORK_ERROR") {
-			return issue(
-				ISSUE_CODES.NETWORK_ERROR,
-				"error",
-				`Could not reach Lemon Squeezy: ${err.message}`,
-			);
-		}
-		return issue(ISSUE_CODES.UNKNOWN, "error", err.message, {
-			context: { status: err.status ?? null, code: err.code },
+	const isPlainError = !isFreshSqueezyError(err);
+	if (isPlainError) {
+		const isErrorInstance = err instanceof Error;
+		const message = isErrorInstance ? err.message : "Unknown error";
+		return issue(ISSUE_CODES.UNKNOWN, "error", message);
+	}
+
+	const { unauthorized, notFound } = mapping;
+	const isUnauthorized =
+		unauthorized && (err.status === 401 || err.code === "UNAUTHORIZED");
+	if (isUnauthorized) {
+		return issue(unauthorized.code, "error", unauthorized.message, {
+			suggestedFix: unauthorized.suggestedFix,
+			context: { status: err.status ?? null },
 		});
 	}
-	const message = err instanceof Error ? err.message : "Unknown error";
-	return issue(ISSUE_CODES.UNKNOWN, "error", message);
+
+	const isNotFound = notFound && err.status === 404;
+	if (isNotFound) {
+		return issue(notFound.code, "error", notFound.message, {
+			suggestedFix: notFound.suggestedFix,
+			context: notFound.context,
+		});
+	}
+
+	const isNetworkError = err.code === "NETWORK_ERROR";
+	if (isNetworkError) {
+		return issue(
+			ISSUE_CODES.NETWORK_ERROR,
+			"error",
+			`Could not reach Lemon Squeezy: ${err.message}`,
+		);
+	}
+
+	return issue(ISSUE_CODES.UNKNOWN, "error", err.message, {
+		context: { status: err.status ?? null, code: err.code },
+	});
 };
 
 export interface FetchProbeOptions {
@@ -102,7 +105,8 @@ export const checkStoreOwnership = (
 ): ValidationIssue | null => {
 	const expected = String(check.expectedStoreId);
 	const actual = String(check.actualStoreId);
-	if (expected === actual) return null;
+	const isOwnedByExpectedStore = expected === actual;
+	if (isOwnedByExpectedStore) return null;
 
 	return issue(
 		check.code,

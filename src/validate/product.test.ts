@@ -32,13 +32,13 @@ test("validateProduct passes a published product with a published variant", asyn
 		},
 	]);
 
-	const result = await validateProduct(http, "test", {
+	const productValidation = await validateProduct(http, "test", {
 		productId: 100,
 		expectedStoreId: 42,
 	});
 
-	expect(result.ok).toBe(true);
-	expect(result.issues).toHaveLength(0);
+	expect(productValidation.ok).toBe(true);
+	expect(productValidation.issues).toHaveLength(0);
 });
 
 test("validateProduct flags unpublished product and draft-only variants", async () => {
@@ -55,10 +55,12 @@ test("validateProduct flags unpublished product and draft-only variants", async 
 		},
 	]);
 
-	const result = await validateProduct(http, "test", { productId: 101 });
+	const productValidation = await validateProduct(http, "test", {
+		productId: 101,
+	});
 
-	expect(result.ok).toBe(false);
-	const codes = result.issues.map((entry) => entry.code);
+	expect(productValidation.ok).toBe(false);
+	const codes = productValidation.issues.map((entry) => entry.code);
 	expect(codes).toContain("PRODUCT_UNPUBLISHED");
 	expect(codes).toContain("VARIANT_UNPUBLISHED");
 	expect(codes).toContain("PRODUCT_NO_BUY_URL");
@@ -78,13 +80,13 @@ test("validateProduct flags product on wrong store when expectedStoreId mismatch
 		},
 	]);
 
-	const result = await validateProduct(http, "test", {
+	const productValidation = await validateProduct(http, "test", {
 		productId: 102,
 		expectedStoreId: 42,
 	});
 
-	expect(result.ok).toBe(false);
-	expect(result.issues.map((entry) => entry.code)).toContain(
+	expect(productValidation.ok).toBe(false);
+	expect(productValidation.issues.map((entry) => entry.code)).toContain(
 		"PRODUCT_WRONG_STORE",
 	);
 });
@@ -93,9 +95,11 @@ test("validateProduct returns PRODUCT_NOT_FOUND on 404", async () => {
 	const http = makeClient([
 		{ match: pathIs("/v1/products/9999"), status: 404, body: notFoundError },
 	]);
-	const result = await validateProduct(http, "test", { productId: 9999 });
-	expect(result.ok).toBe(false);
-	expect(result.issues[0]?.code).toBe("PRODUCT_NOT_FOUND");
+	const productValidation = await validateProduct(http, "test", {
+		productId: 9999,
+	});
+	expect(productValidation.ok).toBe(false);
+	expect(productValidation.issues[0]?.code).toBe("PRODUCT_NOT_FOUND");
 });
 
 test("validateProduct flags VARIANT_MISSING when no variants exist", async () => {
@@ -112,10 +116,14 @@ test("validateProduct flags VARIANT_MISSING when no variants exist", async () =>
 		},
 	]);
 
-	const result = await validateProduct(http, "test", { productId: 100 });
+	const productValidation = await validateProduct(http, "test", {
+		productId: 100,
+	});
 
-	expect(result.ok).toBe(false);
-	expect(result.issues.map((entry) => entry.code)).toContain("VARIANT_MISSING");
+	expect(productValidation.ok).toBe(false);
+	expect(productValidation.issues.map((entry) => entry.code)).toContain(
+		"VARIANT_MISSING",
+	);
 });
 
 test("validateProduct soft-fails variant listing as a warning without failing the product check", async () => {
@@ -132,9 +140,13 @@ test("validateProduct soft-fails variant listing as a warning without failing th
 		},
 	]);
 
-	const result = await validateProduct(http, "test", { productId: 100 });
+	const productValidation = await validateProduct(http, "test", {
+		productId: 100,
+	});
 
-	expect(result.ok).toBe(true);
-	const variantIssue = result.issues.find((entry) => entry.code === "UNKNOWN");
+	expect(productValidation.ok).toBe(true);
+	const variantIssue = productValidation.issues.find(
+		(entry) => entry.code === "UNKNOWN",
+	);
 	expect(variantIssue?.severity).toBe("warning");
 });

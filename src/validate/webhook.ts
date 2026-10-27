@@ -37,7 +37,8 @@ export const validateWebhook = async (
 			"filter[store_id]": String(options.storeId),
 		}),
 	);
-	if (!fetched.ok) {
+	const isFetchFailed = !fetched.ok;
+	if (isFetchFailed) {
 		return buildResult<WebhookAttributes>(
 			"webhook",
 			mode,
@@ -50,22 +51,22 @@ export const validateWebhook = async (
 	const match = fetched.resource.find((webhook) =>
 		sameWebhookUrl(webhook.attributes.url, options.url),
 	);
-	if (!match) {
+	const isWebhookMissing = !match;
+	if (isWebhookMissing) {
+		const notFoundIssue = issue(
+			ISSUE_CODES.WEBHOOK_NOT_FOUND,
+			"error",
+			`No webhook registered for URL ${options.url} on store ${options.storeId}.`,
+			{
+				suggestedFix:
+					"Register the webhook in Lemon Squeezy (Settings → Webhooks) and subscribe to the recommended events.",
+				context: { storeId: String(options.storeId), url: options.url },
+			},
+		);
 		return buildResult<WebhookAttributes>(
 			"webhook",
 			mode,
-			[
-				issue(
-					ISSUE_CODES.WEBHOOK_NOT_FOUND,
-					"error",
-					`No webhook registered for URL ${options.url} on store ${options.storeId}.`,
-					{
-						suggestedFix:
-							"Register the webhook in Lemon Squeezy (Settings → Webhooks) and subscribe to the recommended events.",
-						context: { storeId: String(options.storeId), url: options.url },
-					},
-				),
-			],
+			[notFoundIssue],
 			undefined,
 			target,
 		);
@@ -80,30 +81,30 @@ export const validateWebhook = async (
 		(event) => !subscribed.has(event),
 	);
 
-	if (missingRecommended.length > 0) {
-		issues.push(
-			issue(
-				ISSUE_CODES.WEBHOOK_EVENTS_MISSING,
-				"error",
-				`Webhook is missing recommended events: ${missingRecommended.join(", ")}.`,
-				{
-					suggestedFix:
-						"Subscribe to all recommended events so the integration survives plan changes and refunds.",
-					context: { missing: missingRecommended.join(",") },
-				},
-			),
+	const isAnyRecommendedEventMissing = missingRecommended.length > 0;
+	if (isAnyRecommendedEventMissing) {
+		const missingEventsIssue = issue(
+			ISSUE_CODES.WEBHOOK_EVENTS_MISSING,
+			"error",
+			`Webhook is missing recommended events: ${missingRecommended.join(", ")}.`,
+			{
+				suggestedFix:
+					"Subscribe to all recommended events so the integration survives plan changes and refunds.",
+				context: { missing: missingRecommended.join(",") },
+			},
 		);
+		issues.push(missingEventsIssue);
 	}
 
-	if (missingOptional.length > 0) {
-		issues.push(
-			issue(
-				ISSUE_CODES.WEBHOOK_OPTIONAL_EVENTS,
-				"info",
-				`Optional events not subscribed: ${missingOptional.join(", ")}.`,
-				{ context: { missing: missingOptional.join(",") } },
-			),
+	const isAnyOptionalEventMissing = missingOptional.length > 0;
+	if (isAnyOptionalEventMissing) {
+		const optionalEventsIssue = issue(
+			ISSUE_CODES.WEBHOOK_OPTIONAL_EVENTS,
+			"info",
+			`Optional events not subscribed: ${missingOptional.join(", ")}.`,
+			{ context: { missing: missingOptional.join(",") } },
 		);
+		issues.push(optionalEventsIssue);
 	}
 
 	return buildResult("webhook", mode, issues, match.attributes, {

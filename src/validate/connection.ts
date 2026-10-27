@@ -23,8 +23,10 @@ export interface ConnectionSummary {
 export const resolveActualMode = (
 	testMode: boolean | undefined,
 ): Mode | undefined => {
-	if (testMode === true) return "test";
-	if (testMode === false) return "live";
+	const isTestKey = testMode === true;
+	const isLiveKey = testMode === false;
+	if (isTestKey) return "test";
+	if (isLiveKey) return "live";
 	return undefined;
 };
 
@@ -54,7 +56,8 @@ export const validateConnection = async (
 		},
 	);
 
-	if (!fetched.ok) {
+	const isFetchFailed = !fetched.ok;
+	if (isFetchFailed) {
 		return buildResult("connection", mode, [fetched.issue]);
 	}
 
@@ -70,32 +73,32 @@ export const validateConnection = async (
 
 	const issues: ValidationIssue[] = [];
 
-	if (actualMode && actualMode !== mode) {
-		issues.push(
-			issue(
-				ISSUE_CODES.MODE_MISMATCH,
-				"error",
-				`API key is a ${actualMode}-mode key but was run with --mode ${mode}.`,
-				{
-					suggestedFix: `Either pass --mode ${actualMode} or use a ${mode}-mode key from https://app.lemonsqueezy.com/settings/api.`,
-					context: { declared: mode, actual: actualMode },
-				},
-			),
+	const isModeMismatched = actualMode && actualMode !== mode;
+	if (isModeMismatched) {
+		const modeMismatchIssue = issue(
+			ISSUE_CODES.MODE_MISMATCH,
+			"error",
+			`API key is a ${actualMode}-mode key but was run with --mode ${mode}.`,
+			{
+				suggestedFix: `Either pass --mode ${actualMode} or use a ${mode}-mode key from https://app.lemonsqueezy.com/settings/api.`,
+				context: { declared: mode, actual: actualMode },
+			},
 		);
+		issues.push(modeMismatchIssue);
 	}
 
-	if (stores.length === 0) {
-		issues.push(
-			issue(
-				ISSUE_CODES.STORE_NOT_FOUND,
-				"warning",
-				"API key authenticated but no stores are reachable.",
-				{
-					suggestedFix:
-						"Confirm the API key belongs to an account that owns at least one store.",
-				},
-			),
+	const isThereNoStore = stores.length === 0;
+	if (isThereNoStore) {
+		const noStoreIssue = issue(
+			ISSUE_CODES.STORE_NOT_FOUND,
+			"warning",
+			"API key authenticated but no stores are reachable.",
+			{
+				suggestedFix:
+					"Confirm the API key belongs to an account that owns at least one store.",
+			},
 		);
+		issues.push(noStoreIssue);
 	}
 
 	return buildResult("connection", mode, issues, summary);

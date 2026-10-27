@@ -36,7 +36,8 @@ export const validateDiscount = async (
 		},
 	);
 
-	if (!fetched.ok) {
+	const isFetchFailed = !fetched.ok;
+	if (isFetchFailed) {
 		return buildResult<DiscountAttributes>(
 			"discount",
 			mode,
@@ -47,16 +48,11 @@ export const validateDiscount = async (
 	}
 
 	const attrs = fetched.resource.attributes;
-	return buildResult(
-		"discount",
-		mode,
-		checkDiscount(attrs, { storeId: options.storeId }),
-		attrs,
-		{
-			label: `${attrs.name} (${attrs.code})`,
-			id: String(options.discountId),
-		},
-	);
+	const issues = checkDiscount(attrs, { storeId: options.storeId });
+	return buildResult("discount", mode, issues, attrs, {
+		label: `${attrs.name} (${attrs.code})`,
+		id: String(options.discountId),
+	});
 };
 
 export const checkDiscount = (
@@ -75,94 +71,100 @@ export const checkDiscount = (
 	});
 	if (mismatch) issues.push(mismatch);
 
-	if (attrs.status === "draft") {
-		issues.push(
-			issue(
-				ISSUE_CODES.DISCOUNT_DRAFT,
-				"warning",
-				`Discount "${attrs.name}" is in draft status — customers cannot redeem it.`,
-				{
-					suggestedFix:
-						"Publish the discount in the Lemon Squeezy dashboard before sharing the code.",
-					context: { name: attrs.name, code: attrs.code },
-				},
-			),
+	const isDraft = attrs.status === "draft";
+	if (isDraft) {
+		const draftIssue = issue(
+			ISSUE_CODES.DISCOUNT_DRAFT,
+			"warning",
+			`Discount "${attrs.name}" is in draft status — customers cannot redeem it.`,
+			{
+				suggestedFix:
+					"Publish the discount in the Lemon Squeezy dashboard before sharing the code.",
+				context: { name: attrs.name, code: attrs.code },
+			},
 		);
+		issues.push(draftIssue);
 	}
 
 	const now = new Date();
-	if (attrs.expires_at && new Date(attrs.expires_at) < now) {
-		issues.push(
-			issue(
-				ISSUE_CODES.DISCOUNT_EXPIRED,
-				"error",
-				`Discount "${attrs.name}" expired at ${attrs.expires_at}.`,
-				{
-					suggestedFix: "Extend the expiration date or create a new discount.",
-					context: { name: attrs.name, expiresAt: attrs.expires_at },
-				},
-			),
+	const expiryDate = attrs.expires_at ? new Date(attrs.expires_at) : null;
+	const isExpired = expiryDate !== null && expiryDate < now;
+	if (isExpired) {
+		const expiredIssue = issue(
+			ISSUE_CODES.DISCOUNT_EXPIRED,
+			"error",
+			`Discount "${attrs.name}" expired at ${attrs.expires_at}.`,
+			{
+				suggestedFix: "Extend the expiration date or create a new discount.",
+				context: { name: attrs.name, expiresAt: attrs.expires_at },
+			},
 		);
+		issues.push(expiredIssue);
 	}
 
-	if (attrs.starts_at && new Date(attrs.starts_at) > now) {
-		issues.push(
-			issue(
-				ISSUE_CODES.DISCOUNT_NOT_STARTED,
-				"warning",
-				`Discount "${attrs.name}" starts at ${attrs.starts_at} — not yet active.`,
-				{
-					suggestedFix:
-						"Wait for the start date or adjust it in the dashboard.",
-					context: { name: attrs.name, startsAt: attrs.starts_at },
-				},
-			),
+	const startDate = attrs.starts_at ? new Date(attrs.starts_at) : null;
+	const isNotStarted = startDate !== null && startDate > now;
+	if (isNotStarted) {
+		const notStartedIssue = issue(
+			ISSUE_CODES.DISCOUNT_NOT_STARTED,
+			"warning",
+			`Discount "${attrs.name}" starts at ${attrs.starts_at} — not yet active.`,
+			{
+				suggestedFix: "Wait for the start date or adjust it in the dashboard.",
+				context: { name: attrs.name, startsAt: attrs.starts_at },
+			},
 		);
+		issues.push(notStartedIssue);
 	}
 
-	if (attrs.is_limited_redemptions && attrs.max_redemptions <= 0) {
-		issues.push(
-			issue(
-				ISSUE_CODES.DISCOUNT_REDEMPTIONS_EXHAUSTED,
-				"warning",
-				`Discount "${attrs.name}" has limited redemptions with max_redemptions ≤ 0.`,
-				{
-					suggestedFix:
-						"Increase max_redemptions or disable the redemption limit.",
-					context: { name: attrs.name, maxRedemptions: attrs.max_redemptions },
-				},
-			),
+	const isRedemptionLimitBroken =
+		attrs.is_limited_redemptions && attrs.max_redemptions <= 0;
+	if (isRedemptionLimitBroken) {
+		const exhaustedIssue = issue(
+			ISSUE_CODES.DISCOUNT_REDEMPTIONS_EXHAUSTED,
+			"warning",
+			`Discount "${attrs.name}" has limited redemptions with max_redemptions ≤ 0.`,
+			{
+				suggestedFix:
+					"Increase max_redemptions or disable the redemption limit.",
+				context: { name: attrs.name, maxRedemptions: attrs.max_redemptions },
+			},
 		);
+		issues.push(exhaustedIssue);
 	}
 
-	if (attrs.amount <= 0) {
-		issues.push(
-			issue(
-				ISSUE_CODES.DISCOUNT_INVALID_AMOUNT,
-				"error",
-				`Discount "${attrs.name}" has amount ${attrs.amount} — must be positive.`,
-				{
-					suggestedFix: "Set a positive discount amount in the dashboard.",
-					context: { name: attrs.name, amount: attrs.amount },
-				},
-			),
+	const isAmountNotPositive = attrs.amount <= 0;
+	const isAmountPositive = !isAmountNotPositive;
+	const isPercentOverLimit =
+		attrs.amount_type === "percent" && attrs.amount > 100;
+	if (isAmountNotPositive) {
+		const notPositiveIssue = issue(
+			ISSUE_CODES.DISCOUNT_INVALID_AMOUNT,
+			"error",
+			`Discount "${attrs.name}" has amount ${attrs.amount} — must be positive.`,
+			{
+				suggestedFix: "Set a positive discount amount in the dashboard.",
+				context: { name: attrs.name, amount: attrs.amount },
+			},
 		);
-	} else if (attrs.amount_type === "percent" && attrs.amount > 100) {
-		issues.push(
-			issue(
-				ISSUE_CODES.DISCOUNT_INVALID_AMOUNT,
-				"error",
-				`Discount "${attrs.name}" is ${attrs.amount}% — percent discounts cannot exceed 100%.`,
-				{
-					suggestedFix: "Set the discount to 100% or less.",
-					context: {
-						name: attrs.name,
-						amount: attrs.amount,
-						amountType: attrs.amount_type,
-					},
+		issues.push(notPositiveIssue);
+	}
+	const isOverLimit = isAmountPositive && isPercentOverLimit;
+	if (isOverLimit) {
+		const overLimitIssue = issue(
+			ISSUE_CODES.DISCOUNT_INVALID_AMOUNT,
+			"error",
+			`Discount "${attrs.name}" is ${attrs.amount}% — percent discounts cannot exceed 100%.`,
+			{
+				suggestedFix: "Set the discount to 100% or less.",
+				context: {
+					name: attrs.name,
+					amount: attrs.amount,
+					amountType: attrs.amount_type,
 				},
-			),
+			},
 		);
+		issues.push(overLimitIssue);
 	}
 
 	return issues;

@@ -25,12 +25,12 @@ test("validateConnection returns ok when key auths and stores are reachable", as
 		{ match: pathIs("/v1/stores"), status: 200, body: storesCollection },
 	]);
 
-	const result = await validateConnection(http, "test");
+	const connectionValidation = await validateConnection(http, "test");
 
-	expect(result.ok).toBe(true);
-	expect(result.mode).toBe("test");
-	expect(result.resource?.storeCount).toBe(1);
-	expect(result.resource?.storeIds).toEqual(["42"]);
+	expect(connectionValidation.ok).toBe(true);
+	expect(connectionValidation.mode).toBe("test");
+	expect(connectionValidation.resource?.storeCount).toBe(1);
+	expect(connectionValidation.resource?.storeIds).toEqual(["42"]);
 });
 
 test("validateConnection warns when no stores reachable", async () => {
@@ -39,11 +39,11 @@ test("validateConnection warns when no stores reachable", async () => {
 		{ match: pathIs("/v1/stores"), status: 200, body: { data: [] } },
 	]);
 
-	const result = await validateConnection(http, "test");
+	const connectionValidation = await validateConnection(http, "test");
 
-	expect(result.ok).toBe(true);
-	expect(result.issues[0]?.code).toBe("STORE_NOT_FOUND");
-	expect(result.issues[0]?.severity).toBe("warning");
+	expect(connectionValidation.ok).toBe(true);
+	expect(connectionValidation.issues[0]?.code).toBe("STORE_NOT_FOUND");
+	expect(connectionValidation.issues[0]?.severity).toBe("warning");
 });
 
 test("validateConnection surfaces AUTH_FAILED on 401", async () => {
@@ -51,10 +51,10 @@ test("validateConnection surfaces AUTH_FAILED on 401", async () => {
 		{ match: pathIs("/v1/users/me"), status: 401, body: unauthorizedError },
 	]);
 
-	const result = await validateConnection(http, "test");
+	const connectionValidation = await validateConnection(http, "test");
 
-	expect(result.ok).toBe(false);
-	expect(result.issues[0]?.code).toBe("AUTH_FAILED");
+	expect(connectionValidation.ok).toBe(false);
+	expect(connectionValidation.issues[0]?.code).toBe("AUTH_FAILED");
 });
 
 test("validateConnection flags MODE_MISMATCH when declared mode differs from meta.test_mode", async () => {
@@ -63,12 +63,12 @@ test("validateConnection flags MODE_MISMATCH when declared mode differs from met
 		{ match: pathIs("/v1/stores"), status: 200, body: storesCollection },
 	]);
 
-	const result = await validateConnection(http, "test");
+	const connectionValidation = await validateConnection(http, "test");
 
-	expect(result.ok).toBe(false);
-	expect(result.resource?.actualMode).toBe("live");
-	expect(result.resource?.declaredMode).toBe("test");
-	const mismatch = result.issues.find(
+	expect(connectionValidation.ok).toBe(false);
+	expect(connectionValidation.resource?.actualMode).toBe("live");
+	expect(connectionValidation.resource?.declaredMode).toBe("test");
+	const mismatch = connectionValidation.issues.find(
 		(entry) => entry.code === "MODE_MISMATCH",
 	);
 	expect(mismatch?.severity).toBe("error");
@@ -81,10 +81,10 @@ test("validateConnection passes when declared mode matches meta.test_mode", asyn
 		{ match: pathIs("/v1/stores"), status: 200, body: storesCollection },
 	]);
 
-	const result = await validateConnection(http, "live");
+	const connectionValidation = await validateConnection(http, "live");
 
-	expect(result.ok).toBe(true);
-	expect(result.resource?.actualMode).toBe("live");
+	expect(connectionValidation.ok).toBe(true);
+	expect(connectionValidation.resource?.actualMode).toBe("live");
 });
 
 test("validateConnection skips mode check when meta.test_mode is absent", async () => {
@@ -94,12 +94,12 @@ test("validateConnection skips mode check when meta.test_mode is absent", async 
 		{ match: pathIs("/v1/stores"), status: 200, body: storesCollection },
 	]);
 
-	const result = await validateConnection(http, "live");
+	const connectionValidation = await validateConnection(http, "live");
 
-	expect(result.ok).toBe(true);
-	expect(result.resource?.actualMode).toBeUndefined();
+	expect(connectionValidation.ok).toBe(true);
+	expect(connectionValidation.resource?.actualMode).toBeUndefined();
 	expect(
-		result.issues.find((entry) => entry.code === "MODE_MISMATCH"),
+		connectionValidation.issues.find((entry) => entry.code === "MODE_MISMATCH"),
 	).toBeUndefined();
 });
 

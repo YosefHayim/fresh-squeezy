@@ -28,38 +28,38 @@ test("validateDiscount returns ok for a valid published discount", async () => {
 			body: publishedDiscountDoc,
 		},
 	]);
-	const result = await validateDiscount(http, "test", {
+	const discountValidation = await validateDiscount(http, "test", {
 		storeId: 42,
 		discountId: 600,
 	});
-	expect(result.ok).toBe(true);
-	expect(result.resource?.code).toBe("SUMMER20");
-	expect(result.issues).toHaveLength(0);
+	expect(discountValidation.ok).toBe(true);
+	expect(discountValidation.resource?.code).toBe("SUMMER20");
+	expect(discountValidation.issues).toHaveLength(0);
 });
 
 test("validateDiscount returns DISCOUNT_NOT_FOUND on 404", async () => {
 	const http = makeClient([
 		{ match: pathIs("/v1/discounts/9999"), status: 404, body: notFoundError },
 	]);
-	const result = await validateDiscount(http, "test", {
+	const discountValidation = await validateDiscount(http, "test", {
 		storeId: 42,
 		discountId: 9999,
 	});
-	expect(result.ok).toBe(false);
-	expect(result.issues[0]?.code).toBe("DISCOUNT_NOT_FOUND");
+	expect(discountValidation.ok).toBe(false);
+	expect(discountValidation.issues[0]?.code).toBe("DISCOUNT_NOT_FOUND");
 });
 
 test("validateDiscount returns DISCOUNT_DRAFT for draft status", async () => {
 	const http = makeClient([
 		{ match: pathIs("/v1/discounts/601"), status: 200, body: draftDiscountDoc },
 	]);
-	const result = await validateDiscount(http, "test", {
+	const discountValidation = await validateDiscount(http, "test", {
 		storeId: 42,
 		discountId: 601,
 	});
-	expect(result.ok).toBe(true);
-	expect(result.issues[0]?.code).toBe("DISCOUNT_DRAFT");
-	expect(result.issues[0]?.severity).toBe("warning");
+	expect(discountValidation.ok).toBe(true);
+	expect(discountValidation.issues[0]?.code).toBe("DISCOUNT_DRAFT");
+	expect(discountValidation.issues[0]?.severity).toBe("warning");
 });
 
 test("validateDiscount returns DISCOUNT_EXPIRED for past expires_at", async () => {
@@ -70,12 +70,12 @@ test("validateDiscount returns DISCOUNT_EXPIRED for past expires_at", async () =
 			body: expiredDiscountDoc,
 		},
 	]);
-	const result = await validateDiscount(http, "test", {
+	const discountValidation = await validateDiscount(http, "test", {
 		storeId: 42,
 		discountId: 602,
 	});
-	expect(result.ok).toBe(false);
-	expect(result.issues[0]?.code).toBe("DISCOUNT_EXPIRED");
+	expect(discountValidation.ok).toBe(false);
+	expect(discountValidation.issues[0]?.code).toBe("DISCOUNT_EXPIRED");
 });
 
 test("validateDiscount returns DISCOUNT_NOT_STARTED for future starts_at", async () => {
@@ -86,13 +86,13 @@ test("validateDiscount returns DISCOUNT_NOT_STARTED for future starts_at", async
 			body: futureDiscountDoc,
 		},
 	]);
-	const result = await validateDiscount(http, "test", {
+	const discountValidation = await validateDiscount(http, "test", {
 		storeId: 42,
 		discountId: 603,
 	});
-	expect(result.ok).toBe(true);
-	expect(result.issues[0]?.code).toBe("DISCOUNT_NOT_STARTED");
-	expect(result.issues[0]?.severity).toBe("warning");
+	expect(discountValidation.ok).toBe(true);
+	expect(discountValidation.issues[0]?.code).toBe("DISCOUNT_NOT_STARTED");
+	expect(discountValidation.issues[0]?.severity).toBe("warning");
 });
 
 test("validateDiscount returns DISCOUNT_REDEMPTIONS_EXHAUSTED when limited and max ≤ 0", async () => {
@@ -103,13 +103,15 @@ test("validateDiscount returns DISCOUNT_REDEMPTIONS_EXHAUSTED when limited and m
 			body: exhaustedDiscountDoc,
 		},
 	]);
-	const result = await validateDiscount(http, "test", {
+	const discountValidation = await validateDiscount(http, "test", {
 		storeId: 42,
 		discountId: 604,
 	});
-	expect(result.ok).toBe(true);
-	expect(result.issues[0]?.code).toBe("DISCOUNT_REDEMPTIONS_EXHAUSTED");
-	expect(result.issues[0]?.severity).toBe("warning");
+	expect(discountValidation.ok).toBe(true);
+	expect(discountValidation.issues[0]?.code).toBe(
+		"DISCOUNT_REDEMPTIONS_EXHAUSTED",
+	);
+	expect(discountValidation.issues[0]?.severity).toBe("warning");
 });
 
 test("validateDiscount returns DISCOUNT_INVALID_AMOUNT for percent > 100", async () => {
@@ -120,12 +122,12 @@ test("validateDiscount returns DISCOUNT_INVALID_AMOUNT for percent > 100", async
 			body: invalidPercentDiscountDoc,
 		},
 	]);
-	const result = await validateDiscount(http, "test", {
+	const discountValidation = await validateDiscount(http, "test", {
 		storeId: 42,
 		discountId: 605,
 	});
-	expect(result.ok).toBe(false);
-	expect(result.issues[0]?.code).toBe("DISCOUNT_INVALID_AMOUNT");
+	expect(discountValidation.ok).toBe(false);
+	expect(discountValidation.issues[0]?.code).toBe("DISCOUNT_INVALID_AMOUNT");
 });
 
 test("validateDiscount returns DISCOUNT_INVALID_AMOUNT for amount ≤ 0", async () => {
@@ -136,12 +138,12 @@ test("validateDiscount returns DISCOUNT_INVALID_AMOUNT for amount ≤ 0", async 
 			body: zeroAmountDiscountDoc,
 		},
 	]);
-	const result = await validateDiscount(http, "test", {
+	const discountValidation = await validateDiscount(http, "test", {
 		storeId: 42,
 		discountId: 606,
 	});
-	expect(result.ok).toBe(false);
-	expect(result.issues[0]?.code).toBe("DISCOUNT_INVALID_AMOUNT");
+	expect(discountValidation.ok).toBe(false);
+	expect(discountValidation.issues[0]?.code).toBe("DISCOUNT_INVALID_AMOUNT");
 });
 
 test("validateDiscount returns DISCOUNT_STORE_MISMATCH for wrong store", async () => {
@@ -152,10 +154,10 @@ test("validateDiscount returns DISCOUNT_STORE_MISMATCH for wrong store", async (
 			body: wrongStoreDiscountDoc,
 		},
 	]);
-	const result = await validateDiscount(http, "test", {
+	const discountValidation = await validateDiscount(http, "test", {
 		storeId: 42,
 		discountId: 607,
 	});
-	expect(result.ok).toBe(false);
-	expect(result.issues[0]?.code).toBe("DISCOUNT_STORE_MISMATCH");
+	expect(discountValidation.ok).toBe(false);
+	expect(discountValidation.issues[0]?.code).toBe("DISCOUNT_STORE_MISMATCH");
 });
