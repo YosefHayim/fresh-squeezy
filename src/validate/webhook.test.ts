@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { expect, test } from "vitest";
 import {
 	webhooksCollectionComplete,
 	webhooksCollectionEmpty,
@@ -14,83 +14,81 @@ const makeClient = (routes: Parameters<typeof createMockFetch>[0]) => {
 	return new HttpClient(resolveConfig({ apiKey: "k", fetch }));
 };
 
-describe("validateWebhook", () => {
-	const URL = "https://app.example.com/api/webhooks/lemon-squeezy";
+const WEBHOOK_URL = "https://app.example.com/api/webhooks/lemon-squeezy";
 
-	test("passes when every recommended event is subscribed", async () => {
-		const http = makeClient([
-			{
-				match: pathIsWithQuery("/v1/webhooks", { "filter[store_id]": "42" }),
-				status: 200,
-				body: webhooksCollectionComplete,
-			},
-		]);
+test("validateWebhook passes when every recommended event is subscribed", async () => {
+	const http = makeClient([
+		{
+			match: pathIsWithQuery("/v1/webhooks", { "filter[store_id]": "42" }),
+			status: 200,
+			body: webhooksCollectionComplete,
+		},
+	]);
 
-		const result = await validateWebhook(http, "test", {
-			storeId: 42,
-			url: URL,
-		});
-
-		expect(result.ok).toBe(true);
-		expect(
-			result.issues.filter((entry) => entry.severity === "error"),
-		).toHaveLength(0);
+	const webhookValidation = await validateWebhook(http, "test", {
+		storeId: 42,
+		url: WEBHOOK_URL,
 	});
 
-	test("flags missing recommended events as errors", async () => {
-		const http = makeClient([
-			{
-				match: pathIsWithQuery("/v1/webhooks", { "filter[store_id]": "42" }),
-				status: 200,
-				body: webhooksCollectionMissingEvents,
-			},
-		]);
+	expect(webhookValidation.ok).toBe(true);
+	expect(
+		webhookValidation.issues.filter((entry) => entry.severity === "error"),
+	).toHaveLength(0);
+});
 
-		const result = await validateWebhook(http, "test", {
-			storeId: 42,
-			url: URL,
-		});
+test("validateWebhook flags missing recommended events as errors", async () => {
+	const http = makeClient([
+		{
+			match: pathIsWithQuery("/v1/webhooks", { "filter[store_id]": "42" }),
+			status: 200,
+			body: webhooksCollectionMissingEvents,
+		},
+	]);
 
-		expect(result.ok).toBe(false);
-		expect(result.issues.map((entry) => entry.code)).toContain(
-			"WEBHOOK_EVENTS_MISSING",
-		);
+	const webhookValidation = await validateWebhook(http, "test", {
+		storeId: 42,
+		url: WEBHOOK_URL,
 	});
 
-	test("returns WEBHOOK_NOT_FOUND when the store has no matching webhook", async () => {
-		const http = makeClient([
-			{
-				match: pathIsWithQuery("/v1/webhooks", { "filter[store_id]": "42" }),
-				status: 200,
-				body: webhooksCollectionEmpty,
-			},
-		]);
+	expect(webhookValidation.ok).toBe(false);
+	expect(webhookValidation.issues.map((entry) => entry.code)).toContain(
+		"WEBHOOK_EVENTS_MISSING",
+	);
+});
 
-		const result = await validateWebhook(http, "test", {
-			storeId: 42,
-			url: URL,
-		});
+test("validateWebhook returns WEBHOOK_NOT_FOUND when the store has no matching webhook", async () => {
+	const http = makeClient([
+		{
+			match: pathIsWithQuery("/v1/webhooks", { "filter[store_id]": "42" }),
+			status: 200,
+			body: webhooksCollectionEmpty,
+		},
+	]);
 
-		expect(result.ok).toBe(false);
-		expect(result.issues[0]?.code).toBe("WEBHOOK_NOT_FOUND");
+	const webhookValidation = await validateWebhook(http, "test", {
+		storeId: 42,
+		url: WEBHOOK_URL,
 	});
 
-	test("normalizes trailing slashes when matching URLs", async () => {
-		const http = makeClient([
-			{
-				match: pathIsWithQuery("/v1/webhooks", { "filter[store_id]": "42" }),
-				status: 200,
-				body: webhooksCollectionComplete,
-			},
-		]);
+	expect(webhookValidation.ok).toBe(false);
+	expect(webhookValidation.issues[0]?.code).toBe("WEBHOOK_NOT_FOUND");
+});
 
-		const result = await validateWebhook(http, "test", {
-			storeId: 42,
-			url: `${URL}/`,
-		});
+test("validateWebhook normalizes trailing slashes when matching URLs", async () => {
+	const http = makeClient([
+		{
+			match: pathIsWithQuery("/v1/webhooks", { "filter[store_id]": "42" }),
+			status: 200,
+			body: webhooksCollectionComplete,
+		},
+	]);
 
-		expect(result.ok).toBe(true);
+	const webhookValidation = await validateWebhook(http, "test", {
+		storeId: 42,
+		url: `${WEBHOOK_URL}/`,
 	});
+
+	expect(webhookValidation.ok).toBe(true);
 });
 
 test("sameWebhookUrl matches identical URLs", () => {

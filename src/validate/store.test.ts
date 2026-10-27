@@ -14,16 +14,16 @@ test("validateStore returns ok for reachable store", async () => {
 	const http = makeClient([
 		{ match: pathIs("/v1/stores/42"), status: 200, body: storeDoc },
 	]);
-	const result = await validateStore(http, "test", 42);
-	expect(result.ok).toBe(true);
-	expect(result.resource?.slug).toBe("fresh-squeezy-test");
+	const storeValidation = await validateStore(http, "test", 42);
+	expect(storeValidation.ok).toBe(true);
+	expect(storeValidation.resource?.slug).toBe("fresh-squeezy-test");
 });
 
 test("validateStore returns STORE_NOT_FOUND on 404", async () => {
 	const http = makeClient([
 		{ match: pathIs("/v1/stores/9999"), status: 404, body: notFoundError },
 	]);
-	const result = await validateStore(http, "test", 9999);
-	expect(result.ok).toBe(false);
-	expect(result.issues[0]?.code).toBe("STORE_NOT_FOUND");
+	const storeValidation = await validateStore(http, "test", 9999);
+	expect(storeValidation.ok).toBe(false);
+	expect(storeValidation.issues[0]?.code).toBe("STORE_NOT_FOUND");
 });

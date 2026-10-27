@@ -34,25 +34,25 @@ test("validateSubscriptionPlan returns ok for a valid subscription variant", asy
 			body: publishedProductDoc,
 		},
 	]);
-	const result = await validateSubscriptionPlan(http, "test", {
+	const planValidation = await validateSubscriptionPlan(http, "test", {
 		storeId: 42,
 		variantId: 800,
 	});
-	expect(result.ok).toBe(true);
-	expect(result.resource?.interval).toBe("month");
-	expect(result.issues).toHaveLength(0);
+	expect(planValidation.ok).toBe(true);
+	expect(planValidation.resource?.interval).toBe("month");
+	expect(planValidation.issues).toHaveLength(0);
 });
 
 test("validateSubscriptionPlan returns PLAN_VARIANT_NOT_FOUND on 404", async () => {
 	const http = makeClient([
 		{ match: pathIs("/v1/variants/9999"), status: 404, body: notFoundError },
 	]);
-	const result = await validateSubscriptionPlan(http, "test", {
+	const planValidation = await validateSubscriptionPlan(http, "test", {
 		storeId: 42,
 		variantId: 9999,
 	});
-	expect(result.ok).toBe(false);
-	expect(result.issues[0]?.code).toBe("PLAN_VARIANT_NOT_FOUND");
+	expect(planValidation.ok).toBe(false);
+	expect(planValidation.issues[0]?.code).toBe("PLAN_VARIANT_NOT_FOUND");
 });
 
 test("validateSubscriptionPlan returns PLAN_NOT_SUBSCRIPTION for non-subscription variant", async () => {
@@ -68,12 +68,12 @@ test("validateSubscriptionPlan returns PLAN_NOT_SUBSCRIPTION for non-subscriptio
 			body: publishedProductDoc,
 		},
 	]);
-	const result = await validateSubscriptionPlan(http, "test", {
+	const planValidation = await validateSubscriptionPlan(http, "test", {
 		storeId: 42,
 		variantId: 801,
 	});
-	expect(result.ok).toBe(false);
-	expect(result.issues[0]?.code).toBe("PLAN_NOT_SUBSCRIPTION");
+	expect(planValidation.ok).toBe(false);
+	expect(planValidation.issues[0]?.code).toBe("PLAN_NOT_SUBSCRIPTION");
 });
 
 test("validateSubscriptionPlan returns PLAN_INVALID_INTERVAL for missing/invalid interval and count", async () => {
@@ -89,12 +89,12 @@ test("validateSubscriptionPlan returns PLAN_INVALID_INTERVAL for missing/invalid
 			body: publishedProductDoc,
 		},
 	]);
-	const result = await validateSubscriptionPlan(http, "test", {
+	const planValidation = await validateSubscriptionPlan(http, "test", {
 		storeId: 42,
 		variantId: 802,
 	});
-	expect(result.ok).toBe(false);
-	const intervalIssues = result.issues.filter(
+	expect(planValidation.ok).toBe(false);
+	const intervalIssues = planValidation.issues.filter(
 		(i) => i.code === "PLAN_INVALID_INTERVAL",
 	);
 	expect(intervalIssues.length).toBe(2);
@@ -113,13 +113,13 @@ test("validateSubscriptionPlan returns PLAN_FREE_PRICE for zero-price subscripti
 			body: publishedProductDoc,
 		},
 	]);
-	const result = await validateSubscriptionPlan(http, "test", {
+	const planValidation = await validateSubscriptionPlan(http, "test", {
 		storeId: 42,
 		variantId: 803,
 	});
-	expect(result.ok).toBe(true);
-	expect(result.issues[0]?.code).toBe("PLAN_FREE_PRICE");
-	expect(result.issues[0]?.severity).toBe("warning");
+	expect(planValidation.ok).toBe(true);
+	expect(planValidation.issues[0]?.code).toBe("PLAN_FREE_PRICE");
+	expect(planValidation.issues[0]?.severity).toBe("warning");
 });
 
 test("validateSubscriptionPlan returns PLAN_TRIAL_INCONSISTENT for misconfigured trial", async () => {
@@ -135,13 +135,13 @@ test("validateSubscriptionPlan returns PLAN_TRIAL_INCONSISTENT for misconfigured
 			body: publishedProductDoc,
 		},
 	]);
-	const result = await validateSubscriptionPlan(http, "test", {
+	const planValidation = await validateSubscriptionPlan(http, "test", {
 		storeId: 42,
 		variantId: 804,
 	});
-	expect(result.ok).toBe(true);
-	expect(result.issues[0]?.code).toBe("PLAN_TRIAL_INCONSISTENT");
-	expect(result.issues[0]?.severity).toBe("warning");
+	expect(planValidation.ok).toBe(true);
+	expect(planValidation.issues[0]?.code).toBe("PLAN_TRIAL_INCONSISTENT");
+	expect(planValidation.issues[0]?.severity).toBe("warning");
 });
 
 test("validateSubscriptionPlan returns PLAN_DRAFT for draft subscription variant", async () => {
@@ -157,13 +157,13 @@ test("validateSubscriptionPlan returns PLAN_DRAFT for draft subscription variant
 			body: publishedProductDoc,
 		},
 	]);
-	const result = await validateSubscriptionPlan(http, "test", {
+	const planValidation = await validateSubscriptionPlan(http, "test", {
 		storeId: 42,
 		variantId: 805,
 	});
-	expect(result.ok).toBe(true);
-	expect(result.issues[0]?.code).toBe("PLAN_DRAFT");
-	expect(result.issues[0]?.severity).toBe("warning");
+	expect(planValidation.ok).toBe(true);
+	expect(planValidation.issues[0]?.code).toBe("PLAN_DRAFT");
+	expect(planValidation.issues[0]?.severity).toBe("warning");
 });
 
 test("validateSubscriptionPlan returns PLAN_STORE_MISMATCH when variant belongs to different store", async () => {
@@ -179,10 +179,10 @@ test("validateSubscriptionPlan returns PLAN_STORE_MISMATCH when variant belongs 
 			body: productOnWrongStoreDoc,
 		},
 	]);
-	const result = await validateSubscriptionPlan(http, "test", {
+	const planValidation = await validateSubscriptionPlan(http, "test", {
 		storeId: 42,
 		variantId: 806,
 	});
-	expect(result.ok).toBe(false);
-	expect(result.issues[0]?.code).toBe("PLAN_STORE_MISMATCH");
+	expect(planValidation.ok).toBe(false);
+	expect(planValidation.issues[0]?.code).toBe("PLAN_STORE_MISMATCH");
 });
