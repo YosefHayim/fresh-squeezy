@@ -23,7 +23,7 @@ npx fresh-squeezy doctor --all-resources --json
 npx fresh-squeezy doctor --store-id 12 --all-resources --json
 ```
 
-- Read `{ ok, mode, reports }`. Each report holds `results`; each result holds `findings`.
+- Read `{ ok, mode, reports }`. Each report holds `checks`; each check holds `findings`.
 - Exit code: `0` every check passed, `1` a check failed, `2` wrong flags or setup (missing key, bad mode).
 - Read each finding's `code`, `message` and `suggestedFix`. Act on the fix, then run the doctor again until `ok` is `true`.
 - Flags: `--mode <test|live>`, `--store-id <id>` (repeat), `--all-resources`, `--product-id`, `--variant-id`, `--webhook-url`, `--discount-id`, `--license-key-id` (each repeatable), `--json`. With no store flag it uses `LEMON_SQUEEZY_STORE_ID`, else every store.

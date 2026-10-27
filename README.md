@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://github.com/YosefHayim/fresh-squeezy">
-    <img src="public/fresh-squeezy-hero.png" alt="fresh-squeezy — the up-to-date Lemon Squeezy client, plus a doctor that checks your billing setup." width="640" />
+    <img src=".github/fresh-squeezy-hero.png" alt="fresh-squeezy — the up-to-date Lemon Squeezy client, plus a doctor that checks your billing setup." width="640" />
   </a>
 </p>
 
@@ -40,7 +40,7 @@
 
 ---
 
-**fresh-squeezy** is two things for [Lemon Squeezy](https://www.lemonsqueezy.com/):
+**fresh-squeezy** replaces the unmaintained Lemon Squeezy SDK, so each app gets typed, checked billing without writing its own types or tests. It is two things for [Lemon Squeezy](https://www.lemonsqueezy.com/):
 
 1. **A typed client** that replaces [`@lemonsqueezy/lemonsqueezy.js`](https://github.com/lmsqueezy/lemonsqueezy.js). The official SDK last shipped 4.0.0 on 2024-11-05; fresh-squeezy follows the [API changelog](https://docs.lemonsqueezy.com/api/getting-started/changelog). Zero runtime dependencies, ESM and CJS.
 2. **A doctor** that checks a store before it ships: connection and mode, store, products, subscription plans, webhooks, discounts and license keys. It gives stable finding codes, stable exit codes and JSON for CI.
@@ -163,7 +163,7 @@ The doctor reads the key of its mode (`LEMON_SQUEEZY_TEST_API_KEY` or `LEMON_SQU
 		{
 			"ok": false,
 			"mode": "test",
-			"results": [
+			"checks": [
 				{
 					"name": "discount",
 					"ok": false,
@@ -200,7 +200,7 @@ The step fails on exit `1` or `2`. A live key pointed at a test store (or the re
 
 ### The checks from TypeScript
 
-Each check returns a `ValidationResult` and never throws.
+Each check returns a `CheckReport` and never throws.
 
 ```ts
 const freshSqueezy = createFreshSqueezy({ mode: "live" });
@@ -213,7 +213,7 @@ const discount = await freshSqueezy.validateDiscount({
 const report = await freshSqueezy.doctor({ storeId: "12", allResources: true });
 const storeIds = await freshSqueezy.listStoreIds();
 
-for (const check of report.results) {
+for (const check of report.checks) {
 	for (const finding of check.findings) {
 		console.error(`[${finding.severity}] ${finding.code}: ${finding.message}`);
 	}
@@ -299,6 +299,8 @@ The 60 rows are every function exported by `@lemonsqueezy/lemonsqueezy.js` 4.0.0
 
 ## Upgrading from 0.3
 
+- Results are checks: `ValidationResult` is `CheckReport`, `ValidationTarget` is `CheckTarget`, `DoctorOptions` is `DoctorTargets`, `buildResult` is `buildCheckReport`, and the `DoctorReport` key `results` is `checks`.
+- `ENV_KEYS` is gone. The env vars are `LEMON_SQUEEZY_TEST_API_KEY`, `LEMON_SQUEEZY_LIVE_API_KEY`, `LEMON_SQUEEZY_MODE` and `LEMON_SQUEEZY_STORE_ID`.
 - The ops commands and the verb registry are gone. Use the [client](#client).
 - `init`, `manage`, the `validate` subcommands, the augmentations and the launcher menu are gone. The only command is `fresh-squeezy doctor`, and it takes flags only.
 - `--store-ids a,b` is now `--store-id a --store-id b`. With no store given, the doctor checks every store, so `--all-stores` is the default.
@@ -309,25 +311,29 @@ The 60 rows are every function exported by `@lemonsqueezy/lemonsqueezy.js` 4.0.0
 ```ts
 // before
 import { validateStore } from "fresh-squeezy/validate/store";
-if (result.issues.length > 0) console.error(result.issues[0].code);
+if (report.issues.length > 0) console.error(report.issues[0].code);
 
 // after
 import { createFreshSqueezy } from "fresh-squeezy";
 const freshSqueezy = createFreshSqueezy();
-const result = await freshSqueezy.validateStore("12");
-if (result.findings.length > 0) console.error(result.findings[0].code);
+const storeReport = await freshSqueezy.validateStore("12");
+if (storeReport.findings.length > 0)
+	console.error(storeReport.findings[0].code);
 ```
 
 ## Keeping types current
 
 The `lemon-squeezy-changelog` workflow runs on the 1st and 15th of each month. When the newest entry on the [API changelog](https://docs.lemonsqueezy.com/api/getting-started/changelog) has no issue yet, it opens one labeled `changelog-drift`.
 
-To fix it, read the entry, then edit `src/shared/lemon-squeezy-types.ts` and the client by hand, add a test, and close the issue. An agent can take the issue.
+To fix it, read the entry, then edit `src/client/lemon-squeezy-types.ts` and the client by hand, add a test, and close the issue. An agent can take the issue.
+
+The `live-api-check` workflow also runs on the 1st and 15th. It compares every Lemon Squeezy resource the test key can read with the types, and opens an issue labeled `live-api-drift` when the API returns a field the types do not have.
 
 GitHub turns scheduled workflows off after 60 days without repository activity in a public repo. Turn it back on with:
 
 ```bash
 gh workflow enable lemon-squeezy-changelog
+gh workflow enable live-api-check
 ```
 
 ## Finding codes
@@ -355,10 +361,10 @@ Requirements: Node.js 22+ and pnpm 10.
 git clone https://github.com/YosefHayim/fresh-squeezy.git
 cd fresh-squeezy
 pnpm install
-pnpm verify
+pnpm check
 ```
 
-Read [PROJECT.md](./PROJECT.md) for the goals and non-goals, [AGENTS.md](./AGENTS.md) for the commands, rules and recipes, and [CONTEXT.md](./CONTEXT.md) for the shape of the code.
+The client lives in `src/client/` and the checks in `src/doctor/`. `pnpm check` runs what CI runs: lint, typecheck, tests and build.
 
 When you file an issue, include the `fresh-squeezy` version, the Node version, the mode, a minimal reproduction and the doctor `--json` output with the key removed.
 

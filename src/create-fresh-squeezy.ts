@@ -1,36 +1,23 @@
-import { createLemonSqueezyClient } from "./features/client/lemon-squeezy-client.js";
-import { validateConnection } from "./features/validate/connection.js";
-import {
-	type DiscountCheck,
-	validateDiscount,
-} from "./features/validate/discount.js";
-import {
-	type DoctorOptions,
-	doctor,
-	listStoreIds,
-} from "./features/validate/doctor.js";
+import { type FreshSqueezyConfig, readConfig } from "@/client/config.js";
+import { createHttp } from "@/client/http.js";
+import { createLemonSqueezyClient } from "@/client/lemon-squeezy-client.js";
+import { validateConnection } from "@/doctor/connection.js";
+import { type DiscountCheck, validateDiscount } from "@/doctor/discount.js";
+import { type DoctorTargets, doctor, listStoreIds } from "@/doctor/doctor.js";
 import {
 	type LicenseKeyCheck,
 	validateLicenseKey,
-} from "./features/validate/license-key.js";
-import {
-	type ProductCheck,
-	validateProduct,
-} from "./features/validate/product.js";
-import { validateStore } from "./features/validate/store.js";
+} from "@/doctor/license-key.js";
+import { type ProductCheck, validateProduct } from "@/doctor/product.js";
+import { validateStore } from "@/doctor/store.js";
 import {
 	type SubscriptionPlanCheck,
 	validateSubscriptionPlan,
-} from "./features/validate/subscription-plan.js";
-import {
-	validateWebhook,
-	type WebhookCheck,
-} from "./features/validate/webhook.js";
-import { type FreshSqueezyConfig, readConfig } from "./shared/config.js";
-import { createHttp } from "./shared/http.js";
+} from "@/doctor/subscription-plan.js";
+import { validateWebhook, type WebhookCheck } from "@/doctor/webhook.js";
 
-export const createFreshSqueezy = (input: FreshSqueezyConfig = {}) => {
-	const config = readConfig(input);
+export const createFreshSqueezy = (givenConfig: FreshSqueezyConfig = {}) => {
+	const config = readConfig(givenConfig);
 	const http = createHttp(config);
 	const { mode, storeId } = config;
 
@@ -56,8 +43,8 @@ export const createFreshSqueezy = (input: FreshSqueezyConfig = {}) => {
 		validateSubscriptionPlan: (check: SubscriptionPlanCheck) =>
 			validateSubscriptionPlan(http, mode, check),
 		listStoreIds: storeIdsToCheck,
-		doctor: (options: DoctorOptions = {}) =>
-			doctor(http, mode, { storeId, ...options }),
+		doctor: (targets: DoctorTargets = {}) =>
+			doctor(http, mode, { storeId, ...targets }),
 	};
 };
 

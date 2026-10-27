@@ -10,7 +10,7 @@ const RECOMMENDED_EVENTS = [
 	"subscription_payment_failed",
 ];
 
-const variantOf = (id, productId, overrides) => ({
+const buildVariant = (id, productId, overrides) => ({
 	type: "variants",
 	id,
 	attributes: {
@@ -29,7 +29,7 @@ const variantOf = (id, productId, overrides) => ({
 	},
 });
 
-const discountOf = (id, storeId, overrides) => ({
+const buildDiscount = (id, storeId, overrides) => ({
 	type: "discounts",
 	id,
 	attributes: {
@@ -77,10 +77,10 @@ const TABLES = {
 		},
 	],
 	variants: [
-		variantOf("800", 100, {}),
-		variantOf("801", 100, { price: 0 }),
-		variantOf("802", 100, { interval_count: undefined }),
-		variantOf("900", 200, {}),
+		buildVariant("800", 100, {}),
+		buildVariant("801", 100, { price: 0 }),
+		buildVariant("802", 100, { interval_count: undefined }),
+		buildVariant("900", 200, {}),
 	],
 	webhooks: [
 		{
@@ -103,9 +103,9 @@ const TABLES = {
 		},
 	],
 	discounts: [
-		discountOf("600", 1, {}),
-		discountOf("601", 1, { expires_at: "2020-01-01T00:00:00Z" }),
-		discountOf("610", 2, { status: "draft" }),
+		buildDiscount("600", 1, {}),
+		buildDiscount("601", 1, { expires_at: "2020-01-01T00:00:00Z" }),
+		buildDiscount("610", 2, { status: "draft" }),
 	],
 	"license-keys": [
 		{
@@ -137,14 +137,14 @@ const TABLES = {
 	],
 };
 
-const jsonResponse = (status, payload) => {
-	const text = JSON.stringify(payload);
+const sendJsonApiReply = (status, replyDocument) => {
+	const text = JSON.stringify(replyDocument);
 	const headers = { "content-type": "application/vnd.api+json" };
 	return new Response(text, { status, headers });
 };
 
-const unauthorizedResponse = () =>
-	jsonResponse(401, {
+const buildUnauthorizedReply = () =>
+	sendJsonApiReply(401, {
 		errors: [
 			{
 				status: "401",
@@ -155,11 +155,13 @@ const unauthorizedResponse = () =>
 		],
 	});
 
-const notFoundResponse = (title) =>
-	jsonResponse(404, { errors: [{ status: "404", code: "not_found", title }] });
+const buildNotFoundReply = (title) =>
+	sendJsonApiReply(404, {
+		errors: [{ status: "404", code: "not_found", title }],
+	});
 
-const userResponse = () =>
-	jsonResponse(200, {
+const buildUserReply = () =>
+	sendJsonApiReply(200, {
 		data: {
 			type: "users",
 			id: "9",
@@ -168,61 +170,65 @@ const userResponse = () =>
 		meta: { test_mode: true },
 	});
 
-const matchesFilter = (entry, filter) => {
-	const { name, value } = filter;
-	const isFilterAbsent = !value;
-	return isFilterAbsent || String(entry.attributes[name]) === value;
+const matchesFilter = (resource, filter) => {
+	const { attributeName, expectedText } = filter;
+	const isFilterAbsent = !expectedText;
+	return (
+		isFilterAbsent ||
+		String(resource.attributes[attributeName]) === expectedText
+	);
 };
 
-const listResponse = (table, url) => {
+const buildListReply = (table, url) => {
 	const storeFilter = {
-		name: "store_id",
-		value: url.searchParams.get("filter[store_id]"),
+		attributeName: "store_id",
+		expectedText: url.searchParams.get("filter[store_id]"),
 	};
 	const productFilter = {
-		name: "product_id",
-		value: url.searchParams.get("filter[product_id]"),
+		attributeName: "product_id",
+		expectedText: url.searchParams.get("filter[product_id]"),
 	};
-	const entries = table.filter(
-		(entry) =>
-			matchesFilter(entry, storeFilter) && matchesFilter(entry, productFilter),
+	const matchingResources = table.filter(
+		(resource) =>
+			matchesFilter(resource, storeFilter) &&
+			matchesFilter(resource, productFilter),
 	);
-	return jsonResponse(200, {
-		data: entries,
+	return sendJsonApiReply(200, {
+		data: matchingResources,
 		meta: { page: { currentPage: 1, lastPage: 1 } },
 	});
 };
 
-const scenarioOf = (init) => {
-	const headers = new Headers(init?.headers);
+const buildScenario = (requestInit) => {
+	const headers = new Headers(requestInit?.headers);
 	const authorization = headers.get("authorization") ?? "";
 	return authorization.replace("Bearer ", "");
 };
 
-globalThis.fetch = async (input, init) => {
-	const isInputText = typeof input === "string";
-	const requestUrl = isInputText ? input : input.url;
+globalThis.fetch = async (requestInput, requestInit) => {
+	const isRequestInputText = typeof requestInput === "string";
+	const requestUrl = isRequestInputText ? requestInput : requestInput.url;
 	const url = new URL(requestUrl);
-	const scenario = scenarioOf(init);
+	const scenario = buildScenario(requestInit);
 	const isEveryCallRejected = scenario === "rejected-key";
-	if (isEveryCallRejected) return unauthorizedResponse();
+	if (isEveryCallRejected) return buildUnauthorizedReply();
 	const isIdentityCall =
 		url.pathname === "/v1/users/me" || url.pathname === "/v1/stores";
 	const isRevokedAfterConnect =
 		scenario === "revoked-after-connect" && !isIdentityCall;
-	if (isRevokedAfterConnect) return unauthorizedResponse();
+	if (isRevokedAfterConnect) return buildUnauthorizedReply();
 
 	const isUserCall = url.pathname === "/v1/users/me";
-	if (isUserCall) return userResponse();
+	if (isUserCall) return buildUserReply();
 	const match = url.pathname.match(/^\/v1\/([a-z-]+)(?:\/(\d+))?$/);
 	const table = match && TABLES[match[1]];
 	const isTableMissing = !table;
-	if (isTableMissing) return notFoundResponse(url.pathname);
+	if (isTableMissing) return buildNotFoundReply(url.pathname);
 	const id = match[2];
 	const isListCall = id === undefined;
-	if (isListCall) return listResponse(table, url);
-	const found = table.find((entry) => entry.id === id);
-	const isEntryMissing = found === undefined;
-	if (isEntryMissing) return notFoundResponse(`${match[1]} ${id}`);
-	return jsonResponse(200, { data: found });
+	if (isListCall) return buildListReply(table, url);
+	const found = table.find((resource) => resource.id === id);
+	const isResourceMissing = found === undefined;
+	if (isResourceMissing) return buildNotFoundReply(`${match[1]} ${id}`);
+	return sendJsonApiReply(200, { data: found });
 };
