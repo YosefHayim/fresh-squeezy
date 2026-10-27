@@ -94,6 +94,7 @@ test("generate-api-types types null attributes by their key name", () => {
 		created_at: null,
 		renews_at: null,
 		billing_date: null,
+		refunded_at: null,
 		user_email: null,
 		unit_price_decimal: null,
 		store_id: null,
@@ -112,6 +113,7 @@ test("generate-api-types types null attributes by their key name", () => {
 	expect(types).toContain("created_at?: string | null;");
 	expect(types).toContain("renews_at?: string | null;");
 	expect(types).toContain("billing_date?: string | null;");
+	expect(types).toContain("refunded_at?: string | null;");
 	expect(types).toContain("user_email?: string | null;");
 	expect(types).toContain("unit_price_decimal?: string | number | null;");
 	expect(types).toContain("store_id?: number | null;");
