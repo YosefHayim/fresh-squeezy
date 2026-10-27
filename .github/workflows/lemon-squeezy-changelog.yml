@@ -1,0 +1,35 @@
+name: lemon-squeezy-changelog
+
+on:
+  schedule:
+    - cron: "17 6 1,15 * *"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  open-issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open an issue when the Lemon Squeezy API changelog has a new entry
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          CHANGELOG_URL: https://docs.lemonsqueezy.com/api/getting-started/changelog
+          DATE_PATTERN: "(January|February|March|April|May|June|July|August|September|October|November|December) [0-9]{1,2}(st|nd|rd|th)?, [0-9]{4}"
+        run: |
+          newest_date=$(curl -sfL "$CHANGELOG_URL" | grep -oE "$DATE_PATTERN" | sed -n 1p)
+          if [ -z "$newest_date" ]; then
+            echo "No date found on $CHANGELOG_URL. The page layout changed; update DATE_PATTERN." >&2
+            exit 1
+          fi
+
+          title="Lemon Squeezy API changed: $newest_date"
+          seen_count=$(gh issue list --state all --label changelog-drift --limit 200 --json title --jq "[.[] | select(.title == \"$title\")] | length")
+          if [ "$seen_count" -gt 0 ]; then
+            echo "Already tracked: $title"
+            exit 0
+          fi
+
+          gh issue create --title "$title" --label changelog-drift --body "New entry on $CHANGELOG_URL. Read it, then update src/shared/lemon-squeezy-types.ts and the client by hand, or hand this issue to an agent."
