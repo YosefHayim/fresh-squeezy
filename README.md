@@ -340,7 +340,7 @@ pnpm install
 pnpm test
 ```
 
-The project aims to stay small and boring: doctor + docs-backed ops, one HTTP layer, stable `issue.code` contract. Read [PROJECT.md](./PROJECT.md) for the goals and non-goals, [AGENTS.md](./AGENTS.md) for the commands and rules, and [CONTEXT.md](./CONTEXT.md) for recipes.
+The project aims to stay small and boring: doctor + docs-backed ops, one HTTP layer, stable `issue.code` contract. Read [PROJECT.md](./PROJECT.md) for the goals and non-goals, [AGENTS.md](./AGENTS.md) for the commands and rules, and [CONTEXT.md](./CONTEXT.md) for the shape of the code. Recipes, releasing and changelog drift are in AGENTS.md.
 
 ### Filing issues
 
