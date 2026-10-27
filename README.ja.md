@@ -66,7 +66,7 @@ npx fresh-squeezy
 - **本番キーがステージングを指している。** キーの実際の `meta.test_mode`（API チェンジログ 2024-01-05）が宣言されたモードと一致しない場合に `MODE_MISMATCH` が発火します。doctor は 1 で終了します。SDK も手作りのラッパーも、デフォルトではこれを検出しません。
 - **サイレントなストア所有権の不一致。** `store_id` が実行のスコープに指定したストアと一致しない製品、割引、ライセンスキー、サブスクリプションプラン。安定したコード: `PRODUCT_WRONG_STORE`、`DISCOUNT_STORE_MISMATCH`、`LICENSE_KEY_STORE_MISMATCH`、`PLAN_STORE_MISMATCH`。
 - **間違ったイベントを購読している Webhook。** 推奨イベント（注文/サブスクリプションのライフサイクル、返金）のマニフェストと、SDK が反映していない新しいがオプションのイベントとの差分を取ります。
-- **プラットフォームドリフト。** 週次の GitHub Action が [Lemon Squeezy API チェンジログ](https://docs.lemonsqueezy.com/api/getting-started/changelog) を `src/support/changelog-snapshot.json` に対してハッシュ化し、ドキュメント由来の API 型を更新し、ポリシー判断が必要な場合にフォローアップ作業をオープンします。追跡対象の追加には、`customer_updated`（2026-02-25）、Subscription の `payment_processor`（2025-06-11）、アフィリエイト + `affiliate_activated`（2025-01-21）、注文アイテムの `quantity`（2024-12-06）、チェックアウトのスタイリング / `skip_trial` / `variant_quantities`、サブスクリプションのインボイス返金フィールド、`/v1/users/me` の `test_mode`（2024-01-05）が含まれます。
+- **プラットフォームドリフト。** 週次の GitHub Action が [Lemon Squeezy API チェンジログ](https://docs.lemonsqueezy.com/api/getting-started/changelog) を `src/features/upkeep/changelog-snapshot.json` に対してハッシュ化し、ドキュメント由来の API 型を更新し、ポリシー判断が必要な場合にフォローアップ作業をオープンします。追跡対象の追加には、`customer_updated`（2026-02-25）、Subscription の `payment_processor`（2025-06-11）、アフィリエイト + `affiliate_activated`（2025-01-21）、注文アイテムの `quantity`（2024-12-06）、チェックアウトのスタイリング / `skip_trial` / `variant_quantities`、サブスクリプションのインボイス返金フィールド、`/v1/users/me` の `test_mode`（2024-01-05）が含まれます。
 - **Postman とダッシュボードの往復。** 1 回の `doctor` 呼び出しが、UI から ID をコピーし、それを env ファイルに貼り付け、1 つずつ手作業で確認するというループを置き換えます。
 
 ## fresh-squeezy と代替手段の比較
@@ -137,7 +137,7 @@ if (!report.ok) {
 
 ライブラリ層でのマルチストア実行には、`doctor()` をループで呼び出してください — CLI はまさにこれを行っています。CI ロジックでは `issue.code` で分岐してください。コードはマイナーバージョン間で安定しています。
 
-公開型: [`FreshSqueezyClient`](src/create-fresh-squeezy.ts)、[`ValidationResult<T>`](src/contracts/contracts.ts)、[`DoctorReport`](src/contracts/contracts.ts)、[`src/resources/attributes.ts`](src/resources/attributes.ts) 配下のリソース属性インターフェース、[`src/generated/lemonSqueezyApiTypes.ts`](src/generated/lemonSqueezyApiTypes.ts) のドキュメント生成された Lemon Squeezy オブジェクト型、[`src/augmentations.ts`](src/augmentations.ts) のチェンジログ拡張ヘルパー。
+公開型: [`FreshSqueezyClient`](src/create-fresh-squeezy.ts)、[`ValidationResult<T>`](src/shared/contracts.ts)、[`DoctorReport`](src/shared/contracts.ts)、[`src/shared/attributes.ts`](src/shared/attributes.ts) 配下のリソース属性インターフェース、[`src/shared/lemon-squeezy-api-types.ts`](src/shared/lemon-squeezy-api-types.ts) のドキュメント生成された Lemon Squeezy オブジェクト型、[`src/augmentations.ts`](src/augmentations.ts) のチェンジログ拡張ヘルパー。
 
 まだラップされていないエンドポイントには、生のエスケープハッチを使用してください:
 
@@ -221,14 +221,14 @@ CI では `issue.code` で分岐してください — すべてのコードは�
 
 バリデーター — それぞれが安定した `ValidationResult` を返します:
 
-- **`validateConnection`** — 到達可能性、キーの有効性、ストアの存在、宣言モードと実モードの照合。[→ ソース](src/validate/connection.ts)
-- **`validateStore`** — ストア ID が存在し、キーのアカウントが所有していること。[→ ソース](src/validate/store.ts)
-- **`validateProduct`** — 公開済み、期待されるストア上、ライブバリアントと購入 URL がある。[→ ソース](src/validate/product.ts)
-- **`validateWebhook`** — Webhook URL が登録され、推奨イベントを購読している。[→ ソース](src/validate/webhook.ts)
-- **`validateDiscount`** — 有効、期間内、金額が妥当、ストア所有権が一致。[→ ソース](src/validate/discount.ts)
-- **`validateLicenseKey`** — 有効、期限切れでない、アクティベーションに空きがある、ストア所有権が一致。[→ ソース](src/validate/license-key.ts)
-- **`validateSubscriptionPlan`** — サブスクリプションタイプ、有効な間隔、ゼロでない価格、一貫したトライアル。[→ ソース](src/validate/subscription-plan.ts)
-- **`doctor`** — 上記を 1 つの `DoctorReport` に構成します。[→ ソース](src/validate/doctor.ts)
+- **`validateConnection`** — 到達可能性、キーの有効性、ストアの存在、宣言モードと実モードの照合。[→ ソース](src/features/validate/connection.ts)
+- **`validateStore`** — ストア ID が存在し、キーのアカウントが所有していること。[→ ソース](src/features/validate/store.ts)
+- **`validateProduct`** — 公開済み、期待されるストア上、ライブバリアントと購入 URL がある。[→ ソース](src/features/validate/product.ts)
+- **`validateWebhook`** — Webhook URL が登録され、推奨イベントを購読している。[→ ソース](src/features/validate/webhook.ts)
+- **`validateDiscount`** — 有効、期間内、金額が妥当、ストア所有権が一致。[→ ソース](src/features/validate/discount.ts)
+- **`validateLicenseKey`** — 有効、期限切れでない、アクティベーションに空きがある、ストア所有権が一致。[→ ソース](src/features/validate/license-key.ts)
+- **`validateSubscriptionPlan`** — サブスクリプションタイプ、有効な間隔、ゼロでない価格、一貫したトライアル。[→ ソース](src/features/validate/subscription-plan.ts)
+- **`doctor`** — 上記を 1 つの `DoctorReport` に構成します。[→ ソース](src/features/validate/doctor.ts)
 
 リソースカバレッジは Lemon Squeezy のオブジェクトドキュメントから生成されるため、新たにドキュメント化されたフィールドのほとんどは手動編集を必要としません:
 

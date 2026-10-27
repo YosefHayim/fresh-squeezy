@@ -66,7 +66,7 @@ La primera ejecución agrega `fresh-squeezy` a las devDependencies cuando no est
 - **Clave de producción apuntando a staging.** `MODE_MISMATCH` se dispara cuando el verdadero `meta.test_mode` de la clave (registro de cambios de la API 2024-01-05) no coincide con el modo declarado. Doctor sale con 1. Ni el SDK ni un wrapper hecho a mano detectan esto por defecto.
 - **Discrepancias silenciosas de propiedad de tienda.** Productos, descuentos, claves de licencia y planes de suscripción cuyo `store_id` no coincide con la tienda a la que limitaste la ejecución. Códigos estables: `PRODUCT_WRONG_STORE`, `DISCOUNT_STORE_MISMATCH`, `LICENSE_KEY_STORE_MISMATCH`, `PLAN_STORE_MISMATCH`.
 - **Webhook suscrito a los eventos equivocados.** Comparación contra un manifiesto de eventos recomendados (ciclo de vida de pedidos/suscripciones, reembolsos) y eventos más recientes pero opcionales que el SDK no incluye.
-- **Desviación de la plataforma.** Una GitHub Action semanal calcula el hash del [registro de cambios de la API de Lemon Squeezy](https://docs.lemonsqueezy.com/api/getting-started/changelog) contra `src/support/changelog-snapshot.json`, actualiza los tipos de la API derivados de la documentación y abre tareas de seguimiento cuando se necesitan decisiones de política. Las adiciones rastreadas incluyen `customer_updated` (2026-02-25), `payment_processor` en Subscription (2025-06-11), Affiliates + `affiliate_activated` (2025-01-21), `quantity` de los ítems de pedido (2024-12-06), estilos de checkout / `skip_trial` / `variant_quantities`, campos de reembolso de facturas de suscripción y `test_mode` en `/v1/users/me` (2024-01-05).
+- **Desviación de la plataforma.** Una GitHub Action semanal calcula el hash del [registro de cambios de la API de Lemon Squeezy](https://docs.lemonsqueezy.com/api/getting-started/changelog) contra `src/features/upkeep/changelog-snapshot.json`, actualiza los tipos de la API derivados de la documentación y abre tareas de seguimiento cuando se necesitan decisiones de política. Las adiciones rastreadas incluyen `customer_updated` (2026-02-25), `payment_processor` en Subscription (2025-06-11), Affiliates + `affiliate_activated` (2025-01-21), `quantity` de los ítems de pedido (2024-12-06), estilos de checkout / `skip_trial` / `variant_quantities`, campos de reembolso de facturas de suscripción y `test_mode` en `/v1/users/me` (2024-01-05).
 - **El ping-pong entre Postman y el panel.** Una sola llamada a `doctor` reemplaza el ciclo de copiar IDs de la interfaz, pegarlos en archivos de entorno y verificar cada uno a mano.
 
 ## fresh-squeezy frente a las alternativas
@@ -137,7 +137,7 @@ if (!report.ok) {
 
 Para ejecuciones multitienda en la capa de biblioteca, llama a `doctor()` en un bucle — la CLI hace exactamente esto. Decide según `issue.code` en la lógica de CI; los códigos son estables entre versiones menores.
 
-Tipos públicos: [`FreshSqueezyClient`](src/create-fresh-squeezy.ts), [`ValidationResult<T>`](src/contracts/contracts.ts), [`DoctorReport`](src/contracts/contracts.ts), interfaces de atributos de recursos bajo [`src/resources/attributes.ts`](src/resources/attributes.ts), tipos de objetos de Lemon Squeezy generados a partir de la documentación en [`src/generated/lemonSqueezyApiTypes.ts`](src/generated/lemonSqueezyApiTypes.ts), y helpers de aumento del registro de cambios en [`src/augmentations.ts`](src/augmentations.ts).
+Tipos públicos: [`FreshSqueezyClient`](src/create-fresh-squeezy.ts), [`ValidationResult<T>`](src/shared/contracts.ts), [`DoctorReport`](src/shared/contracts.ts), interfaces de atributos de recursos bajo [`src/shared/attributes.ts`](src/shared/attributes.ts), tipos de objetos de Lemon Squeezy generados a partir de la documentación en [`src/shared/lemon-squeezy-api-types.ts`](src/shared/lemon-squeezy-api-types.ts), y helpers de aumento del registro de cambios en [`src/augmentations.ts`](src/augmentations.ts).
 
 Para endpoints que aún no están envueltos, usa la vía de escape sin procesar:
 
@@ -221,14 +221,14 @@ Decide según `issue.code` en CI — todos los códigos son estables entre versi
 
 Validadores — cada uno devuelve un `ValidationResult` estable:
 
-- **`validateConnection`** — accesibilidad, validez de la clave, presencia de tienda, modo declarado frente al real. [→ código fuente](src/validate/connection.ts)
-- **`validateStore`** — el ID de tienda existe y es propiedad de la cuenta de la clave. [→ código fuente](src/validate/store.ts)
-- **`validateProduct`** — publicado, en la tienda esperada, tiene variantes activas y una URL de compra. [→ código fuente](src/validate/product.ts)
-- **`validateWebhook`** — URL de webhook registrada y suscrita a los eventos recomendados. [→ código fuente](src/validate/webhook.ts)
-- **`validateDiscount`** — activo, dentro de la ventana, importe válido, propiedad de tienda coincide. [→ código fuente](src/validate/discount.ts)
-- **`validateLicenseKey`** — habilitada, no expirada, activaciones disponibles, propiedad de tienda coincide. [→ código fuente](src/validate/license-key.ts)
-- **`validateSubscriptionPlan`** — tipo de suscripción, intervalo válido, precio distinto de cero, prueba consistente. [→ código fuente](src/validate/subscription-plan.ts)
-- **`doctor`** — compone lo anterior en un único `DoctorReport`. [→ código fuente](src/validate/doctor.ts)
+- **`validateConnection`** — accesibilidad, validez de la clave, presencia de tienda, modo declarado frente al real. [→ código fuente](src/features/validate/connection.ts)
+- **`validateStore`** — el ID de tienda existe y es propiedad de la cuenta de la clave. [→ código fuente](src/features/validate/store.ts)
+- **`validateProduct`** — publicado, en la tienda esperada, tiene variantes activas y una URL de compra. [→ código fuente](src/features/validate/product.ts)
+- **`validateWebhook`** — URL de webhook registrada y suscrita a los eventos recomendados. [→ código fuente](src/features/validate/webhook.ts)
+- **`validateDiscount`** — activo, dentro de la ventana, importe válido, propiedad de tienda coincide. [→ código fuente](src/features/validate/discount.ts)
+- **`validateLicenseKey`** — habilitada, no expirada, activaciones disponibles, propiedad de tienda coincide. [→ código fuente](src/features/validate/license-key.ts)
+- **`validateSubscriptionPlan`** — tipo de suscripción, intervalo válido, precio distinto de cero, prueba consistente. [→ código fuente](src/features/validate/subscription-plan.ts)
+- **`doctor`** — compone lo anterior en un único `DoctorReport`. [→ código fuente](src/features/validate/doctor.ts)
 
 La cobertura de recursos se genera a partir de la documentación de objetos de Lemon Squeezy, por lo que la mayoría de los campos recién documentados no necesitan una edición manual:
 

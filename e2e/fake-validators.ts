@@ -1,6 +1,6 @@
-import type { Mode, ValidationResult } from "@/contracts/contracts.js";
-import type { DoctorValidators } from "@/validate/doctor.js";
-import { buildResult } from "@/validate/issues.js";
+import type { DoctorValidators } from "@/features/validate/doctor.js";
+import { buildResult } from "@/features/validate/issues.js";
+import type { Mode, ValidationResult } from "@/shared/contracts.js";
 
 export const createFakeValidators = (
 	overrides: Partial<DoctorValidators> = {},

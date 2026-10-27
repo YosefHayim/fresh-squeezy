@@ -2,8 +2,8 @@ import type {
 	FreshSqueezyConfig,
 	Mode,
 	ResolvedConfig,
-} from "@/contracts/contracts.js";
-import { freshSqueezyErrorOf } from "@/errors/errors.js";
+} from "@/shared/contracts.js";
+import { freshSqueezyErrorOf } from "@/shared/errors.js";
 
 const DEFAULT_BASE_URL = "https://api.lemonsqueezy.com";
 

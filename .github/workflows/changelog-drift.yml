@@ -2,7 +2,7 @@ name: changelog-drift
 
 # Weekly (and on-demand) drift check against the Lemon Squeezy docs:
 # 1) regenerate docs-derived API types and open a PR if they changed
-# 2) hash the API changelog against src/support/changelog-snapshot.json and
+# 2) hash the API changelog against src/features/upkeep/changelog-snapshot.json and
 #    open/comment a changelog-drift issue when new entries appear
 #
 # Scripts are pure Node (no package deps). pnpm is used only to invoke the
@@ -43,7 +43,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          if git diff --quiet -- src/generated/lemonSqueezyApiTypes.ts; then
+          if git diff --quiet -- src/shared/lemon-squeezy-api-types.ts; then
             echo "Generated API types are current."
             exit 0
           fi
@@ -51,12 +51,12 @@ jobs:
           branch="automation/lemon-squeezy-api-types"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/generated/lemonSqueezyApiTypes.ts
+          git add src/shared/lemon-squeezy-api-types.ts
           git commit -m "chore: refresh Lemon Squeezy API types"
           git push origin "HEAD:$branch" --force
 
           body=$(cat <<EOF_BODY
-          Refreshes \`src/generated/lemonSqueezyApiTypes.ts\` from the Lemon Squeezy object docs.
+          Refreshes \`src/shared/lemon-squeezy-api-types.ts\` from the Lemon Squeezy object docs.
 
           - Source index: https://docs.lemonsqueezy.com/api/getting-started/requests
           - Workflow run: $RUN_URL
@@ -123,14 +123,14 @@ jobs:
 
           1. Open the changelog URL above and review the new entries.
           2. Run \`pnpm generate:api-types\` if the scheduled type refresh PR did not already cover object-field changes.
-          3. Update \`src/support/manifest.ts\` for policy-level changes:
+          3. Update \`src/shared/support-manifest.ts\` for policy-level changes:
              - Add new webhook events to \`RECOMMENDED_WEBHOOK_EVENTS\` or \`OPTIONAL_WEBHOOK_EVENTS\`.
              - Add a row to \`ACKNOWLEDGED_CHANGELOG_ENTRIES\` with the date + how it's handled.
           4. Refresh the snapshot:
              \`\`\`
              pnpm check:changelog -- --update
              \`\`\`
-          5. Commit the manifest change, generated types if changed, and \`src/support/changelog-snapshot.json\`.
+          5. Commit the manifest change, generated types if changed, and \`src/features/upkeep/changelog-snapshot.json\`.
           EOF_BODY
           )
 

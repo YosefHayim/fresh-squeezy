@@ -1,0 +1,211 @@
+import type {
+	ProductAttributes,
+	SubscriptionVariantAttributes,
+} from "@/shared/attributes.js";
+import type {
+	Mode,
+	ValidationIssue,
+	ValidationResult,
+} from "@/shared/contracts.js";
+import type { HttpClient } from "@/shared/http.js";
+import { buildResult, ISSUE_CODES, issue } from "./issues.js";
+import { checkStoreOwnership, probeFetch } from "./probe.js";
+
+export interface SubscriptionPlanValidationOptions {
+	storeId: string | number;
+	variantId: string | number;
+}
+
+export interface SubscriptionPlanSummary {
+	variantId: string;
+	interval: string | null;
+	intervalCount: number | null;
+	price: number;
+	hasFreeTrial: boolean;
+	status: string;
+}
+
+const VALID_INTERVALS = new Set(["day", "week", "month", "year"]);
+
+export const validateSubscriptionPlan = async (
+	http: HttpClient,
+	mode: Mode,
+	options: SubscriptionPlanValidationOptions,
+): Promise<ValidationResult<SubscriptionPlanSummary>> => {
+	const target = {
+		label: `variant ${options.variantId}`,
+		id: String(options.variantId),
+	};
+
+	const fetched = await probeFetch(
+		() =>
+			http.getResource<SubscriptionVariantAttributes>(
+				`/v1/variants/${options.variantId}`,
+			),
+		{
+			notFoundCode: ISSUE_CODES.PLAN_VARIANT_NOT_FOUND,
+			notFoundMessage: `Variant ${options.variantId} not found.`,
+			notFoundFix: "Verify the variant ID in the Lemon Squeezy dashboard.",
+			notFoundContext: { variantId: String(options.variantId) },
+		},
+	);
+
+	const isFetchFailed = !fetched.ok;
+	if (isFetchFailed) {
+		return buildResult<SubscriptionPlanSummary>(
+			"subscriptionPlan",
+			mode,
+			[fetched.issue],
+			undefined,
+			target,
+		);
+	}
+
+	const variant = fetched.resource;
+	const attrs = variant.attributes;
+	const issues = checkSubscriptionPlan(attrs, { variantId: options.variantId });
+
+	// Store cross-check needs a second fetch (parent product). Advisory only —
+	// skip on failure rather than blocking the pure attribute checks above.
+	const productProbed = await probeFetch(
+		() =>
+			http.getResource<ProductAttributes>(`/v1/products/${attrs.product_id}`),
+		{
+			notFoundCode: ISSUE_CODES.PRODUCT_NOT_FOUND,
+			notFoundMessage: `Product ${attrs.product_id} not found.`,
+		},
+	);
+	const isProductFetched = productProbed.ok;
+	const mismatch = isProductFetched
+		? checkStoreOwnership({
+				expectedStoreId: options.storeId,
+				actualStoreId: productProbed.resource.attributes.store_id,
+				code: ISSUE_CODES.PLAN_STORE_MISMATCH,
+				label: `Subscription variant (via product ${attrs.product_id})`,
+				suggestedFix:
+					"Use the correct store ID or variant ID — plans should not cross stores.",
+				extraContext: { productId: String(attrs.product_id) },
+			})
+		: null;
+	if (mismatch) issues.push(mismatch);
+
+	const summary: SubscriptionPlanSummary = {
+		variantId: variant.id,
+		interval: attrs.interval,
+		intervalCount: attrs.interval_count,
+		price: attrs.price,
+		hasFreeTrial: attrs.has_free_trial,
+		status: attrs.status,
+	};
+
+	return buildResult("subscriptionPlan", mode, issues, summary, {
+		label: attrs.name,
+		id: String(options.variantId),
+	});
+};
+
+export const checkSubscriptionPlan = (
+	attrs: SubscriptionVariantAttributes,
+	options: { variantId: string | number },
+): ValidationIssue[] => {
+	const issues: ValidationIssue[] = [];
+
+	const isNotSubscription = !attrs.is_subscription;
+	if (isNotSubscription) {
+		const notSubscriptionIssue = issue(
+			ISSUE_CODES.PLAN_NOT_SUBSCRIPTION,
+			"error",
+			`Variant ${options.variantId} is not a subscription variant (is_subscription is false).`,
+			{
+				suggestedFix:
+					"Use a variant that has subscription billing enabled, or use the regular variant validator.",
+				context: { variantId: String(options.variantId) },
+			},
+		);
+		issues.push(notSubscriptionIssue);
+	}
+
+	const { interval } = attrs;
+	const isIntervalMissing = !interval;
+	const isIntervalUnknown = isIntervalMissing || !VALID_INTERVALS.has(interval);
+	if (isIntervalUnknown) {
+		const invalidIntervalIssue = issue(
+			ISSUE_CODES.PLAN_INVALID_INTERVAL,
+			"error",
+			`Subscription variant has invalid interval: "${attrs.interval ?? "missing"}". Expected one of: day, week, month, year.`,
+			{
+				suggestedFix:
+					"Set a valid billing interval in the variant configuration.",
+				context: { interval: attrs.interval ?? null },
+			},
+		);
+		issues.push(invalidIntervalIssue);
+	}
+
+	const isIntervalCountInvalid =
+		attrs.interval_count === null || attrs.interval_count <= 0;
+	if (isIntervalCountInvalid) {
+		const invalidCountIssue = issue(
+			ISSUE_CODES.PLAN_INVALID_INTERVAL,
+			"error",
+			`Subscription variant has invalid interval_count: ${attrs.interval_count}. Must be a positive integer.`,
+			{
+				suggestedFix:
+					"Set interval_count to a positive value (e.g. 1 for monthly, 2 for biweekly).",
+				context: { intervalCount: attrs.interval_count },
+			},
+		);
+		issues.push(invalidCountIssue);
+	}
+
+	const isFreeSubscription = attrs.price === 0 && attrs.is_subscription;
+	if (isFreeSubscription) {
+		const freePriceIssue = issue(
+			ISSUE_CODES.PLAN_FREE_PRICE,
+			"warning",
+			"Subscription variant has a price of 0 — this is almost always a misconfiguration for paid plans.",
+			{
+				suggestedFix:
+					"Set the variant price to the intended amount in cents, or confirm this is intentionally free.",
+				context: { price: attrs.price },
+			},
+		);
+		issues.push(freePriceIssue);
+	}
+
+	const isTrialIntervalBroken =
+		!attrs.trial_interval || (attrs.trial_interval_count ?? 0) <= 0;
+	const isTrialInconsistent = attrs.has_free_trial && isTrialIntervalBroken;
+	if (isTrialInconsistent) {
+		const trialIssue = issue(
+			ISSUE_CODES.PLAN_TRIAL_INCONSISTENT,
+			"warning",
+			`Subscription variant has free trial enabled but trial interval is misconfigured (interval: "${attrs.trial_interval ?? "missing"}", count: ${attrs.trial_interval_count ?? 0}).`,
+			{
+				suggestedFix:
+					"Set a valid trial interval and count, or disable the free trial.",
+				context: {
+					trialInterval: attrs.trial_interval ?? null,
+					trialIntervalCount: attrs.trial_interval_count ?? null,
+				},
+			},
+		);
+		issues.push(trialIssue);
+	}
+
+	const isDraft = attrs.status === "draft";
+	if (isDraft) {
+		const draftIssue = issue(
+			ISSUE_CODES.PLAN_DRAFT,
+			"warning",
+			"Subscription variant is in draft status — customers cannot subscribe.",
+			{
+				suggestedFix: "Publish the variant in the Lemon Squeezy dashboard.",
+				context: { status: attrs.status },
+			},
+		);
+		issues.push(draftIssue);
+	}
+
+	return issues;
+};

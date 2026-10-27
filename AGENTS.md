@@ -23,9 +23,9 @@ Code standard: read node_modules/code-standard/README.md before you write code.
 Rules only this repo has:
 
 - **Errors:** one `FreshSqueezyError` (a plain `Error` with `code`/`status`/`detail`), built by `freshSqueezyErrorOf`, checked with `isFreshSqueezyError`, never `instanceof`. Callers branch on `.code`. Resource ops throw it; validators turn it into an issue and never re-throw. A function has one named return type, no multi-object bags.
-- **Layers:** strict `generated -> contracts, errors, shared, http -> resources -> validate -> cli`. The four foundation folders import only each other and `generated/`, never upward. `fetch` only in `src/http/http.ts`.
+- **Layers:** strict `app/ -> features/ -> shared/`. Imports point one way; `shared/` imports nothing above it, and features never import each other. `fetch` only in `src/shared/http.ts`.
 - **Validators:** rich ones (`product`, `discount`, `license-key`, `subscription-plan`) split a pure `check*(attributes)` from the fetch; thin ones stay fused. Error to issue mapping goes through `probeFetch` / `probeCollection`: no hand-rolled mapping, no silent `catch {}` (a best-effort skip gets a one-line why comment or an info issue). Validators accumulate `const issues: ValidationIssue[] = []` with `push` and end in `buildResult`; they never throw.
-- **Ops:** docs-backed only (docs.lemonsqueezy.com/api). `src/resources/registry.ts` holds one `RESOURCES` row per resource; `VERB_RULES` maps each verb to one HTTP call and a docs slug, from which `docsPath` is built (`DOCS_PATH_EXCEPTIONS` lists the pages that break the pattern). Never invent product, variant or price writes. CLI verbs and the nested client both call `invokeOp`.
+- **Ops:** docs-backed only (docs.lemonsqueezy.com/api). `src/features/ops/resource-registry.ts` holds one `RESOURCES` row per resource; `VERB_RULES` maps each verb to one HTTP call and a docs slug, from which `docsPath` is built (`DOCS_PATH_EXCEPTIONS` lists the pages that break the pattern). Never invent product, variant or price writes. CLI verbs and the nested client both call `invokeOp`.
 - **Tables:** one table per repeated list (`RESOURCES`, `VALIDATE_SUBCOMMANDS`, `OPTIONAL_VALIDATORS`). Add a row, do not re-list in other files.
 - **Public API:** no barrels. Each public module is its own `package.json` `exports` subpath and its own `tsup.config.ts` entry; the entry keys are the public subpath names. `fresh-squeezy` itself exports only `createFreshSqueezy`. No compatibility shims: rewrite callers.
 - **Scripts contract:** same names as the sibling repos: `dev`, `build`, `cli`, `test`, `test:watch`, `test:coverage`, `typecheck`, `lint`, `lint:fix`, `format`, `check:ci`, `check:standard`, `verify`. Variants nest with `:`. One `verify` gate (`check:ci`, `check:standard`, `typecheck`, `test`, `build`), never re-split. Local-only scripts go in `scripts/dev/`, which stays gitignored.
@@ -55,7 +55,7 @@ Short imperative subject, optional scope, optional body with the why. Examples: 
 
 ## Repo layout
 
-- **`src/`**: all source, one folder per job. Unit tests sit beside the module they cover. `cli/commands/` has one file per command. Build and CI scripts live in `src/scripts/` (`.mjs`, inert to the TS build).
+- **`src/`**: all source. Unit tests sit beside the module they cover. `app/` is the CLI (one file per command, named `<name>-command.ts`), `features/` holds `validate/`, `ops/` and `upkeep/` (build and CI scripts, `.mjs`, inert to the TS build), `shared/` holds what several parts use (http, errors, config, contracts, attributes, generated API types, support manifest). Entry files: `src/cli.ts`, `src/create-fresh-squeezy.ts`, `src/augmentations.ts`.
 - **`e2e/`**: the end-to-end tests, the opt-in live smoke test, and their helpers and fixtures.
 - **`public/`**: README and GitHub assets, not published to npm.
 - **Env**: one gitignored env file; the example env file carries only the real secret (the API key). Mode defaults to `test`; stores come from `--store-ids`.

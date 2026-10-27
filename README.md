@@ -70,7 +70,7 @@ The first run adds `fresh-squeezy` to devDependencies when it is missing, then s
 - **Prod key pointed at staging.** `MODE_MISMATCH` fires when the key's true `meta.test_mode` (API changelog 2024-01-05) disagrees with the declared mode. Doctor exits 1. Neither the SDK nor a hand-rolled wrapper catches this by default.
 - **Silent store-ownership mismatches.** Products, discounts, license keys, and subscription plans whose `store_id` doesn't match the store you scoped the run to. Stable codes: `PRODUCT_WRONG_STORE`, `DISCOUNT_STORE_MISMATCH`, `LICENSE_KEY_STORE_MISMATCH`, `PLAN_STORE_MISMATCH`.
 - **Webhook subscribed to the wrong events.** Diff against a manifest of recommended events (order/subscription lifecycle, refunds) and newer-but-optional events the SDK doesn't ship.
-- **Platform drift.** A weekly GitHub Action hashes the [Lemon Squeezy API changelog](https://docs.lemonsqueezy.com/api/getting-started/changelog) against `src/support/changelog-snapshot.json`, refreshes docs-derived API types, and opens follow-up work when policy decisions are needed. Tracked additions include `customer_updated` (2026-02-25), `payment_processor` on Subscription (2025-06-11), Affiliates + `affiliate_activated` (2025-01-21), order item `quantity` (2024-12-06), checkout styling / `skip_trial` / `variant_quantities`, subscription invoice refund fields, and `test_mode` on `/v1/users/me` (2024-01-05).
+- **Platform drift.** A weekly GitHub Action hashes the [Lemon Squeezy API changelog](https://docs.lemonsqueezy.com/api/getting-started/changelog) against `src/features/upkeep/changelog-snapshot.json`, refreshes docs-derived API types, and opens follow-up work when policy decisions are needed. Tracked additions include `customer_updated` (2026-02-25), `payment_processor` on Subscription (2025-06-11), Affiliates + `affiliate_activated` (2025-01-21), order item `quantity` (2024-12-06), checkout styling / `skip_trial` / `variant_quantities`, subscription invoice refund fields, and `test_mode` on `/v1/users/me` (2024-01-05).
 - **Postman + dashboard ping-pong.** One `doctor` call replaces the loop of copying IDs out of the UI, pasting them into env files, and verifying each one by hand.
 
 ## fresh-squeezy vs the alternatives
@@ -181,7 +181,7 @@ await lemon.subscriptions.cancel(9);
 
 For multi-store doctor runs at the library layer, call `doctor()` in a loop — the CLI does exactly this. Switch on `issue.code` in CI logic; codes are stable across minor versions. Validators return `ValidationResult` and never throw for findings; resource mutations throw a plain `Error` with `name: "FreshSqueezyError"`, `code`, `status` and `detail`; check it with `isFreshSqueezyError` from `fresh-squeezy/errors`.
 
-Public modules, one subpath each: `fresh-squeezy` (the client, [`src/create-fresh-squeezy.ts`](src/create-fresh-squeezy.ts)), `fresh-squeezy/types` ([`ValidationResult<T>`, `DoctorReport`](src/contracts/contracts.ts)), `fresh-squeezy/errors`, `fresh-squeezy/config`, `fresh-squeezy/resources/attributes`, `fresh-squeezy/resources/registry`, `fresh-squeezy/api-types` (docs-generated Lemon Squeezy object types), `fresh-squeezy/augmentations` (changelog augmentation helpers), `fresh-squeezy/manifest`, and one `fresh-squeezy/validate/<name>` per validator.
+Public modules, one subpath each: `fresh-squeezy` (the client, [`src/create-fresh-squeezy.ts`](src/create-fresh-squeezy.ts)), `fresh-squeezy/types` ([`ValidationResult<T>`, `DoctorReport`](src/shared/contracts.ts)), `fresh-squeezy/errors`, `fresh-squeezy/config`, `fresh-squeezy/resources/attributes`, `fresh-squeezy/resources/registry`, `fresh-squeezy/api-types` (docs-generated Lemon Squeezy object types), `fresh-squeezy/augmentations` (changelog augmentation helpers), `fresh-squeezy/manifest`, and one `fresh-squeezy/validate/<name>` per validator.
 
 For endpoints not yet wrapped, use the raw escape hatch:
 
@@ -265,14 +265,14 @@ Switch on `issue.code` in CI — all codes are stable across minor versions. The
 
 Validators — each returns a stable `ValidationResult`:
 
-- **`validateConnection`** — reachability, key validity, store presence, declared-vs-actual mode. [→ source](src/validate/connection.ts)
-- **`validateStore`** — store ID exists and is owned by the key's account. [→ source](src/validate/store.ts)
-- **`validateProduct`** — published, on the expected store, has live variants and a buy URL. [→ source](src/validate/product.ts)
-- **`validateWebhook`** — webhook URL registered and subscribed to recommended events. [→ source](src/validate/webhook.ts)
-- **`validateDiscount`** — active, in-window, valid amount, store ownership matches. [→ source](src/validate/discount.ts)
-- **`validateLicenseKey`** — enabled, not expired, activations available, store ownership matches. [→ source](src/validate/license-key.ts)
-- **`validateSubscriptionPlan`** — subscription type, valid interval, non-zero price, consistent trial. [→ source](src/validate/subscription-plan.ts)
-- **`doctor`** — composes the above into one `DoctorReport`. [→ source](src/validate/doctor.ts)
+- **`validateConnection`** — reachability, key validity, store presence, declared-vs-actual mode. [→ source](src/features/validate/connection.ts)
+- **`validateStore`** — store ID exists and is owned by the key's account. [→ source](src/features/validate/store.ts)
+- **`validateProduct`** — published, on the expected store, has live variants and a buy URL. [→ source](src/features/validate/product.ts)
+- **`validateWebhook`** — webhook URL registered and subscribed to recommended events. [→ source](src/features/validate/webhook.ts)
+- **`validateDiscount`** — active, in-window, valid amount, store ownership matches. [→ source](src/features/validate/discount.ts)
+- **`validateLicenseKey`** — enabled, not expired, activations available, store ownership matches. [→ source](src/features/validate/license-key.ts)
+- **`validateSubscriptionPlan`** — subscription type, valid interval, non-zero price, consistent trial. [→ source](src/features/validate/subscription-plan.ts)
+- **`doctor`** — composes the above into one `DoctorReport`. [→ source](src/features/validate/doctor.ts)
 
 Resource coverage is generated from Lemon Squeezy's object docs, so most newly documented fields don't need a hand edit:
 
@@ -319,14 +319,13 @@ Connection/auth, stores, products (and variants), webhooks, discounts, license k
 
 ```
 src/create-fresh-squeezy.ts   the client (package root export; no barrel): validators, doctor(), lemon.<resource>.<verb>()
-src/http/                   HttpClient (the only fetch)
-src/errors/, src/shared/    FreshSqueezyError, config resolution
-src/contracts/              shared public types
-src/resources/              registry.ts (one table of docs-backed ops + invokeOp), attributes.ts
-src/validate/               one file per validator, doctor composition, issues, probe
-src/cli/                    main.ts (commander), render, prompts, commands/ (one file per command)
-src/generated/              docs-generated Lemon Squeezy attribute types
-src/support/, src/scripts/  webhook policy + drift snapshot, CI scripts
+src/cli.ts                    CLI entry (commander)
+src/augmentations.ts          changelog augmentation helpers
+src/app/                      CLI: one file per command, render, prompts, launcher menu
+src/features/validate/        one file per validator, doctor composition, issues, probe
+src/features/ops/             resource-registry.ts (one table of docs-backed ops + invokeOp)
+src/features/upkeep/          changelog drift check, API types generator, drift snapshot
+src/shared/                   HttpClient (the only fetch), errors, config, contracts, attributes, generated API types, webhook policy
 e2e/                        end-to-end tests, fixtures, helpers, opt-in live smoke
 ```
 
