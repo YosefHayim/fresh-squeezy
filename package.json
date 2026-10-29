@@ -81,7 +81,7 @@
     "lint": "biome check . && knip",
     "lint:fix": "biome check --write .",
     "typecheck": "tsc --noEmit --incremental --tsBuildInfoFile node_modules/.cache/tsc/typecheck.tsbuildinfo",
-    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "check": "turbo run lint typecheck test build --output-logs=errors-only",
     "prepublishOnly": "pnpm check",
     "prepare": "husky"
   },
@@ -92,6 +92,7 @@
     "husky": "9.1.7",
     "knip": "6.43.0",
     "tsup": "8.5.1",
+    "turbo": "2.11.8",
     "typescript": "5.9.3",
     "vitest": "2.1.9"
   },
