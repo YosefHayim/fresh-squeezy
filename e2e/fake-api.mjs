@@ -1,14 +1,4 @@
-const RECOMMENDED_EVENTS = [
-	"order_created",
-	"order_refunded",
-	"subscription_created",
-	"subscription_updated",
-	"subscription_cancelled",
-	"subscription_resumed",
-	"subscription_expired",
-	"subscription_payment_success",
-	"subscription_payment_failed",
-];
+const USERS_ME_PATH = "/v1/users/me";
 
 const createVariant = (id, productId, overrides) => ({
 	type: "variants",
@@ -49,7 +39,7 @@ const createDiscount = (id, storeId, overrides) => ({
 	},
 });
 
-const TABLES = {
+const tablesByResourceType = {
 	stores: [
 		{ type: "stores", id: "1", attributes: { name: "Store One", slug: "one" } },
 		{ type: "stores", id: "2", attributes: { name: "Store Two", slug: "two" } },
@@ -89,7 +79,17 @@ const TABLES = {
 			attributes: {
 				store_id: 1,
 				url: "https://good.example.com/hook",
-				events: RECOMMENDED_EVENTS,
+				events: [
+					"order_created",
+					"order_refunded",
+					"subscription_created",
+					"subscription_updated",
+					"subscription_cancelled",
+					"subscription_resumed",
+					"subscription_expired",
+					"subscription_payment_success",
+					"subscription_payment_failed",
+				],
 			},
 		},
 		{
@@ -137,14 +137,14 @@ const TABLES = {
 	],
 };
 
-const sendApiReply = (status, replyDocument) => {
-	const replyString = JSON.stringify(replyDocument);
+const createApiReply = (status, replyDocument) => {
+	const serializedReply = JSON.stringify(replyDocument);
 	const headers = { "content-type": "application/vnd.api+json" };
-	return new Response(replyString, { status, headers });
+	return new Response(serializedReply, { status, headers });
 };
 
 const createUnauthorizedReply = () =>
-	sendApiReply(401, {
+	createApiReply(401, {
 		errors: [
 			{
 				status: "401",
@@ -156,12 +156,12 @@ const createUnauthorizedReply = () =>
 	});
 
 const createNotFoundReply = (title) =>
-	sendApiReply(404, {
+	createApiReply(404, {
 		errors: [{ status: "404", code: "not_found", title }],
 	});
 
 const createUserReply = () =>
-	sendApiReply(200, {
+	createApiReply(200, {
 		data: {
 			type: "users",
 			id: "9",
@@ -170,16 +170,16 @@ const createUserReply = () =>
 		meta: { test_mode: true },
 	});
 
-const matchesFilter = (resource, filter) => {
+const isResourceMatchingFilter = (resource, filter) => {
 	const { attributeName, expectedTerm } = filter;
-	const isFilterAbsent = !expectedTerm;
-	return (
-		isFilterAbsent ||
-		String(resource.attributes[attributeName]) === expectedTerm
-	);
+
+	const isFilterAbsent = expectedTerm == null;
+	const attributeValue = resource.attributes[attributeName];
+	const isAttributeEqual = String(attributeValue) === expectedTerm;
+	return isFilterAbsent || isAttributeEqual;
 };
 
-const createListReply = (table, url) => {
+const createListReply = (resources, url) => {
 	const storeFilter = {
 		attributeName: "store_id",
 		expectedTerm: url.searchParams.get("filter[store_id]"),
@@ -188,18 +188,19 @@ const createListReply = (table, url) => {
 		attributeName: "product_id",
 		expectedTerm: url.searchParams.get("filter[product_id]"),
 	};
-	const matchingResources = table.filter(
+
+	const matchingResources = resources.filter(
 		(resource) =>
-			matchesFilter(resource, storeFilter) &&
-			matchesFilter(resource, productFilter),
+			isResourceMatchingFilter(resource, storeFilter) &&
+			isResourceMatchingFilter(resource, productFilter),
 	);
-	return sendApiReply(200, {
+	return createApiReply(200, {
 		data: matchingResources,
 		meta: { page: { currentPage: 1, lastPage: 1 } },
 	});
 };
 
-const createScenario = (requestInit) => {
+const readApiKeyFromRequest = (requestInit) => {
 	const headers = new Headers(requestInit?.headers);
 	const authorization = headers.get("authorization") ?? "";
 	return authorization.replace("Bearer ", "");
@@ -209,26 +210,36 @@ globalThis.fetch = async (requestTarget, requestInit) => {
 	const isRequestUrlString = typeof requestTarget === "string";
 	const requestUrl = isRequestUrlString ? requestTarget : requestTarget.url;
 	const url = new URL(requestUrl);
-	const scenario = createScenario(requestInit);
-	const isEveryCallRejected = scenario === "rejected-key";
+	const apiKey = readApiKeyFromRequest(requestInit);
+
+	const isEveryCallRejected = apiKey === "rejected-key";
 	if (isEveryCallRejected) return createUnauthorizedReply();
+
 	const isIdentityCall =
-		url.pathname === "/v1/users/me" || url.pathname === "/v1/stores";
+		url.pathname === USERS_ME_PATH || url.pathname === "/v1/stores";
 	const isRevokedAfterConnect =
-		scenario === "revoked-after-connect" && !isIdentityCall;
+		apiKey === "revoked-after-connect" && !isIdentityCall;
 	if (isRevokedAfterConnect) return createUnauthorizedReply();
 
-	const isUserCall = url.pathname === "/v1/users/me";
+	const isUserCall = url.pathname === USERS_ME_PATH;
 	if (isUserCall) return createUserReply();
-	const pathParts = url.pathname.match(/^\/v1\/([a-z-]+)(?:\/(\d+))?$/);
-	const table = pathParts && TABLES[pathParts[1]];
-	const isTableMissing = !table;
-	if (isTableMissing) return createNotFoundReply(url.pathname);
-	const id = pathParts[2];
-	const isListCall = id === undefined;
-	if (isListCall) return createListReply(table, url);
-	const found = table.find((resource) => resource.id === id);
-	const isResourceMissing = found === undefined;
-	if (isResourceMissing) return createNotFoundReply(`${pathParts[1]} ${id}`);
-	return sendApiReply(200, { data: found });
+
+	const pathMatch = url.pathname.match(/^\/v1\/([a-z-]+)(?:\/(\d+))?$/);
+	const resources = pathMatch && tablesByResourceType[pathMatch[1]];
+	const isResourceTypeUnknown = resources == null;
+	if (isResourceTypeUnknown) return createNotFoundReply(url.pathname);
+
+	const resourceId = pathMatch[2];
+	const isListCall = resourceId == null;
+	if (isListCall) return createListReply(resources, url);
+
+	const foundResource = resources.find(
+		(resource) => resource.id === resourceId,
+	);
+	const isResourceMissing = foundResource == null;
+	if (isResourceMissing) {
+		return createNotFoundReply(`${pathMatch[1]} ${resourceId}`);
+	}
+
+	return createApiReply(200, { data: foundResource });
 };

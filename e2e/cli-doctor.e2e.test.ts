@@ -3,46 +3,62 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { beforeAll, describe, expect, test } from "vitest";
 
-const ROOT = resolve(import.meta.dirname, "..");
-const CACHE_DIR = join(ROOT, "node_modules/.cache/fresh-squeezy-e2e");
-const EMPTY_CWD = join(CACHE_DIR, "cwd");
-const FILE_CWD = join(CACHE_DIR, "file-cwd");
-const CLI_PATH = join(CACHE_DIR, "cli.js");
-const FAKE_API_PATH = join(ROOT, "e2e/fake-api.mjs");
-const SETTINGS_FILE_NAME = ".env";
-const TSDOWN_TIMEOUT_MS = 60_000;
+const PACKAGE_FOLDER = resolve(import.meta.dirname, "..");
+const CACHE_FOLDER = join(
+	PACKAGE_FOLDER,
+	"node_modules/.cache/fresh-squeezy-e2e",
+);
+const EMPTY_FOLDER = join(CACHE_FOLDER, "cwd");
+const ENVIRONMENT_FILE_FOLDER = join(CACHE_FOLDER, "file-cwd");
+
+const DOCTOR_COMMAND = "doctor";
+const JSON_FLAG = "--json";
+const STORE_ID_FLAG = "--store-id";
+const MODE_FLAG = "--mode";
+const PRODUCT_ID_FLAG = "--product-id";
+const ALL_RESOURCES_FLAG = "--all-resources";
+const UNKNOWN_FLAG = "--nope";
+const UNKNOWN_MODE = "staging";
+const LIVE_MODE = "live";
+const REJECTED_KEY = "rejected-key";
+const AUTH_FAILED_CODE = "AUTH_FAILED";
+const DISCOUNT_CHECK_NAME = "discount";
+const UTF8_ENCODING = "utf8";
 
 interface CliRunSettings {
 	environment?: Record<string, string | undefined>;
-	cwd?: string;
+	folder?: string;
 }
 
-interface ReportedCheck {
+interface CliDoctorCheck {
 	name: string;
 	findings: { code: string }[];
 }
 
-interface DoctorReport {
+interface CliDoctorReport {
 	ok: boolean;
 	mode: string;
-	reports: { checks: ReportedCheck[] }[];
+	reports: { checks: CliDoctorCheck[] }[];
 }
 
 const runCli = (
 	cliFlags: string[],
-	{ environment, cwd = EMPTY_CWD }: CliRunSettings = {},
+	{ environment, folder = EMPTY_FOLDER }: CliRunSettings = {},
 ) => {
 	const childEnvironment = {
 		LEMON_SQUEEZY_TEST_API_KEY: "test-key",
 		NO_COLOR: "1",
 		...environment,
 	};
+	const fakeApiPath = join(PACKAGE_FOLDER, "e2e/fake-api.mjs");
+	const cliPath = join(CACHE_FOLDER, "cli.js");
+
 	const cliRun = spawnSync(
 		process.execPath,
-		["--import", FAKE_API_PATH, CLI_PATH, ...cliFlags],
+		["--import", fakeApiPath, cliPath, ...cliFlags],
 		{
-			cwd,
-			encoding: "utf8",
+			cwd: folder,
+			encoding: UTF8_ENCODING,
 			env: childEnvironment,
 		},
 	);
@@ -54,20 +70,24 @@ const runCli = (
 };
 
 const readDoctorReport = (stdout: string) => {
-	const doctorReport: DoctorReport = JSON.parse(stdout);
+	const doctorReport: CliDoctorReport = JSON.parse(stdout);
 	return doctorReport;
 };
 
-const writeSettingsFile = (lines: string[]) => {
-	const settingsPath = join(FILE_CWD, SETTINGS_FILE_NAME);
-	const settingsFileLines = `${lines.join("\n")}\n`;
-	writeFileSync(settingsPath, settingsFileLines);
+const writeEnvironmentFile = (lines: string[]) => {
+	const environmentFilePath = join(ENVIRONMENT_FILE_FOLDER, ".env");
+
+	const joinedLines = lines.join("\n");
+	writeFileSync(environmentFilePath, `${joinedLines}\n`);
 };
 
+const tsdownTimeoutMilliseconds = 60_000;
+
 beforeAll(() => {
-	mkdirSync(EMPTY_CWD, { recursive: true });
-	rmSync(FILE_CWD, { recursive: true, force: true });
-	mkdirSync(FILE_CWD, { recursive: true });
+	mkdirSync(EMPTY_FOLDER, { recursive: true });
+	rmSync(ENVIRONMENT_FILE_FOLDER, { recursive: true, force: true });
+	mkdirSync(ENVIRONMENT_FILE_FOLDER, { recursive: true });
+
 	const tsdownRun = spawnSync(
 		"pnpm",
 		[
@@ -76,18 +96,24 @@ beforeAll(() => {
 			"--filter",
 			"cli",
 			"--out-dir",
-			CACHE_DIR,
+			CACHE_FOLDER,
 			"--logLevel",
 			"silent",
 		],
-		{ cwd: ROOT, encoding: "utf8" },
+		{ cwd: PACKAGE_FOLDER, encoding: UTF8_ENCODING },
 	);
 	expect(tsdownRun.status, tsdownRun.stderr).toBe(0);
-}, TSDOWN_TIMEOUT_MS);
+}, tsdownTimeoutMilliseconds);
 
 describe("fresh-squeezy doctor", () => {
 	test("prints a passing report and exits 0", () => {
-		const cliFlags = ["doctor", "--store-id", "1", "--product-id", "100"];
+		const cliFlags = [
+			DOCTOR_COMMAND,
+			STORE_ID_FLAG,
+			"1",
+			PRODUCT_ID_FLAG,
+			"100",
+		];
 
 		const { exitCode, stdout } = runCli(cliFlags);
 
@@ -97,7 +123,7 @@ describe("fresh-squeezy doctor", () => {
 	});
 
 	test("with --json prints ok, mode and reports", () => {
-		const cliFlags = ["doctor", "--store-id", "1", "--json"];
+		const cliFlags = [DOCTOR_COMMAND, STORE_ID_FLAG, "1", JSON_FLAG];
 
 		const { exitCode, stdout } = runCli(cliFlags);
 
@@ -112,27 +138,29 @@ describe("fresh-squeezy doctor", () => {
 
 	test("exits 1 when a check fails", () => {
 		const cliFlags = [
-			"doctor",
-			"--store-id",
+			DOCTOR_COMMAND,
+			STORE_ID_FLAG,
 			"1",
 			"--discount-id",
 			"601",
-			"--json",
+			JSON_FLAG,
 		];
 
 		const { exitCode, stdout } = runCli(cliFlags);
 
 		const doctorReport = readDoctorReport(stdout);
 		const checks = doctorReport.reports[0]?.checks ?? [];
-		const discount = checks.find((check) => check.name === "discount");
+		const discount = checks.find(
+			(check) => check.name === DISCOUNT_CHECK_NAME,
+		);
 		expect(exitCode).toBe(1);
 		expect(doctorReport.ok).toBe(false);
 		expect(discount?.findings[0]?.code).toBe("DISCOUNT_EXPIRED");
 	});
 
 	test("reports AUTH_FAILED once for a rejected key", () => {
-		const cliFlags = ["doctor", "--store-id", "1", "--json"];
-		const environment = { LEMON_SQUEEZY_TEST_API_KEY: "rejected-key" };
+		const cliFlags = [DOCTOR_COMMAND, STORE_ID_FLAG, "1", JSON_FLAG];
+		const environment = { LEMON_SQUEEZY_TEST_API_KEY: REJECTED_KEY };
 
 		const { exitCode, stdout } = runCli(cliFlags, { environment });
 
@@ -140,17 +168,17 @@ describe("fresh-squeezy doctor", () => {
 		const checks = doctorReport.reports[0]?.checks ?? [];
 		expect(exitCode).toBe(1);
 		expect(checks).toHaveLength(1);
-		expect(checks[0]?.findings[0]?.code).toBe("AUTH_FAILED");
+		expect(checks[0]?.findings[0]?.code).toBe(AUTH_FAILED_CODE);
 	});
 
 	test("reports AUTH_FAILED in every check when the key is revoked after connecting", () => {
 		const cliFlags = [
-			"doctor",
-			"--store-id",
+			DOCTOR_COMMAND,
+			STORE_ID_FLAG,
 			"1",
-			"--product-id",
+			PRODUCT_ID_FLAG,
 			"100",
-			"--json",
+			JSON_FLAG,
 		];
 		const environment = {
 			LEMON_SQUEEZY_TEST_API_KEY: "revoked-after-connect",
@@ -163,11 +191,18 @@ describe("fresh-squeezy doctor", () => {
 		const checksAfterConnecting = allChecks.slice(1);
 		const codes = checksAfterConnecting.map((check) => check.findings[0]?.code);
 		expect(exitCode).toBe(1);
-		expect(codes).toEqual(["AUTH_FAILED", "AUTH_FAILED"]);
+		expect(codes).toEqual([AUTH_FAILED_CODE, AUTH_FAILED_CODE]);
 	});
 
 	test("repeats --store-id to check several stores", () => {
-		const cliFlags = ["doctor", "--store-id", "1", "--store-id", "2", "--json"];
+		const cliFlags = [
+			DOCTOR_COMMAND,
+			STORE_ID_FLAG,
+			"1",
+			STORE_ID_FLAG,
+			"2",
+			JSON_FLAG,
+		];
 
 		const { exitCode, stdout } = runCli(cliFlags);
 
@@ -177,7 +212,7 @@ describe("fresh-squeezy doctor", () => {
 	});
 
 	test("checks every store when no store flag is given", () => {
-		const cliFlags = ["doctor", "--json"];
+		const cliFlags = [DOCTOR_COMMAND, JSON_FLAG];
 
 		const { exitCode, stdout } = runCli(cliFlags);
 
@@ -187,11 +222,17 @@ describe("fresh-squeezy doctor", () => {
 	});
 
 	test("with --all-resources checks every resource of the store", () => {
-		const cliFlags = ["doctor", "--store-id", "1", "--all-resources", "--json"];
+		const cliFlags = [
+			DOCTOR_COMMAND,
+			STORE_ID_FLAG,
+			"1",
+			ALL_RESOURCES_FLAG,
+			JSON_FLAG,
+		];
 		const expectedNames = [
 			"product",
 			"webhook",
-			"discount",
+			DISCOUNT_CHECK_NAME,
 			"licenseKey",
 			"subscriptionPlan",
 		];
@@ -207,39 +248,46 @@ describe("fresh-squeezy doctor", () => {
 	});
 
 	test("exits 2 for an unknown flag", () => {
-		const cliFlags = ["doctor", "--nope"];
+		const cliFlags = [DOCTOR_COMMAND, UNKNOWN_FLAG];
 
 		const { exitCode, stderr } = runCli(cliFlags);
 
 		expect(exitCode).toBe(2);
-		expect(stderr).toContain("--nope");
+		expect(stderr).toContain(UNKNOWN_FLAG);
 	});
 
 	test("exits 2 for a bad mode", () => {
-		const cliFlags = ["doctor", "--mode", "staging"];
+		const cliFlags = [DOCTOR_COMMAND, MODE_FLAG, UNKNOWN_MODE];
 
 		const { exitCode, stderr } = runCli(cliFlags);
 
 		expect(exitCode).toBe(2);
-		expect(stderr).toContain("staging");
+		expect(stderr).toContain(UNKNOWN_MODE);
 	});
 
 	test("with --mode live picks the live API key", () => {
-		const cliFlags = ["doctor", "--store-id", "1", "--mode", "live", "--json"];
-		const environment = { LEMON_SQUEEZY_LIVE_API_KEY: "rejected-key" };
+		const cliFlags = [
+			DOCTOR_COMMAND,
+			STORE_ID_FLAG,
+			"1",
+			MODE_FLAG,
+			LIVE_MODE,
+			JSON_FLAG,
+		];
+		const environment = { LEMON_SQUEEZY_LIVE_API_KEY: REJECTED_KEY };
 
 		const { stdout } = runCli(cliFlags, { environment });
 
 		const doctorReport = readDoctorReport(stdout);
-		expect(doctorReport.mode).toBe("live");
+		expect(doctorReport.mode).toBe(LIVE_MODE);
 		expect(doctorReport.reports[0]?.checks[0]?.findings[0]?.code).toBe(
-			"AUTH_FAILED",
+			AUTH_FAILED_CODE,
 		);
 	});
 
 	test("ignores a LEMON_SQUEEZY_MODE variable and stays in test mode", () => {
-		const cliFlags = ["doctor", "--store-id", "1", "--json"];
-		const environment = { LEMON_SQUEEZY_MODE: "live" };
+		const cliFlags = [DOCTOR_COMMAND, STORE_ID_FLAG, "1", JSON_FLAG];
+		const environment = { LEMON_SQUEEZY_MODE: LIVE_MODE };
 
 		const { exitCode, stdout } = runCli(cliFlags, { environment });
 
@@ -249,7 +297,7 @@ describe("fresh-squeezy doctor", () => {
 	});
 
 	test("exits 2 when there is no API key", () => {
-		const cliFlags = ["doctor"];
+		const cliFlags = [DOCTOR_COMMAND];
 		const environment = { LEMON_SQUEEZY_TEST_API_KEY: undefined };
 
 		const { exitCode, stderr } = runCli(cliFlags, { environment });
@@ -258,42 +306,53 @@ describe("fresh-squeezy doctor", () => {
 		expect(stderr).toContain("LEMON_SQUEEZY_TEST_API_KEY");
 	});
 
-	test("reads the API key from the settings file in the working directory", () => {
-		writeSettingsFile(["LEMON_SQUEEZY_TEST_API_KEY=rejected-key"]);
-		const cliFlags = ["doctor", "--store-id", "1", "--json"];
+	test("reads the API key from the environment file in the working directory", () => {
+		writeEnvironmentFile([`LEMON_SQUEEZY_TEST_API_KEY=${REJECTED_KEY}`]);
+		const cliFlags = [DOCTOR_COMMAND, STORE_ID_FLAG, "1", JSON_FLAG];
 		const environment = { LEMON_SQUEEZY_TEST_API_KEY: undefined };
 
 		const { exitCode, stdout } = runCli(cliFlags, {
-			cwd: FILE_CWD,
+			folder: ENVIRONMENT_FILE_FOLDER,
 			environment,
 		});
 
 		const doctorReport = readDoctorReport(stdout);
 		expect(exitCode).toBe(1);
 		expect(doctorReport.reports[0]?.checks[0]?.findings[0]?.code).toBe(
-			"AUTH_FAILED",
+			AUTH_FAILED_CODE,
 		);
 	});
 
-	test("reads the live API key from the settings file with --mode live", () => {
-		writeSettingsFile(["LEMON_SQUEEZY_LIVE_API_KEY=rejected-key"]);
-		const cliFlags = ["doctor", "--store-id", "1", "--mode", "live", "--json"];
+	test("reads the live API key from the environment file with --mode live", () => {
+		writeEnvironmentFile([`LEMON_SQUEEZY_LIVE_API_KEY=${REJECTED_KEY}`]);
+		const cliFlags = [
+			DOCTOR_COMMAND,
+			STORE_ID_FLAG,
+			"1",
+			MODE_FLAG,
+			LIVE_MODE,
+			JSON_FLAG,
+		];
 
-		const { exitCode, stdout } = runCli(cliFlags, { cwd: FILE_CWD });
+		const { exitCode, stdout } = runCli(cliFlags, {
+			folder: ENVIRONMENT_FILE_FOLDER,
+		});
 
 		const doctorReport = readDoctorReport(stdout);
 		expect(exitCode).toBe(1);
-		expect(doctorReport.mode).toBe("live");
+		expect(doctorReport.mode).toBe(LIVE_MODE);
 		expect(doctorReport.reports[0]?.checks[0]?.findings[0]?.code).toBe(
-			"AUTH_FAILED",
+			AUTH_FAILED_CODE,
 		);
 	});
 
-	test("prefers a variable already set in the environment over the settings file", () => {
-		writeSettingsFile(["LEMON_SQUEEZY_TEST_API_KEY=rejected-key"]);
-		const cliFlags = ["doctor", "--store-id", "1"];
+	test("prefers a variable already set in the environment over the .env file", () => {
+		writeEnvironmentFile([`LEMON_SQUEEZY_TEST_API_KEY=${REJECTED_KEY}`]);
+		const cliFlags = [DOCTOR_COMMAND, STORE_ID_FLAG, "1"];
 
-		const { exitCode, stdout } = runCli(cliFlags, { cwd: FILE_CWD });
+		const { exitCode, stdout } = runCli(cliFlags, {
+			folder: ENVIRONMENT_FILE_FOLDER,
+		});
 
 		expect(exitCode).toBe(0);
 		expect(stdout).toContain("(mode: test)");
@@ -312,13 +371,14 @@ describe("fresh-squeezy entry point", () => {
 		const { exitCode, stdout } = runCli(["--help"]);
 
 		expect(exitCode).toBe(0);
-		expect(stdout).toContain("--all-resources");
+		expect(stdout).toContain(ALL_RESOURCES_FLAG);
 	});
 
 	test("prints the package version for --version", () => {
 		const { exitCode, stdout } = runCli(["--version"]);
+		const printedVersion = stdout.trim();
 
 		expect(exitCode).toBe(0);
-		expect(stdout.trim()).toMatch(/^\d+\.\d+\.\d+/);
+		expect(printedVersion).toMatch(/^\d+\.\d+\.\d+/);
 	});
 });

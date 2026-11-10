@@ -1,25 +1,30 @@
 import { readFileSync } from "node:fs";
 import ts from "typescript";
-import type { ResourceType } from "@/client/lemon-squeezy-types.js";
 
 const TYPES_FILE = new URL(
 	"../src/client/lemon-squeezy-types.ts",
 	import.meta.url,
 );
 
-type NamedMember = ts.PropertySignature & {
-	name: ts.Identifier | ts.StringLiteral;
+const listPropertySignatures = (declaration: ts.InterfaceDeclaration) =>
+	declaration.members.filter(ts.isPropertySignature);
+
+const readPropertyName = (property: ts.PropertySignature) => {
+	const { name } = property;
+
+	const isIdentifierName = ts.isIdentifier(name);
+	if (isIdentifierName) return name.text;
+
+	const isStringLiteralName = ts.isStringLiteral(name);
+	if (isStringLiteralName) return name.text;
+
+	throw new Error("Interface property name is not an identifier or a string");
 };
 
-const listProperties = (declaration: ts.InterfaceDeclaration) =>
-	declaration.members.filter(ts.isPropertySignature) as NamedMember[];
+const listPropertyNames = (declaration: ts.InterfaceDeclaration) =>
+	listPropertySignatures(declaration).map(readPropertyName);
 
-const listKeys = (declaration: ts.InterfaceDeclaration) => {
-	const properties = listProperties(declaration);
-	return properties.map((member) => member.name.text);
-};
-
-export const readAttributeKeys = () => {
+export const readAttributeKeys = (): Record<string, string[]> => {
 	const sourceText = readFileSync(TYPES_FILE, "utf8");
 	const sourceFile = ts.createSourceFile(
 		"lemon-squeezy-types.ts",
@@ -27,19 +32,29 @@ export const readAttributeKeys = () => {
 		ts.ScriptTarget.ES2022,
 	);
 	const interfaces = sourceFile.statements.filter(ts.isInterfaceDeclaration);
-	const keyEntries = interfaces.map((declaration) => [
-		declaration.name.text,
-		listKeys(declaration),
-	]);
-	const keysByInterface = new Map(keyEntries as [string, string[]][]);
-	const resourceMap = interfaces.find(
+
+	const keyEntries = interfaces.map(
+		(declaration): [string, string[]] => [
+			declaration.name.text,
+			listPropertyNames(declaration),
+		],
+	);
+	const keysByInterfaceName = new Map(keyEntries);
+
+	const resourceAttributes = interfaces.find(
 		(declaration) => declaration.name.text === "ResourceAttributes",
-	) as ts.InterfaceDeclaration;
-	const resourceProperties = listProperties(resourceMap);
-	const resourceEntries = resourceProperties.map((member) => {
-		const interfaceName = member.type?.getText(sourceFile) ?? "";
-		const keys = keysByInterface.get(interfaceName) ?? [];
-		return [member.name.text, keys];
-	});
-	return Object.fromEntries(resourceEntries) as Record<ResourceType, string[]>;
+	);
+	const isResourceAttributesMissing = resourceAttributes == null;
+	if (isResourceAttributesMissing) {
+		throw new Error("ResourceAttributes is missing from the types file");
+	}
+
+	const resourceEntries = listPropertySignatures(resourceAttributes).map(
+		(property): [string, string[]] => {
+			const interfaceName = property.type?.getText(sourceFile) ?? "";
+			const attributeKeys = keysByInterfaceName.get(interfaceName) ?? [];
+			return [readPropertyName(property), attributeKeys];
+		},
+	);
+	return Object.fromEntries(resourceEntries);
 };
