@@ -1,20 +1,11 @@
-# Publish to npm
-# ──────────────
-# Manual fallback publish workflow.
-# Uses npm trusted publishing (OIDC), no NPM token required.
-# Keep node@24 to ensure npm >= 11.5.1.
-
 name: Publish Package
 
 on:
   push:
     tags:
       - "v*.*.*"
-  # GITHUB_TOKEN-triggered tag pushes do not fire the `push` event in downstream workflows.
-  # workflow_run fires after Release completes, letting this job publish the bumped version.
-  workflow_run:
-    workflows: ["Release"]
-    types: [completed]
+  # release.yml starts this run, since a tag it creates with GITHUB_TOKEN fires no push event.
+  workflow_dispatch:
 
 permissions:
   id-token: write
@@ -22,10 +13,6 @@ permissions:
 
 jobs:
   publish:
-    # Run on direct tag pushes (manual/external) OR after a successful Release workflow run.
-    if: >
-      github.event_name == 'push' ||
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
