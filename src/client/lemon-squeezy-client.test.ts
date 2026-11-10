@@ -342,7 +342,7 @@ describe("createLemonSqueezyClient", () => {
 			const { method, url, requestDocument } = await readLastRequest();
 			expect(method).toBe("DELETE");
 			expect(url.pathname).toBe(`/v1/${type}/9`);
-			expect(requestDocument).toBeUndefined();
+			expect(requestDocument).toBeNull();
 		},
 	);
 
@@ -397,7 +397,7 @@ describe("createLemonSqueezyClient", () => {
 			expect(method).toBe("POST");
 			expect(url.pathname).toBe(`/v1/${type}/55/generate-invoice`);
 			expect(Object.fromEntries(url.searchParams)).toEqual(BILLING);
-			expect(requestDocument).toBeUndefined();
+			expect(requestDocument).toBeNull();
 			expect(invoice.meta.urls.download_invoice).toBe(downloadUrl);
 		},
 	);

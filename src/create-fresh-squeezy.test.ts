@@ -1,5 +1,5 @@
 import {
-	addTestHandlers,
+	mockLemonSqueezyServer,
 	readLastRequest,
 	readRecordedRequests,
 	replyAtPath,
@@ -10,10 +10,10 @@ import { describe, expect, test } from "vitest";
 import { createFreshSqueezy } from "./create-fresh-squeezy.js";
 
 const createTestFreshSqueezy = (storeId?: string) => {
-	addTestHandlers([
+	mockLemonSqueezyServer.use(
 		...SIGNED_IN_HANDLERS,
 		replyAtPath("/v1/stores/42", STORE_DOCUMENT),
-	]);
+	);
 	return createFreshSqueezy({ apiKey: "k", storeId });
 };
 

@@ -45,7 +45,7 @@ const createJsonApiReply = (replyDocument: unknown, status: number) => {
 	});
 };
 
-const replyWhenFilterMatches = (filteredList: FilteredListReply) =>
+const replyToFilteredList = (filteredList: FilteredListReply) =>
 	http.get(
 		`${LEMON_SQUEEZY_API_URL}/v1/${filteredList.collection}`,
 		({ request }) => {
@@ -53,10 +53,10 @@ const replyWhenFilterMatches = (filteredList: FilteredListReply) =>
 			const sentFilterValue = requestUrl.searchParams.get(
 				filteredList.filterName,
 			);
-			const isFilterMatching = sentFilterValue === filteredList.filterValue;
+			const isOtherFilterValue = sentFilterValue !== filteredList.filterValue;
 
 			// Returning nothing lets the next handler try the request.
-			if (!isFilterMatching) {
+			if (isOtherFilterValue) {
 				return undefined;
 			}
 
@@ -91,7 +91,7 @@ export const replyToStoreList = (
 	replyDocument: unknown,
 	status = HTTP_STATUS_OK,
 ): HttpHandler =>
-	replyWhenFilterMatches({
+	replyToFilteredList({
 		collection,
 		filterName: "filter[store_id]",
 		filterValue: "42",
@@ -104,7 +104,7 @@ export const replyToVariantList = (
 	replyDocument: unknown,
 	status = HTTP_STATUS_OK,
 ): HttpHandler =>
-	replyWhenFilterMatches({
+	replyToFilteredList({
 		collection: "variants",
 		filterName: "filter[product_id]",
 		filterValue: productId,
@@ -121,19 +121,22 @@ export const replyToEveryRequest = (
 export const replyToPages = (
 	path: string,
 	lastPage: number,
-	idsOfPage: (page: number) => string[],
+	listPageIds: (page: number) => string[],
 ): HttpHandler =>
 	http.get(`${LEMON_SQUEEZY_API_URL}${path}`, ({ request }) => {
 		const requestUrl = new URL(request.url);
-		const page = Number(requestUrl.searchParams.get("page[number]") ?? "1");
-		const resources = idsOfPage(page).map((id) => ({
+		const sentPageNumber = requestUrl.searchParams.get("page[number]") ?? "1";
+		const page = Number(sentPageNumber);
+
+		const resources = listPageIds(page).map((id) => ({
 			type: "products",
 			id,
 			attributes: {},
 		}));
+		const resourceTotal = 6;
 		const pageDocument = {
 			data: resources,
-			meta: { page: { currentPage: page, lastPage, total: 6 } },
+			meta: { page: { currentPage: page, lastPage, total: resourceTotal } },
 		};
 
 		return createJsonApiReply(pageDocument, HTTP_STATUS_OK);
@@ -144,23 +147,26 @@ export const SIGNED_IN_HANDLERS = [
 	replyAtPath("/v1/stores", STORES_COLLECTION),
 ];
 
-export const addTestHandlers = (handlers: HttpHandler[]) => {
-	mockLemonSqueezyServer.use(...handlers);
-};
-
 export const createTestHttp = (handlers: HttpHandler[], apiKey = "k") => {
-	addTestHandlers(handlers);
+	mockLemonSqueezyServer.use(...handlers);
 
 	const clientSettings = readClientSettings({ apiKey });
 	return createHttp(clientSettings);
 };
 
+const readRequestDocument = (sentText: string): unknown => {
+	const isThereNoSentText = sentText === "";
+
+	if (isThereNoSentText) {
+		return null;
+	}
+
+	return JSON.parse(sentText);
+};
+
 const readSentRequest = async (request: Request): Promise<SentRequest> => {
 	const sentText = await request.clone().text();
-	const isThereNoSentText = sentText === "";
-	const requestDocument: unknown = isThereNoSentText
-		? undefined
-		: JSON.parse(sentText);
+	const requestDocument = readRequestDocument(sentText);
 
 	return {
 		method: request.method,
