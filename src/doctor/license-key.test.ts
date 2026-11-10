@@ -47,7 +47,7 @@ describe("validateLicenseKey", () => {
 		expect(report.ok).toBe(true);
 		expect(report.findings).toHaveLength(0);
 		expect(report.resource?.key_short).toBe("XXXX-XXXX");
-		expect(report.target).toEqual({ label: "XXXX-XXXX", id: LICENSE_KEY_ID });
+		expect(report.target).toEqual({ label: "XXXX-XXXX", id: LICENSE_KEY_ID, url: null });
 	});
 
 	test("reports LICENSE_KEY_NOT_FOUND when the key does not exist", async () => {
@@ -60,6 +60,7 @@ describe("validateLicenseKey", () => {
 		expect(report.target).toEqual({
 			label: `license key ${LICENSE_KEY_ID}`,
 			id: LICENSE_KEY_ID,
+			url: null,
 		});
 	});
 

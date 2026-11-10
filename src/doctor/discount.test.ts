@@ -57,6 +57,7 @@ describe("validateDiscount", () => {
 		expect(report.target).toEqual({
 			label: "Summer Sale (SUMMER20)",
 			id: DISCOUNT_ID,
+			url: null,
 		});
 	});
 
@@ -70,6 +71,7 @@ describe("validateDiscount", () => {
 		expect(report.target).toEqual({
 			label: `discount ${DISCOUNT_ID}`,
 			id: DISCOUNT_ID,
+			url: null,
 		});
 	});
 

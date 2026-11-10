@@ -1,7 +1,11 @@
 import type { Mode } from "@/client/environment.js";
 import type { Http } from "@/client/http.js";
 import type { DiscountAttributes } from "@/client/lemon-squeezy-types.js";
-import { fetchResource, storeMismatchFindings } from "./fetch-resource.js";
+import {
+	createFailedLookupReport,
+	fetchResource,
+	listStoreMismatchFindings,
+} from "./fetch-resource.js";
 import {
 	type CheckReport,
 	createCheckReport,
@@ -9,6 +13,7 @@ import {
 	type FindingRule,
 	raiseFindings,
 } from "./findings.js";
+import { isExpired } from "./is-expired.js";
 
 export interface DiscountCheck {
 	storeId: string;
@@ -17,16 +22,9 @@ export interface DiscountCheck {
 
 const isDraft = (discount: DiscountAttributes) => discount.status === "draft";
 
-const isExpired = (discount: DiscountAttributes) => {
-	const expiresAt = discount.expires_at;
-	const isExpirySet = expiresAt !== null;
-	return isExpirySet && Date.parse(expiresAt) < Date.now();
-};
-
-const isNotStarted = (discount: DiscountAttributes) => {
-	const startsAt = discount.starts_at;
-	const isStartSet = startsAt !== null;
-	return isStartSet && Date.parse(startsAt) > Date.now();
+const isNotStarted = (startsAt: string | null, now: Date) => {
+	const isStartSet = startsAt != null;
+	return isStartSet && Date.parse(startsAt) > now.getTime();
 };
 
 const isOutOfRedemptions = (discount: DiscountAttributes) =>
@@ -38,7 +36,9 @@ const isAmountNotPositive = (discount: DiscountAttributes) =>
 const isPercentOverHundred = (discount: DiscountAttributes) =>
 	discount.amount_type === "percent" && discount.amount > 100;
 
-const DISCOUNT_RULES: FindingRule<DiscountAttributes>[] = [
+const createDiscountRules = (
+	now: Date,
+): FindingRule<DiscountAttributes>[] => [
 	{
 		code: FINDING_CODES.DISCOUNT_DRAFT,
 		severity: "warning",
@@ -47,16 +47,16 @@ const DISCOUNT_RULES: FindingRule<DiscountAttributes>[] = [
 			`Discount "${discount.name}" is in draft status — customers cannot redeem it.`,
 		suggestedFix:
 			"Publish the discount in the Lemon Squeezy dashboard before sharing the code.",
-		context: (discount) => ({ name: discount.name, code: discount.code }),
+		details: (discount) => ({ name: discount.name, code: discount.code }),
 	},
 	{
 		code: FINDING_CODES.DISCOUNT_EXPIRED,
 		severity: "error",
-		when: isExpired,
+		when: (discount) => isExpired(discount.expires_at, now),
 		message: (discount) =>
 			`Discount "${discount.name}" expired at ${discount.expires_at}.`,
 		suggestedFix: "Extend the expiration date or create a new discount.",
-		context: (discount) => ({
+		details: (discount) => ({
 			name: discount.name,
 			expiresAt: discount.expires_at,
 		}),
@@ -64,11 +64,11 @@ const DISCOUNT_RULES: FindingRule<DiscountAttributes>[] = [
 	{
 		code: FINDING_CODES.DISCOUNT_NOT_STARTED,
 		severity: "warning",
-		when: isNotStarted,
+		when: (discount) => isNotStarted(discount.starts_at, now),
 		message: (discount) =>
 			`Discount "${discount.name}" starts at ${discount.starts_at} — not yet active.`,
 		suggestedFix: "Wait for the start date or adjust it in the dashboard.",
-		context: (discount) => ({
+		details: (discount) => ({
 			name: discount.name,
 			startsAt: discount.starts_at,
 		}),
@@ -80,7 +80,7 @@ const DISCOUNT_RULES: FindingRule<DiscountAttributes>[] = [
 		message: (discount) =>
 			`Discount "${discount.name}" has limited redemptions with max_redemptions ≤ 0.`,
 		suggestedFix: "Increase max_redemptions or disable the redemption limit.",
-		context: (discount) => ({
+		details: (discount) => ({
 			name: discount.name,
 			maxRedemptions: discount.max_redemptions,
 		}),
@@ -92,7 +92,7 @@ const DISCOUNT_RULES: FindingRule<DiscountAttributes>[] = [
 		message: (discount) =>
 			`Discount "${discount.name}" has amount ${discount.amount} — must be positive.`,
 		suggestedFix: "Set a positive discount amount in the dashboard.",
-		context: (discount) => ({ name: discount.name, amount: discount.amount }),
+		details: (discount) => ({ name: discount.name, amount: discount.amount }),
 	},
 	{
 		code: FINDING_CODES.DISCOUNT_INVALID_AMOUNT,
@@ -101,7 +101,7 @@ const DISCOUNT_RULES: FindingRule<DiscountAttributes>[] = [
 		message: (discount) =>
 			`Discount "${discount.name}" is ${discount.amount}% — percent discounts cannot exceed 100%.`,
 		suggestedFix: "Set the discount to 100% or less.",
-		context: (discount) => ({
+		details: (discount) => ({
 			name: discount.name,
 			amount: discount.amount,
 			amountType: discount.amount_type,
@@ -120,22 +120,23 @@ export const validateDiscount = async (
 			code: FINDING_CODES.DISCOUNT_NOT_FOUND,
 			message: `Discount ${discountId} not found.`,
 			suggestedFix: "Verify the discount ID in the Lemon Squeezy dashboard.",
-			context: { discountId },
+			details: { discountId },
 		},
 	});
 
 	const isFetchFailed = discountLookup.kind === "failed";
 	if (isFetchFailed) {
-		return createCheckReport({
+		return createFailedLookupReport({
 			name: "discount",
 			mode,
-			findings: [discountLookup.finding],
-			target: { label: `discount ${discountId}`, id: discountId },
+			finding: discountLookup.finding,
+			target: { label: `discount ${discountId}`, id: discountId, url: null },
 		});
 	}
 
 	const discount = discountLookup.resource;
-	const storeFindings = storeMismatchFindings({
+	const now = new Date();
+	const storeFindings = listStoreMismatchFindings({
 		label: "Discount",
 		code: FINDING_CODES.DISCOUNT_STORE_MISMATCH,
 		expectedStoreId: storeId,
@@ -143,12 +144,18 @@ export const validateDiscount = async (
 		suggestedFix:
 			"Use the correct store ID or discount ID — discounts should not cross stores.",
 	});
-	const ruleFindings = raiseFindings(DISCOUNT_RULES, discount);
+	const discountRules = createDiscountRules(now);
+	const ruleFindings = raiseFindings(discountRules, discount);
+
 	return createCheckReport({
 		name: "discount",
 		mode,
 		findings: [...storeFindings, ...ruleFindings],
 		resource: discount,
-		target: { label: `${discount.name} (${discount.code})`, id: discountId },
+		target: {
+			label: `${discount.name} (${discount.code})`,
+			id: discountId,
+			url: null,
+		},
 	});
 };

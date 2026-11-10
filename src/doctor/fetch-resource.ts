@@ -1,6 +1,15 @@
+import type { Mode } from "@/client/environment.js";
 import { isFreshSqueezyError } from "@/client/errors.js";
 import type { Http, HttpQuery } from "@/client/http.js";
-import { FINDING_CODES, type Finding, type FindingCode } from "./findings.js";
+import {
+	createCheckReport,
+	FINDING_CODES,
+	type CheckName,
+	type CheckReport,
+	type CheckTarget,
+	type Finding,
+	type FindingCode,
+} from "./findings.js";
 
 const AUTH_FAILED_FINDING: Finding = {
 	code: FINDING_CODES.AUTH_FAILED,
@@ -8,22 +17,17 @@ const AUTH_FAILED_FINDING: Finding = {
 	message: "API key rejected by Lemon Squeezy.",
 	suggestedFix:
 		"Regenerate the key at https://app.lemonsqueezy.com/settings/api.",
-	context: { status: 401 },
+	details: { status: 401 },
 };
 
-export interface NotFoundFinding {
-	code: FindingCode;
-	message: string;
-	suggestedFix?: string;
-	context?: Record<string, unknown>;
-}
+export type NotFoundFinding = Omit<Finding, "severity">;
 
-export interface ResourceFetch {
+interface ResourceFetch {
 	path: string;
 	notFound: NotFoundFinding;
 }
 
-export interface CollectionFetch {
+interface CollectionFetch {
 	path: string;
 	query?: HttpQuery;
 }
@@ -32,7 +36,7 @@ export type Lookup<Resource> =
 	| { kind: "found"; resource: Resource }
 	| { kind: "failed"; finding: Finding };
 
-export interface StoreOwnership {
+interface StoreOwnership {
 	label: string;
 	code: FindingCode;
 	expectedStoreId: string;
@@ -50,25 +54,38 @@ const pickFindingForError = (
 	if (isForeignError) {
 		const isErrorInstance = error instanceof Error;
 		const message = isErrorInstance ? error.message : "Unknown error";
-		return { code: FINDING_CODES.UNKNOWN, severity: "error", message };
+		return {
+			code: FINDING_CODES.UNKNOWN,
+			severity: "error",
+			message,
+			suggestedFix: null,
+			details: null,
+		};
 	}
+
 	const isAuthFailed = error.status === 401 || error.code === "UNAUTHORIZED";
 	if (isAuthFailed) return AUTH_FAILED_FINDING;
-	const isNotFound = notFound !== undefined && error.status === 404;
+
+	const isNotFound = notFound != null && error.status === 404;
 	if (isNotFound) return { ...notFound, severity: "error" };
+
 	const isNetworkError = error.code === "NETWORK_ERROR";
 	if (isNetworkError) {
 		return {
 			code: FINDING_CODES.NETWORK_ERROR,
 			severity: "error",
 			message: `Could not reach Lemon Squeezy: ${error.message}`,
+			suggestedFix: null,
+			details: null,
 		};
 	}
+
 	return {
 		code: FINDING_CODES.UNKNOWN,
 		severity: "error",
 		message: error.message,
-		context: { status: error.status ?? null, code: error.code },
+		suggestedFix: null,
+		details: { status: error.status ?? null, code: error.code },
 	};
 };
 
@@ -100,22 +117,45 @@ export const fetchCollection = <Attributes>(
 	{ path, query }: CollectionFetch,
 ) => fetchSafely(() => http.getAll<Attributes>(path, query));
 
-export const storeMismatchFindings = (ownership: StoreOwnership): Finding[] => {
+export const listStoreMismatchFindings = (
+	ownership: StoreOwnership,
+): Finding[] => {
 	const { expectedStoreId } = ownership;
 	const actualStoreId = String(ownership.actualStoreId);
 	const isSameStore = expectedStoreId === actualStoreId;
 	if (isSameStore) return [];
+
 	return [
 		{
 			code: ownership.code,
 			severity: "error",
 			message: `${ownership.label} belongs to store ${actualStoreId}, expected ${expectedStoreId}.`,
 			suggestedFix: ownership.suggestedFix,
-			context: {
+			details: {
 				expectedStoreId,
 				actualStoreId,
 				...ownership.extraDetails,
 			},
 		},
 	];
+};
+
+interface FailedLookupParts {
+	name: CheckName;
+	mode: Mode;
+	finding: Finding;
+	target: CheckTarget | null;
+}
+
+export const createFailedLookupReport = <Resource>(
+	parts: FailedLookupParts,
+): CheckReport<Resource> => {
+	const { name, mode, finding, target } = parts;
+	return createCheckReport<Resource>({
+		name,
+		mode,
+		findings: [finding],
+		resource: null,
+		target,
+	});
 };

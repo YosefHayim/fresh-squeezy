@@ -63,7 +63,7 @@ describe("validateProduct", () => {
 
 		expect(productReport.ok).toBe(true);
 		expect(productReport.findings).toHaveLength(0);
-		expect(productReport.target).toEqual({ label: "Pro Plan", id: "100" });
+		expect(productReport.target).toEqual({ label: "Pro Plan", id: "100", url: null });
 	});
 
 	test("passes a product whose only variant is the pending default variant", async () => {
@@ -104,7 +104,7 @@ describe("validateProduct", () => {
 		);
 		expect(productReport.ok).toBe(false);
 		expect(unpublishedFinding?.severity).toBe("error");
-		expect(unpublishedFinding?.context).toEqual({ status: "draft" });
+		expect(unpublishedFinding?.details).toEqual({ status: "draft" });
 		expect(buyUrlFinding?.severity).toBe("warning");
 		expect(listCodes(productReport)).toContain("VARIANT_UNPUBLISHED");
 	});
@@ -149,7 +149,7 @@ describe("validateProduct", () => {
 
 		expect(productReport.ok).toBe(false);
 		expect(productReport.findings[0]?.code).toBe("PRODUCT_NOT_FOUND");
-		expect(productReport.target).toEqual({ label: "product 9999", id: "9999" });
+		expect(productReport.target).toEqual({ label: "product 9999", id: "9999", url: null });
 	});
 
 	test("returns AUTH_FAILED when the key is rejected", async () => {

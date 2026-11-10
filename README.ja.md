@@ -166,13 +166,14 @@ doctor はモードに合うキー (`LEMON_SQUEEZY_TEST_API_KEY` または `LEMO
 					"name": "discount",
 					"ok": false,
 					"mode": "test",
-					"target": { "label": "discount", "id": "77" },
+					"target": { "label": "discount", "id": "77", "url": null },
 					"findings": [
 						{
 							"code": "DISCOUNT_EXPIRED",
 							"severity": "error",
 							"message": "...",
-							"suggestedFix": "..."
+							"suggestedFix": "...",
+							"details": { "name": "...", "code": "..." }
 						}
 					]
 				}
@@ -183,6 +184,8 @@ doctor はモードに合うキー (`LEMON_SQUEEZY_TEST_API_KEY` または `LEMO
 ```
 
 `reports` にはストアごとに 1 つのレポートが入ります。`error` の finding がないチェックは `ok` です。
+
+修正案や詳細がない finding では `suggestedFix` や `details` が `null` になります。target の空の項目も省略せず `null` です。resource や target がないチェックでは、それぞれ `resource` や `target` が `null` になります。
 
 ### CI
 

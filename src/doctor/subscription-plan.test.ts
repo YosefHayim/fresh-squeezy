@@ -65,7 +65,7 @@ describe("validateSubscriptionPlan", () => {
 			hasFreeTrial: false,
 			status: "published",
 		});
-		expect(report.target).toEqual({ label: "Pro Monthly", id: VARIANT_ID });
+		expect(report.target).toEqual({ label: "Pro Monthly", id: VARIANT_ID, url: null });
 	});
 
 	test("reports PLAN_VARIANT_NOT_FOUND when the variant does not exist", async () => {
@@ -83,6 +83,7 @@ describe("validateSubscriptionPlan", () => {
 		expect(report.target).toEqual({
 			label: `variant ${VARIANT_ID}`,
 			id: VARIANT_ID,
+			url: null,
 		});
 	});
 
@@ -277,7 +278,7 @@ describe("validateSubscriptionPlan", () => {
 			{
 				code: "PLAN_STORE_MISMATCH",
 				severity: "error",
-				context: { productId: "102", actualStoreId: "99" },
+				details: { productId: "102", actualStoreId: "99" },
 			},
 		]);
 	});

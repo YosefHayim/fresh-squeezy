@@ -23,7 +23,7 @@ describe("validateStore", () => {
 
 		expect(storeReport.ok).toBe(false);
 		expect(storeReport.findings[0]?.code).toBe("STORE_NOT_FOUND");
-		expect(storeReport.findings[0]?.context).toEqual({ storeId: "9999" });
+		expect(storeReport.findings[0]?.details).toEqual({ storeId: "9999" });
 		expect(storeReport.target?.label).toBe("store 9999");
 	});
 });

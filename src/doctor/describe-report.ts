@@ -6,66 +6,86 @@ import type {
 	Finding,
 } from "./findings.js";
 
-const SEVERITY_LABELS = {
-	error: "✗ error",
-	warning: "! warn ",
-	info: "i info ",
-} as const;
-
-const SEVERITY_COLORS = {
-	error: "red",
-	warning: "yellow",
-	info: "blue",
-} as const;
-
-const describeTarget = (target?: CheckTarget) => {
-	const isTargetMissing = !target;
+const pickTargetSuffix = (target: CheckTarget | null) => {
+	const isTargetMissing = target == null;
 	if (isTargetMissing) return "";
-	const parts = [target.label];
-	const isIdGiven = Boolean(target.id);
-	if (isIdGiven) parts.push(`id ${target.id}`);
-	const isUrlNew = Boolean(target.url) && target.url !== target.label;
-	if (isUrlNew) parts.push(String(target.url));
-	return parts.join(" - ");
+
+	const { label, id, url } = target;
+	const parts = [label];
+	const isIdGiven = id != null;
+	if (isIdGiven) parts.push(`id ${id}`);
+
+	const isUrlNew = url != null && url !== label;
+	if (isUrlNew) parts.push(url);
+
+	const describedTarget = parts.join(" - ");
+	const dimTarget = styleText("dim", describedTarget);
+	return ` ${dimTarget}`;
 };
 
 const describeFinding = (finding: Finding) => {
-	const label = SEVERITY_LABELS[finding.severity];
-	const color = SEVERITY_COLORS[finding.severity];
-	const severity = styleText(color, label);
+	const label = {
+		error: "✗ error",
+		warning: "! warn ",
+		info: "i info ",
+	}[finding.severity];
+	const severityColors = {
+		error: "red",
+		warning: "yellow",
+		info: "blue",
+	} as const;
+	const severity = styleText(severityColors[finding.severity], label);
+
 	const code = styleText("gray", `[${finding.code}]`);
 	const lines = [`  ${severity} ${code} ${finding.message}`];
-	const isFixGiven = Boolean(finding.suggestedFix);
+
+	const isFixGiven = finding.suggestedFix != null;
 	const fixLabel = styleText("dim", "fix:");
 	if (isFixGiven) lines.push(`    ${fixLabel} ${finding.suggestedFix}`);
+
 	return lines;
 };
 
-const describeCheck = (check: CheckReport) => {
+const pickCheckBadge = (check: CheckReport) => {
 	const isCheckOk = check.ok;
-	const badge = isCheckOk
-		? styleText("green", "PASS")
-		: styleText("red", "FAIL");
+	if (isCheckOk) return styleText("green", "PASS");
+
+	return styleText("red", "FAIL");
+};
+
+const describeCheck = (check: CheckReport) => {
+	const badge = pickCheckBadge(check);
 	const mode = styleText("dim", `[${check.mode}]`);
 	const name = styleText("bold", check.name);
-	const target = describeTarget(check.target);
-	const isTargetShown = target !== "";
-	const suffix = isTargetShown ? ` ${styleText("dim", target)}` : "";
+	const suffix = pickTargetSuffix(check.target);
+
 	const findingLines = check.findings.flatMap(describeFinding);
 	return [`${badge} ${mode} ${name}${suffix}`, ...findingLines].join("\n");
 };
 
-export const describeReport = (report: DoctorReport) => {
+const pickReportHeader = (report: DoctorReport) => {
 	const isReportOk = report.ok;
-	const header = isReportOk
-		? styleText(["green", "bold"], "fresh-squeezy doctor: OK")
-		: styleText(["red", "bold"], "fresh-squeezy doctor: FAILED");
+	if (isReportOk) {
+		return styleText(["green", "bold"], "fresh-squeezy doctor: OK");
+	}
+
+	return styleText(["red", "bold"], "fresh-squeezy doctor: FAILED");
+};
+
+const pickReportSummary = (report: DoctorReport) => {
 	const total = report.checks.length;
 	const failedCount = report.checks.filter((check) => !check.ok).length;
+
 	const isEveryCheckPassing = failedCount === 0;
-	const summary = isEveryCheckPassing
-		? `${total} checks passed`
-		: `${failedCount}/${total} checks failed`;
+	if (isEveryCheckPassing) return `${total} checks passed`;
+
+	return `${failedCount}/${total} checks failed`;
+};
+
+export const describeReport = (report: DoctorReport) => {
+	const header = pickReportHeader(report);
+	const summary = pickReportSummary(report);
+
 	const checkLines = report.checks.map(describeCheck).join("\n\n");
 	const modeLabel = styleText("dim", `(mode: ${report.mode})`);
 	const summaryLabel = styleText("dim", summary);

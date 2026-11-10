@@ -166,13 +166,14 @@ El doctor lee la clave de su modo (`LEMON_SQUEEZY_TEST_API_KEY` o `LEMON_SQUEEZY
 					"name": "discount",
 					"ok": false,
 					"mode": "test",
-					"target": { "label": "discount", "id": "77" },
+					"target": { "label": "discount", "id": "77", "url": null },
 					"findings": [
 						{
 							"code": "DISCOUNT_EXPIRED",
 							"severity": "error",
 							"message": "...",
-							"suggestedFix": "..."
+							"suggestedFix": "...",
+							"details": { "name": "...", "code": "..." }
 						}
 					]
 				}
@@ -183,6 +184,8 @@ El doctor lee la clave de su modo (`LEMON_SQUEEZY_TEST_API_KEY` o `LEMON_SQUEEZY
 ```
 
 `reports` tiene un informe por tienda. Una comprobación es `ok` cuando no tiene hallazgos de nivel `error`.
+
+Un hallazgo sin corrección o sin detalles tiene `suggestedFix` o `details` en `null`. Un campo vacío del objetivo es `null`, y una comprobación sin recurso o sin objetivo tiene `resource` o `target` en `null`, nunca ausente.
 
 ### CI
 
