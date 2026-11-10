@@ -29,6 +29,7 @@ export const createFreshSqueezy = (
 	const pickStoreIdsToCheck = async () => {
 		const isStoreSet = storeId != null;
 		if (isStoreSet) return [storeId];
+
 		return listStoreIds(http);
 	};
 

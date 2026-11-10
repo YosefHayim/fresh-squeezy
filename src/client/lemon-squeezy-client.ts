@@ -35,6 +35,7 @@ const createLinkage = (name: string, ids: string | string[]) => {
 		["subscription-item", "subscription-items"],
 	]);
 	const relationshipType = typeByRelationship.get(name);
+
 	const isTypeUnknown = relationshipType == null;
 	if (isTypeUnknown) {
 		throw createFreshSqueezyError({

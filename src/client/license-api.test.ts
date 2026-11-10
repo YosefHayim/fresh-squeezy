@@ -25,6 +25,7 @@ const stubFetch = (status: number, replyString: string) => {
 
 const readLastRequest = (fetchStub: ReturnType<typeof stubFetch>) => {
 	const lastCall = fetchStub.mock.lastCall;
+
 	const isThereNoCall = lastCall == null;
 	if (isThereNoCall) throw new Error("fetch was not called");
 

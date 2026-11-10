@@ -168,6 +168,7 @@ const sendRequest = async <ReplyDocument>(
 
 	const replyString = await reply.text();
 	const replyDocument = readReplyDocument(replyString);
+
 	const isReplyFailed = !reply.ok;
 	if (isReplyFailed) throw createApiError(reply.status, replyDocument);
 
@@ -201,6 +202,7 @@ export const postLicenseForm = async <LicenseReply>({
 	});
 	const replyString = await reply.text();
 	const licenseReply = parseReplyString(replyString);
+
 	const isLicenseReplyNotObject = !isObject(licenseReply);
 	if (isLicenseReplyNotObject) throw createApiError(reply.status, licenseReply);
 
@@ -235,6 +237,7 @@ export const createHttp = (settings: ClientSettings) => {
 			query: pageQuery,
 		});
 		const lastPage = collection.meta?.page?.lastPage;
+
 		const isLastPageReached = lastPage == null || pageNumber >= lastPage;
 		if (isLastPageReached) return collection.data;
 

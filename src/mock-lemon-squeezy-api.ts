@@ -1,10 +1,12 @@
 import { http, HttpResponse, type HttpHandler } from "msw";
 import { setupServer } from "msw/node";
-import { readClientSettings } from "@/client/environment.js";
+import {
+	LEMON_SQUEEZY_API_URL,
+	readClientSettings,
+} from "@/client/environment.js";
 import { createHttp } from "@/client/http.js";
 import { STORES_COLLECTION, USER_DOCUMENT } from "@/lemon-squeezy-fixtures.js";
 
-const LEMON_SQUEEZY_API_URL = "https://api.lemonsqueezy.com";
 const JSON_API_CONTENT_TYPE = "application/vnd.api+json";
 const HTTP_STATUS_OK = 200;
 

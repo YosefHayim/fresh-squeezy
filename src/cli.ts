@@ -67,6 +67,7 @@ interface DoctorReportsDocument {
 
 const pickSettingsFromFlags = (flags: Flags): FreshSqueezySettings => {
 	const modeFlag = flags.mode;
+
 	const isModeMissing = modeFlag == null;
 	if (isModeMissing) return {};
 
@@ -78,8 +79,9 @@ const pickStoreIdsToCheck = async (
 	flags: Flags,
 ) => {
 	const storeIdFlags = flags["store-id"];
-	const areStoreIdsGiven = storeIdFlags != null;
-	if (areStoreIdsGiven) return storeIdFlags;
+
+	const hasStoreIdFlags = storeIdFlags != null;
+	if (hasStoreIdFlags) return storeIdFlags;
 
 	return freshSqueezy.listStoreIds();
 };
@@ -106,7 +108,8 @@ const printReports = (
 	isJsonAsked: boolean,
 ) => {
 	if (isJsonAsked) {
-		process.stdout.write(`${JSON.stringify(reportsDocument, null, 2)}\n`);
+		const printedDocument = JSON.stringify(reportsDocument, null, 2);
+		process.stdout.write(`${printedDocument}\n`);
 		return;
 	}
 
@@ -133,6 +136,7 @@ const main = async () => {
 
 	const isDoctorCommand =
 		positionals.length === 1 && positionals[0] === "doctor";
+
 	const isOtherCommand = !isDoctorCommand;
 	if (isOtherCommand) {
 		process.stderr.write(`${HELP_MESSAGE}\n`);
