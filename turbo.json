@@ -3,9 +3,7 @@
 	"tasks": {
 		"lint": {},
 		"typecheck": {},
-		"test": {
-			"env": ["LEMON_SQUEEZY_LIVE_API_KEY", "LEMON_SQUEEZY_TEST_API_KEY"]
-		},
+		"test": {},
 		"build": { "outputs": ["dist/**"] }
 	}
 }
