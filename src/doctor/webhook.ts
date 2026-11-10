@@ -122,7 +122,7 @@ export const validateWebhook = async (
 		) ?? null;
 	const isWebhookMissing = webhook == null;
 	if (isWebhookMissing) {
-		return createCheckReport({
+		return createCheckReport<WebhookAttributes>({
 			name: "webhook",
 			mode,
 			findings: [

@@ -1,3 +1,5 @@
+import { describe, expect, test } from "vitest";
+import { STORE_DOCUMENT } from "@/lemon-squeezy-fixtures.js";
 import {
 	mockLemonSqueezyServer,
 	readLastRequest,
@@ -5,8 +7,6 @@ import {
 	replyAtPath,
 	SIGNED_IN_HANDLERS,
 } from "@/mock-lemon-squeezy-api.js";
-import { STORE_DOCUMENT } from "@/lemon-squeezy-fixtures.js";
-import { describe, expect, test } from "vitest";
 import { createFreshSqueezy } from "./create-fresh-squeezy.js";
 
 const createTestFreshSqueezy = (storeId?: string) => {

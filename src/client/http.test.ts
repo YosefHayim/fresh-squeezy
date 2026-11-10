@@ -1,3 +1,9 @@
+import { describe, expect, test } from "vitest";
+import { readClientSettings } from "@/client/environment.js";
+import {
+	STORE_DOCUMENT,
+	UNAUTHORIZED_ERROR,
+} from "@/lemon-squeezy-fixtures.js";
 import {
 	createTestHttp,
 	readLastRequest,
@@ -7,12 +13,6 @@ import {
 	replyToPages,
 	replyWithPlainMessage,
 } from "@/mock-lemon-squeezy-api.js";
-import {
-	STORE_DOCUMENT,
-	UNAUTHORIZED_ERROR,
-} from "@/lemon-squeezy-fixtures.js";
-import { describe, expect, test } from "vitest";
-import { readClientSettings } from "@/client/environment.js";
 import { createHttp } from "./http.js";
 
 const API_KEY = "k_test_abc";

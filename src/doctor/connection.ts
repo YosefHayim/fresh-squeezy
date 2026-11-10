@@ -14,7 +14,7 @@ import {
 	raiseFindings,
 } from "./findings.js";
 
-interface ConnectionSummary {
+export interface ConnectionSummary {
 	user: UserAttributes;
 	storeCount: number;
 	storeIds: string[];

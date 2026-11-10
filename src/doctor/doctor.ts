@@ -16,11 +16,7 @@ import {
 	fetchCollection,
 	type Lookup,
 } from "./fetch-resource.js";
-import {
-	type CheckName,
-	type CheckReport,
-	type DoctorReport,
-} from "./findings.js";
+import type { CheckName, CheckReport, DoctorReport } from "./findings.js";
 import { validateLicenseKey } from "./license-key.js";
 import { validateProduct } from "./product.js";
 import { validateStore } from "./store.js";

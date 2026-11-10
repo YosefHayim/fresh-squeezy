@@ -1,10 +1,10 @@
-import { http, HttpResponse, type HttpHandler } from "msw";
+import { type HttpHandler, HttpResponse, http } from "msw";
 import { setupServer } from "msw/node";
 import {
 	LEMON_SQUEEZY_API_URL,
 	readClientSettings,
 } from "@/client/environment.js";
-import { createHttp } from "@/client/http.js";
+import { createHttp, type Http } from "@/client/http.js";
 import { STORES_COLLECTION, USER_DOCUMENT } from "@/lemon-squeezy-fixtures.js";
 
 const JSON_API_CONTENT_TYPE = "application/vnd.api+json";
@@ -149,7 +149,7 @@ export const SIGNED_IN_HANDLERS = [
 	replyAtPath("/v1/stores", STORES_COLLECTION),
 ];
 
-export const createTestHttp = (handlers: HttpHandler[], apiKey = "k") => {
+export const createTestHttp = (handlers: HttpHandler[], apiKey = "k"): Http => {
 	mockLemonSqueezyServer.use(...handlers);
 
 	const clientSettings = readClientSettings({ apiKey });

@@ -2,11 +2,11 @@ import type { Mode } from "@/client/environment.js";
 import { isFreshSqueezyError } from "@/client/errors.js";
 import type { Http, HttpQuery } from "@/client/http.js";
 import {
-	createCheckReport,
-	FINDING_CODES,
 	type CheckName,
 	type CheckReport,
 	type CheckTarget,
+	createCheckReport,
+	FINDING_CODES,
 	type Finding,
 	type FindingCode,
 } from "./findings.js";

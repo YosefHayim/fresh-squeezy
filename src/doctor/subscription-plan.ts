@@ -23,7 +23,7 @@ export interface SubscriptionPlanCheck {
 	variantId: string;
 }
 
-interface SubscriptionPlanSummary {
+export interface SubscriptionPlanSummary {
 	variantId: string;
 	interval: string | null;
 	intervalCount: number | null;

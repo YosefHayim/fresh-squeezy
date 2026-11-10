@@ -1,4 +1,4 @@
-import { createTestHttp, replyToStoreList } from "@/mock-lemon-squeezy-api.js";
+import { describe, expect, test } from "vitest";
 import {
 	UNAUTHORIZED_ERROR,
 	WEBHOOKS_COLLECTION_COMPLETE,
@@ -6,7 +6,7 @@ import {
 	WEBHOOKS_COLLECTION_MISSING_EVENTS,
 	WEBHOOKS_COLLECTION_ORDER_EVENTS_ONLY,
 } from "@/lemon-squeezy-fixtures.js";
-import { describe, expect, test } from "vitest";
+import { createTestHttp, replyToStoreList } from "@/mock-lemon-squeezy-api.js";
 import { validateWebhook } from "./webhook.js";
 
 const WEBHOOK_URL = "https://app.example.com/api/webhooks/lemon-squeezy";

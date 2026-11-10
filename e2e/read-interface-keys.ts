@@ -36,12 +36,10 @@ export const readAttributeKeys = (): Record<string, string[]> => {
 		ts.isInterfaceDeclaration,
 	);
 
-	const keyEntries = interfaces.map(
-		(declaration): [string, string[]] => [
-			declaration.name.text,
-			listPropertyNames(declaration),
-		],
-	);
+	const keyEntries = interfaces.map((declaration): [string, string[]] => [
+		declaration.name.text,
+		listPropertyNames(declaration),
+	]);
 	const keysByInterfaceName = new Map(keyEntries);
 
 	const resourceAttributes = interfaces.find(

@@ -1,11 +1,11 @@
-import { createTestHttp, replyAtPath } from "@/mock-lemon-squeezy-api.js";
+import { describe, expect, test } from "vitest";
 import {
 	DRAFT_SUBSCRIPTION_VARIANT_DOCUMENT,
 	FREE_PRICE_SUBSCRIPTION_VARIANT_DOCUMENT,
 	INVALID_INTERVAL_VARIANT_DOCUMENT,
 	MISSING_INTERVAL_COUNT_VARIANT_DOCUMENT,
-	NOT_FOUND_ERROR,
 	NON_SUBSCRIPTION_VARIANT_DOCUMENT,
+	NOT_FOUND_ERROR,
 	PRODUCT_ON_WRONG_STORE_DOCUMENT,
 	PUBLISHED_PRODUCT_DOCUMENT,
 	SUBSCRIPTION_VARIANT_DOCUMENT,
@@ -13,7 +13,7 @@ import {
 	UNAUTHORIZED_ERROR,
 	WRONG_STORE_SUBSCRIPTION_VARIANT_DOCUMENT,
 } from "@/lemon-squeezy-fixtures.js";
-import { describe, expect, test } from "vitest";
+import { createTestHttp, replyAtPath } from "@/mock-lemon-squeezy-api.js";
 import { validateSubscriptionPlan } from "./subscription-plan.js";
 
 const VARIANT_ID = "800";
@@ -65,7 +65,11 @@ describe("validateSubscriptionPlan", () => {
 			hasFreeTrial: false,
 			status: "published",
 		});
-		expect(report.target).toEqual({ label: "Pro Monthly", id: VARIANT_ID, url: null });
+		expect(report.target).toEqual({
+			label: "Pro Monthly",
+			id: VARIANT_ID,
+			url: null,
+		});
 	});
 
 	test("reports PLAN_VARIANT_NOT_FOUND when the variant does not exist", async () => {

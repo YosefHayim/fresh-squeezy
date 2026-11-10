@@ -1,13 +1,14 @@
-import {
-	createTestHttp,
-	replyToEveryRequest,
-} from "@/mock-lemon-squeezy-api.js";
+import { describe, expect, test } from "vitest";
+import { createFreshSqueezyError } from "@/client/errors.js";
 import {
 	NOT_FOUND_ERROR,
 	UNAUTHORIZED_ERROR,
 } from "@/lemon-squeezy-fixtures.js";
-import { describe, expect, test } from "vitest";
-import { createFreshSqueezyError } from "@/client/errors.js";
+import {
+	createTestHttp,
+	replyAtPath,
+	replyToEveryRequest,
+} from "@/mock-lemon-squeezy-api.js";
 import { validateConnection } from "./connection.js";
 import { validateDiscount } from "./discount.js";
 import {

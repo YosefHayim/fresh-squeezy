@@ -1,8 +1,4 @@
-import {
-	createTestHttp,
-	replyAtPath,
-	replyToVariantList,
-} from "@/mock-lemon-squeezy-api.js";
+import { describe, expect, test } from "vitest";
 import {
 	NOT_FOUND_ERROR,
 	PRODUCT_ON_WRONG_STORE_DOCUMENT,
@@ -15,7 +11,11 @@ import {
 	VARIANTS_COLLECTION_PENDING_AND_DRAFT,
 	VARIANTS_COLLECTION_PUBLISHED,
 } from "@/lemon-squeezy-fixtures.js";
-import { describe, expect, test } from "vitest";
+import {
+	createTestHttp,
+	replyAtPath,
+	replyToVariantList,
+} from "@/mock-lemon-squeezy-api.js";
 import { validateProduct } from "./product.js";
 
 const createPublishedProductHandlers = (
@@ -63,7 +63,11 @@ describe("validateProduct", () => {
 
 		expect(productReport.ok).toBe(true);
 		expect(productReport.findings).toHaveLength(0);
-		expect(productReport.target).toEqual({ label: "Pro Plan", id: "100", url: null });
+		expect(productReport.target).toEqual({
+			label: "Pro Plan",
+			id: "100",
+			url: null,
+		});
 	});
 
 	test("passes a product whose only variant is the pending default variant", async () => {
@@ -149,7 +153,11 @@ describe("validateProduct", () => {
 
 		expect(productReport.ok).toBe(false);
 		expect(productReport.findings[0]?.code).toBe("PRODUCT_NOT_FOUND");
-		expect(productReport.target).toEqual({ label: "product 9999", id: "9999", url: null });
+		expect(productReport.target).toEqual({
+			label: "product 9999",
+			id: "9999",
+			url: null,
+		});
 	});
 
 	test("returns AUTH_FAILED when the key is rejected", async () => {

@@ -89,7 +89,11 @@ export const validateLicenseKey = async (
 			name: "licenseKey",
 			mode,
 			finding: licenseKeyLookup.finding,
-			target: { label: `license key ${licenseKeyId}`, id: licenseKeyId, url: null },
+			target: {
+				label: `license key ${licenseKeyId}`,
+				id: licenseKeyId,
+				url: null,
+			},
 		});
 	}
 
