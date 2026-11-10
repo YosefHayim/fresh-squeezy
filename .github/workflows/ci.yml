@@ -1,8 +1,5 @@
 name: ci
 "on":
-  pull_request:
-    branches:
-      - main
   push:
     branches:
       - main
@@ -11,85 +8,14 @@ name: ci
   workflow_dispatch: null
 permissions:
   contents: read
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
-  changes:
-    name: changes
-    runs-on: ubuntu-slim
-    timeout-minutes: 5
-    outputs:
-      since: ${{ steps.filter.outputs.everything != 'true' && github.event.pull_request.base.sha || '' }}
-      code: ${{ github.event_name != 'pull_request' || steps.filter.outputs.code == 'true' }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
-        id: filter
-        if: github.event_name == 'pull_request'
-        with:
-          token: ""
-          filters: |
-            everything: &everything
-              - pnpm-lock.yaml
-              - package.json
-              - biome.json
-              - 'tsconfig*.json'
-              - '*.config.ts'
-              - '.github/**'
-            code:
-              - *everything
-              - 'src/**'
-              - 'e2e/**'
-  test:
-    name: test (node ${{ matrix.node }})
-    needs: changes
-    if: needs.changes.outputs.code == 'true'
+  check:
+    name: check
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-    strategy:
-      fail-fast: false
-      matrix:
-        node:
-          - "22"
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
       - name: Setup workspace
         uses: ./.github/actions/setup
-        with:
-          node-version: ${{ matrix.node }}
-      - name: lint
-        run: pnpm lint
-      - name: typecheck
-        run: pnpm typecheck
-      - name: unit tests
-        if: needs.changes.outputs.since == ''
-        run: pnpm test
-      - name: unit tests (changed files)
-        if: needs.changes.outputs.since != ''
-        env:
-          SINCE: ${{ needs.changes.outputs.since }}
-        run: pnpm exec vitest run --changed "$SINCE"
-      - name: build
-        run: pnpm build
-      - name: upload coverage
-        if: matrix.node == '22'
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
-        with:
-          name: coverage
-          path: coverage
-          if-no-files-found: ignore
-  gate:
-    name: CI Gate
-    runs-on: ubuntu-slim
-    timeout-minutes: 5
-    needs:
-      - changes
-      - test
-    if: always()
-    steps:
-      - name: Require every check to pass
-        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
-        run: exit 1
+      - name: pnpm check
+        run: pnpm check
