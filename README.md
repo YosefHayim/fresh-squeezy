@@ -297,6 +297,13 @@ Every function the SDK exports, and the fresh-squeezy call that replaces it. Dif
 
 The 60 rows are every function exported by `@lemonsqueezy/lemonsqueezy.js` 4.0.0.
 
+## Upgrading from 0.5
+
+- Findings: `context` is renamed `details`. `suggestedFix` and `details` are always present and are `null` when there is none. They used to be missing.
+- `CheckTarget`: `id` and `url` are `null` when empty. `CheckReport`: `resource` and `target` are `null` when the check has none. The connection check's `resource.actualMode` is `null` when the mode is unknown.
+- The CLI `--json` output changes the same way: each finding has `details` instead of `context`, and empty fields are `null`, never missing.
+- New: `LEMON_SQUEEZY_API_URL` is exported from `fresh-squeezy/environment`.
+
 ## Upgrading from 0.4
 
 - Renames: `fresh-squeezy/config` is `fresh-squeezy/environment`, `readConfig` is `readClientSettings`, `Config` is `ClientSettings`, `FreshSqueezyConfig` is `FreshSqueezySettings`, `readEnvApiKey` is `readApiKeyFromEnvironment`, `buildCheckReport` is `createCheckReport`, `buildFreshSqueezyError` is `createFreshSqueezyError`, `CreateInput` is `NewResources`, `UpdateInput` is `UpdateAttributes`. `RelationshipName` is removed.
