@@ -1,5 +1,5 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.6.3/schema.json",
+	"$schema": "https://biomejs.dev/schemas/2.6.6/schema.json",
 	"vcs": {
 		"enabled": true,
 		"clientKind": "git",
@@ -12,8 +12,6 @@
 			"!**/dist",
 			"!**/coverage",
 			"!**/node_modules",
-			"!**/.kiro",
-			"!**/downloads",
 			"!**/package.json"
 		],
 		"ignoreUnknown": true
@@ -43,7 +41,6 @@
 				}
 			},
 			"correctness": {
-				"noNestedComponentDefinitions": "error",
 				"noUnusedVariables": "error",
 				"noUnusedImports": "error"
 			},
@@ -55,12 +52,10 @@
 				"noNestedTernary": "error",
 				"noDefaultExport": "error",
 				"useConst": "error",
-				"noUselessElse": "error",
-				"useComponentExportOnlyModules": "error"
+				"noUselessElse": "error"
 			},
 			"suspicious": {
-				"noVar": "error",
-				"noReactForwardRef": "error"
+				"noVar": "error"
 			}
 		}
 	},
@@ -76,7 +71,7 @@
 			}
 		},
 		{
-			"includes": ["**/app/**", "**/*.config.*"],
+			"includes": ["**/*.config.*"],
 			"linter": {
 				"rules": {
 					"style": {

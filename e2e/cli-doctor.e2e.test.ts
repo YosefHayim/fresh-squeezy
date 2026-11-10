@@ -10,7 +10,7 @@ const FILE_CWD = join(CACHE_DIR, "file-cwd");
 const CLI_PATH = join(CACHE_DIR, "cli.js");
 const FAKE_API_PATH = join(ROOT, "e2e/fake-api.mjs");
 const SETTINGS_FILE_NAME = ".env";
-const TSUP_TIMEOUT_MS = 60_000;
+const TSDOWN_TIMEOUT_MS = 60_000;
 
 interface CliRunSettings {
 	environment?: Record<string, string | undefined>;
@@ -68,22 +68,22 @@ beforeAll(() => {
 	mkdirSync(EMPTY_CWD, { recursive: true });
 	rmSync(FILE_CWD, { recursive: true, force: true });
 	mkdirSync(FILE_CWD, { recursive: true });
-	const tsupRun = spawnSync(
+	const tsdownRun = spawnSync(
 		"pnpm",
 		[
 			"exec",
-			"tsup",
-			"src/cli.ts",
-			"--format",
-			"esm",
+			"tsdown",
+			"--filter",
+			"cli",
 			"--out-dir",
 			CACHE_DIR,
-			"--silent",
+			"--logLevel",
+			"silent",
 		],
 		{ cwd: ROOT, encoding: "utf8" },
 	);
-	expect(tsupRun.status, tsupRun.stderr).toBe(0);
-}, TSUP_TIMEOUT_MS);
+	expect(tsdownRun.status, tsdownRun.stderr).toBe(0);
+}, TSDOWN_TIMEOUT_MS);
 
 describe("fresh-squeezy doctor", () => {
 	test("prints a passing report and exits 0", () => {
