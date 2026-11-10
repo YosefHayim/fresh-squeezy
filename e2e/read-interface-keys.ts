@@ -1,10 +1,7 @@
 import { readFileSync } from "node:fs";
 import ts from "typescript";
 
-const TYPES_FILE = new URL(
-	"../src/client/lemon-squeezy-types.ts",
-	import.meta.url,
-);
+const TYPES_FILE_NAME = "lemon-squeezy-types.ts";
 
 const listPropertySignatures = (declaration: ts.InterfaceDeclaration) =>
 	declaration.members.filter(ts.isPropertySignature);
@@ -25,13 +22,19 @@ const listPropertyNames = (declaration: ts.InterfaceDeclaration) =>
 	listPropertySignatures(declaration).map(readPropertyName);
 
 export const readAttributeKeys = (): Record<string, string[]> => {
-	const sourceText = readFileSync(TYPES_FILE, "utf8");
-	const sourceFile = ts.createSourceFile(
-		"lemon-squeezy-types.ts",
-		sourceText,
+	const typesFileUrl = new URL(
+		`../src/client/${TYPES_FILE_NAME}`,
+		import.meta.url,
+	);
+	const typesFileCode = readFileSync(typesFileUrl, "utf8");
+	const typesSyntaxTree = ts.createSourceFile(
+		TYPES_FILE_NAME,
+		typesFileCode,
 		ts.ScriptTarget.ES2022,
 	);
-	const interfaces = sourceFile.statements.filter(ts.isInterfaceDeclaration);
+	const interfaces = typesSyntaxTree.statements.filter(
+		ts.isInterfaceDeclaration,
+	);
 
 	const keyEntries = interfaces.map(
 		(declaration): [string, string[]] => [
@@ -51,9 +54,25 @@ export const readAttributeKeys = (): Record<string, string[]> => {
 
 	const resourceEntries = listPropertySignatures(resourceAttributes).map(
 		(property): [string, string[]] => {
-			const interfaceName = property.type?.getText(sourceFile) ?? "";
-			const attributeKeys = keysByInterfaceName.get(interfaceName) ?? [];
-			return [readPropertyName(property), attributeKeys];
+			const propertyName = readPropertyName(property);
+			const typeNode = property.type;
+
+			const isTypeMissing = typeNode == null;
+			if (isTypeMissing) {
+				throw new Error(`ResourceAttributes.${propertyName} has no type`);
+			}
+
+			const interfaceName = typeNode.getText(typesSyntaxTree);
+			const attributeKeys = keysByInterfaceName.get(interfaceName);
+
+			const isInterfaceMissing = attributeKeys == null;
+			if (isInterfaceMissing) {
+				throw new Error(
+					`ResourceAttributes.${propertyName} is ${interfaceName}, which is not an interface in the types file`,
+				);
+			}
+
+			return [propertyName, attributeKeys];
 		},
 	);
 	return Object.fromEntries(resourceEntries);

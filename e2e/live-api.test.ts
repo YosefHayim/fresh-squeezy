@@ -31,16 +31,15 @@ const expectConnection = async (mode: Mode) => {
 
 const expectKnownAttributeKeys = async (mode: Mode) => {
 	const freshSqueezy = createFreshSqueezy({ mode });
-	const attributeKeys = readAttributeKeys();
+	const attributeKeysByType = readAttributeKeys();
 	const [storeId] = await freshSqueezy.listStoreIds();
-	const typeNames = Object.keys(attributeKeys);
-	const isResourceType = (typeName: string): typeName is ResourceType =>
-		typeName in attributeKeys;
-	const resourceTypes = typeNames.filter(isResourceType);
 	const keysMissingFromInterfaces = new Set<string>();
 
-	const checkAttributes = (type: ResourceType, attributes: object) => {
-		const knownKeys = attributeKeys[type] ?? [];
+	const checkAttributes = (
+		type: ResourceType,
+		knownKeys: string[],
+		attributes: object,
+	) => {
 		const liveKeys = Object.keys(attributes);
 		const unknownKeys = liveKeys.filter((key) => !knownKeys.includes(key));
 
@@ -48,7 +47,10 @@ const expectKnownAttributeKeys = async (mode: Mode) => {
 			keysMissingFromInterfaces.add(`${type}.${key}`);
 	};
 
-	const fetchFirstResource = async (type: ResourceType) => {
+	const fetchFirstResource = async (
+		type: ResourceType,
+		knownKeys: string[],
+	) => {
 		const isUsers = type === USERS_RESOURCE_TYPE;
 		if (isUsers) return freshSqueezy.get(USERS_RESOURCE_TYPE, "me");
 
@@ -71,15 +73,22 @@ const expectKnownAttributeKeys = async (mode: Mode) => {
 		const isListEmpty = firstListedResource == null;
 		if (isListEmpty) return null;
 
-		checkAttributes(type, firstListedResource.attributes);
+		checkAttributes(type, knownKeys, firstListedResource.attributes);
 		return freshSqueezy.get(type, firstListedResource.id);
 	};
 
-	for (const type of resourceTypes) {
-		const firstResource = await fetchFirstResource(type);
+	const isResourceType = (typeName: string): typeName is ResourceType =>
+		typeName in attributeKeysByType;
+
+	for (const [typeName, knownKeys] of Object.entries(attributeKeysByType)) {
+		const isTypeUnknown = !isResourceType(typeName);
+		if (isTypeUnknown) throw new Error(`${typeName} is not a resource type`);
+
+		const firstResource = await fetchFirstResource(typeName, knownKeys);
 
 		const isResourceFound = firstResource != null;
-		if (isResourceFound) checkAttributes(type, firstResource.attributes);
+		if (isResourceFound)
+			checkAttributes(typeName, knownKeys, firstResource.attributes);
 	}
 
 	expect([...keysMissingFromInterfaces]).toEqual([]);

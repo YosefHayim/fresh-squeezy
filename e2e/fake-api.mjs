@@ -170,12 +170,12 @@ const createUserReply = () =>
 		meta: { test_mode: true },
 	});
 
-const isResourceMatchingFilter = (resource, filter) => {
+const isResourceInFilter = (resource, filter) => {
 	const { attributeName, expectedTerm } = filter;
 
 	const isFilterAbsent = expectedTerm == null;
-	const attributeValue = resource.attributes[attributeName];
-	const isAttributeEqual = String(attributeValue) === expectedTerm;
+	const resourceAttribute = resource.attributes[attributeName];
+	const isAttributeEqual = String(resourceAttribute) === expectedTerm;
 	return isFilterAbsent || isAttributeEqual;
 };
 
@@ -189,13 +189,13 @@ const createListReply = (resources, url) => {
 		expectedTerm: url.searchParams.get("filter[product_id]"),
 	};
 
-	const matchingResources = resources.filter(
+	const filteredResources = resources.filter(
 		(resource) =>
-			isResourceMatchingFilter(resource, storeFilter) &&
-			isResourceMatchingFilter(resource, productFilter),
+			isResourceInFilter(resource, storeFilter) &&
+			isResourceInFilter(resource, productFilter),
 	);
 	return createApiReply(200, {
-		data: matchingResources,
+		data: filteredResources,
 		meta: { page: { currentPage: 1, lastPage: 1 } },
 	});
 };
@@ -224,12 +224,13 @@ globalThis.fetch = async (requestTarget, requestInit) => {
 	const isUserCall = url.pathname === USERS_ME_PATH;
 	if (isUserCall) return createUserReply();
 
-	const pathMatch = url.pathname.match(/^\/v1\/([a-z-]+)(?:\/(\d+))?$/);
-	const resources = pathMatch && tablesByResourceType[pathMatch[1]];
+	const requestedPathParts = url.pathname.match(/^\/v1\/([a-z-]+)(?:\/(\d+))?$/);
+	const resources =
+		requestedPathParts && tablesByResourceType[requestedPathParts[1]];
 	const isResourceTypeUnknown = resources == null;
 	if (isResourceTypeUnknown) return createNotFoundReply(url.pathname);
 
-	const resourceId = pathMatch[2];
+	const resourceId = requestedPathParts[2];
 	const isListCall = resourceId == null;
 	if (isListCall) return createListReply(resources, url);
 
@@ -238,7 +239,7 @@ globalThis.fetch = async (requestTarget, requestInit) => {
 	);
 	const isResourceMissing = foundResource == null;
 	if (isResourceMissing) {
-		return createNotFoundReply(`${pathMatch[1]} ${resourceId}`);
+		return createNotFoundReply(`${requestedPathParts[1]} ${resourceId}`);
 	}
 
 	return createApiReply(200, { data: foundResource });

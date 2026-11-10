@@ -4,7 +4,7 @@ import {
 	type Mode,
 	readApiKeyFromEnvironment,
 } from "./src/client/environment.js";
-import baseVitestConfig from "./vitest.config.js";
+import unitTestSetup from "./vitest.config.js";
 
 loadEnvironmentFileWhenPresent();
 
@@ -16,9 +16,9 @@ const isApiKeySet = (mode: Mode) => {
 const liveApiModes = (["test", "live"] satisfies Mode[]).filter(isApiKeySet);
 
 export default defineConfig({
-	...baseVitestConfig,
+	...unitTestSetup,
 	test: {
-		...baseVitestConfig.test,
+		...unitTestSetup.test,
 		provide: { liveApiModes },
 		include: ["e2e/live-api.test.ts"],
 	},
