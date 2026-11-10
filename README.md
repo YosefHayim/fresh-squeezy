@@ -185,7 +185,7 @@ The doctor reads the key of its mode (`LEMON_SQUEEZY_TEST_API_KEY` or `LEMON_SQU
 
 `reports` holds one report per store. A check is `ok` when it has no `error` finding.
 
-A finding with no fix or no details has `suggestedFix` or `details` set to `null`, and an empty target field is `null`, never missing.
+A finding with no fix or no details has `suggestedFix` or `details` set to `null`. An empty target field is `null`, and a check with no resource or no target has `resource` or `target` set to `null`, never missing.
 
 ### CI
 

@@ -5,11 +5,10 @@ import type {
 	UserAttributes,
 	UserMeta,
 } from "@/client/lemon-squeezy-types.js";
-import { fetchSafely } from "./fetch-resource.js";
+import { createFailedLookupReport, fetchSafely } from "./fetch-resource.js";
 import {
 	type CheckReport,
 	createCheckReport,
-	createFailedLookupReport,
 	FINDING_CODES,
 	type FindingRule,
 	raiseFindings,

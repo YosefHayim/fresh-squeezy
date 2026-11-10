@@ -11,12 +11,14 @@ import { createFreshSqueezyError } from "@/client/errors.js";
 import { validateConnection } from "./connection.js";
 import { validateDiscount } from "./discount.js";
 import {
+	createFailedLookupReport,
 	fetchCollection,
 	fetchResource,
 	fetchSafely,
 	listStoreMismatchFindings,
 	type NotFoundFinding,
 } from "./fetch-resource.js";
+import type { Finding } from "./findings.js";
 import { validateLicenseKey } from "./license-key.js";
 import { validateProduct } from "./product.js";
 import { validateStore } from "./store.js";
@@ -353,5 +355,41 @@ describe("listStoreMismatchFindings", () => {
 			expectedStoreId: "42",
 			actualStoreId: "99",
 		});
+	});
+});
+
+const ERROR_FINDING: Finding = {
+	code: "UNKNOWN",
+	severity: "error",
+	message: "bad",
+	suggestedFix: null,
+	details: null,
+};
+
+describe("createFailedLookupReport", () => {
+	test("is not ok, holds the finding and has no resource", () => {
+		const report = createFailedLookupReport({
+			name: "product",
+			mode: "test",
+			finding: ERROR_FINDING,
+			target: { label: "product 9", id: "9", url: null },
+		});
+
+		expect(report.ok).toBe(false);
+		expect(report.findings).toEqual([ERROR_FINDING]);
+		expect(report.resource).toBeNull();
+		expect(report.target).toEqual({ label: "product 9", id: "9", url: null });
+	});
+
+	test("keeps the target null when the check has no target", () => {
+		const report = createFailedLookupReport({
+			name: "connection",
+			mode: "live",
+			finding: ERROR_FINDING,
+			target: null,
+		});
+
+		expect(report.name).toBe("connection");
+		expect(report.target).toBeNull();
 	});
 });

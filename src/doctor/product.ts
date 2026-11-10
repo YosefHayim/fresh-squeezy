@@ -5,6 +5,7 @@ import type {
 	VariantAttributes,
 } from "@/client/lemon-squeezy-types.js";
 import {
+	createFailedLookupReport,
 	fetchCollection,
 	fetchResource,
 	listStoreMismatchFindings,
@@ -12,7 +13,6 @@ import {
 import {
 	type CheckReport,
 	createCheckReport,
-	createFailedLookupReport,
 	FINDING_CODES,
 	type Finding,
 	type FindingRule,

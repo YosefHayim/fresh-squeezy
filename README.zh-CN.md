@@ -185,7 +185,7 @@ doctor 从环境变量或工作目录中的 `.env` 文件读取其模式的密�
 
 `reports` 中每个店铺对应一份报告。没有 `error` 级 finding 的检查为 `ok`。
 
-没有修复建议或详情的 finding 会把 `suggestedFix` 或 `details` 设为 `null`，目标中为空的字段也是 `null`，而不是缺省。
+没有修复建议或详情的 finding 会把 `suggestedFix` 或 `details` 设为 `null`。目标中为空的字段也是 `null`，没有资源或目标的检查会把 `resource` 或 `target` 设为 `null`，而不是缺省。
 
 ### CI
 

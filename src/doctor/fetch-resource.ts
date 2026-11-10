@@ -1,6 +1,15 @@
+import type { Mode } from "@/client/environment.js";
 import { isFreshSqueezyError } from "@/client/errors.js";
 import type { Http, HttpQuery } from "@/client/http.js";
-import { FINDING_CODES, type Finding, type FindingCode } from "./findings.js";
+import {
+	createCheckReport,
+	FINDING_CODES,
+	type CheckName,
+	type CheckReport,
+	type CheckTarget,
+	type Finding,
+	type FindingCode,
+} from "./findings.js";
 
 const AUTH_FAILED_FINDING: Finding = {
 	code: FINDING_CODES.AUTH_FAILED,
@@ -129,4 +138,24 @@ export const listStoreMismatchFindings = (
 			},
 		},
 	];
+};
+
+interface FailedLookupParts {
+	name: CheckName;
+	mode: Mode;
+	finding: Finding;
+	target: CheckTarget | null;
+}
+
+export const createFailedLookupReport = <Resource>(
+	parts: FailedLookupParts,
+): CheckReport<Resource> => {
+	const { name, mode, finding, target } = parts;
+	return createCheckReport<Resource>({
+		name,
+		mode,
+		findings: [finding],
+		resource: null,
+		target,
+	});
 };

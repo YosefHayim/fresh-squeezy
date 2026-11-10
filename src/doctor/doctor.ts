@@ -11,11 +11,14 @@ import type {
 } from "@/client/lemon-squeezy-types.js";
 import { validateConnection } from "./connection.js";
 import { validateDiscount } from "./discount.js";
-import { fetchCollection, type Lookup } from "./fetch-resource.js";
+import {
+	createFailedLookupReport,
+	fetchCollection,
+	type Lookup,
+} from "./fetch-resource.js";
 import {
 	type CheckName,
 	type CheckReport,
-	createFailedLookupReport,
 	type DoctorReport,
 } from "./findings.js";
 import { validateLicenseKey } from "./license-key.js";

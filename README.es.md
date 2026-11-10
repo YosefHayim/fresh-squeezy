@@ -185,7 +185,7 @@ El doctor lee la clave de su modo (`LEMON_SQUEEZY_TEST_API_KEY` o `LEMON_SQUEEZY
 
 `reports` tiene un informe por tienda. Una comprobación es `ok` cuando no tiene hallazgos de nivel `error`.
 
-Un hallazgo sin correccion o sin detalles tiene `suggestedFix` o `details` en `null`, y un campo vacio del objetivo es `null`, nunca ausente.
+Un hallazgo sin corrección o sin detalles tiene `suggestedFix` o `details` en `null`. Un campo vacío del objetivo es `null`, y una comprobación sin recurso o sin objetivo tiene `resource` o `target` en `null`, nunca ausente.
 
 ### CI
 

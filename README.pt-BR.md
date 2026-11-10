@@ -185,7 +185,7 @@ O doctor lê a chave do seu modo (`LEMON_SQUEEZY_TEST_API_KEY` ou `LEMON_SQUEEZY
 
 `reports` tem um relatório por loja. Uma verificação é `ok` quando não tem achado de nível `error`.
 
-Um finding sem correcao ou sem detalhes tem `suggestedFix` ou `details` como `null`, e um campo vazio do alvo e `null`, nunca ausente.
+Um finding sem correção ou sem detalhes tem `suggestedFix` ou `details` como `null`. Um campo vazio do alvo é `null`, e uma verificação sem recurso ou sem alvo tem `resource` ou `target` como `null`, nunca ausente.
 
 ### CI
 

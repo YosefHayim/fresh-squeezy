@@ -1,11 +1,10 @@
 import type { Mode } from "@/client/environment.js";
 import type { Http } from "@/client/http.js";
 import type { StoreAttributes } from "@/client/lemon-squeezy-types.js";
-import { fetchResource } from "./fetch-resource.js";
+import { createFailedLookupReport, fetchResource } from "./fetch-resource.js";
 import {
 	type CheckReport,
 	createCheckReport,
-	createFailedLookupReport,
 	FINDING_CODES,
 } from "./findings.js";
 

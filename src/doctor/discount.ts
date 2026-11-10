@@ -2,13 +2,13 @@ import type { Mode } from "@/client/environment.js";
 import type { Http } from "@/client/http.js";
 import type { DiscountAttributes } from "@/client/lemon-squeezy-types.js";
 import {
+	createFailedLookupReport,
 	fetchResource,
 	listStoreMismatchFindings,
 } from "./fetch-resource.js";
 import {
 	type CheckReport,
 	createCheckReport,
-	createFailedLookupReport,
 	FINDING_CODES,
 	type FindingRule,
 	raiseFindings,
@@ -144,7 +144,8 @@ export const validateDiscount = async (
 		suggestedFix:
 			"Use the correct store ID or discount ID — discounts should not cross stores.",
 	});
-	const ruleFindings = raiseFindings(createDiscountRules(now), discount);
+	const discountRules = createDiscountRules(now);
+	const ruleFindings = raiseFindings(discountRules, discount);
 
 	return createCheckReport({
 		name: "discount",

@@ -1,7 +1,6 @@
 import { describe, expect, test } from "vitest";
 import {
 	createCheckReport,
-	createFailedLookupReport,
 	type Finding,
 	type FindingRule,
 	raiseFindings,
@@ -124,33 +123,5 @@ describe("createCheckReport", () => {
 			"resource",
 			"target",
 		]);
-	});
-});
-
-describe("createFailedLookupReport", () => {
-	test("is not ok, holds the finding and has no resource", () => {
-		const report = createFailedLookupReport({
-			name: "product",
-			mode: "test",
-			finding: ERROR_FINDING,
-			target: { label: "product 9", id: "9", url: null },
-		});
-
-		expect(report.ok).toBe(false);
-		expect(report.findings).toEqual([ERROR_FINDING]);
-		expect(report.resource).toBeNull();
-		expect(report.target).toEqual({ label: "product 9", id: "9", url: null });
-	});
-
-	test("keeps the target null when the check has no target", () => {
-		const report = createFailedLookupReport({
-			name: "connection",
-			mode: "live",
-			finding: ERROR_FINDING,
-			target: null,
-		});
-
-		expect(report.name).toBe("connection");
-		expect(report.target).toBeNull();
 	});
 });

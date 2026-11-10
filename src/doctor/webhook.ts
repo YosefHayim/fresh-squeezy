@@ -1,11 +1,10 @@
 import type { Mode } from "@/client/environment.js";
 import type { Http } from "@/client/http.js";
 import type { WebhookAttributes } from "@/client/lemon-squeezy-types.js";
-import { fetchCollection } from "./fetch-resource.js";
+import { createFailedLookupReport, fetchCollection } from "./fetch-resource.js";
 import {
 	type CheckReport,
 	createCheckReport,
-	createFailedLookupReport,
 	FINDING_CODES,
 	type FindingRule,
 	raiseFindings,

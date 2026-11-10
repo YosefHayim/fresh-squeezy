@@ -143,23 +143,3 @@ export const createCheckReport = <Resource>(
 	const hasError = findings.some(isError);
 	return { name, ok: !hasError, mode, findings, resource, target };
 };
-
-interface FailedLookupParts {
-	name: CheckName;
-	mode: Mode;
-	finding: Finding;
-	target: CheckTarget | null;
-}
-
-export const createFailedLookupReport = <Resource>(
-	parts: FailedLookupParts,
-): CheckReport<Resource> => {
-	const { name, mode, finding, target } = parts;
-	return createCheckReport<Resource>({
-		name,
-		mode,
-		findings: [finding],
-		resource: null,
-		target,
-	});
-};

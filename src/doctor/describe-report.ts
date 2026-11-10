@@ -18,7 +18,9 @@ const pickTargetSuffix = (target: CheckTarget | null) => {
 	const isUrlNew = url != null && url !== label;
 	if (isUrlNew) parts.push(url);
 
-	return ` ${styleText("dim", parts.join(" - "))}`;
+	const describedTarget = parts.join(" - ");
+	const dimTarget = styleText("dim", describedTarget);
+	return ` ${dimTarget}`;
 };
 
 const describeFinding = (finding: Finding) => {

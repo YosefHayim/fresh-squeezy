@@ -2,13 +2,13 @@ import type { Mode } from "@/client/environment.js";
 import type { Http } from "@/client/http.js";
 import type { LicenseKeyAttributes } from "@/client/lemon-squeezy-types.js";
 import {
+	createFailedLookupReport,
 	fetchResource,
 	listStoreMismatchFindings,
 } from "./fetch-resource.js";
 import {
 	type CheckReport,
 	createCheckReport,
-	createFailedLookupReport,
 	FINDING_CODES,
 	type FindingRule,
 	raiseFindings,
@@ -103,7 +103,8 @@ export const validateLicenseKey = async (
 		suggestedFix:
 			"Use the correct store ID or license key ID — keys should not cross stores.",
 	});
-	const ruleFindings = raiseFindings(createLicenseKeyRules(now), licenseKey);
+	const licenseKeyRules = createLicenseKeyRules(now);
+	const ruleFindings = raiseFindings(licenseKeyRules, licenseKey);
 
 	return createCheckReport({
 		name: "licenseKey",

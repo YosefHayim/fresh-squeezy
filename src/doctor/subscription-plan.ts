@@ -5,13 +5,13 @@ import type {
 	VariantAttributes,
 } from "@/client/lemon-squeezy-types.js";
 import {
+	createFailedLookupReport,
 	fetchResource,
 	listStoreMismatchFindings,
 } from "./fetch-resource.js";
 import {
 	type CheckReport,
 	createCheckReport,
-	createFailedLookupReport,
 	FINDING_CODES,
 	type Finding,
 	type FindingRule,
