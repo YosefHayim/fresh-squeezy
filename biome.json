@@ -55,7 +55,13 @@
 				"noUselessElse": "error"
 			},
 			"suspicious": {
-				"noVar": "error"
+				"noVar": "error",
+				"noUndeclaredEnvVars": {
+					"level": "error",
+					"options": {
+						"allowedEnvVars": ["LEMON_SQUEEZY_(LIVE|TEST)_API_KEY"]
+					}
+				}
 			}
 		}
 	},
