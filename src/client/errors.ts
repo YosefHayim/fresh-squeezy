@@ -17,6 +17,7 @@ export const createFreshSqueezyError = (
 ): FreshSqueezyError => {
 	const { code, message, status, detail } = fields;
 	const error = new Error(message);
+
 	// A plain Error with fields survives duplicated bundles; consumers branch with isFreshSqueezyError.
 	return Object.assign(error, {
 		name: "FreshSqueezyError" as const,

@@ -1,21 +1,11 @@
-import type { ClientSettings } from "./environment.js";
+import { type ClientSettings, LEMON_SQUEEZY_API_URL } from "./environment.js";
 import { createFreshSqueezyError, type FreshSqueezyError } from "./errors.js";
-
-const PAGE_SIZE = 100;
-
-const LICENSE_API_URL = "https://api.lemonsqueezy.com";
 
 const API_CONTENT_TYPE = "application/vnd.api+json";
 
-const ERROR_CODES_BY_STATUS = new Map([
-	[401, "UNAUTHORIZED"],
-	[404, "NOT_FOUND"],
-	[429, "RATE_LIMITED"],
-]);
-
 export type HttpQuery = Record<string, string | number | undefined>;
 
-export interface HttpRequest {
+interface HttpRequest {
 	method?: "GET" | "POST" | "PATCH" | "DELETE";
 	path: string;
 	query?: HttpQuery;
@@ -37,7 +27,7 @@ export interface JsonApiDocument<Attributes> {
 	meta?: Record<string, unknown>;
 }
 
-export interface JsonApiCollection<Attributes> {
+interface JsonApiCollection<Attributes> {
 	data: JsonApiResource<Attributes>[];
 	links?: Record<string, string>;
 	meta?: { page?: { currentPage: number; lastPage: number; total: number } };
@@ -58,10 +48,13 @@ const createRequestUrl = (
 	const url = new URL(path, settings.baseUrl);
 	const queryFields = Object.entries(query ?? {});
 	for (const [queryName, queryField] of queryFields) {
-		const isQueryFieldMissing = queryField === undefined;
+		const isQueryFieldMissing = queryField == null;
 		if (isQueryFieldMissing) continue;
-		url.searchParams.append(queryName, String(queryField));
+
+		const queryValue = String(queryField);
+		url.searchParams.append(queryName, queryValue);
 	}
+
 	return url.toString();
 };
 
@@ -72,6 +65,14 @@ const parseReplyString = (replyString: string): unknown => {
 	} catch {
 		return replyString;
 	}
+};
+
+// An empty reply body has no document, so the caller gets undefined.
+const readReplyDocument = (replyString: string) => {
+	const isReplyEmpty = replyString.length === 0;
+	if (isReplyEmpty) return undefined;
+
+	return parseReplyString(replyString);
 };
 
 const isObject = (candidate: unknown): candidate is object =>
@@ -90,6 +91,7 @@ const hasErrorList = (
 const readJsonApiErrors = (replyDocument: unknown): JsonApiError[] => {
 	const isErrorListMissing = !hasErrorList(replyDocument);
 	if (isErrorListMissing) return [];
+
 	return replyDocument.errors.filter(isJsonApiError);
 };
 
@@ -98,12 +100,20 @@ const createApiError = (
 	replyDocument: unknown,
 ): FreshSqueezyError => {
 	const [firstError] = readJsonApiErrors(replyDocument);
-	const statusErrorCode = ERROR_CODES_BY_STATUS.get(status);
+
+	const errorCodesByStatus = new Map([
+		[401, "UNAUTHORIZED"],
+		[404, "NOT_FOUND"],
+		[429, "RATE_LIMITED"],
+	]);
+	const statusErrorCode = errorCodesByStatus.get(status);
+
 	const code = statusErrorCode ?? firstError?.code ?? `HTTP_${status}`;
 	const message =
 		firstError?.detail ??
 		firstError?.title ??
 		`Lemon Squeezy request failed with status ${status}`;
+
 	return createFreshSqueezyError({
 		code,
 		status,
@@ -128,7 +138,8 @@ const sendFetch = async (
 	requestInit: RequestInit,
 ) => {
 	try {
-		return await fetchRequest(url, requestInit);
+		const fetchReply = await fetchRequest(url, requestInit);
+		return fetchReply;
 	} catch (cause) {
 		throw createNetworkError(cause);
 	}
@@ -143,10 +154,11 @@ const sendRequest = async <ReplyDocument>(
 		Authorization: `Bearer ${settings.apiKey}`,
 		Accept: API_CONTENT_TYPE,
 	};
-	const hasDocument = document !== undefined;
+
+	const hasDocument = document != null;
 	if (hasDocument) headers["Content-Type"] = API_CONTENT_TYPE;
 
-	const documentString = hasDocument ? JSON.stringify(document) : undefined;
+	const documentString = hasDocument ? JSON.stringify(document) : null;
 	const reply = await sendFetch(settings.fetch, url, {
 		method,
 		headers,
@@ -155,34 +167,34 @@ const sendRequest = async <ReplyDocument>(
 	});
 
 	const replyString = await reply.text();
-	const hasReplyString = replyString.length > 0;
-	const replyDocument = hasReplyString
-		? parseReplyString(replyString)
-		: undefined;
+	const replyDocument = readReplyDocument(replyString);
+
 	const isReplyFailed = !reply.ok;
 	if (isReplyFailed) throw createApiError(reply.status, replyDocument);
+
 	// The one place a reply gets its type; the live API check keeps the types honest.
 	return replyDocument as ReplyDocument;
 };
 
-export interface LicenseFormRequest {
+interface LicenseFormRequest {
 	action: "activate" | "validate" | "deactivate";
 	fields: Record<string, string | undefined>;
 }
 
 const isFieldFilled = (
-	field: [string, string | undefined],
-): field is [string, string] => field[1] !== undefined;
+	fieldPair: [string, string | undefined],
+): fieldPair is [string, string] => fieldPair[1] != null;
 
 // The license API takes no API key and answers 4xx with a JSON body that carries `error`.
 export const postLicenseForm = async <LicenseReply>({
 	action,
 	fields,
 }: LicenseFormRequest) => {
-	const url = new URL(`/v1/licenses/${action}`, LICENSE_API_URL);
+	const url = new URL(`/v1/licenses/${action}`, LEMON_SQUEEZY_API_URL);
 	const fieldPairs = Object.entries(fields);
 	const filledFields = fieldPairs.filter(isFieldFilled);
 	const licenseForm = new URLSearchParams(filledFields);
+
 	const reply = await sendFetch(fetch, url, {
 		method: "POST",
 		headers: { Accept: "application/json" },
@@ -190,8 +202,10 @@ export const postLicenseForm = async <LicenseReply>({
 	});
 	const replyString = await reply.text();
 	const licenseReply = parseReplyString(replyString);
+
 	const isLicenseReplyNotObject = !isObject(licenseReply);
 	if (isLicenseReplyNotObject) throw createApiError(reply.status, licenseReply);
+
 	return licenseReply as LicenseReply;
 };
 
@@ -211,18 +225,22 @@ export const createHttp = (settings: ClientSettings) => {
 		query?: HttpQuery,
 	): Promise<JsonApiResource<Attributes>[]> => {
 		const pageNumber = Number(query?.["page[number]"] ?? 1);
+		const pageSize = 100;
 		const pageQuery = {
 			...query,
-			"page[size]": PAGE_SIZE,
+			"page[size]": pageSize,
 			"page[number]": pageNumber,
 		};
+
 		const collection = await request<JsonApiCollection<Attributes>>({
 			path,
 			query: pageQuery,
 		});
 		const lastPage = collection.meta?.page?.lastPage;
-		const isLastPageReached = lastPage === undefined || pageNumber >= lastPage;
+
+		const isLastPageReached = lastPage == null || pageNumber >= lastPage;
 		if (isLastPageReached) return collection.data;
+
 		const nextPageQuery = { ...query, "page[number]": pageNumber + 1 };
 		const laterPages = await getAll<Attributes>(path, nextPageQuery);
 		return [...collection.data, ...laterPages];

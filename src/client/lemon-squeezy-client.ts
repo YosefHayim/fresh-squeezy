@@ -16,14 +16,7 @@ import type {
 	UpdateAttributes,
 } from "@/client/lemon-squeezy-types.js";
 
-const RELATIONSHIP_TYPES = new Map([
-	["store", "stores"],
-	["variant", "variants"],
-	["variants", "variants"],
-	["subscription-item", "subscription-items"],
-]);
-
-export type ListFilter = Record<string, string | number>;
+type ListFilter = Record<string, string | number>;
 
 const createFilterQuery = (filter: ListFilter = {}) => {
 	const filterPairs = Object.entries(filter);
@@ -35,24 +28,34 @@ const createFilterQuery = (filter: ListFilter = {}) => {
 };
 
 const createLinkage = (name: string, ids: string | string[]) => {
-	const type = RELATIONSHIP_TYPES.get(name);
-	const isTypeUnknown = type === undefined;
+	const typeByRelationship = new Map([
+		["store", "stores"],
+		["variant", "variants"],
+		["variants", "variants"],
+		["subscription-item", "subscription-items"],
+	]);
+	const relationshipType = typeByRelationship.get(name);
+
+	const isTypeUnknown = relationshipType == null;
 	if (isTypeUnknown) {
 		throw createFreshSqueezyError({
 			code: "UNKNOWN_RELATIONSHIP",
 			message: `Unknown relationship "${name}".`,
 		});
 	}
+
 	const isIdList = Array.isArray(ids);
-	const linkage = isIdList
-		? ids.map((id) => ({ type, id }))
-		: { type, id: ids };
-	return { data: linkage };
+	if (isIdList) {
+		const idLinkages = ids.map((id) => ({ type: relationshipType, id }));
+		return { data: idLinkages };
+	}
+
+	return { data: { type: relationshipType, id: ids } };
 };
 
 const isRelationshipGiven = (
 	relationship: [string, string | string[] | undefined],
-): relationship is [string, string | string[]] => relationship[1] !== undefined;
+): relationship is [string, string | string[]] => relationship[1] != null;
 
 const createRelationships = (
 	relationships: NewResources[CreatableResource]["relationships"],
