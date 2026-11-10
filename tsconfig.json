@@ -20,13 +20,12 @@
 		"outDir": "./dist",
 		"paths": {
 			"@package.json": ["./package.json"],
-			"@/*": ["./src/*"],
-			"@e2e/*": ["./e2e/*"]
+			"@/*": ["./src/*"]
 		},
 		"forceConsistentCasingInFileNames": true,
 		"noUnusedLocals": true,
 		"noUnusedParameters": true
 	},
-	"include": ["src/**/*", "e2e/**/*.ts"],
+	"include": ["src/**/*", "e2e/**/*.ts", "vitest.setup.ts"],
 	"exclude": ["node_modules", "dist"]
 }

@@ -1,11 +1,11 @@
-import { makeHttp, pathIsWithQuery } from "@e2e/mock-fetch.js";
+import { createTestHttp, replyToStoreList } from "@/mock-lemon-squeezy-api.js";
 import {
 	UNAUTHORIZED_ERROR,
 	WEBHOOKS_COLLECTION_COMPLETE,
 	WEBHOOKS_COLLECTION_EMPTY,
 	WEBHOOKS_COLLECTION_MISSING_EVENTS,
 	WEBHOOKS_COLLECTION_ORDER_EVENTS_ONLY,
-} from "@e2e/sandbox-store.js";
+} from "@/lemon-squeezy-fixtures.js";
 import { describe, expect, test } from "vitest";
 import { validateWebhook } from "./webhook.js";
 
@@ -47,12 +47,8 @@ const validateAgainst = (
 	url = WEBHOOK_URL,
 	status = 200,
 ) => {
-	const http = makeHttp([
-		{
-			accepts: pathIsWithQuery("/v1/webhooks", { "filter[store_id]": "42" }),
-			status,
-			replyDocument: storeWebhooks,
-		},
+	const http = createTestHttp([
+		replyToStoreList("webhooks", storeWebhooks, status),
 	]);
 	return validateWebhook(http, "test", { storeId: "42", url });
 };

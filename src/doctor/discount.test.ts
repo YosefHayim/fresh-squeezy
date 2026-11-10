@@ -1,16 +1,16 @@
-import { makeHttp, route } from "@e2e/mock-fetch.js";
+import { createTestHttp, replyAtPath } from "@/mock-lemon-squeezy-api.js";
 import {
-	draftDiscountDocument,
-	exhaustedDiscountDocument,
-	expiredDiscountDocument,
-	futureDiscountDocument,
-	invalidPercentDiscountDocument,
+	DRAFT_DISCOUNT_DOCUMENT,
+	EXHAUSTED_DISCOUNT_DOCUMENT,
+	EXPIRED_DISCOUNT_DOCUMENT,
+	FUTURE_DISCOUNT_DOCUMENT,
+	INVALID_PERCENT_DISCOUNT_DOCUMENT,
 	NOT_FOUND_ERROR,
-	publishedDiscountDocument,
+	PUBLISHED_DISCOUNT_DOCUMENT,
 	UNAUTHORIZED_ERROR,
-	wrongStoreDiscountDocument,
-	zeroAmountDiscountDocument,
-} from "@e2e/sandbox-store.js";
+	WRONG_STORE_DISCOUNT_DOCUMENT,
+	ZERO_AMOUNT_DISCOUNT_DOCUMENT,
+} from "@/lemon-squeezy-fixtures.js";
 import { describe, expect, test } from "vitest";
 import { validateDiscount } from "./discount.js";
 
@@ -18,19 +18,24 @@ const DISCOUNT_ID = "600";
 const PAST_DATE = "2020-01-01T00:00:00Z";
 const FUTURE_DATE = "2099-12-31T23:59:59Z";
 
-type DiscountReply = typeof publishedDiscountDocument;
+type DiscountReply = typeof PUBLISHED_DISCOUNT_DOCUMENT;
 
 const createDiscountReply = (
 	overrides: Partial<DiscountReply["data"]["attributes"]>,
 ): DiscountReply => ({
 	data: {
-		...publishedDiscountDocument.data,
-		attributes: { ...publishedDiscountDocument.data.attributes, ...overrides },
+		...PUBLISHED_DISCOUNT_DOCUMENT.data,
+		attributes: {
+			...PUBLISHED_DISCOUNT_DOCUMENT.data.attributes,
+			...overrides,
+		},
 	},
 });
 
 const checkDiscountReply = (reply: unknown, status = 200) => {
-	const http = makeHttp([route(`/v1/discounts/${DISCOUNT_ID}`, reply, status)]);
+	const http = createTestHttp([
+		replyAtPath(`/v1/discounts/${DISCOUNT_ID}`, reply, status),
+	]);
 	return validateDiscount(http, "test", {
 		storeId: "42",
 		discountId: DISCOUNT_ID,
@@ -42,7 +47,7 @@ const listCodes = (findings: { code: string }[]) =>
 
 describe("validateDiscount", () => {
 	test("passes a valid published discount and describes its target", async () => {
-		const reply = publishedDiscountDocument;
+		const reply = PUBLISHED_DISCOUNT_DOCUMENT;
 
 		const report = await checkDiscountReply(reply);
 
@@ -78,7 +83,7 @@ describe("validateDiscount", () => {
 	});
 
 	test("warns about a draft discount", async () => {
-		const reply = draftDiscountDocument;
+		const reply = DRAFT_DISCOUNT_DOCUMENT;
 
 		const report = await checkDiscountReply(reply);
 
@@ -89,7 +94,7 @@ describe("validateDiscount", () => {
 	});
 
 	test("flags an expired discount as an error", async () => {
-		const reply = expiredDiscountDocument;
+		const reply = EXPIRED_DISCOUNT_DOCUMENT;
 
 		const report = await checkDiscountReply(reply);
 
@@ -111,7 +116,7 @@ describe("validateDiscount", () => {
 	});
 
 	test("warns about a discount that has not started yet", async () => {
-		const reply = futureDiscountDocument;
+		const reply = FUTURE_DISCOUNT_DOCUMENT;
 
 		const report = await checkDiscountReply(reply);
 
@@ -130,7 +135,7 @@ describe("validateDiscount", () => {
 	});
 
 	test("warns when limited redemptions are used up", async () => {
-		const reply = exhaustedDiscountDocument;
+		const reply = EXHAUSTED_DISCOUNT_DOCUMENT;
 
 		const report = await checkDiscountReply(reply);
 
@@ -152,7 +157,7 @@ describe("validateDiscount", () => {
 	});
 
 	test("flags a percent discount over 100 as an error", async () => {
-		const reply = invalidPercentDiscountDocument;
+		const reply = INVALID_PERCENT_DISCOUNT_DOCUMENT;
 
 		const report = await checkDiscountReply(reply);
 
@@ -177,7 +182,7 @@ describe("validateDiscount", () => {
 	});
 
 	test("flags an amount of zero or less as an error", async () => {
-		const reply = zeroAmountDiscountDocument;
+		const reply = ZERO_AMOUNT_DISCOUNT_DOCUMENT;
 
 		const report = await checkDiscountReply(reply);
 
@@ -188,7 +193,7 @@ describe("validateDiscount", () => {
 	});
 
 	test("flags a discount from another store as an error", async () => {
-		const reply = wrongStoreDiscountDocument;
+		const reply = WRONG_STORE_DISCOUNT_DOCUMENT;
 
 		const report = await checkDiscountReply(reply);
 

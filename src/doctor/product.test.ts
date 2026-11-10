@@ -1,4 +1,8 @@
-import { makeHttp, route, variantListRoute } from "@e2e/mock-fetch.js";
+import {
+	createTestHttp,
+	replyAtPath,
+	replyToVariantList,
+} from "@/mock-lemon-squeezy-api.js";
 import {
 	NOT_FOUND_ERROR,
 	PRODUCT_ON_WRONG_STORE_DOCUMENT,
@@ -10,30 +14,34 @@ import {
 	VARIANTS_COLLECTION_EMPTY,
 	VARIANTS_COLLECTION_PENDING_AND_DRAFT,
 	VARIANTS_COLLECTION_PUBLISHED,
-} from "@e2e/sandbox-store.js";
+} from "@/lemon-squeezy-fixtures.js";
 import { describe, expect, test } from "vitest";
 import { validateProduct } from "./product.js";
 
-const createPublishedProductRoutes = (
+const createPublishedProductHandlers = (
 	variantsStatus: number,
 	variantsReplyDocument: unknown,
 ) => {
-	const variantsRoute = {
-		...variantListRoute("100", variantsReplyDocument),
-		status: variantsStatus,
-	};
-	return [route("/v1/products/100", PUBLISHED_PRODUCT_DOCUMENT), variantsRoute];
+	const variantsHandler = replyToVariantList(
+		"100",
+		variantsReplyDocument,
+		variantsStatus,
+	);
+	return [
+		replyAtPath("/v1/products/100", PUBLISHED_PRODUCT_DOCUMENT),
+		variantsHandler,
+	];
 };
 
 const validatePublishedProduct = (
 	variantsStatus: number,
 	variantsReplyDocument: unknown,
 ) => {
-	const routes = createPublishedProductRoutes(
+	const handlers = createPublishedProductHandlers(
 		variantsStatus,
 		variantsReplyDocument,
 	);
-	const http = makeHttp(routes);
+	const http = createTestHttp(handlers);
 	return validateProduct(http, "test", { productId: "100" });
 };
 
@@ -42,11 +50,11 @@ const listCodes = (productReport: { findings: { code: string }[] }) =>
 
 describe("validateProduct", () => {
 	test("passes a published product with a published variant", async () => {
-		const routes = createPublishedProductRoutes(
+		const handlers = createPublishedProductHandlers(
 			200,
 			VARIANTS_COLLECTION_PUBLISHED,
 		);
-		const http = makeHttp(routes);
+		const http = createTestHttp(handlers);
 
 		const productReport = await validateProduct(http, "test", {
 			productId: "100",
@@ -79,9 +87,9 @@ describe("validateProduct", () => {
 	});
 
 	test("flags an unpublished product, a missing buy URL and draft-only variants", async () => {
-		const http = makeHttp([
-			route("/v1/products/101", UNPUBLISHED_PRODUCT_DOCUMENT),
-			variantListRoute("101", VARIANTS_COLLECTION_ALL_DRAFT),
+		const http = createTestHttp([
+			replyAtPath("/v1/products/101", UNPUBLISHED_PRODUCT_DOCUMENT),
+			replyToVariantList("101", VARIANTS_COLLECTION_ALL_DRAFT),
 		]);
 
 		const productReport = await validateProduct(http, "test", {
@@ -102,9 +110,9 @@ describe("validateProduct", () => {
 	});
 
 	test("flags a product on another store when expectedStoreId differs", async () => {
-		const http = makeHttp([
-			route("/v1/products/102", PRODUCT_ON_WRONG_STORE_DOCUMENT),
-			variantListRoute("102", VARIANTS_COLLECTION_PUBLISHED),
+		const http = createTestHttp([
+			replyAtPath("/v1/products/102", PRODUCT_ON_WRONG_STORE_DOCUMENT),
+			replyToVariantList("102", VARIANTS_COLLECTION_PUBLISHED),
 		]);
 
 		const productReport = await validateProduct(http, "test", {
@@ -117,9 +125,9 @@ describe("validateProduct", () => {
 	});
 
 	test("skips the store check when no expectedStoreId is given", async () => {
-		const http = makeHttp([
-			route("/v1/products/102", PRODUCT_ON_WRONG_STORE_DOCUMENT),
-			variantListRoute("102", VARIANTS_COLLECTION_PUBLISHED),
+		const http = createTestHttp([
+			replyAtPath("/v1/products/102", PRODUCT_ON_WRONG_STORE_DOCUMENT),
+			replyToVariantList("102", VARIANTS_COLLECTION_PUBLISHED),
 		]);
 
 		const productReport = await validateProduct(http, "test", {
@@ -131,7 +139,9 @@ describe("validateProduct", () => {
 	});
 
 	test("returns PRODUCT_NOT_FOUND on a 404", async () => {
-		const http = makeHttp([route("/v1/products/9999", NOT_FOUND_ERROR, 404)]);
+		const http = createTestHttp([
+			replyAtPath("/v1/products/9999", NOT_FOUND_ERROR, 404),
+		]);
 
 		const productReport = await validateProduct(http, "test", {
 			productId: "9999",
@@ -143,7 +153,9 @@ describe("validateProduct", () => {
 	});
 
 	test("returns AUTH_FAILED when the key is rejected", async () => {
-		const http = makeHttp([route("/v1/products/100", UNAUTHORIZED_ERROR, 401)]);
+		const http = createTestHttp([
+			replyAtPath("/v1/products/100", UNAUTHORIZED_ERROR, 401),
+		]);
 
 		const productReport = await validateProduct(http, "test", {
 			productId: "100",

@@ -1,24 +1,31 @@
-import { createMockFetch, route, SIGNED_IN_ROUTES } from "@e2e/mock-fetch.js";
-import { STORE_DOCUMENT } from "@e2e/sandbox-store.js";
+import {
+	mockLemonSqueezyServer,
+	readLastRequest,
+	readRecordedRequests,
+	replyAtPath,
+	SIGNED_IN_HANDLERS,
+} from "@/mock-lemon-squeezy-api.js";
+import { STORE_DOCUMENT } from "@/lemon-squeezy-fixtures.js";
 import { describe, expect, test } from "vitest";
 import { createFreshSqueezy } from "./create-fresh-squeezy.js";
 
 const createTestFreshSqueezy = (storeId?: string) => {
-	const routes = [...SIGNED_IN_ROUTES, route("/v1/stores/42", STORE_DOCUMENT)];
-	const { fetch, calls } = createMockFetch(routes);
-	const freshSqueezy = createFreshSqueezy({ apiKey: "k", storeId, fetch });
-	return { freshSqueezy, calls };
+	mockLemonSqueezyServer.use(
+		...SIGNED_IN_HANDLERS,
+		replyAtPath("/v1/stores/42", STORE_DOCUMENT),
+	);
+	return createFreshSqueezy({ apiKey: "k", storeId });
 };
 
 describe("createFreshSqueezy", () => {
 	test("exposes the configured mode", () => {
-		const { freshSqueezy } = createTestFreshSqueezy();
+		const freshSqueezy = createTestFreshSqueezy();
 
 		expect(freshSqueezy.mode).toBe("test");
 	});
 
 	test("validateConnection reaches the API with the configured key", async () => {
-		const { freshSqueezy } = createTestFreshSqueezy();
+		const freshSqueezy = createTestFreshSqueezy();
 
 		const connection = await freshSqueezy.validateConnection();
 
@@ -26,7 +33,7 @@ describe("createFreshSqueezy", () => {
 	});
 
 	test("validateStore checks the store id it is given", async () => {
-		const { freshSqueezy } = createTestFreshSqueezy();
+		const freshSqueezy = createTestFreshSqueezy();
 
 		const storeValidation = await freshSqueezy.validateStore("42");
 
@@ -34,16 +41,17 @@ describe("createFreshSqueezy", () => {
 	});
 
 	test("listStoreIds returns the configured store without calling the API", async () => {
-		const { freshSqueezy, calls } = createTestFreshSqueezy("42");
+		const freshSqueezy = createTestFreshSqueezy("42");
 
 		const storeIds = await freshSqueezy.listStoreIds();
 
+		const recordedRequests = await readRecordedRequests();
 		expect(storeIds).toEqual(["42"]);
-		expect(calls).toHaveLength(0);
+		expect(recordedRequests).toHaveLength(0);
 	});
 
 	test("listStoreIds lists every store when none is configured", async () => {
-		const { freshSqueezy } = createTestFreshSqueezy();
+		const freshSqueezy = createTestFreshSqueezy();
 
 		const storeIds = await freshSqueezy.listStoreIds();
 
@@ -51,7 +59,7 @@ describe("createFreshSqueezy", () => {
 	});
 
 	test("doctor checks the configured store", async () => {
-		const { freshSqueezy } = createTestFreshSqueezy("42");
+		const freshSqueezy = createTestFreshSqueezy("42");
 
 		const report = await freshSqueezy.doctor();
 
@@ -60,18 +68,19 @@ describe("createFreshSqueezy", () => {
 	});
 
 	test("doctor lets the given targets override the configured store", async () => {
-		const { freshSqueezy, calls } = createTestFreshSqueezy("1");
+		const freshSqueezy = createTestFreshSqueezy("1");
 
 		await freshSqueezy.doctor({ storeId: "42" });
 
-		const hasCheckedStore42 = calls.some((call) =>
-			call.url.includes("/v1/stores/42"),
+		const recordedRequests = await readRecordedRequests();
+		const hasCheckedStore42 = recordedRequests.some(
+			({ url }) => url.pathname === "/v1/stores/42",
 		);
 		expect(hasCheckedStore42).toBe(true);
 	});
 
 	test("exposes every check method", () => {
-		const { freshSqueezy } = createTestFreshSqueezy();
+		const freshSqueezy = createTestFreshSqueezy();
 
 		expect(typeof freshSqueezy.validateProduct).toBe("function");
 		expect(typeof freshSqueezy.validateWebhook).toBe("function");
@@ -80,11 +89,12 @@ describe("createFreshSqueezy", () => {
 		expect(typeof freshSqueezy.validateSubscriptionPlan).toBe("function");
 	});
 
-	test("the client verbs share the configured key and fetch", async () => {
-		const { freshSqueezy, calls } = createTestFreshSqueezy();
+	test("get reads the store through the configured client", async () => {
+		const freshSqueezy = createTestFreshSqueezy();
 
 		await freshSqueezy.get("stores", "42");
 
-		expect(calls[0]?.url).toContain("/v1/stores/42");
+		const { url } = await readLastRequest();
+		expect(url.pathname).toBe("/v1/stores/42");
 	});
 });

@@ -1,33 +1,36 @@
-import { makeHttp, route } from "@e2e/mock-fetch.js";
+import { createTestHttp, replyAtPath } from "@/mock-lemon-squeezy-api.js";
 import {
-	activeLicenseKeyDocument,
-	atLimitLicenseKeyDocument,
-	disabledLicenseKeyDocument,
-	expiredLicenseKeyDocument,
+	ACTIVE_LICENSE_KEY_DOCUMENT,
+	AT_LIMIT_LICENSE_KEY_DOCUMENT,
+	DISABLED_LICENSE_KEY_DOCUMENT,
+	EXPIRED_LICENSE_KEY_DOCUMENT,
 	NOT_FOUND_ERROR,
 	UNAUTHORIZED_ERROR,
-	wrongStoreLicenseKeyDocument,
-} from "@e2e/sandbox-store.js";
+	WRONG_STORE_LICENSE_KEY_DOCUMENT,
+} from "@/lemon-squeezy-fixtures.js";
 import { describe, expect, test } from "vitest";
 import { validateLicenseKey } from "./license-key.js";
 
 const LICENSE_KEY_ID = "700";
 const FUTURE_DATE = "2099-12-31T23:59:59Z";
 
-type LicenseKeyReply = typeof activeLicenseKeyDocument;
+type LicenseKeyReply = typeof ACTIVE_LICENSE_KEY_DOCUMENT;
 
 const createLicenseKeyReply = (
 	overrides: Partial<LicenseKeyReply["data"]["attributes"]>,
 ): LicenseKeyReply => ({
 	data: {
-		...activeLicenseKeyDocument.data,
-		attributes: { ...activeLicenseKeyDocument.data.attributes, ...overrides },
+		...ACTIVE_LICENSE_KEY_DOCUMENT.data,
+		attributes: {
+			...ACTIVE_LICENSE_KEY_DOCUMENT.data.attributes,
+			...overrides,
+		},
 	},
 });
 
 const checkLicenseKeyReply = (reply: unknown, status = 200) => {
-	const http = makeHttp([
-		route(`/v1/license-keys/${LICENSE_KEY_ID}`, reply, status),
+	const http = createTestHttp([
+		replyAtPath(`/v1/license-keys/${LICENSE_KEY_ID}`, reply, status),
 	]);
 	return validateLicenseKey(http, "test", {
 		storeId: "42",
@@ -37,7 +40,7 @@ const checkLicenseKeyReply = (reply: unknown, status = 200) => {
 
 describe("validateLicenseKey", () => {
 	test("passes an active key under its activation limit and describes its target", async () => {
-		const reply = activeLicenseKeyDocument;
+		const reply = ACTIVE_LICENSE_KEY_DOCUMENT;
 
 		const report = await checkLicenseKeyReply(reply);
 
@@ -70,7 +73,7 @@ describe("validateLicenseKey", () => {
 	});
 
 	test("flags a disabled key as an error", async () => {
-		const reply = disabledLicenseKeyDocument;
+		const reply = DISABLED_LICENSE_KEY_DOCUMENT;
 
 		const report = await checkLicenseKeyReply(reply);
 
@@ -81,7 +84,7 @@ describe("validateLicenseKey", () => {
 	});
 
 	test("flags an expired key as an error", async () => {
-		const reply = expiredLicenseKeyDocument;
+		const reply = EXPIRED_LICENSE_KEY_DOCUMENT;
 
 		const report = await checkLicenseKeyReply(reply);
 
@@ -105,7 +108,7 @@ describe("validateLicenseKey", () => {
 	});
 
 	test("warns when the key is at its activation limit", async () => {
-		const reply = atLimitLicenseKeyDocument;
+		const reply = AT_LIMIT_LICENSE_KEY_DOCUMENT;
 
 		const report = await checkLicenseKeyReply(reply);
 
@@ -140,7 +143,7 @@ describe("validateLicenseKey", () => {
 	});
 
 	test("flags a key from another store as an error", async () => {
-		const reply = wrongStoreLicenseKeyDocument;
+		const reply = WRONG_STORE_LICENSE_KEY_DOCUMENT;
 
 		const report = await checkLicenseKeyReply(reply);
 

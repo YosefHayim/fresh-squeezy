@@ -1,7 +1,10 @@
-import { createMockFetch, type MockRoute } from "@e2e/mock-fetch.js";
+import {
+	createTestHttp,
+	readLastRequest,
+	readRecordedRequests,
+	replyToEveryRequest,
+} from "@/mock-lemon-squeezy-api.js";
 import { describe, expect, test } from "vitest";
-import { readClientSettings } from "@/client/environment.js";
-import { createHttp } from "@/client/http.js";
 import type {
 	ListableResource,
 	ResourceType,
@@ -9,12 +12,6 @@ import type {
 import { createLemonSqueezyClient } from "./lemon-squeezy-client.js";
 
 const ANY_RESOURCE_REPLY = { data: { type: "any", id: "1", attributes: {} } };
-
-const ANY_ROUTE: MockRoute = {
-	accepts: () => true,
-	status: 200,
-	replyDocument: ANY_RESOURCE_REPLY,
-};
 
 const ALL_RESOURCES: ResourceType[] = [
 	"users",
@@ -57,30 +54,18 @@ const BILLING = {
 	notes: "Thank you",
 };
 
-const createTestClient = (route: MockRoute = ANY_ROUTE) => {
-	const { fetch, calls } = createMockFetch([route]);
-	const settings = readClientSettings({ apiKey: "k", fetch });
-	const http = createHttp(settings);
-	const client = createLemonSqueezyClient(http);
-	const lastCall = () => {
-		const [call] = calls.slice(-1);
-		const url = new URL(call?.url ?? "");
-		const hasRequestString = call?.requestString !== undefined;
-		const requestDocument = hasRequestString
-			? JSON.parse(call?.requestString ?? "")
-			: undefined;
-		return { method: call?.method, url, requestDocument };
-	};
-	return { client, calls, lastCall };
+const createTestClient = (replyDocument: unknown = ANY_RESOURCE_REPLY) => {
+	const http = createTestHttp([replyToEveryRequest(replyDocument)]);
+	return createLemonSqueezyClient(http);
 };
 
 describe("createLemonSqueezyClient", () => {
 	test.each(ALL_RESOURCES)("get reads /v1/%s/:id with GET", async (type) => {
-		const { client, lastCall } = createTestClient();
+		const client = createTestClient();
 
 		const resource = await client.get(type, "9");
 
-		const { method, url } = lastCall();
+		const { method, url } = await readLastRequest();
 		expect(method).toBe("GET");
 		expect(url.pathname).toBe(`/v1/${type}/9`);
 		expect(resource.id).toBe("1");
@@ -89,17 +74,14 @@ describe("createLemonSqueezyClient", () => {
 	test.each(LISTABLE_RESOURCES)(
 		"list reads /v1/%s with page size 100",
 		async (type) => {
-			const { client, lastCall } = createTestClient({
-				...ANY_ROUTE,
-				replyDocument: {
-					data: [],
-					meta: { page: { currentPage: 1, lastPage: 1 } },
-				},
+			const client = createTestClient({
+				data: [],
+				meta: { page: { currentPage: 1, lastPage: 1 } },
 			});
 
 			await client.list(type);
 
-			const { method, url } = lastCall();
+			const { method, url } = await readLastRequest();
 			expect(method).toBe("GET");
 			expect(url.pathname).toBe(`/v1/${type}`);
 			expect(url.searchParams.get("page[size]")).toBe("100");
@@ -107,43 +89,33 @@ describe("createLemonSqueezyClient", () => {
 	);
 
 	test("list sends every filter as filter[name]", async () => {
-		const { client, lastCall } = createTestClient({
-			...ANY_ROUTE,
-			replyDocument: { data: [] },
-		});
+		const client = createTestClient({ data: [] });
 
 		await client.list("orders", { store_id: 1, status: "paid" });
 
-		const { url } = lastCall();
+		const { url } = await readLastRequest();
 		expect(url.searchParams.get("filter[store_id]")).toBe("1");
 		expect(url.searchParams.get("filter[status]")).toBe("paid");
 	});
 
 	test("list reads every page", async () => {
-		const pageNumbersSeen: string[] = [];
-		const pagedRoute: MockRoute = {
-			accepts: ({ url }) => {
-				pageNumbersSeen.push(
-					new URL(url).searchParams.get("page[number]") ?? "",
-				);
-				return true;
-			},
-			status: 200,
-			replyDocument: {
-				data: [{ type: "orders", id: "1", attributes: {} }],
-				meta: { page: { currentPage: 1, lastPage: 2 } },
-			},
-		};
-		const { client } = createTestClient(pagedRoute);
+		const client = createTestClient({
+			data: [{ type: "orders", id: "1", attributes: {} }],
+			meta: { page: { currentPage: 1, lastPage: 2 } },
+		});
 
 		const orders = await client.list("orders");
 
+		const recordedRequests = await readRecordedRequests();
+		const pageNumbersSeen = recordedRequests.map(
+			({ url }) => url.searchParams.get("page[number]") ?? "",
+		);
 		expect(pageNumbersSeen).toEqual(["1", "2"]);
 		expect(orders).toHaveLength(2);
 	});
 
 	test("create sends the attributes and a single store relationship", async () => {
-		const { client, lastCall } = createTestClient();
+		const client = createTestClient();
 		const attributes = { name: "Ada", email: "ada@example.com", country: "GB" };
 
 		await client.create("customers", {
@@ -151,7 +123,7 @@ describe("createLemonSqueezyClient", () => {
 			relationships: { store: "1" },
 		});
 
-		const { method, url, requestDocument } = lastCall();
+		const { method, url, requestDocument } = await readLastRequest();
 		expect(method).toBe("POST");
 		expect(url.pathname).toBe("/v1/customers");
 		expect(requestDocument).toEqual({
@@ -164,7 +136,7 @@ describe("createLemonSqueezyClient", () => {
 	});
 
 	test("create links a subscription item", async () => {
-		const { client, lastCall } = createTestClient();
+		const client = createTestClient();
 		const attributes = { quantity: 5, action: "set" } as const;
 
 		await client.create("usage-records", {
@@ -172,15 +144,21 @@ describe("createLemonSqueezyClient", () => {
 			relationships: { "subscription-item": "7" },
 		});
 
-		const { url, requestDocument } = lastCall();
+		const { url, requestDocument } = await readLastRequest();
 		expect(url.pathname).toBe("/v1/usage-records");
-		expect(requestDocument.data.relationships).toEqual({
-			"subscription-item": { data: { type: "subscription-items", id: "7" } },
+		expect(requestDocument).toMatchObject({
+			data: {
+				relationships: {
+					"subscription-item": {
+						data: { type: "subscription-items", id: "7" },
+					},
+				},
+			},
 		});
 	});
 
 	test("create sends a list of ids as a list of linkages", async () => {
-		const { client, lastCall } = createTestClient();
+		const client = createTestClient();
 		const attributes = {
 			name: "10% Off",
 			code: "10PERCENT",
@@ -194,20 +172,24 @@ describe("createLemonSqueezyClient", () => {
 			relationships: { store: "1", variants: ["3", "4"] },
 		});
 
-		const { requestDocument } = lastCall();
-		expect(requestDocument.data.relationships).toEqual({
-			store: { data: { type: "stores", id: "1" } },
-			variants: {
-				data: [
-					{ type: "variants", id: "3" },
-					{ type: "variants", id: "4" },
-				],
+		const { requestDocument } = await readLastRequest();
+		expect(requestDocument).toMatchObject({
+			data: {
+				relationships: {
+					store: { data: { type: "stores", id: "1" } },
+					variants: {
+						data: [
+							{ type: "variants", id: "3" },
+							{ type: "variants", id: "4" },
+						],
+					},
+				},
 			},
 		});
 	});
 
 	test("create leaves out a relationship that is not given", async () => {
-		const { client, lastCall } = createTestClient();
+		const client = createTestClient();
 		const attributes = {
 			name: "10% Off",
 			code: "10PERCENT",
@@ -220,14 +202,18 @@ describe("createLemonSqueezyClient", () => {
 			relationships: { store: "1" },
 		});
 
-		const { requestDocument } = lastCall();
-		expect(requestDocument.data.relationships).toEqual({
-			store: { data: { type: "stores", id: "1" } },
+		const { requestDocument } = await readLastRequest();
+		expect(requestDocument).toEqual({
+			data: {
+				type: "discounts",
+				attributes,
+				relationships: { store: { data: { type: "stores", id: "1" } } },
+			},
 		});
 	});
 
 	test("create leaves out a relationship that is undefined", async () => {
-		const { client, lastCall } = createTestClient();
+		const client = createTestClient();
 		const attributes = {
 			name: "10% Off",
 			code: "10PERCENT",
@@ -240,28 +226,38 @@ describe("createLemonSqueezyClient", () => {
 			relationships: { store: "1", variants: undefined },
 		});
 
-		const { requestDocument } = lastCall();
-		expect(Object.keys(requestDocument.data.relationships)).toEqual(["store"]);
+		const { requestDocument } = await readLastRequest();
+		expect(requestDocument).toEqual({
+			data: {
+				type: "discounts",
+				attributes,
+				relationships: { store: { data: { type: "stores", id: "1" } } },
+			},
+		});
 	});
 
 	test("create links a store and a variant for a checkout", async () => {
-		const { client, lastCall } = createTestClient();
+		const client = createTestClient();
 
 		await client.create("checkouts", {
 			attributes: { custom_price: 500, preview: true },
 			relationships: { store: "1", variant: "2" },
 		});
 
-		const { url, requestDocument } = lastCall();
+		const { url, requestDocument } = await readLastRequest();
 		expect(url.pathname).toBe("/v1/checkouts");
-		expect(requestDocument.data.relationships).toEqual({
-			store: { data: { type: "stores", id: "1" } },
-			variant: { data: { type: "variants", id: "2" } },
+		expect(requestDocument).toMatchObject({
+			data: {
+				relationships: {
+					store: { data: { type: "stores", id: "1" } },
+					variant: { data: { type: "variants", id: "2" } },
+				},
+			},
 		});
 	});
 
 	test("create sends webhook attributes unchanged", async () => {
-		const { client, lastCall } = createTestClient();
+		const client = createTestClient();
 		const attributes = {
 			url: "https://example.com/hook",
 			events: ["order_created"],
@@ -273,12 +269,12 @@ describe("createLemonSqueezyClient", () => {
 			relationships: { store: "1" },
 		});
 
-		const { requestDocument } = lastCall();
-		expect(requestDocument.data.attributes).toEqual(attributes);
+		const { requestDocument } = await readLastRequest();
+		expect(requestDocument).toMatchObject({ data: { attributes } });
 	});
 
-	test("create throws UNKNOWN_RELATIONSHIP for a relationship name it does not know", () => {
-		const { client, calls } = createTestClient();
+	test("create throws UNKNOWN_RELATIONSHIP for a relationship name it does not know", async () => {
+		const client = createTestClient();
 
 		const createWithUnknownRelationship = () =>
 			client.create("customers", {
@@ -293,16 +289,17 @@ describe("createLemonSqueezyClient", () => {
 		expect(createWithUnknownRelationship).toThrow(
 			expect.objectContaining({ code: "UNKNOWN_RELATIONSHIP" }),
 		);
-		expect(calls).toHaveLength(0);
+		const recordedRequests = await readRecordedRequests();
+		expect(recordedRequests).toHaveLength(0);
 	});
 
 	test("update sends a PATCH with the new customer attributes", async () => {
-		const { client, lastCall } = createTestClient();
+		const client = createTestClient();
 		const attributes = { name: "Ada Lovelace", status: "archived" } as const;
 
 		await client.update("customers", "5", attributes);
 
-		const { method, url, requestDocument } = lastCall();
+		const { method, url, requestDocument } = await readLastRequest();
 		expect(method).toBe("PATCH");
 		expect(url.pathname).toBe("/v1/customers/5");
 		expect(requestDocument).toEqual({
@@ -311,7 +308,7 @@ describe("createLemonSqueezyClient", () => {
 	});
 
 	test("update sends a PATCH with the new subscription attributes", async () => {
-		const { client, lastCall } = createTestClient();
+		const client = createTestClient();
 		const attributes = {
 			pause: { mode: "void" },
 			invoice_immediately: true,
@@ -319,45 +316,42 @@ describe("createLemonSqueezyClient", () => {
 
 		await client.update("subscriptions", "5", attributes);
 
-		const { url, requestDocument } = lastCall();
+		const { url, requestDocument } = await readLastRequest();
 		expect(url.pathname).toBe("/v1/subscriptions/5");
-		expect(requestDocument.data.attributes).toEqual(attributes);
+		expect(requestDocument).toMatchObject({ data: { attributes } });
 	});
 
 	test("update keeps a null attribute", async () => {
-		const { client, lastCall } = createTestClient();
+		const client = createTestClient();
 		const attributes = { activation_limit: null, disabled: false };
 
 		await client.update("license-keys", "5", attributes);
 
-		const { requestDocument } = lastCall();
-		expect(requestDocument.data.attributes).toEqual(attributes);
+		const { requestDocument } = await readLastRequest();
+		expect(requestDocument).toMatchObject({ data: { attributes } });
 	});
 
 	test.each(REMOVABLE_RESOURCES)(
 		"remove sends DELETE to /v1/%s/:id",
 		async (type) => {
-			const { client, lastCall } = createTestClient({
-				...ANY_ROUTE,
-				status: 204,
-				replyDocument: undefined,
-			});
+			const http = createTestHttp([replyToEveryRequest(undefined, 204)]);
+			const client = createLemonSqueezyClient(http);
 
 			await client.remove(type, "9");
 
-			const { method, url, requestDocument } = lastCall();
+			const { method, url, requestDocument } = await readLastRequest();
 			expect(method).toBe("DELETE");
 			expect(url.pathname).toBe(`/v1/${type}/9`);
-			expect(requestDocument).toBeUndefined();
+			expect(requestDocument).toBeNull();
 		},
 	);
 
 	test("cancelSubscription sends DELETE to /v1/subscriptions/:id", async () => {
-		const { client, lastCall } = createTestClient();
+		const client = createTestClient();
 
 		await client.cancelSubscription("123");
 
-		const { method, url } = lastCall();
+		const { method, url } = await readLastRequest();
 		expect(method).toBe("DELETE");
 		expect(url.pathname).toBe("/v1/subscriptions/123");
 	});
@@ -365,11 +359,11 @@ describe("createLemonSqueezyClient", () => {
 	test.each(REFUNDABLE_RESOURCES)(
 		"refund sends POST to /v1/%s/:id/refund with the amount",
 		async (type) => {
-			const { client, lastCall } = createTestClient();
+			const client = createTestClient();
 
 			await client.refund(type, "55", 500);
 
-			const { method, url, requestDocument } = lastCall();
+			const { method, url, requestDocument } = await readLastRequest();
 			expect(method).toBe("POST");
 			expect(url.pathname).toBe(`/v1/${type}/55/refund`);
 			expect(requestDocument).toEqual({
@@ -379,52 +373,49 @@ describe("createLemonSqueezyClient", () => {
 	);
 
 	test("refund without an amount sends no amount for a full refund", async () => {
-		const { client, calls } = createTestClient();
+		const client = createTestClient();
 
 		await client.refund("orders", "55");
 
-		const [call] = calls;
-		const requestDocument = JSON.parse(call?.requestString ?? "{}");
-		expect(requestDocument.data.attributes).toEqual({});
+		const { requestDocument } = await readLastRequest();
+		expect(requestDocument).toEqual({
+			data: { type: "orders", id: "55", attributes: {} },
+		});
 	});
 
 	test.each(REFUNDABLE_RESOURCES)(
 		"generateInvoice sends POST to /v1/%s/:id/generate-invoice with the billing query",
 		async (type) => {
 			const downloadUrl = "https://app.lemonsqueezy.com/invoice";
-			const { client, lastCall } = createTestClient({
-				...ANY_ROUTE,
-				replyDocument: { meta: { urls: { download_invoice: downloadUrl } } },
+			const client = createTestClient({
+				meta: { urls: { download_invoice: downloadUrl } },
 			});
 
 			const invoice = await client.generateInvoice(type, "55", BILLING);
 
-			const { method, url, requestDocument } = lastCall();
+			const { method, url, requestDocument } = await readLastRequest();
 			expect(method).toBe("POST");
 			expect(url.pathname).toBe(`/v1/${type}/55/generate-invoice`);
 			expect(Object.fromEntries(url.searchParams)).toEqual(BILLING);
-			expect(requestDocument).toBeUndefined();
+			expect(requestDocument).toBeNull();
 			expect(invoice.meta.urls.download_invoice).toBe(downloadUrl);
 		},
 	);
 
 	test("currentUsage reads /v1/subscription-items/:id/current-usage", async () => {
 		const usageMeta = { quantity: 5, interval_unit: "month" };
-		const { client, lastCall } = createTestClient({
-			...ANY_ROUTE,
-			replyDocument: { meta: usageMeta },
-		});
+		const client = createTestClient({ meta: usageMeta });
 
 		const usage = await client.currentUsage("77");
 
-		const { method, url } = lastCall();
+		const { method, url } = await readLastRequest();
 		expect(method).toBe("GET");
 		expect(url.pathname).toBe("/v1/subscription-items/77/current-usage");
 		expect(usage.meta.quantity).toBe(5);
 	});
 
 	test("the resource name decides which calls compile", () => {
-		const { client } = createTestClient();
+		const client = createTestClient();
 		const neverCalled = () => {
 			// @ts-expect-error orders cannot be created
 			client.create("orders", { attributes: {}, relationships: {} });

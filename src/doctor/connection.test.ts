@@ -1,22 +1,26 @@
-import { makeHttp, route, SIGNED_IN_ROUTES } from "@e2e/mock-fetch.js";
+import {
+	createTestHttp,
+	replyAtPath,
+	SIGNED_IN_HANDLERS,
+} from "@/mock-lemon-squeezy-api.js";
 import {
 	LIVE_USER_DOCUMENT,
 	UNAUTHORIZED_ERROR,
 	USER_DOCUMENT,
-} from "@e2e/sandbox-store.js";
+} from "@/lemon-squeezy-fixtures.js";
 import { describe, expect, test } from "vitest";
 import { validateConnection } from "./connection.js";
 
-const STORES_ROUTE_ONLY = SIGNED_IN_ROUTES.slice(1);
+const STORES_HANDLER_ONLY = SIGNED_IN_HANDLERS.slice(1);
 
-const LIVE_ROUTES = [
-	route("/v1/users/me", LIVE_USER_DOCUMENT),
-	...STORES_ROUTE_ONLY,
+const LIVE_HANDLERS = [
+	replyAtPath("/v1/users/me", LIVE_USER_DOCUMENT),
+	...STORES_HANDLER_ONLY,
 ];
 
 describe("validateConnection", () => {
 	test("returns ok when the key authenticates and stores are reachable", async () => {
-		const http = makeHttp(SIGNED_IN_ROUTES);
+		const http = createTestHttp(SIGNED_IN_HANDLERS);
 
 		const connectionReport = await validateConnection(http, "test");
 
@@ -28,9 +32,9 @@ describe("validateConnection", () => {
 	});
 
 	test("warns when no stores are reachable", async () => {
-		const http = makeHttp([
-			route("/v1/users/me", USER_DOCUMENT),
-			route("/v1/stores", { data: [] }),
+		const http = createTestHttp([
+			replyAtPath("/v1/users/me", USER_DOCUMENT),
+			replyAtPath("/v1/stores", { data: [] }),
 		]);
 
 		const connectionReport = await validateConnection(http, "test");
@@ -41,7 +45,9 @@ describe("validateConnection", () => {
 	});
 
 	test("reports AUTH_FAILED when the key is rejected with a 401", async () => {
-		const http = makeHttp([route("/v1/users/me", UNAUTHORIZED_ERROR, 401)]);
+		const http = createTestHttp([
+			replyAtPath("/v1/users/me", UNAUTHORIZED_ERROR, 401),
+		]);
 
 		const connectionReport = await validateConnection(http, "test");
 
@@ -50,7 +56,7 @@ describe("validateConnection", () => {
 	});
 
 	test("flags MODE_MISMATCH when the declared mode differs from meta.test_mode", async () => {
-		const http = makeHttp(LIVE_ROUTES);
+		const http = createTestHttp(LIVE_HANDLERS);
 
 		const connectionReport = await validateConnection(http, "test");
 
@@ -67,7 +73,7 @@ describe("validateConnection", () => {
 	});
 
 	test("passes when the declared mode matches meta.test_mode", async () => {
-		const http = makeHttp(LIVE_ROUTES);
+		const http = createTestHttp(LIVE_HANDLERS);
 
 		const connectionReport = await validateConnection(http, "live");
 
@@ -78,9 +84,9 @@ describe("validateConnection", () => {
 
 	test("skips the mode check when meta.test_mode is absent", async () => {
 		const userDocumentWithoutMeta = { data: USER_DOCUMENT.data };
-		const http = makeHttp([
-			route("/v1/users/me", userDocumentWithoutMeta),
-			...STORES_ROUTE_ONLY,
+		const http = createTestHttp([
+			replyAtPath("/v1/users/me", userDocumentWithoutMeta),
+			...STORES_HANDLER_ONLY,
 		]);
 
 		const connectionReport = await validateConnection(http, "live");
@@ -98,9 +104,9 @@ describe("validateConnection", () => {
 			...USER_DOCUMENT,
 			meta: { test_mode: null },
 		};
-		const http = makeHttp([
-			route("/v1/users/me", userDocumentWithNullMode),
-			...STORES_ROUTE_ONLY,
+		const http = createTestHttp([
+			replyAtPath("/v1/users/me", userDocumentWithNullMode),
+			...STORES_HANDLER_ONLY,
 		]);
 
 		const connectionReport = await validateConnection(http, "live");

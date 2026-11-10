@@ -1,5 +1,11 @@
-import { makeHttp, route } from "@e2e/mock-fetch.js";
-import { NOT_FOUND_ERROR, UNAUTHORIZED_ERROR } from "@e2e/sandbox-store.js";
+import {
+	createTestHttp,
+	replyToEveryRequest,
+} from "@/mock-lemon-squeezy-api.js";
+import {
+	NOT_FOUND_ERROR,
+	UNAUTHORIZED_ERROR,
+} from "@/lemon-squeezy-fixtures.js";
 import { describe, expect, test } from "vitest";
 import { createFreshSqueezyError } from "@/client/errors.js";
 import { validateConnection } from "./connection.js";
@@ -35,9 +41,7 @@ const readFailureFinding = async (
 };
 
 const createRejectedKeyHttp = () =>
-	makeHttp([
-		{ accepts: () => true, status: 401, replyDocument: UNAUTHORIZED_ERROR },
-	]);
+	createTestHttp([replyToEveryRequest(UNAUTHORIZED_ERROR, 401)]);
 
 const REJECTED_KEY_CASES = [
 	{
@@ -234,8 +238,8 @@ describe("fetchSafely", () => {
 
 describe("fetchResource", () => {
 	test("returns the attributes of the resource", async () => {
-		const http = makeHttp([
-			route("/v1/stores/1", {
+		const http = createTestHttp([
+			replyAtPath("/v1/stores/1", {
 				data: { id: "1", type: "stores", attributes: { name: "S" } },
 			}),
 		]);
@@ -249,7 +253,9 @@ describe("fetchResource", () => {
 	});
 
 	test("uses the not-found finding on a 404", async () => {
-		const http = makeHttp([route("/v1/stores/1", NOT_FOUND_ERROR, 404)]);
+		const http = createTestHttp([
+			replyAtPath("/v1/stores/1", NOT_FOUND_ERROR, 404),
+		]);
 
 		const lookup = await fetchResource(http, {
 			path: "/v1/stores/1",
@@ -265,8 +271,8 @@ describe("fetchResource", () => {
 
 describe("fetchCollection", () => {
 	test("returns every resource of the collection", async () => {
-		const http = makeHttp([
-			route("/v1/stores", {
+		const http = createTestHttp([
+			replyAtPath("/v1/stores", {
 				data: [
 					{ id: "1", type: "stores", attributes: {} },
 					{ id: "2", type: "stores", attributes: {} },
@@ -285,7 +291,9 @@ describe("fetchCollection", () => {
 	});
 
 	test("fails with UNKNOWN on a 404 because a collection has no not-found finding", async () => {
-		const http = makeHttp([route("/v1/stores", NOT_FOUND_ERROR, 404)]);
+		const http = createTestHttp([
+			replyAtPath("/v1/stores", NOT_FOUND_ERROR, 404),
+		]);
 
 		const lookup = await fetchCollection(http, { path: "/v1/stores" });
 
