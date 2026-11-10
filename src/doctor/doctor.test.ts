@@ -310,7 +310,7 @@ describe("doctor", () => {
 
 		const listingFailure = report.checks.find(
 			(check) =>
-				check.target?.label === "plans of product 100, listed for of store 42",
+				check.target?.label === "plans of product 100 of store 42",
 		);
 		expect(report.ok).toBe(false);
 		expect(listingFailure?.name).toBe("subscriptionPlan");

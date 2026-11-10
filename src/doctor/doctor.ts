@@ -88,7 +88,7 @@ const fetchVariantListing = (
 ) =>
 	fetchListing<VariantAttributes>(http, {
 		name: "subscriptionPlan",
-		noun: `plans of product ${product.id}, listed for`,
+		noun: `plans of product ${product.id}`,
 		path: "/v1/variants",
 		query: { "filter[product_id]": product.id },
 	});
