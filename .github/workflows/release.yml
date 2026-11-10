@@ -1,9 +1,10 @@
 name: Release
 
+# A release PR sets the new version in package.json, since the signoff rule on main blocks a bump pushed from here.
 on:
-  pull_request:
-    types: [closed]
+  push:
     branches: [main]
+    paths: [package.json]
 
 concurrency:
   group: release
@@ -14,124 +15,27 @@ permissions:
 
 jobs:
   release:
-    if: >
-      github.event.pull_request.merged == true &&
-      !contains(github.event.pull_request.labels.*.name, 'no-release')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       contents: write
+      actions: write
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: main
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          # Same Node major as the engines field in package.json.
-          node-version: "22"
-
-      - name: Configure Git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Check if release needed
-        id: skip_check
-        run: |
-          if git describe --exact-match HEAD >/dev/null 2>&1; then
-            echo "HEAD is already tagged - skipping release"
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Determine version bump
-        if: steps.skip_check.outputs.skip != 'true'
-        id: bump
-        env:
-          LABELS: ${{ toJson(github.event.pull_request.labels.*.name) }}
-        run: |
-          if echo "$LABELS" | grep -q '"major"'; then
-            echo "type=major" >> "$GITHUB_OUTPUT"
-          elif echo "$LABELS" | grep -q '"minor"'; then
-            echo "type=minor" >> "$GITHUB_OUTPUT"
-          else
-            echo "type=patch" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Bump version in package.json
-        if: steps.skip_check.outputs.skip != 'true'
+      - name: Read the package version
         id: version
+        run: echo "tag=v$(jq -r .version package.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Create the release and start the publish
         env:
-          BUMP_TYPE: ${{ steps.bump.outputs.type }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
         run: |
-          if ! node -e "const p = require('./package.json'); if (!p.version) process.exit(1);" 2>/dev/null; then
-            echo "No version found in package.json - initializing to 0.1.0"
-            npm pkg set version=0.1.0
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "$TAG is already released."
+            exit 0
           fi
-          NEW_VERSION=$(npm version "$BUMP_TYPE" --no-git-tag-version)
-          echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
-          echo "Bumped to $NEW_VERSION ($BUMP_TYPE)"
-
-      - name: Build release notes from commits
-        if: steps.skip_check.outputs.skip != 'true'
-        id: notes
-        env:
-          PR_TITLE: ${{ github.event.pull_request.title }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          BUMP_TYPE: ${{ steps.bump.outputs.type }}
-        run: |
-          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          if [ -n "$PREV_TAG" ]; then
-            COMMITS=$(git log "$PREV_TAG"..HEAD --pretty=format:"- %s (%h)" --no-merges)
-          else
-            COMMITS=$(git log --pretty=format:"- %s (%h)" --no-merges -20)
-          fi
-          {
-            echo "body<<RELEASE_EOF"
-            echo "## What Changed"
-            echo ""
-            echo "**PR:** [#${PR_NUMBER} - ${PR_TITLE}](${PR_URL})"
-            echo "**Bump:** \`${BUMP_TYPE}\`"
-            echo ""
-            echo "### Commits"
-            echo ""
-            echo "$COMMITS"
-            echo ""
-            echo "RELEASE_EOF"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Commit version bump and create tag
-        if: steps.skip_check.outputs.skip != 'true'
-        env:
-          TAG: ${{ steps.version.outputs.version }}
-          PR_TITLE: ${{ github.event.pull_request.title }}
-        run: |
-          git add package.json
-          if [ -f pnpm-lock.yaml ]; then git add pnpm-lock.yaml; fi
-          git commit -m "chore(release): $TAG"
-          git tag -a "$TAG" \
-            -m "Release $TAG - $PR_TITLE"
-          git push origin main --follow-tags
-
-      - name: Create GitHub Release
-        if: steps.skip_check.outputs.skip != 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ steps.version.outputs.version }}
-          PR_TITLE: ${{ github.event.pull_request.title }}
-          RELEASE_NOTES: ${{ steps.notes.outputs.body }}
-        run: |
-          gh release create "$TAG" \
-            --title "$TAG - $PR_TITLE" \
-            --notes "$RELEASE_NOTES" \
-            --latest
+          gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" --generate-notes --latest
+          gh workflow run publish.yml --ref "$TAG"
