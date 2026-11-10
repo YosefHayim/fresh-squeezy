@@ -89,6 +89,7 @@
     "@types/node": "22.20.5",
     "@vitest/coverage-v8": "5.1.0",
     "knip": "6.44.2",
+    "msw": "3.0.4",
     "tsdown": "0.23.7",
     "turbo": "2.11.10",
     "typescript": "5.9.3",

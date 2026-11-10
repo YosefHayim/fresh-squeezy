@@ -22,6 +22,7 @@ export default defineConfig({
 	test: {
 		...baseSettings.test,
 		provide: { liveApiModes },
+		setupFiles: [],
 		include: ["e2e/live-api.test.ts"],
 	},
 });

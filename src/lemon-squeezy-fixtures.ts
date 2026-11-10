@@ -1,3 +1,8 @@
+import type {
+	DiscountAttributes,
+	LicenseKeyAttributes,
+} from "@/client/lemon-squeezy-types.js";
+
 export const USER_DOCUMENT = {
 	data: {
 		type: "users",
@@ -240,23 +245,6 @@ export const WEBHOOKS_COLLECTION_ORDER_EVENTS_ONLY = {
 
 export const WEBHOOKS_COLLECTION_EMPTY = { data: [] };
 
-// --- Discount fixtures ---
-
-interface DiscountAttributes {
-	name: string;
-	code: string;
-	amount: number;
-	amount_type: "percent" | "fixed";
-	is_limited_to_products: boolean;
-	is_limited_redemptions: boolean;
-	max_redemptions: number;
-	starts_at: string | null;
-	expires_at: string | null;
-	status: "published" | "draft";
-	duration: "once" | "forever" | "repeating";
-	store_id: number;
-}
-
 const createDiscountDocument = (
 	id: string,
 	overrides: Partial<DiscountAttributes>,
@@ -282,11 +270,11 @@ const createDiscountDocument = (
 	},
 });
 
-export const publishedDiscountDocument = createDiscountDocument("600", {
+export const PUBLISHED_DISCOUNT_DOCUMENT = createDiscountDocument("600", {
 	expires_at: "2099-12-31T23:59:59Z",
 });
 
-export const draftDiscountDocument = createDiscountDocument("601", {
+export const DRAFT_DISCOUNT_DOCUMENT = createDiscountDocument("601", {
 	name: "Draft Discount",
 	code: "DRAFT10",
 	amount: 10,
@@ -294,14 +282,14 @@ export const draftDiscountDocument = createDiscountDocument("601", {
 	duration: "forever",
 });
 
-export const expiredDiscountDocument = createDiscountDocument("602", {
+export const EXPIRED_DISCOUNT_DOCUMENT = createDiscountDocument("602", {
 	name: "Old Promo",
 	code: "OLD50",
 	amount: 50,
 	expires_at: "2020-01-01T00:00:00Z",
 });
 
-export const futureDiscountDocument = createDiscountDocument("603", {
+export const FUTURE_DISCOUNT_DOCUMENT = createDiscountDocument("603", {
 	name: "Future Promo",
 	code: "FUTURE",
 	amount: 15,
@@ -310,7 +298,7 @@ export const futureDiscountDocument = createDiscountDocument("603", {
 	duration: "repeating",
 });
 
-export const exhaustedDiscountDocument = createDiscountDocument("604", {
+export const EXHAUSTED_DISCOUNT_DOCUMENT = createDiscountDocument("604", {
 	name: "Exhausted",
 	code: "DONE",
 	amount: 5,
@@ -318,37 +306,25 @@ export const exhaustedDiscountDocument = createDiscountDocument("604", {
 	is_limited_redemptions: true,
 });
 
-export const invalidPercentDiscountDocument = createDiscountDocument("605", {
+export const INVALID_PERCENT_DISCOUNT_DOCUMENT = createDiscountDocument("605", {
 	name: "Bad Percent",
 	code: "BAD150",
 	amount: 150,
 });
 
-export const zeroAmountDiscountDocument = createDiscountDocument("606", {
+export const ZERO_AMOUNT_DISCOUNT_DOCUMENT = createDiscountDocument("606", {
 	name: "Zero Discount",
 	code: "ZERO",
 	amount: 0,
 });
 
-export const wrongStoreDiscountDocument = createDiscountDocument("607", {
+export const WRONG_STORE_DISCOUNT_DOCUMENT = createDiscountDocument("607", {
 	name: "Other Store",
 	code: "OTHER",
 	amount: 10,
 	expires_at: "2099-12-31T23:59:59Z",
 	store_id: 99,
 });
-
-// --- License key fixtures ---
-
-interface LicenseKeyAttributes {
-	key_short: string;
-	status: "active" | "disabled" | "expired";
-	expires_at: string | null;
-	activation_limit: number | null;
-	instances_count: number;
-	disabled: boolean;
-	store_id: number;
-}
 
 const createLicenseKeyDocument = (
 	id: string,
@@ -370,19 +346,19 @@ const createLicenseKeyDocument = (
 	},
 });
 
-export const activeLicenseKeyDocument = createLicenseKeyDocument("700", {
+export const ACTIVE_LICENSE_KEY_DOCUMENT = createLicenseKeyDocument("700", {
 	expires_at: "2099-12-31T23:59:59Z",
 	activation_limit: 5,
 	instances_count: 2,
 });
 
-export const disabledLicenseKeyDocument = createLicenseKeyDocument("701", {
+export const DISABLED_LICENSE_KEY_DOCUMENT = createLicenseKeyDocument("701", {
 	key_short: "DDDD-DDDD",
 	status: "disabled",
 	disabled: true,
 });
 
-export const expiredLicenseKeyDocument = createLicenseKeyDocument("702", {
+export const EXPIRED_LICENSE_KEY_DOCUMENT = createLicenseKeyDocument("702", {
 	key_short: "EEEE-EEEE",
 	status: "expired",
 	expires_at: "2020-01-01T00:00:00Z",
@@ -390,18 +366,19 @@ export const expiredLicenseKeyDocument = createLicenseKeyDocument("702", {
 	instances_count: 1,
 });
 
-export const atLimitLicenseKeyDocument = createLicenseKeyDocument("703", {
+export const AT_LIMIT_LICENSE_KEY_DOCUMENT = createLicenseKeyDocument("703", {
 	key_short: "LLLL-LLLL",
 	activation_limit: 3,
 	instances_count: 3,
 });
 
-export const wrongStoreLicenseKeyDocument = createLicenseKeyDocument("704", {
-	key_short: "WWWW-WWWW",
-	store_id: 99,
-});
-
-// --- Subscription variant fixtures ---
+export const WRONG_STORE_LICENSE_KEY_DOCUMENT = createLicenseKeyDocument(
+	"704",
+	{
+		key_short: "WWWW-WWWW",
+		store_id: 99,
+	},
+);
 
 const createVariantDocument = (
 	id: string,
@@ -427,9 +404,9 @@ const createVariantDocument = (
 	},
 });
 
-export const subscriptionVariantDocument = createVariantDocument("800", {});
+export const SUBSCRIPTION_VARIANT_DOCUMENT = createVariantDocument("800", {});
 
-export const nonSubscriptionVariantDocument = createVariantDocument("801", {
+export const NON_SUBSCRIPTION_VARIANT_DOCUMENT = createVariantDocument("801", {
 	name: "One-time Purchase",
 	slug: "one-time",
 	is_subscription: false,
@@ -438,14 +415,14 @@ export const nonSubscriptionVariantDocument = createVariantDocument("801", {
 	price: 2900,
 });
 
-export const invalidIntervalVariantDocument = createVariantDocument("802", {
+export const INVALID_INTERVAL_VARIANT_DOCUMENT = createVariantDocument("802", {
 	name: "Bad Interval",
 	slug: "bad-interval",
 	interval: null,
 	interval_count: 0,
 });
 
-export const missingIntervalCountVariantDocument = createVariantDocument(
+export const MISSING_INTERVAL_COUNT_VARIANT_DOCUMENT = createVariantDocument(
 	"810",
 	{
 		name: "No Interval Count",
@@ -454,7 +431,7 @@ export const missingIntervalCountVariantDocument = createVariantDocument(
 	},
 );
 
-export const freePriceSubscriptionVariantDocument = createVariantDocument(
+export const FREE_PRICE_SUBSCRIPTION_VARIANT_DOCUMENT = createVariantDocument(
 	"803",
 	{
 		name: "Free Plan",
@@ -463,20 +440,26 @@ export const freePriceSubscriptionVariantDocument = createVariantDocument(
 	},
 );
 
-export const trialInconsistentVariantDocument = createVariantDocument("804", {
-	name: "Bad Trial",
-	slug: "bad-trial",
-	has_free_trial: true,
-	trial_interval_count: 0,
-});
+export const TRIAL_INCONSISTENT_VARIANT_DOCUMENT = createVariantDocument(
+	"804",
+	{
+		name: "Bad Trial",
+		slug: "bad-trial",
+		has_free_trial: true,
+		trial_interval_count: 0,
+	},
+);
 
-export const draftSubscriptionVariantDocument = createVariantDocument("805", {
-	name: "Draft Plan",
-	slug: "draft-plan",
-	status: "draft",
-});
+export const DRAFT_SUBSCRIPTION_VARIANT_DOCUMENT = createVariantDocument(
+	"805",
+	{
+		name: "Draft Plan",
+		slug: "draft-plan",
+		status: "draft",
+	},
+);
 
-export const wrongStoreSubscriptionVariantDocument = createVariantDocument(
+export const WRONG_STORE_SUBSCRIPTION_VARIANT_DOCUMENT = createVariantDocument(
 	"806",
 	{
 		product_id: 102,

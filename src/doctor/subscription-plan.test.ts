@@ -1,38 +1,44 @@
-import { makeHttp, route } from "@e2e/mock-fetch.js";
+import { createTestHttp, replyAtPath } from "@/mock-lemon-squeezy-api.js";
 import {
-	draftSubscriptionVariantDocument,
-	freePriceSubscriptionVariantDocument,
-	invalidIntervalVariantDocument,
-	missingIntervalCountVariantDocument,
+	DRAFT_SUBSCRIPTION_VARIANT_DOCUMENT,
+	FREE_PRICE_SUBSCRIPTION_VARIANT_DOCUMENT,
+	INVALID_INTERVAL_VARIANT_DOCUMENT,
+	MISSING_INTERVAL_COUNT_VARIANT_DOCUMENT,
 	NOT_FOUND_ERROR,
-	nonSubscriptionVariantDocument,
+	NON_SUBSCRIPTION_VARIANT_DOCUMENT,
 	PRODUCT_ON_WRONG_STORE_DOCUMENT,
 	PUBLISHED_PRODUCT_DOCUMENT,
-	subscriptionVariantDocument,
-	trialInconsistentVariantDocument,
+	SUBSCRIPTION_VARIANT_DOCUMENT,
+	TRIAL_INCONSISTENT_VARIANT_DOCUMENT,
 	UNAUTHORIZED_ERROR,
-	wrongStoreSubscriptionVariantDocument,
-} from "@e2e/sandbox-store.js";
+	WRONG_STORE_SUBSCRIPTION_VARIANT_DOCUMENT,
+} from "@/lemon-squeezy-fixtures.js";
 import { describe, expect, test } from "vitest";
 import { validateSubscriptionPlan } from "./subscription-plan.js";
 
 const VARIANT_ID = "800";
-const PRODUCT_ROUTE = route("/v1/products/100", PUBLISHED_PRODUCT_DOCUMENT);
+const PRODUCT_HANDLER = replyAtPath(
+	"/v1/products/100",
+	PUBLISHED_PRODUCT_DOCUMENT,
+);
 
 const createVariantReply = (overrides: Record<string, unknown>) => ({
 	data: {
-		...subscriptionVariantDocument.data,
+		...SUBSCRIPTION_VARIANT_DOCUMENT.data,
 		attributes: {
-			...subscriptionVariantDocument.data.attributes,
+			...SUBSCRIPTION_VARIANT_DOCUMENT.data.attributes,
 			...overrides,
 		},
 	},
 });
 
-const checkVariantReply = (reply: unknown, productRoutes = [PRODUCT_ROUTE]) => {
-	const http = makeHttp([
-		route(`/v1/variants/${VARIANT_ID}`, reply),
-		...productRoutes,
+const checkVariantReply = (
+	reply: unknown,
+	productHandlers = [PRODUCT_HANDLER],
+) => {
+	const http = createTestHttp([
+		replyAtPath(`/v1/variants/${VARIANT_ID}`, reply),
+		...productHandlers,
 	]);
 	return validateSubscriptionPlan(http, "test", {
 		storeId: "42",
@@ -45,7 +51,7 @@ const listCodes = (findings: { code: string }[]) =>
 
 describe("validateSubscriptionPlan", () => {
 	test("passes a valid subscription variant and describes its plan", async () => {
-		const reply = subscriptionVariantDocument;
+		const reply = SUBSCRIPTION_VARIANT_DOCUMENT;
 
 		const report = await checkVariantReply(reply);
 
@@ -63,8 +69,8 @@ describe("validateSubscriptionPlan", () => {
 	});
 
 	test("reports PLAN_VARIANT_NOT_FOUND when the variant does not exist", async () => {
-		const http = makeHttp([
-			route(`/v1/variants/${VARIANT_ID}`, NOT_FOUND_ERROR, 404),
+		const http = createTestHttp([
+			replyAtPath(`/v1/variants/${VARIANT_ID}`, NOT_FOUND_ERROR, 404),
 		]);
 
 		const report = await validateSubscriptionPlan(http, "test", {
@@ -81,8 +87,8 @@ describe("validateSubscriptionPlan", () => {
 	});
 
 	test("reports AUTH_FAILED when the key is rejected", async () => {
-		const http = makeHttp([
-			route(`/v1/variants/${VARIANT_ID}`, UNAUTHORIZED_ERROR, 401),
+		const http = createTestHttp([
+			replyAtPath(`/v1/variants/${VARIANT_ID}`, UNAUTHORIZED_ERROR, 401),
 		]);
 
 		const report = await validateSubscriptionPlan(http, "test", {
@@ -94,7 +100,7 @@ describe("validateSubscriptionPlan", () => {
 	});
 
 	test("flags a variant that is not a subscription as an error", async () => {
-		const reply = nonSubscriptionVariantDocument;
+		const reply = NON_SUBSCRIPTION_VARIANT_DOCUMENT;
 
 		const report = await checkVariantReply(reply);
 
@@ -106,7 +112,7 @@ describe("validateSubscriptionPlan", () => {
 	});
 
 	test("flags a missing interval and a zero interval count as errors", async () => {
-		const reply = invalidIntervalVariantDocument;
+		const reply = INVALID_INTERVAL_VARIANT_DOCUMENT;
 
 		const report = await checkVariantReply(reply);
 
@@ -134,7 +140,7 @@ describe("validateSubscriptionPlan", () => {
 	});
 
 	test("flags a subscription variant with no interval_count", async () => {
-		const reply = missingIntervalCountVariantDocument;
+		const reply = MISSING_INTERVAL_COUNT_VARIANT_DOCUMENT;
 
 		const report = await checkVariantReply(reply);
 
@@ -159,7 +165,7 @@ describe("validateSubscriptionPlan", () => {
 	});
 
 	test("warns about a free subscription price", async () => {
-		const reply = freePriceSubscriptionVariantDocument;
+		const reply = FREE_PRICE_SUBSCRIPTION_VARIANT_DOCUMENT;
 
 		const report = await checkVariantReply(reply);
 
@@ -178,7 +184,7 @@ describe("validateSubscriptionPlan", () => {
 	});
 
 	test("warns about a free trial with a zero trial count", async () => {
-		const reply = trialInconsistentVariantDocument;
+		const reply = TRIAL_INCONSISTENT_VARIANT_DOCUMENT;
 
 		const report = await checkVariantReply(reply);
 
@@ -247,7 +253,7 @@ describe("validateSubscriptionPlan", () => {
 	});
 
 	test("warns about a draft subscription variant", async () => {
-		const reply = draftSubscriptionVariantDocument;
+		const reply = DRAFT_SUBSCRIPTION_VARIANT_DOCUMENT;
 
 		const report = await checkVariantReply(reply);
 
@@ -258,13 +264,13 @@ describe("validateSubscriptionPlan", () => {
 	});
 
 	test("flags a variant whose product belongs to another store", async () => {
-		const reply = wrongStoreSubscriptionVariantDocument;
-		const productRoute = route(
+		const reply = WRONG_STORE_SUBSCRIPTION_VARIANT_DOCUMENT;
+		const productHandler = replyAtPath(
 			"/v1/products/102",
 			PRODUCT_ON_WRONG_STORE_DOCUMENT,
 		);
 
-		const report = await checkVariantReply(reply, [productRoute]);
+		const report = await checkVariantReply(reply, [productHandler]);
 
 		expect(report.ok).toBe(false);
 		expect(report.findings).toMatchObject([
