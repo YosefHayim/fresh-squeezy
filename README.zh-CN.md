@@ -297,6 +297,13 @@ SDK 导出的每个函数,以及替换它的 fresh-squeezy 调用。以下差异
 
 这 60 行就是 `@lemonsqueezy/lemonsqueezy.js` 4.0.0 导出的全部函数。
 
+## 从 0.5 升级
+
+- finding:`context` 改名为 `details`。`suggestedFix` 和 `details` 始终存在,没有内容时为 `null`,以前会缺省。
+- `CheckTarget`:为空时,`id` 和 `url` 为 `null`。`CheckReport`:检查没有 `resource` 或 `target` 时,它们为 `null`。连接检查的 `resource.actualMode` 在模式未知时为 `null`。
+- CLI 的 `--json` 输出同样变化:每个 finding 用 `details` 代替 `context`,空字段为 `null`,而不是缺省。
+- 新增:`fresh-squeezy/environment` 导出 `LEMON_SQUEEZY_API_URL`。
+
 ## 从 0.4 升级
 
 - 名称变更:`fresh-squeezy/config` 变为 `fresh-squeezy/environment`,`readConfig` 变为 `readClientSettings`,`Config` 变为 `ClientSettings`,`FreshSqueezyConfig` 变为 `FreshSqueezySettings`,`readEnvApiKey` 变为 `readApiKeyFromEnvironment`,`buildCheckReport` 变为 `createCheckReport`,`buildFreshSqueezyError` 变为 `createFreshSqueezyError`,`CreateInput` 变为 `NewResources`,`UpdateInput` 变为 `UpdateAttributes`。`RelationshipName` 已移除。

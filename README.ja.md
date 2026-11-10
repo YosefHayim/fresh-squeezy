@@ -297,6 +297,13 @@ SDK がエクスポートするすべての関数と、それを置き換える 
 
 この 60 行が `@lemonsqueezy/lemonsqueezy.js` 4.0.0 のエクスポートするすべての関数です。
 
+## 0.5 からのアップグレード
+
+- finding: `context` は `details` に名前が変わりました。`suggestedFix` と `details` は常に存在し、ない場合は `null` です。以前は省略されていました。
+- `CheckTarget`: 空の場合、`id` と `url` は `null` です。`CheckReport`: チェックにない場合、`resource` と `target` は `null` です。接続チェックの `resource.actualMode` は、モードが不明なとき `null` です。
+- CLI の `--json` 出力も同じように変わります。各 finding は `context` の代わりに `details` を持ち、空の項目は省略されず `null` です。
+- 新規: `fresh-squeezy/environment` から `LEMON_SQUEEZY_API_URL` が export されます。
+
 ## 0.4 からのアップグレード
 
 - 名前の変更: `fresh-squeezy/config` は `fresh-squeezy/environment`、`readConfig` は `readClientSettings`、`Config` は `ClientSettings`、`FreshSqueezyConfig` は `FreshSqueezySettings`、`readEnvApiKey` は `readApiKeyFromEnvironment`、`buildCheckReport` は `createCheckReport`、`buildFreshSqueezyError` は `createFreshSqueezyError`、`CreateInput` は `NewResources`、`UpdateInput` は `UpdateAttributes` です。`RelationshipName` は削除されました。
