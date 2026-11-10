@@ -1,6 +1,14 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import {
+	afterAll,
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	test,
+	vi,
+} from "vitest";
 import {
 	loadEnvironmentFileWhenPresent,
 	parseMode,
@@ -12,11 +20,10 @@ const ORIGINAL_FOLDER = process.cwd();
 const SCRATCH_PARENT = join(ORIGINAL_FOLDER, "node_modules", ".cache");
 const ENVIRONMENT_FILE_NAME = [".", "env"].join("");
 
-let scratchFolder = "";
+mkdirSync(SCRATCH_PARENT, { recursive: true });
+const scratchFolder = mkdtempSync(join(SCRATCH_PARENT, "environment-test-"));
 
 beforeEach(() => {
-	mkdirSync(SCRATCH_PARENT, { recursive: true });
-	scratchFolder = mkdtempSync(join(SCRATCH_PARENT, "environment-test-"));
 	process.chdir(scratchFolder);
 	vi.stubEnv("LEMON_SQUEEZY_TEST_API_KEY", undefined);
 	vi.stubEnv("LEMON_SQUEEZY_LIVE_API_KEY", undefined);
@@ -25,6 +32,10 @@ beforeEach(() => {
 afterEach(() => {
 	process.chdir(ORIGINAL_FOLDER);
 	vi.unstubAllEnvs();
+	rmSync(join(scratchFolder, ENVIRONMENT_FILE_NAME), { force: true });
+});
+
+afterAll(() => {
 	rmSync(scratchFolder, { recursive: true, force: true });
 });
 
@@ -61,13 +72,13 @@ describe("readApiKeyFromEnvironment", () => {
 		expect(apiKey).toBe("spaced-key");
 	});
 
-	test("returns undefined when the key is missing or blank", () => {
+	test("returns null when the key is missing or blank", () => {
 		const missingApiKey = readApiKeyFromEnvironment("test");
 		vi.stubEnv("LEMON_SQUEEZY_TEST_API_KEY", "   ");
 		const blankApiKey = readApiKeyFromEnvironment("test");
 
-		expect(missingApiKey).toBeUndefined();
-		expect(blankApiKey).toBeUndefined();
+		expect(missingApiKey).toBeNull();
+		expect(blankApiKey).toBeNull();
 	});
 });
 
@@ -87,7 +98,7 @@ describe("loadEnvironmentFileWhenPresent", () => {
 	test("does nothing when there is no environment file", () => {
 		loadEnvironmentFileWhenPresent();
 
-		expect(readApiKeyFromEnvironment("test")).toBeUndefined();
+		expect(readApiKeyFromEnvironment("test")).toBeNull();
 	});
 });
 

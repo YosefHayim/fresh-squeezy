@@ -13,7 +13,6 @@ import {
 } from "@/lemon-squeezy-fixtures.js";
 import { describe, expect, test } from "vitest";
 import { readClientSettings } from "@/client/environment.js";
-import { isFreshSqueezyError } from "@/client/errors.js";
 import { createHttp } from "./http.js";
 
 const API_KEY = "k_test_abc";
@@ -224,15 +223,8 @@ describe("createHttp", () => {
 		};
 		const http = createHttpWithFetch(fetchRequest);
 
-		let thrownError: unknown = null;
-		try {
-			await http.request({ path: "/v1/users/me" });
-		} catch (caughtError) {
-			thrownError = caughtError;
-		}
-
-		expect(isFreshSqueezyError(thrownError)).toBe(true);
-		expect(thrownError).toMatchObject({
+		await expect(http.request({ path: "/v1/users/me" })).rejects.toMatchObject({
+			name: "FreshSqueezyError",
 			code: "NETWORK_ERROR",
 			message: "ECONNRESET",
 		});

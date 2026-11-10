@@ -8,7 +8,6 @@ import {
 const LICENSE_KEY = "38b1460a-5104-4067-a91d-77b872934d51";
 const INSTANCE_ID = "f90ec370-fd83-46a5-8bbd-44a241e78665";
 
-const ACTIVATED_REPLY = { activated: true, error: null };
 const LIMIT_REACHED_REPLY = {
 	activated: false,
 	error: "This license key has reached the activation limit.",
@@ -26,11 +25,13 @@ const stubFetch = (status: number, replyString: string) => {
 
 const readLastRequest = (fetchStub: ReturnType<typeof stubFetch>) => {
 	const lastCall = fetchStub.mock.lastCall;
-	const isThereNoCall = lastCall === undefined;
+	const isThereNoCall = lastCall == null;
 	if (isThereNoCall) throw new Error("fetch was not called");
+
 	const [url, init] = lastCall;
 	const headers = new Headers(init.headers);
-	const form = new URLSearchParams(String(init.body));
+	const bodyString = String(init.body);
+	const form = new URLSearchParams(bodyString);
 	return { url: new URL(url), method: init.method, headers, form };
 };
 
@@ -42,7 +43,10 @@ const ACTIVATE_REQUEST = { licenseKey: LICENSE_KEY, instanceName: "Laptop" };
 
 describe("activateLicense", () => {
 	test("posts the key and instance name as a form without an API key", async () => {
-		const fetchStub = stubFetch(200, JSON.stringify(ACTIVATED_REPLY));
+		const fetchStub = stubFetch(
+			200,
+			JSON.stringify({ activated: true, error: null }),
+		);
 
 		const activation = await activateLicense(ACTIVATE_REQUEST);
 

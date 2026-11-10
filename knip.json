@@ -1,3 +1,5 @@
 {
-	"entry": ["e2e/fake-api.mjs"]
+	"entry": ["e2e/fake-api.mjs"],
+	"includeEntryExports": true,
+	"ignoreExportsUsedInFile": { "interface": true, "type": true }
 }

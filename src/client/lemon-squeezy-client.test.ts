@@ -11,8 +11,6 @@ import type {
 } from "@/client/lemon-squeezy-types.js";
 import { createLemonSqueezyClient } from "./lemon-squeezy-client.js";
 
-const ANY_RESOURCE_REPLY = { data: { type: "any", id: "1", attributes: {} } };
-
 const ALL_RESOURCES: ResourceType[] = [
 	"users",
 	"stores",
@@ -36,12 +34,6 @@ const ALL_RESOURCES: ResourceType[] = [
 	"affiliates",
 ];
 
-const LISTABLE_RESOURCES = ALL_RESOURCES.filter(
-	(type): type is ListableResource => type !== "users",
-);
-
-const REMOVABLE_RESOURCES = ["discounts", "webhooks"] as const;
-
 const REFUNDABLE_RESOURCES = ["orders", "subscription-invoices"] as const;
 
 const BILLING = {
@@ -54,7 +46,9 @@ const BILLING = {
 	notes: "Thank you",
 };
 
-const createTestClient = (replyDocument: unknown = ANY_RESOURCE_REPLY) => {
+const createTestClient = (
+	replyDocument: unknown = { data: { type: "any", id: "1", attributes: {} } },
+) => {
 	const http = createTestHttp([replyToEveryRequest(replyDocument)]);
 	return createLemonSqueezyClient(http);
 };
@@ -71,7 +65,11 @@ describe("createLemonSqueezyClient", () => {
 		expect(resource.id).toBe("1");
 	});
 
-	test.each(LISTABLE_RESOURCES)(
+	const listableResources = ALL_RESOURCES.filter(
+		(type): type is ListableResource => type !== "users",
+	);
+
+	test.each(listableResources)(
 		"list reads /v1/%s with page size 100",
 		async (type) => {
 			const client = createTestClient({
@@ -331,7 +329,7 @@ describe("createLemonSqueezyClient", () => {
 		expect(requestDocument).toMatchObject({ data: { attributes } });
 	});
 
-	test.each(REMOVABLE_RESOURCES)(
+	test.each(["discounts", "webhooks"] as const)(
 		"remove sends DELETE to /v1/%s/:id",
 		async (type) => {
 			const http = createTestHttp([replyToEveryRequest(undefined, 204)]);

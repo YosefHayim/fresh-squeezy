@@ -2,16 +2,9 @@ import { existsSync } from "node:fs";
 import { loadEnvFile } from "node:process";
 import { createFreshSqueezyError } from "./errors.js";
 
-const DEFAULT_BASE_URL = "https://api.lemonsqueezy.com";
-
-const DEFAULT_MODE = "test";
+export const LEMON_SQUEEZY_API_URL = "https://api.lemonsqueezy.com";
 
 const ENVIRONMENT_FILE = ".env";
-
-const API_KEY_VARIABLE_NAMES = {
-	test: "LEMON_SQUEEZY_TEST_API_KEY",
-	live: "LEMON_SQUEEZY_LIVE_API_KEY",
-} as const;
 
 export type Mode = "test" | "live";
 
@@ -32,9 +25,9 @@ export interface ClientSettings {
 }
 
 const trimEnvironmentVariable = (variable: string | undefined) => {
-	const trimmedVariable = variable?.trim();
+	const trimmedVariable = variable?.trim() ?? null;
 	const isEmpty = trimmedVariable === "";
-	return isEmpty ? undefined : trimmedVariable;
+	return isEmpty ? null : trimmedVariable;
 };
 
 export const loadEnvironmentFileWhenPresent = () => {
@@ -44,10 +37,18 @@ export const loadEnvironmentFileWhenPresent = () => {
 
 export const readApiKeyFromEnvironment = (mode: Mode) => {
 	const isLiveMode = mode === "live";
-	const apiKeyVariable = isLiveMode
-		? process.env.LEMON_SQUEEZY_LIVE_API_KEY
-		: process.env.LEMON_SQUEEZY_TEST_API_KEY;
-	return trimEnvironmentVariable(apiKeyVariable);
+	if (isLiveMode) {
+		return trimEnvironmentVariable(process.env.LEMON_SQUEEZY_LIVE_API_KEY);
+	}
+
+	return trimEnvironmentVariable(process.env.LEMON_SQUEEZY_TEST_API_KEY);
+};
+
+const pickApiKeyVariableName = (mode: Mode) => {
+	const isLiveMode = mode === "live";
+	if (isLiveMode) return "LEMON_SQUEEZY_LIVE_API_KEY";
+
+	return "LEMON_SQUEEZY_TEST_API_KEY";
 };
 
 const isMode = (modeName: string): modeName is Mode =>
@@ -56,6 +57,7 @@ const isMode = (modeName: string): modeName is Mode =>
 export const parseMode = (modeName: string): Mode => {
 	const isKnownMode = isMode(modeName);
 	if (isKnownMode) return modeName;
+
 	throw createFreshSqueezyError({
 		code: "INVALID_MODE",
 		message: `Mode must be "test" or "live", got "${modeName}".`,
@@ -65,22 +67,25 @@ export const parseMode = (modeName: string): Mode => {
 export const readClientSettings = (
 	givenSettings: FreshSqueezySettings = {},
 ): ClientSettings => {
-	const modeName = givenSettings.mode ?? DEFAULT_MODE;
+	const modeName = givenSettings.mode ?? "test";
 	const mode = parseMode(modeName);
 	const environmentApiKey = readApiKeyFromEnvironment(mode);
 	const apiKey = givenSettings.apiKey ?? environmentApiKey;
-	const isApiKeyMissing = !apiKey;
+
+	const isApiKeyMissing = apiKey == null || apiKey === "";
 	if (isApiKeyMissing) {
+		const apiKeyVariableName = pickApiKeyVariableName(mode);
 		throw createFreshSqueezyError({
 			code: "MISSING_API_KEY",
-			message: `No API key provided. Pass \`apiKey\` or set ${API_KEY_VARIABLE_NAMES[mode]}.`,
+			message: `No API key provided. Pass \`apiKey\` or set ${apiKeyVariableName}.`,
 		});
 	}
+
 	return {
 		apiKey,
 		storeId: givenSettings.storeId,
 		mode,
-		baseUrl: givenSettings.baseUrl ?? DEFAULT_BASE_URL,
+		baseUrl: givenSettings.baseUrl ?? LEMON_SQUEEZY_API_URL,
 		fetch: givenSettings.fetch ?? globalThis.fetch,
 	};
 };

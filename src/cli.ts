@@ -1,10 +1,13 @@
 import { parseArgs } from "node:util";
 import packageJson from "@package.json" with { type: "json" };
 import {
+	type FreshSqueezySettings,
 	loadEnvironmentFileWhenPresent,
+	type Mode,
 	parseMode,
 } from "@/client/environment.js";
 import { describeReport } from "@/doctor/describe-report.js";
+import type { DoctorReport } from "@/doctor/findings.js";
 import {
 	createFreshSqueezy,
 	type FreshSqueezy,
@@ -33,48 +36,58 @@ Reads LEMON_SQUEEZY_TEST_API_KEY or LEMON_SQUEEZY_LIVE_API_KEY, by mode, from th
 
 Exit codes: 0 every check passed, 1 a check failed, 2 wrong flags or setup.`;
 
-const FLAGS = {
-	mode: { type: "string" },
-	"store-id": { type: "string", multiple: true },
-	"all-resources": { type: "boolean", default: false },
-	"product-id": { type: "string", multiple: true },
-	"variant-id": { type: "string", multiple: true },
-	"webhook-url": { type: "string", multiple: true },
-	"discount-id": { type: "string", multiple: true },
-	"license-key-id": { type: "string", multiple: true },
-	json: { type: "boolean", default: false },
-	help: { type: "boolean", default: false },
-	version: { type: "boolean", default: false },
-} as const;
-
 const readFlags = () => {
 	const commandLine = process.argv.slice(2);
 	return parseArgs({
 		args: commandLine,
-		options: FLAGS,
+		options: {
+			mode: { type: "string" },
+			"store-id": { type: "string", multiple: true },
+			"all-resources": { type: "boolean", default: false },
+			"product-id": { type: "string", multiple: true },
+			"variant-id": { type: "string", multiple: true },
+			"webhook-url": { type: "string", multiple: true },
+			"discount-id": { type: "string", multiple: true },
+			"license-key-id": { type: "string", multiple: true },
+			json: { type: "boolean", default: false },
+			help: { type: "boolean", default: false },
+			version: { type: "boolean", default: false },
+		} as const,
 		allowPositionals: true,
 	});
 };
 
 type Flags = ReturnType<typeof readFlags>["values"];
 
+interface DoctorReportsDocument {
+	ok: boolean;
+	mode: Mode;
+	reports: DoctorReport[];
+}
+
+const pickSettingsFromFlags = (flags: Flags): FreshSqueezySettings => {
+	const modeFlag = flags.mode;
+	const isModeMissing = modeFlag == null;
+	if (isModeMissing) return {};
+
+	return { mode: parseMode(modeFlag) };
+};
+
 const pickStoreIdsToCheck = async (
 	freshSqueezy: FreshSqueezy,
 	flags: Flags,
 ) => {
 	const storeIdFlags = flags["store-id"];
-	const areStoresGiven = storeIdFlags !== undefined;
-	if (areStoresGiven) return storeIdFlags;
+	const areStoreIdsGiven = storeIdFlags != null;
+	if (areStoreIdsGiven) return storeIdFlags;
+
 	return freshSqueezy.listStoreIds();
 };
 
-const runDoctor = async (flags: Flags) => {
-	const modeFlag = flags.mode;
-	const isModeGiven = modeFlag !== undefined;
-	const mode = isModeGiven ? parseMode(modeFlag) : undefined;
-	const freshSqueezy = createFreshSqueezy({ mode });
+const checkStores = async (freshSqueezy: FreshSqueezy, flags: Flags) => {
 	const storeIds = await pickStoreIdsToCheck(freshSqueezy, flags);
-	const doctorForStore = (storeId: string) =>
+
+	const checkStore = (storeId: string) =>
 		freshSqueezy.doctor({
 			storeId,
 			allResources: flags["all-resources"],
@@ -84,34 +97,40 @@ const runDoctor = async (flags: Flags) => {
 			discountIds: flags["discount-id"],
 			licenseKeyIds: flags["license-key-id"],
 		});
-	const reportJobs = storeIds.map(doctorForStore);
-	const reports = await Promise.all(reportJobs);
-	const isEveryReportOk = reports.every((report) => report.ok);
-	const reportsDocument = {
-		ok: isEveryReportOk,
-		mode: freshSqueezy.mode,
-		reports,
-	};
-	const isJsonAsked = flags.json;
-	const printedReports = isJsonAsked
-		? JSON.stringify(reportsDocument, null, 2)
-		: reports.map(describeReport).join("\n\n");
-	process.stdout.write(`${printedReports}\n`);
-	return isEveryReportOk ? EXIT_CODES.ok : EXIT_CODES.checkFailed;
+
+	return Promise.all(storeIds.map(checkStore));
+};
+
+const printReports = (
+	reportsDocument: DoctorReportsDocument,
+	isJsonAsked: boolean,
+) => {
+	if (isJsonAsked) {
+		process.stdout.write(`${JSON.stringify(reportsDocument, null, 2)}\n`);
+		return;
+	}
+
+	const describedReports = reportsDocument.reports
+		.map(describeReport)
+		.join("\n\n");
+	process.stdout.write(`${describedReports}\n`);
 };
 
 const main = async () => {
 	const { values: flags, positionals } = readFlags();
+
 	const isHelpAsked = flags.help;
 	if (isHelpAsked) {
 		process.stdout.write(`${HELP_MESSAGE}\n`);
 		return EXIT_CODES.ok;
 	}
+
 	const isVersionAsked = flags.version;
 	if (isVersionAsked) {
 		process.stdout.write(`${packageJson.version}\n`);
 		return EXIT_CODES.ok;
 	}
+
 	const isDoctorCommand =
 		positionals.length === 1 && positionals[0] === "doctor";
 	const isOtherCommand = !isDoctorCommand;
@@ -119,8 +138,21 @@ const main = async () => {
 		process.stderr.write(`${HELP_MESSAGE}\n`);
 		return EXIT_CODES.usageError;
 	}
+
 	loadEnvironmentFileWhenPresent();
-	return runDoctor(flags);
+	const givenSettings = pickSettingsFromFlags(flags);
+	const freshSqueezy = createFreshSqueezy(givenSettings);
+	const reports = await checkStores(freshSqueezy, flags);
+
+	const isEveryReportOk = reports.every((report) => report.ok);
+	const reportsDocument = {
+		ok: isEveryReportOk,
+		mode: freshSqueezy.mode,
+		reports,
+	};
+	printReports(reportsDocument, flags.json);
+
+	return isEveryReportOk ? EXIT_CODES.ok : EXIT_CODES.checkFailed;
 };
 
 const printUsageError = (error: unknown) => {
