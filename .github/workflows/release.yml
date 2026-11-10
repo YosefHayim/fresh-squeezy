@@ -35,7 +35,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          # Same Node major as the CI matrix and the engines field in package.json.
+          # Same Node major as the engines field in package.json.
           node-version: "22"
 
       - name: Configure Git
