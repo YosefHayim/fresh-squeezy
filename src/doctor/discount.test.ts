@@ -1,4 +1,4 @@
-import { createTestHttp, replyAtPath } from "@/mock-lemon-squeezy-api.js";
+import { describe, expect, test } from "vitest";
 import {
 	DRAFT_DISCOUNT_DOCUMENT,
 	EXHAUSTED_DISCOUNT_DOCUMENT,
@@ -11,7 +11,7 @@ import {
 	WRONG_STORE_DISCOUNT_DOCUMENT,
 	ZERO_AMOUNT_DISCOUNT_DOCUMENT,
 } from "@/lemon-squeezy-fixtures.js";
-import { describe, expect, test } from "vitest";
+import { createTestHttp, replyAtPath } from "@/mock-lemon-squeezy-api.js";
 import { validateDiscount } from "./discount.js";
 
 const DISCOUNT_ID = "600";

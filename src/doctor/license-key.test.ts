@@ -1,4 +1,4 @@
-import { createTestHttp, replyAtPath } from "@/mock-lemon-squeezy-api.js";
+import { describe, expect, test } from "vitest";
 import {
 	ACTIVE_LICENSE_KEY_DOCUMENT,
 	AT_LIMIT_LICENSE_KEY_DOCUMENT,
@@ -8,7 +8,7 @@ import {
 	UNAUTHORIZED_ERROR,
 	WRONG_STORE_LICENSE_KEY_DOCUMENT,
 } from "@/lemon-squeezy-fixtures.js";
-import { describe, expect, test } from "vitest";
+import { createTestHttp, replyAtPath } from "@/mock-lemon-squeezy-api.js";
 import { validateLicenseKey } from "./license-key.js";
 
 const LICENSE_KEY_ID = "700";
@@ -47,7 +47,11 @@ describe("validateLicenseKey", () => {
 		expect(report.ok).toBe(true);
 		expect(report.findings).toHaveLength(0);
 		expect(report.resource?.key_short).toBe("XXXX-XXXX");
-		expect(report.target).toEqual({ label: "XXXX-XXXX", id: LICENSE_KEY_ID, url: null });
+		expect(report.target).toEqual({
+			label: "XXXX-XXXX",
+			id: LICENSE_KEY_ID,
+			url: null,
+		});
 	});
 
 	test("reports LICENSE_KEY_NOT_FOUND when the key does not exist", async () => {

@@ -1,22 +1,22 @@
-import {
-	createTestHttp,
-	replyAtPath,
-	SIGNED_IN_HANDLERS,
-	replyToStoreList,
-	replyToVariantList,
-} from "@/mock-lemon-squeezy-api.js";
+import { describe, expect, test } from "vitest";
 import {
 	ACTIVE_LICENSE_KEY_DOCUMENT,
-	NOT_FOUND_ERROR,
 	NON_SUBSCRIPTION_VARIANT_DOCUMENT,
-	PUBLISHED_PRODUCT_DOCUMENT,
+	NOT_FOUND_ERROR,
 	PUBLISHED_DISCOUNT_DOCUMENT,
+	PUBLISHED_PRODUCT_DOCUMENT,
 	STORE_DOCUMENT,
 	SUBSCRIPTION_VARIANT_DOCUMENT,
 	UNAUTHORIZED_ERROR,
 	WEBHOOKS_COLLECTION_COMPLETE,
 } from "@/lemon-squeezy-fixtures.js";
-import { describe, expect, test } from "vitest";
+import {
+	createTestHttp,
+	replyAtPath,
+	replyToStoreList,
+	replyToVariantList,
+	SIGNED_IN_HANDLERS,
+} from "@/mock-lemon-squeezy-api.js";
 import { doctor, listStoreIds } from "./doctor.js";
 import type { DoctorReport } from "./findings.js";
 

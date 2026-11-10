@@ -1,14 +1,14 @@
-import {
-	createTestHttp,
-	replyAtPath,
-	SIGNED_IN_HANDLERS,
-} from "@/mock-lemon-squeezy-api.js";
+import { describe, expect, test } from "vitest";
 import {
 	LIVE_USER_DOCUMENT,
 	UNAUTHORIZED_ERROR,
 	USER_DOCUMENT,
 } from "@/lemon-squeezy-fixtures.js";
-import { describe, expect, test } from "vitest";
+import {
+	createTestHttp,
+	replyAtPath,
+	SIGNED_IN_HANDLERS,
+} from "@/mock-lemon-squeezy-api.js";
 import { validateConnection } from "./connection.js";
 
 const STORES_HANDLER_ONLY = SIGNED_IN_HANDLERS.slice(1);

@@ -1,6 +1,6 @@
-import { createTestHttp, replyAtPath } from "@/mock-lemon-squeezy-api.js";
-import { NOT_FOUND_ERROR, STORE_DOCUMENT } from "@/lemon-squeezy-fixtures.js";
 import { describe, expect, test } from "vitest";
+import { NOT_FOUND_ERROR, STORE_DOCUMENT } from "@/lemon-squeezy-fixtures.js";
+import { createTestHttp, replyAtPath } from "@/mock-lemon-squeezy-api.js";
 import { validateStore } from "./store.js";
 
 describe("validateStore", () => {

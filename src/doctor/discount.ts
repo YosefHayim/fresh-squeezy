@@ -36,19 +36,58 @@ const isAmountNotPositive = (discount: DiscountAttributes) =>
 const isPercentOverHundred = (discount: DiscountAttributes) =>
 	discount.amount_type === "percent" && discount.amount > 100;
 
-const createDiscountRules = (
+const draftDiscountRule: FindingRule<DiscountAttributes> = {
+	code: FINDING_CODES.DISCOUNT_DRAFT,
+	severity: "warning",
+	when: isDraft,
+	message: (discount) =>
+		`Discount "${discount.name}" is in draft status — customers cannot redeem it.`,
+	suggestedFix:
+		"Publish the discount in the Lemon Squeezy dashboard before sharing the code.",
+	details: (discount) => ({ name: discount.name, code: discount.code }),
+};
+
+const redemptionsDiscountRule: FindingRule<DiscountAttributes> = {
+	code: FINDING_CODES.DISCOUNT_REDEMPTIONS_EXHAUSTED,
+	severity: "warning",
+	when: isOutOfRedemptions,
+	message: (discount) =>
+		`Discount "${discount.name}" has limited redemptions with max_redemptions ≤ 0.`,
+	suggestedFix: "Increase max_redemptions or disable the redemption limit.",
+	details: (discount) => ({
+		name: discount.name,
+		maxRedemptions: discount.max_redemptions,
+	}),
+};
+
+const amountDiscountRules: FindingRule<DiscountAttributes>[] = [
+	{
+		code: FINDING_CODES.DISCOUNT_INVALID_AMOUNT,
+		severity: "error",
+		when: isAmountNotPositive,
+		message: (discount) =>
+			`Discount "${discount.name}" has amount ${discount.amount} — must be positive.`,
+		suggestedFix: "Set a positive discount amount in the dashboard.",
+		details: (discount) => ({ name: discount.name, amount: discount.amount }),
+	},
+	{
+		code: FINDING_CODES.DISCOUNT_INVALID_AMOUNT,
+		severity: "error",
+		when: isPercentOverHundred,
+		message: (discount) =>
+			`Discount "${discount.name}" is ${discount.amount}% — percent discounts cannot exceed 100%.`,
+		suggestedFix: "Set the discount to 100% or less.",
+		details: (discount) => ({
+			name: discount.name,
+			amount: discount.amount,
+			amountType: discount.amount_type,
+		}),
+	},
+];
+
+const createDiscountTimingRules = (
 	now: Date,
 ): FindingRule<DiscountAttributes>[] => [
-	{
-		code: FINDING_CODES.DISCOUNT_DRAFT,
-		severity: "warning",
-		when: isDraft,
-		message: (discount) =>
-			`Discount "${discount.name}" is in draft status — customers cannot redeem it.`,
-		suggestedFix:
-			"Publish the discount in the Lemon Squeezy dashboard before sharing the code.",
-		details: (discount) => ({ name: discount.name, code: discount.code }),
-	},
 	{
 		code: FINDING_CODES.DISCOUNT_EXPIRED,
 		severity: "error",
@@ -73,40 +112,13 @@ const createDiscountRules = (
 			startsAt: discount.starts_at,
 		}),
 	},
-	{
-		code: FINDING_CODES.DISCOUNT_REDEMPTIONS_EXHAUSTED,
-		severity: "warning",
-		when: isOutOfRedemptions,
-		message: (discount) =>
-			`Discount "${discount.name}" has limited redemptions with max_redemptions ≤ 0.`,
-		suggestedFix: "Increase max_redemptions or disable the redemption limit.",
-		details: (discount) => ({
-			name: discount.name,
-			maxRedemptions: discount.max_redemptions,
-		}),
-	},
-	{
-		code: FINDING_CODES.DISCOUNT_INVALID_AMOUNT,
-		severity: "error",
-		when: isAmountNotPositive,
-		message: (discount) =>
-			`Discount "${discount.name}" has amount ${discount.amount} — must be positive.`,
-		suggestedFix: "Set a positive discount amount in the dashboard.",
-		details: (discount) => ({ name: discount.name, amount: discount.amount }),
-	},
-	{
-		code: FINDING_CODES.DISCOUNT_INVALID_AMOUNT,
-		severity: "error",
-		when: isPercentOverHundred,
-		message: (discount) =>
-			`Discount "${discount.name}" is ${discount.amount}% — percent discounts cannot exceed 100%.`,
-		suggestedFix: "Set the discount to 100% or less.",
-		details: (discount) => ({
-			name: discount.name,
-			amount: discount.amount,
-			amountType: discount.amount_type,
-		}),
-	},
+];
+
+const createDiscountRules = (now: Date): FindingRule<DiscountAttributes>[] => [
+	draftDiscountRule,
+	...createDiscountTimingRules(now),
+	redemptionsDiscountRule,
+	...amountDiscountRules,
 ];
 
 export const validateDiscount = async (

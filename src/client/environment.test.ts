@@ -172,6 +172,17 @@ describe("readClientSettings", () => {
 		);
 	});
 
+	test("throws MISSING_API_KEY naming the test key when test mode has none", () => {
+		vi.stubEnv("LEMON_SQUEEZY_TEST_API_KEY", "");
+
+		expect(() => readClientSettings({ mode: "test" })).toThrowError(
+			expect.objectContaining({
+				code: "MISSING_API_KEY",
+				message: expect.stringContaining("LEMON_SQUEEZY_TEST_API_KEY"),
+			}),
+		);
+	});
+
 	test("throws INVALID_MODE for an unknown mode", () => {
 		const readWithBadMode = () =>
 			readClientSettings({

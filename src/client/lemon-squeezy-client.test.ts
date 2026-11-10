@@ -1,14 +1,14 @@
+import { describe, expect, test } from "vitest";
+import type {
+	ListableResource,
+	ResourceType,
+} from "@/client/lemon-squeezy-types.js";
 import {
 	createTestHttp,
 	readLastRequest,
 	readRecordedRequests,
 	replyToEveryRequest,
 } from "@/mock-lemon-squeezy-api.js";
-import { describe, expect, test } from "vitest";
-import type {
-	ListableResource,
-	ResourceType,
-} from "@/client/lemon-squeezy-types.js";
 import { createLemonSqueezyClient } from "./lemon-squeezy-client.js";
 
 const ALL_RESOURCES: ResourceType[] = [

@@ -224,7 +224,9 @@ globalThis.fetch = async (requestTarget, requestInit) => {
 	const isUserCall = url.pathname === USERS_ME_PATH;
 	if (isUserCall) return createUserReply();
 
-	const requestedPathParts = url.pathname.match(/^\/v1\/([a-z-]+)(?:\/(\d+))?$/);
+	const requestedPathParts = url.pathname.match(
+		/^\/v1\/([a-z-]+)(?:\/(\d+))?$/,
+	);
 	const resources =
 		requestedPathParts && tablesByResourceType[requestedPathParts[1]];
 	const isResourceTypeUnknown = resources == null;

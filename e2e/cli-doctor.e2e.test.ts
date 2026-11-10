@@ -158,9 +158,7 @@ describe("fresh-squeezy doctor", () => {
 
 		const doctorReport = readDoctorReport(stdout);
 		const checks = doctorReport.reports[0]?.checks ?? [];
-		const discount = checks.find(
-			(check) => check.name === DISCOUNT_CHECK_NAME,
-		);
+		const discount = checks.find((check) => check.name === DISCOUNT_CHECK_NAME);
 		expect(exitCode).toBe(1);
 		expect(doctorReport.ok).toBe(false);
 		expect(discount?.findings[0]?.code).toBe("DISCOUNT_EXPIRED");
@@ -180,9 +178,7 @@ describe("fresh-squeezy doctor", () => {
 
 		const doctorReport = readDoctorReport(stdout);
 		const checks = doctorReport.reports[0]?.checks ?? [];
-		const discount = checks.find(
-			(check) => check.name === DISCOUNT_CHECK_NAME,
-		);
+		const discount = checks.find((check) => check.name === DISCOUNT_CHECK_NAME);
 		const expiredFinding = discount?.findings[0];
 		expect(expiredFinding?.suggestedFix).toEqual(expect.any(String));
 		expect(expiredFinding?.details).toEqual(expect.any(Object));
