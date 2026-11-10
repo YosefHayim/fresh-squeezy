@@ -1,7 +1,8 @@
-import { defineConfig } from "tsup";
+import { defineConfig } from "tsdown";
 
 export default defineConfig([
 	{
+		name: "library",
 		entry: {
 			index: "src/create-fresh-squeezy.ts",
 			environment: "src/client/environment.ts",
@@ -11,20 +12,21 @@ export default defineConfig([
 			license: "src/client/license-api.ts",
 		},
 		format: ["esm", "cjs"],
-		dts: true,
+		fixedExtension: false,
+		dts: { sourcemap: false },
 		sourcemap: true,
 		clean: true,
 		target: "node22",
-		splitting: false,
 	},
 	{
+		name: "cli",
 		entry: { cli: "src/cli.ts" },
 		format: ["esm"],
+		fixedExtension: false,
 		dts: false,
 		sourcemap: true,
 		clean: false,
 		target: "node22",
-		splitting: false,
 		banner: { js: "#!/usr/bin/env node" },
 	},
 ]);
