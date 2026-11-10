@@ -54,14 +54,14 @@ export interface Finding {
 	code: FindingCode;
 	severity: Severity;
 	message: string;
-	suggestedFix?: string;
-	context?: Record<string, unknown>;
+	suggestedFix: string | null;
+	details: Record<string, unknown> | null;
 }
 
 export interface CheckTarget {
 	label: string;
-	id?: string;
-	url?: string;
+	id: string | null;
+	url: string | null;
 }
 
 export interface CheckReport<Resource = unknown> {
@@ -69,8 +69,8 @@ export interface CheckReport<Resource = unknown> {
 	ok: boolean;
 	mode: Mode;
 	findings: Finding[];
-	resource?: Resource;
-	target?: CheckTarget;
+	resource: Resource | null;
+	target: CheckTarget | null;
 }
 
 export interface DoctorReport {
@@ -87,7 +87,7 @@ export interface FindingRule<Subject> {
 	when: (subject: Subject) => boolean;
 	message: RuleMessage<Subject>;
 	suggestedFix?: RuleMessage<Subject>;
-	context?: (subject: Subject) => Finding["context"];
+	details?: (subject: Subject) => Record<string, unknown>;
 }
 
 const isError = (finding: Finding) => finding.severity === "error";
@@ -100,6 +100,28 @@ const pickRuleMessage = <Subject>(
 	return isMessageComputed ? message(subject) : message;
 };
 
+const pickRuleSuggestedFix = <Subject>(
+	rule: FindingRule<Subject>,
+	subject: Subject,
+) => {
+	const { suggestedFix } = rule;
+	const hasNoSuggestedFix = suggestedFix == null;
+	if (hasNoSuggestedFix) return null;
+
+	return pickRuleMessage(suggestedFix, subject);
+};
+
+const pickRuleDetails = <Subject>(
+	rule: FindingRule<Subject>,
+	subject: Subject,
+) => {
+	const { details } = rule;
+	const hasNoDetails = details == null;
+	if (hasNoDetails) return null;
+
+	return details(subject);
+};
+
 export const raiseFindings = <Subject>(
 	rules: FindingRule<Subject>[],
 	subject: Subject,
@@ -109,9 +131,8 @@ export const raiseFindings = <Subject>(
 		code: rule.code,
 		severity: rule.severity,
 		message: pickRuleMessage(rule.message, subject),
-		suggestedFix:
-			rule.suggestedFix && pickRuleMessage(rule.suggestedFix, subject),
-		context: rule.context?.(subject),
+		suggestedFix: pickRuleSuggestedFix(rule, subject),
+		details: pickRuleDetails(rule, subject),
 	}));
 };
 
@@ -121,4 +142,24 @@ export const createCheckReport = <Resource>(
 	const { name, mode, findings, resource, target } = parts;
 	const hasError = findings.some(isError);
 	return { name, ok: !hasError, mode, findings, resource, target };
+};
+
+interface FailedLookupParts {
+	name: CheckName;
+	mode: Mode;
+	finding: Finding;
+	target: CheckTarget | null;
+}
+
+export const createFailedLookupReport = <Resource>(
+	parts: FailedLookupParts,
+): CheckReport<Resource> => {
+	const { name, mode, finding, target } = parts;
+	return createCheckReport<Resource>({
+		name,
+		mode,
+		findings: [finding],
+		resource: null,
+		target,
+	});
 };

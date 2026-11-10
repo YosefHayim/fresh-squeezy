@@ -86,7 +86,7 @@ describe("validateWebhook", () => {
 		);
 		expect(optionalFinding?.severity).toBe("info");
 		expect(optionalFinding?.message).toContain("affiliate_activated");
-		expect(optionalFinding?.suggestedFix).toBeUndefined();
+		expect(optionalFinding?.suggestedFix).toBeNull();
 	});
 
 	test("flags missing order events as errors", async () => {
@@ -99,7 +99,7 @@ describe("validateWebhook", () => {
 		);
 		expect(webhookReport.ok).toBe(false);
 		expect(orderFinding?.severity).toBe("error");
-		expect(orderFinding?.context).toEqual({ missing: "order_refunded" });
+		expect(orderFinding?.details).toEqual({ missing: "order_refunded" });
 	});
 
 	test("warns without failing when only subscription events are missing", async () => {
@@ -112,7 +112,7 @@ describe("validateWebhook", () => {
 		);
 		expect(webhookReport.ok).toBe(true);
 		expect(subscriptionFinding?.severity).toBe("warning");
-		expect(subscriptionFinding?.context?.missing).toContain(
+		expect(subscriptionFinding?.details?.missing).toContain(
 			"subscription_created",
 		);
 	});
@@ -122,12 +122,13 @@ describe("validateWebhook", () => {
 
 		expect(webhookReport.ok).toBe(false);
 		expect(webhookReport.findings[0]?.code).toBe("WEBHOOK_NOT_FOUND");
-		expect(webhookReport.findings[0]?.context).toEqual({
+		expect(webhookReport.findings[0]?.details).toEqual({
 			storeId: "42",
 			url: WEBHOOK_URL,
 		});
 		expect(webhookReport.target).toEqual({
 			label: WEBHOOK_URL,
+			id: null,
 			url: WEBHOOK_URL,
 		});
 	});

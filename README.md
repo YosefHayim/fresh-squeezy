@@ -166,13 +166,14 @@ The doctor reads the key of its mode (`LEMON_SQUEEZY_TEST_API_KEY` or `LEMON_SQU
 					"name": "discount",
 					"ok": false,
 					"mode": "test",
-					"target": { "label": "discount", "id": "77" },
+					"target": { "label": "discount", "id": "77", "url": null },
 					"findings": [
 						{
 							"code": "DISCOUNT_EXPIRED",
 							"severity": "error",
 							"message": "...",
-							"suggestedFix": "..."
+							"suggestedFix": "...",
+							"details": { "name": "...", "code": "..." }
 						}
 					]
 				}
@@ -183,6 +184,8 @@ The doctor reads the key of its mode (`LEMON_SQUEEZY_TEST_API_KEY` or `LEMON_SQU
 ```
 
 `reports` holds one report per store. A check is `ok` when it has no `error` finding.
+
+A finding with no fix or no details has `suggestedFix` or `details` set to `null`, and an empty target field is `null`, never missing.
 
 ### CI
 

@@ -166,13 +166,14 @@ O doctor lê a chave do seu modo (`LEMON_SQUEEZY_TEST_API_KEY` ou `LEMON_SQUEEZY
 					"name": "discount",
 					"ok": false,
 					"mode": "test",
-					"target": { "label": "discount", "id": "77" },
+					"target": { "label": "discount", "id": "77", "url": null },
 					"findings": [
 						{
 							"code": "DISCOUNT_EXPIRED",
 							"severity": "error",
 							"message": "...",
-							"suggestedFix": "..."
+							"suggestedFix": "...",
+							"details": { "name": "...", "code": "..." }
 						}
 					]
 				}
@@ -183,6 +184,8 @@ O doctor lê a chave do seu modo (`LEMON_SQUEEZY_TEST_API_KEY` ou `LEMON_SQUEEZY
 ```
 
 `reports` tem um relatório por loja. Uma verificação é `ok` quando não tem achado de nível `error`.
+
+Um finding sem correcao ou sem detalhes tem `suggestedFix` ou `details` como `null`, e um campo vazio do alvo e `null`, nunca ausente.
 
 ### CI
 

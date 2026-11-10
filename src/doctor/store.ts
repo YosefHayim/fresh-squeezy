@@ -5,6 +5,7 @@ import { fetchResource } from "./fetch-resource.js";
 import {
 	type CheckReport,
 	createCheckReport,
+	createFailedLookupReport,
 	FINDING_CODES,
 } from "./findings.js";
 
@@ -20,17 +21,17 @@ export const validateStore = async (
 			message: `Store ${storeId} not found with the current API key.`,
 			suggestedFix:
 				"Check the store ID and confirm the API key belongs to the account that owns it.",
-			context: { storeId },
+			details: { storeId },
 		},
 	});
 
 	const isFetchFailed = storeLookup.kind === "failed";
 	if (isFetchFailed) {
-		return createCheckReport({
+		return createFailedLookupReport({
 			name: "store",
 			mode,
-			findings: [storeLookup.finding],
-			target: { label: `store ${storeId}`, id: storeId },
+			finding: storeLookup.finding,
+			target: { label: `store ${storeId}`, id: storeId, url: null },
 		});
 	}
 
@@ -40,6 +41,6 @@ export const validateStore = async (
 		mode,
 		findings: [],
 		resource: store,
-		target: { label: store.name, id: storeId },
+		target: { label: store.name, id: storeId, url: null },
 	});
 };

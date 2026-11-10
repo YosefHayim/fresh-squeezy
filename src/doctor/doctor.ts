@@ -15,7 +15,7 @@ import { fetchCollection, type Lookup } from "./fetch-resource.js";
 import {
 	type CheckName,
 	type CheckReport,
-	createCheckReport,
+	createFailedLookupReport,
 	type DoctorReport,
 } from "./findings.js";
 import { validateLicenseKey } from "./license-key.js";
@@ -76,9 +76,19 @@ const reportListingFailure = (
 	const { lookup, name, noun } = listing;
 	const isListed = lookup.kind === "found";
 	if (isListed) return [];
-	const target = { label: `${noun} of store ${storeId}` };
+
+	const target = {
+		label: `${noun} of store ${storeId}`,
+		id: null,
+		url: null,
+	};
 	return [
-		createCheckReport({ name, mode, findings: [lookup.finding], target }),
+		createFailedLookupReport({
+			name,
+			mode,
+			finding: lookup.finding,
+			target,
+		}),
 	];
 };
 
@@ -126,10 +136,12 @@ const listStoreResources = async (http: Http, storeId: string) => {
 		fetchVariantListing(http, product),
 	);
 	const variantListings = await Promise.all(variantFetches);
+
 	const variants = variantListings.flatMap(pickListedResources);
 	const subscriptionPlans = variants.filter(
 		(variant) => variant.attributes.is_subscription,
 	);
+
 	const failedListings: Listing<unknown>[] = [
 		products,
 		webhooks,
@@ -153,13 +165,16 @@ const assertStoreGivenForDependents = (
 	storeId: string | undefined,
 	dependentTargets: Record<string, unknown[]>,
 ) => {
-	const isStoreGiven = storeId !== undefined;
+	const isStoreGiven = storeId != null;
 	if (isStoreGiven) return;
+
 	const givenTargetNames = Object.entries(dependentTargets)
 		.filter(([, targets]) => targets.length > 0)
 		.map(([targetName]) => targetName);
+
 	const isNoTargetGiven = givenTargetNames.length === 0;
 	if (isNoTargetGiven) return;
+
 	throw createFreshSqueezyError({
 		code: "DOCTOR_TARGETS_INVALID",
 		message: `doctor() received ${givenTargetNames.join(", ")} without storeId. These checks cannot run without a store; pass \`storeId\` or remove the dependent targets.`,
@@ -170,11 +185,13 @@ export const listStoreIds = async (http: Http) => {
 	const storesLookup = await fetchCollection<StoreAttributes>(http, {
 		path: "/v1/stores",
 	});
+
 	const isFetchFailed = storesLookup.kind === "failed";
 	if (isFetchFailed) {
 		const { code, message } = storesLookup.finding;
 		throw createFreshSqueezyError({ code, message });
 	}
+
 	const stores = storesLookup.resource;
 	const hasNoStores = stores.length === 0;
 	if (hasNoStores) {
@@ -183,6 +200,7 @@ export const listStoreIds = async (http: Http) => {
 			message: "No stores reachable with this API key.",
 		});
 	}
+
 	return stores.map((store) => store.id);
 };
 
@@ -200,6 +218,7 @@ const mergeTargets = (
 ): StoreTargets => {
 	const { productIds = [], variantIds = [], webhookUrls = [] } = givenTargets;
 	const { discountIds = [], licenseKeyIds = [] } = givenTargets;
+
 	return {
 		productIds: dropDuplicates([
 			...productIds,
@@ -241,21 +260,26 @@ const listPendingChecks = ({
 		(productId) => () =>
 			validateProduct(http, mode, { productId, expectedStoreId: storeId }),
 	);
+
 	const webhookChecks = targets.webhookUrls.map(
 		(url) => () => validateWebhook(http, mode, { storeId, url }),
 	);
+
 	const discountChecks = targets.discountIds.map(
 		(discountId) => () => validateDiscount(http, mode, { storeId, discountId }),
 	);
+
 	const licenseKeyChecks = targets.licenseKeyIds.map(
 		(licenseKeyId) => () =>
 			validateLicenseKey(http, mode, { storeId, licenseKeyId }),
 	);
+
 	const planChecks = targets.variantIds.map(
 		(variantId) => () =>
 			validateSubscriptionPlan(http, mode, { storeId, variantId }),
 	);
 	const storeCheck = () => validateStore(http, mode, storeId);
+
 	return [
 		storeCheck,
 		...productChecks,
@@ -264,6 +288,17 @@ const listPendingChecks = ({
 		...licenseKeyChecks,
 		...planChecks,
 	];
+};
+
+const readDiscoveredTargets = async (
+	http: Http,
+	storeId: string,
+	allResources: boolean,
+) => {
+	const isDiscoveryOff = !allResources;
+	if (isDiscoveryOff) return null;
+
+	return listStoreResources(http, storeId);
 };
 
 const runChecksInOrder = async (pendingChecks: PendingCheck[]) => {
@@ -281,6 +316,7 @@ export const doctor = async (
 	targets: DoctorTargets = {},
 ): Promise<DoctorReport> => {
 	const { storeId, allResources = false } = targets;
+
 	assertStoreGivenForDependents(storeId, {
 		allResources: allResources ? [true] : [],
 		productIds: targets.productIds ?? [],
@@ -292,18 +328,21 @@ export const doctor = async (
 
 	const connectionReport = await validateConnection(http, mode);
 	const isConnectionFailed = !connectionReport.ok;
-	const isStoreMissing = storeId === undefined;
+	const isStoreMissing = storeId == null;
 	if (isConnectionFailed || isStoreMissing) {
 		return { ok: connectionReport.ok, mode, checks: [connectionReport] };
 	}
 
-	const discoveredTargets = allResources
-		? await listStoreResources(http, storeId)
-		: null;
+	const discoveredTargets = await readDiscoveredTargets(
+		http,
+		storeId,
+		allResources,
+	);
 	const failedListings = discoveredTargets?.failedListings ?? [];
 	const listingFailures = failedListings.flatMap((listing) =>
 		reportListingFailure(mode, storeId, listing),
 	);
+
 	const storeTargets = mergeTargets(targets, discoveredTargets);
 	const pendingChecks = listPendingChecks({
 		http,
@@ -312,6 +351,7 @@ export const doctor = async (
 		targets: storeTargets,
 	});
 	const storeCheckReports = await runChecksInOrder(pendingChecks);
+
 	const checks = [connectionReport, ...listingFailures, ...storeCheckReports];
 	const isEveryCheckOk = checks.every((check) => check.ok);
 	return { ok: isEveryCheckOk, mode, checks };

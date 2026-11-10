@@ -30,9 +30,16 @@ interface CliRunSettings {
 	folder?: string;
 }
 
+interface CliDoctorFinding {
+	code: string;
+	suggestedFix: string | null;
+	details: Record<string, unknown> | null;
+}
+
 interface CliDoctorCheck {
 	name: string;
-	findings: { code: string }[];
+	findings: CliDoctorFinding[];
+	target: { label: string; id: string | null; url: string | null } | null;
 }
 
 interface CliDoctorReport {
@@ -134,6 +141,7 @@ describe("fresh-squeezy doctor", () => {
 		expect(doctorReport.ok).toBe(true);
 		expect(doctorReport.reports).toHaveLength(1);
 		expect(doctorReport.reports[0]?.checks[0]?.findings).toEqual([]);
+		expect(doctorReport.reports[0]?.checks[0]?.target).toBeNull();
 	});
 
 	test("exits 1 when a check fails", () => {
@@ -156,6 +164,29 @@ describe("fresh-squeezy doctor", () => {
 		expect(exitCode).toBe(1);
 		expect(doctorReport.ok).toBe(false);
 		expect(discount?.findings[0]?.code).toBe("DISCOUNT_EXPIRED");
+	});
+
+	test("with --json gives each finding a suggested fix and details, never context", () => {
+		const cliFlags = [
+			DOCTOR_COMMAND,
+			STORE_ID_FLAG,
+			"1",
+			"--discount-id",
+			"601",
+			JSON_FLAG,
+		];
+
+		const { stdout } = runCli(cliFlags);
+
+		const doctorReport = readDoctorReport(stdout);
+		const checks = doctorReport.reports[0]?.checks ?? [];
+		const discount = checks.find(
+			(check) => check.name === DISCOUNT_CHECK_NAME,
+		);
+		const expiredFinding = discount?.findings[0];
+		expect(expiredFinding?.suggestedFix).toEqual(expect.any(String));
+		expect(expiredFinding?.details).toEqual(expect.any(Object));
+		expect(expiredFinding).not.toHaveProperty("context");
 	});
 
 	test("reports AUTH_FAILED once for a rejected key", () => {

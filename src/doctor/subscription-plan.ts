@@ -4,10 +4,14 @@ import type {
 	ProductAttributes,
 	VariantAttributes,
 } from "@/client/lemon-squeezy-types.js";
-import { fetchResource, storeMismatchFindings } from "./fetch-resource.js";
+import {
+	fetchResource,
+	listStoreMismatchFindings,
+} from "./fetch-resource.js";
 import {
 	type CheckReport,
 	createCheckReport,
+	createFailedLookupReport,
 	FINDING_CODES,
 	type Finding,
 	type FindingRule,
@@ -19,7 +23,7 @@ export interface SubscriptionPlanCheck {
 	variantId: string;
 }
 
-export interface SubscriptionPlanSummary {
+interface SubscriptionPlanSummary {
 	variantId: string;
 	interval: string | null;
 	intervalCount: number | null;
@@ -32,12 +36,14 @@ interface PlanSubject extends VariantAttributes {
 	variantId: string;
 }
 
-const VALID_INTERVALS = new Set(["day", "week", "month", "year"]);
-
 const isNotSubscription = (plan: PlanSubject) => !plan.is_subscription;
 
-const hasInvalidInterval = ({ interval }: PlanSubject) =>
-	!interval || !VALID_INTERVALS.has(interval);
+const hasInvalidInterval = ({ interval }: PlanSubject) => {
+	const isIntervalKnown = ["day", "week", "month", "year"].includes(
+		interval ?? "",
+	);
+	return !isIntervalKnown;
+};
 
 const hasInvalidIntervalCount = ({
 	interval_count: intervalCount,
@@ -47,7 +53,7 @@ const hasFreePrice = (plan: PlanSubject) =>
 	plan.price === 0 && plan.is_subscription;
 
 const hasBrokenTrial = (plan: PlanSubject) => {
-	const isTrialMissingInterval = !plan.trial_interval;
+	const isTrialMissingInterval = plan.trial_interval == null;
 	const isTrialCountMissing = (plan.trial_interval_count ?? 0) <= 0;
 	return plan.has_free_trial && (isTrialMissingInterval || isTrialCountMissing);
 };
@@ -63,7 +69,7 @@ const PLAN_RULES: FindingRule<PlanSubject>[] = [
 			`Variant ${plan.variantId} is not a subscription variant (is_subscription is false).`,
 		suggestedFix:
 			"Use a variant that has subscription billing enabled, or use the regular variant validator.",
-		context: (plan) => ({ variantId: plan.variantId }),
+		details: (plan) => ({ variantId: plan.variantId }),
 	},
 	{
 		code: FINDING_CODES.PLAN_INVALID_INTERVAL,
@@ -72,7 +78,7 @@ const PLAN_RULES: FindingRule<PlanSubject>[] = [
 		message: (plan) =>
 			`Subscription variant has invalid interval: "${plan.interval ?? "missing"}". Expected one of: day, week, month, year.`,
 		suggestedFix: "Set a valid billing interval in the variant configuration.",
-		context: (plan) => ({ interval: plan.interval ?? null }),
+		details: (plan) => ({ interval: plan.interval ?? null }),
 	},
 	{
 		code: FINDING_CODES.PLAN_INVALID_INTERVAL,
@@ -82,7 +88,7 @@ const PLAN_RULES: FindingRule<PlanSubject>[] = [
 			`Subscription variant has invalid interval_count: ${plan.interval_count ?? "missing"}. Must be a positive integer.`,
 		suggestedFix:
 			"Set interval_count to a positive value (e.g. 1 for monthly, 2 for biweekly).",
-		context: (plan) => ({ intervalCount: plan.interval_count ?? null }),
+		details: (plan) => ({ intervalCount: plan.interval_count ?? null }),
 	},
 	{
 		code: FINDING_CODES.PLAN_FREE_PRICE,
@@ -92,7 +98,7 @@ const PLAN_RULES: FindingRule<PlanSubject>[] = [
 			"Subscription variant has a price of 0 — this is almost always a misconfiguration for paid plans.",
 		suggestedFix:
 			"Set the variant price to the intended amount in cents, or confirm this is intentionally free.",
-		context: (plan) => ({ price: plan.price }),
+		details: (plan) => ({ price: plan.price }),
 	},
 	{
 		code: FINDING_CODES.PLAN_TRIAL_INCONSISTENT,
@@ -102,7 +108,7 @@ const PLAN_RULES: FindingRule<PlanSubject>[] = [
 			`Subscription variant has free trial enabled but trial interval is misconfigured (interval: "${plan.trial_interval ?? "missing"}", count: ${plan.trial_interval_count ?? 0}).`,
 		suggestedFix:
 			"Set a valid trial interval and count, or disable the free trial.",
-		context: (plan) => ({
+		details: (plan) => ({
 			trialInterval: plan.trial_interval ?? null,
 			trialIntervalCount: plan.trial_interval_count ?? null,
 		}),
@@ -114,7 +120,7 @@ const PLAN_RULES: FindingRule<PlanSubject>[] = [
 		message:
 			"Subscription variant is in draft status — customers cannot subscribe.",
 		suggestedFix: "Publish the variant in the Lemon Squeezy dashboard.",
-		context: (plan) => ({ status: plan.status }),
+		details: (plan) => ({ status: plan.status }),
 	},
 ];
 
@@ -140,12 +146,16 @@ const checkStoreOwnership = async (
 		notFound: {
 			code: FINDING_CODES.PRODUCT_NOT_FOUND,
 			message: `Product ${productId} not found.`,
+			suggestedFix: null,
+			details: null,
 		},
 	});
+
 	// Advisory only: a failed product fetch skips the store check instead of blocking the plan checks.
 	const isFetchFailed = productLookup.kind === "failed";
 	if (isFetchFailed) return [];
-	return storeMismatchFindings({
+
+	return listStoreMismatchFindings({
 		label: `Subscription variant (via product ${productId})`,
 		code: FINDING_CODES.PLAN_STORE_MISMATCH,
 		expectedStoreId: storeId,
@@ -167,17 +177,17 @@ export const validateSubscriptionPlan = async (
 			code: FINDING_CODES.PLAN_VARIANT_NOT_FOUND,
 			message: `Variant ${variantId} not found.`,
 			suggestedFix: "Verify the variant ID in the Lemon Squeezy dashboard.",
-			context: { variantId },
+			details: { variantId },
 		},
 	});
 
 	const isFetchFailed = planLookup.kind === "failed";
 	if (isFetchFailed) {
-		return createCheckReport({
+		return createFailedLookupReport({
 			name: "subscriptionPlan",
 			mode,
-			findings: [planLookup.finding],
-			target: { label: `variant ${variantId}`, id: variantId },
+			finding: planLookup.finding,
+			target: { label: `variant ${variantId}`, id: variantId, url: null },
 		});
 	}
 
@@ -188,11 +198,12 @@ export const validateSubscriptionPlan = async (
 		storeId,
 		plan.product_id,
 	);
+
 	return createCheckReport({
 		name: "subscriptionPlan",
 		mode,
 		findings: [...planFindings, ...storeFindings],
 		resource: createPlanSummary(variantId, plan),
-		target: { label: plan.name, id: variantId },
+		target: { label: plan.name, id: variantId, url: null },
 	});
 };

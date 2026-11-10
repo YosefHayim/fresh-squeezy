@@ -14,8 +14,8 @@ import {
 	fetchCollection,
 	fetchResource,
 	fetchSafely,
+	listStoreMismatchFindings,
 	type NotFoundFinding,
-	storeMismatchFindings,
 } from "./fetch-resource.js";
 import { validateLicenseKey } from "./license-key.js";
 import { validateProduct } from "./product.js";
@@ -26,6 +26,8 @@ import { validateWebhook } from "./webhook.js";
 const PRODUCT_NOT_FOUND: NotFoundFinding = {
 	code: "PRODUCT_NOT_FOUND",
 	message: "Product not found.",
+	suggestedFix: null,
+	details: null,
 };
 
 const readFailureFinding = async (
@@ -108,13 +110,13 @@ describe("fetchSafely", () => {
 		const finding = await readFailureFinding(missing, {
 			...PRODUCT_NOT_FOUND,
 			suggestedFix: "Verify the ID.",
-			context: { productId: "99" },
+			details: { productId: "99" },
 		});
 
 		expect(finding.code).toBe("PRODUCT_NOT_FOUND");
 		expect(finding.severity).toBe("error");
 		expect(finding.suggestedFix).toBe("Verify the ID.");
-		expect(finding.context).toEqual({ productId: "99" });
+		expect(finding.details).toEqual({ productId: "99" });
 	});
 
 	test("turns a 404 into UNKNOWN when no not-found finding is given", async () => {
@@ -127,7 +129,7 @@ describe("fetchSafely", () => {
 		const finding = await readFailureFinding(missing);
 
 		expect(finding.code).toBe("UNKNOWN");
-		expect(finding.context).toEqual({ status: 404, code: "NOT_FOUND" });
+		expect(finding.details).toEqual({ status: 404, code: "NOT_FOUND" });
 	});
 
 	test("keeps UNKNOWN for a non-404 error even when a not-found finding is given", async () => {
@@ -157,7 +159,7 @@ describe("fetchSafely", () => {
 		expect(finding.suggestedFix).toContain(
 			"https://app.lemonsqueezy.com/settings/api",
 		);
-		expect(finding.context).toEqual({ status: 401 });
+		expect(finding.details).toEqual({ status: 401 });
 	});
 
 	test("turns the UNAUTHORIZED code into AUTH_FAILED even without a status", async () => {
@@ -193,10 +195,10 @@ describe("fetchSafely", () => {
 		const finding = await readFailureFinding(rateLimited);
 
 		expect(finding.code).toBe("UNKNOWN");
-		expect(finding.context).toEqual({ status: 429, code: "RATE_LIMITED" });
+		expect(finding.details).toEqual({ status: 429, code: "RATE_LIMITED" });
 	});
 
-	test("shows a missing status as null in the UNKNOWN context", async () => {
+	test("shows a missing status as null in the UNKNOWN details", async () => {
 		const statusless = createFreshSqueezyError({
 			code: "PARSE_ERROR",
 			message: "bad body",
@@ -204,7 +206,7 @@ describe("fetchSafely", () => {
 
 		const finding = await readFailureFinding(statusless);
 
-		expect(finding.context).toEqual({ status: null, code: "PARSE_ERROR" });
+		expect(finding.details).toEqual({ status: null, code: "PARSE_ERROR" });
 	});
 
 	test("turns a plain Error into UNKNOWN with its message", async () => {
@@ -220,6 +222,8 @@ describe("fetchSafely", () => {
 
 		expect(finding.code).toBe("UNKNOWN");
 		expect(finding.message).toBe("Unknown error");
+		expect(finding.suggestedFix).toBeNull();
+		expect(finding.details).toBeNull();
 	});
 
 	test.each(REJECTED_KEY_CASES)(
@@ -302,9 +306,9 @@ describe("fetchCollection", () => {
 	});
 });
 
-describe("storeMismatchFindings", () => {
+describe("listStoreMismatchFindings", () => {
 	test("returns nothing when the stores match", () => {
-		const findings = storeMismatchFindings({
+		const findings = listStoreMismatchFindings({
 			label: "Discount",
 			code: "DISCOUNT_STORE_MISMATCH",
 			expectedStoreId: "42",
@@ -316,7 +320,7 @@ describe("storeMismatchFindings", () => {
 	});
 
 	test("returns one finding with the extra details when the stores differ", () => {
-		const [finding] = storeMismatchFindings({
+		const [finding] = listStoreMismatchFindings({
 			label: "Discount",
 			code: "DISCOUNT_STORE_MISMATCH",
 			expectedStoreId: "42",
@@ -329,7 +333,7 @@ describe("storeMismatchFindings", () => {
 		expect(finding?.severity).toBe("error");
 		expect(finding?.message).toBe("Discount belongs to store 99, expected 42.");
 		expect(finding?.suggestedFix).toBe("Use the correct store.");
-		expect(finding?.context).toEqual({
+		expect(finding?.details).toEqual({
 			expectedStoreId: "42",
 			actualStoreId: "99",
 			discountId: "7",
@@ -337,7 +341,7 @@ describe("storeMismatchFindings", () => {
 	});
 
 	test("works without extra details", () => {
-		const [finding] = storeMismatchFindings({
+		const [finding] = listStoreMismatchFindings({
 			label: "Product",
 			code: "PRODUCT_WRONG_STORE",
 			expectedStoreId: "42",
@@ -345,7 +349,7 @@ describe("storeMismatchFindings", () => {
 			suggestedFix: "Use the correct store.",
 		});
 
-		expect(finding?.context).toEqual({
+		expect(finding?.details).toEqual({
 			expectedStoreId: "42",
 			actualStoreId: "99",
 		});

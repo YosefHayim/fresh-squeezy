@@ -13,6 +13,8 @@ const PASSING_CHECK: CheckReport = {
 	ok: true,
 	mode: "test",
 	findings: [],
+	resource: null,
+	target: null,
 };
 
 const FAILING_CHECK: CheckReport = {
@@ -24,8 +26,12 @@ const FAILING_CHECK: CheckReport = {
 			code: "DISCOUNT_EXPIRED",
 			severity: "error",
 			message: "Discount expired.",
+			suggestedFix: null,
+			details: null,
 		},
 	],
+	resource: null,
+	target: null,
 };
 
 describe("describeReport", () => {
@@ -70,7 +76,7 @@ describe("describeReport", () => {
 	test("shows the target label alone when it has no id and no url", () => {
 		const check: CheckReport = {
 			...PASSING_CHECK,
-			target: { label: "my store" },
+			target: { label: "my store", id: null, url: null },
 		};
 
 		const description = describeReport(createReport([check]));
@@ -101,6 +107,7 @@ describe("describeReport", () => {
 			...PASSING_CHECK,
 			target: {
 				label: "https://example.com/hook",
+				id: null,
 				url: "https://example.com/hook",
 			},
 		};
@@ -117,9 +124,27 @@ describe("describeReport", () => {
 		const check: CheckReport = {
 			...FAILING_CHECK,
 			findings: [
-				{ code: "DISCOUNT_EXPIRED", severity: "error", message: "Expired." },
-				{ code: "DISCOUNT_DRAFT", severity: "warning", message: "Careful." },
-				{ code: "UNKNOWN", severity: "info", message: "FYI." },
+				{
+					code: "DISCOUNT_EXPIRED",
+					severity: "error",
+					message: "Expired.",
+					suggestedFix: null,
+					details: null,
+				},
+				{
+					code: "DISCOUNT_DRAFT",
+					severity: "warning",
+					message: "Careful.",
+					suggestedFix: null,
+					details: null,
+				},
+				{
+					code: "UNKNOWN",
+					severity: "info",
+					message: "FYI.",
+					suggestedFix: null,
+					details: null,
+				},
 			],
 		};
 
@@ -139,8 +164,15 @@ describe("describeReport", () => {
 					severity: "error",
 					message: "Expired.",
 					suggestedFix: "Extend it.",
+					details: null,
 				},
-				{ code: "UNKNOWN", severity: "error", message: "No fix here." },
+				{
+					code: "UNKNOWN",
+					severity: "error",
+					message: "No fix here.",
+					suggestedFix: null,
+					details: null,
+				},
 			],
 		};
 

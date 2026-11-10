@@ -5,6 +5,7 @@ import { fetchCollection } from "./fetch-resource.js";
 import {
 	type CheckReport,
 	createCheckReport,
+	createFailedLookupReport,
 	FINDING_CODES,
 	type FindingRule,
 	raiseFindings,
@@ -21,25 +22,6 @@ interface WebhookEventGaps {
 	missingOptional: string[];
 }
 
-const ORDER_WEBHOOK_EVENTS = ["order_created", "order_refunded"] as const;
-
-const SUBSCRIPTION_WEBHOOK_EVENTS = [
-	"subscription_created",
-	"subscription_updated",
-	"subscription_cancelled",
-	"subscription_resumed",
-	"subscription_expired",
-	"subscription_payment_success",
-	"subscription_payment_failed",
-] as const;
-
-const OPTIONAL_WEBHOOK_EVENTS = [
-	"customer_updated",
-	"affiliate_activated",
-	"license_key_created",
-	"license_key_updated",
-] as const;
-
 const createComparableUrl = (url: string) =>
 	url.replace(/\/+$/, "").toLowerCase();
 
@@ -50,9 +32,22 @@ const findEventGaps = (webhook: WebhookAttributes): WebhookEventGaps => {
 	const subscribed = new Set(webhook.events);
 	const isUnsubscribed = (event: string) => !subscribed.has(event);
 	return {
-		missingOrder: ORDER_WEBHOOK_EVENTS.filter(isUnsubscribed),
-		missingSubscription: SUBSCRIPTION_WEBHOOK_EVENTS.filter(isUnsubscribed),
-		missingOptional: OPTIONAL_WEBHOOK_EVENTS.filter(isUnsubscribed),
+		missingOrder: ["order_created", "order_refunded"].filter(isUnsubscribed),
+		missingSubscription: [
+			"subscription_created",
+			"subscription_updated",
+			"subscription_cancelled",
+			"subscription_resumed",
+			"subscription_expired",
+			"subscription_payment_success",
+			"subscription_payment_failed",
+		].filter(isUnsubscribed),
+		missingOptional: [
+			"customer_updated",
+			"affiliate_activated",
+			"license_key_created",
+			"license_key_updated",
+		].filter(isUnsubscribed),
 	};
 };
 
@@ -75,7 +70,7 @@ const WEBHOOK_RULES: FindingRule<WebhookEventGaps>[] = [
 			`Webhook is missing order events: ${missingOrder.join(", ")}.`,
 		suggestedFix:
 			"Subscribe to order_created and order_refunded so every purchase and refund reaches your app.",
-		context: ({ missingOrder }) => ({ missing: missingOrder.join(",") }),
+		details: ({ missingOrder }) => ({ missing: missingOrder.join(",") }),
 	},
 	{
 		code: FINDING_CODES.WEBHOOK_SUBSCRIPTION_EVENTS_MISSING,
@@ -85,7 +80,7 @@ const WEBHOOK_RULES: FindingRule<WebhookEventGaps>[] = [
 			`Webhook is missing subscription events: ${missingSubscription.join(", ")}.`,
 		suggestedFix:
 			"If this endpoint handles subscriptions, subscribe to these events so plan changes and failed payments reach your app.",
-		context: ({ missingSubscription }) => ({
+		details: ({ missingSubscription }) => ({
 			missing: missingSubscription.join(","),
 		}),
 	},
@@ -95,7 +90,9 @@ const WEBHOOK_RULES: FindingRule<WebhookEventGaps>[] = [
 		when: isMissingOptional,
 		message: ({ missingOptional }) =>
 			`Optional events not subscribed: ${missingOptional.join(", ")}.`,
-		context: ({ missingOptional }) => ({ missing: missingOptional.join(",") }),
+		details: ({ missingOptional }) => ({
+			missing: missingOptional.join(","),
+		}),
 	},
 ];
 
@@ -108,22 +105,23 @@ export const validateWebhook = async (
 		path: "/v1/webhooks",
 		query: { "filter[store_id]": storeId },
 	});
-	const unregisteredTarget = { label: url, url };
 
+	const webhookUrlTarget = { label: url, id: null, url };
 	const isFetchFailed = webhooksLookup.kind === "failed";
 	if (isFetchFailed) {
-		return createCheckReport({
+		return createFailedLookupReport({
 			name: "webhook",
 			mode,
-			findings: [webhooksLookup.finding],
-			target: unregisteredTarget,
+			finding: webhooksLookup.finding,
+			target: webhookUrlTarget,
 		});
 	}
 
-	const webhook = webhooksLookup.resource.find((listedWebhook) =>
-		isSameUrl(listedWebhook.attributes.url, url),
-	);
-	const isWebhookMissing = webhook === undefined;
+	const webhook =
+		webhooksLookup.resource.find((listedWebhook) =>
+			isSameUrl(listedWebhook.attributes.url, url),
+		) ?? null;
+	const isWebhookMissing = webhook == null;
 	if (isWebhookMissing) {
 		return createCheckReport({
 			name: "webhook",
@@ -135,10 +133,11 @@ export const validateWebhook = async (
 					message: `No webhook registered for URL ${url} on store ${storeId}.`,
 					suggestedFix:
 						"Register the webhook in Lemon Squeezy (Settings → Webhooks) and subscribe to the order events, plus the subscription events if it handles subscriptions.",
-					context: { storeId, url },
+					details: { storeId, url },
 				},
 			],
-			target: unregisteredTarget,
+			resource: null,
+			target: webhookUrlTarget,
 		});
 	}
 

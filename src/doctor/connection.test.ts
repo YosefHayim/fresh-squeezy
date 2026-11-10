@@ -69,7 +69,7 @@ describe("validateConnection", () => {
 		expect(mismatch?.severity).toBe("error");
 		expect(mismatch?.message).toContain("live-mode key");
 		expect(mismatch?.suggestedFix).toContain("--mode live");
-		expect(mismatch?.context).toEqual({ declared: "test", actual: "live" });
+		expect(mismatch?.details).toEqual({ declared: "test", actual: "live" });
 	});
 
 	test("passes when the declared mode matches meta.test_mode", async () => {
@@ -95,7 +95,7 @@ describe("validateConnection", () => {
 			(finding) => finding.code === "MODE_MISMATCH",
 		);
 		expect(connectionReport.ok).toBe(true);
-		expect(connectionReport.resource?.actualMode).toBeUndefined();
+		expect(connectionReport.resource?.actualMode).toBeNull();
 		expect(modeFinding).toBeUndefined();
 	});
 
@@ -112,6 +112,6 @@ describe("validateConnection", () => {
 		const connectionReport = await validateConnection(http, "live");
 
 		expect(connectionReport.ok).toBe(true);
-		expect(connectionReport.resource?.actualMode).toBeUndefined();
+		expect(connectionReport.resource?.actualMode).toBeNull();
 	});
 });

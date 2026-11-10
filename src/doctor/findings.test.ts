@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import {
 	createCheckReport,
+	createFailedLookupReport,
 	type Finding,
 	type FindingRule,
 	raiseFindings,
@@ -16,7 +17,7 @@ const AMOUNT_RULES: FindingRule<number>[] = [
 		when: isNegative,
 		message: (amount) => `${amount} is negative.`,
 		suggestedFix: (amount) => `Replace ${amount} with a positive number.`,
-		context: (amount) => ({ amount }),
+		details: (amount) => ({ amount }),
 	},
 	{
 		code: "UNKNOWN",
@@ -31,11 +32,15 @@ const ERROR_FINDING: Finding = {
 	code: "UNKNOWN",
 	severity: "error",
 	message: "bad",
+	suggestedFix: null,
+	details: null,
 };
 const WARNING_FINDING: Finding = {
 	code: "UNKNOWN",
 	severity: "warning",
 	message: "meh",
+	suggestedFix: null,
+	details: null,
 };
 
 describe("raiseFindings", () => {
@@ -47,25 +52,26 @@ describe("raiseFindings", () => {
 		expect(findings[0]?.suggestedFix).toBe(
 			"Replace -3 with a positive number.",
 		);
-		expect(findings[0]?.context).toEqual({ amount: -3 });
+		expect(findings[0]?.details).toEqual({ amount: -3 });
 	});
 
-	test("keeps plain text and leaves the context empty when the rule has none", () => {
+	test("keeps plain text and leaves the details empty when the rule has none", () => {
 		const [finding] = raiseFindings(AMOUNT_RULES, 0);
 
 		expect(finding?.message).toBe("Zero.");
 		expect(finding?.suggestedFix).toBe("Use a positive number.");
-		expect(finding?.context).toBeUndefined();
+		expect(finding?.details).toBeNull();
 	});
 
-	test("leaves the fix empty when the rule has none", () => {
+	test("leaves the fix and the details null when the rule has neither", () => {
 		const rulesWithoutFix: FindingRule<number>[] = [
 			{ code: "UNKNOWN", severity: "info", when: isZero, message: "Zero." },
 		];
 
 		const [finding] = raiseFindings(rulesWithoutFix, 0);
 
-		expect(finding?.suggestedFix).toBeUndefined();
+		expect(finding?.suggestedFix).toBeNull();
+		expect(finding?.details).toBeNull();
 	});
 
 	test("returns nothing when no rule applies", () => {
@@ -81,6 +87,8 @@ describe("createCheckReport", () => {
 			name: "store",
 			mode: "test",
 			findings: [WARNING_FINDING],
+			resource: null,
+			target: null,
 		});
 
 		expect(report.ok).toBe(true);
@@ -91,6 +99,8 @@ describe("createCheckReport", () => {
 			name: "store",
 			mode: "test",
 			findings: [],
+			resource: null,
+			target: null,
 		});
 
 		expect(report.ok).toBe(true);
@@ -102,7 +112,7 @@ describe("createCheckReport", () => {
 			mode: "live",
 			findings: [WARNING_FINDING, ERROR_FINDING],
 			resource: { id: 1 },
-			target: { label: "store 1", id: "1" },
+			target: { label: "store 1", id: "1", url: null },
 		});
 
 		expect(report.ok).toBe(false);
@@ -114,5 +124,33 @@ describe("createCheckReport", () => {
 			"resource",
 			"target",
 		]);
+	});
+});
+
+describe("createFailedLookupReport", () => {
+	test("is not ok, holds the finding and has no resource", () => {
+		const report = createFailedLookupReport({
+			name: "product",
+			mode: "test",
+			finding: ERROR_FINDING,
+			target: { label: "product 9", id: "9", url: null },
+		});
+
+		expect(report.ok).toBe(false);
+		expect(report.findings).toEqual([ERROR_FINDING]);
+		expect(report.resource).toBeNull();
+		expect(report.target).toEqual({ label: "product 9", id: "9", url: null });
+	});
+
+	test("keeps the target null when the check has no target", () => {
+		const report = createFailedLookupReport({
+			name: "connection",
+			mode: "live",
+			finding: ERROR_FINDING,
+			target: null,
+		});
+
+		expect(report.name).toBe("connection");
+		expect(report.target).toBeNull();
 	});
 });

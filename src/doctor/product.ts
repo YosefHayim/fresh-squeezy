@@ -7,11 +7,12 @@ import type {
 import {
 	fetchCollection,
 	fetchResource,
-	storeMismatchFindings,
+	listStoreMismatchFindings,
 } from "./fetch-resource.js";
 import {
 	type CheckReport,
 	createCheckReport,
+	createFailedLookupReport,
 	FINDING_CODES,
 	type Finding,
 	type FindingRule,
@@ -47,7 +48,7 @@ const hasNoSellableVariant = (variants: Variants) => {
 const isNotPublished = (product: ProductAttributes) =>
 	product.status !== "published";
 
-const hasNoBuyUrl = (product: ProductAttributes) => !product.buy_now_url;
+const hasNoBuyUrl = (product: ProductAttributes) => product.buy_now_url == null;
 
 const VARIANT_RULES: FindingRule<Variants>[] = [
 	{
@@ -75,7 +76,7 @@ const PRODUCT_RULES: FindingRule<ProductAttributes>[] = [
 			`Product is in "${product.status}" state, not "published".`,
 		suggestedFix:
 			"Publish the product in the Lemon Squeezy dashboard before selling.",
-		context: (product) => ({ status: product.status }),
+		details: (product) => ({ status: product.status }),
 	},
 	{
 		code: FINDING_CODES.PRODUCT_NO_BUY_URL,
@@ -95,9 +96,13 @@ const checkVariants = async (
 		path: "/v1/variants",
 		query: { "filter[product_id]": productId },
 	});
+
 	// Listing variants is best-effort, so a failed list is only a warning.
 	const isListFailed = variantsLookup.kind === "failed";
-	if (isListFailed) return [{ ...variantsLookup.finding, severity: "warning" }];
+	if (isListFailed) {
+		return [{ ...variantsLookup.finding, severity: "warning" }];
+	}
+
 	return raiseFindings(VARIANT_RULES, variantsLookup.resource);
 };
 
@@ -105,10 +110,11 @@ const checkStoreOwnership = (
 	product: ProductAttributes,
 	expectedStoreId?: string,
 ) => {
-	const isStoreExpected = expectedStoreId !== undefined;
+	const isStoreExpected = expectedStoreId != null;
 	const isStoreUnknown = !isStoreExpected;
 	if (isStoreUnknown) return [];
-	return storeMismatchFindings({
+
+	return listStoreMismatchFindings({
 		label: "Product",
 		code: FINDING_CODES.PRODUCT_WRONG_STORE,
 		expectedStoreId,
@@ -129,17 +135,17 @@ export const validateProduct = async (
 			code: FINDING_CODES.PRODUCT_NOT_FOUND,
 			message: `Product ${productId} not found.`,
 			suggestedFix: "Verify the product ID in the Lemon Squeezy dashboard.",
-			context: { productId },
+			details: { productId },
 		},
 	});
 
 	const isFetchFailed = productLookup.kind === "failed";
 	if (isFetchFailed) {
-		return createCheckReport({
+		return createFailedLookupReport({
 			name: "product",
 			mode,
-			findings: [productLookup.finding],
-			target: { label: `product ${productId}`, id: productId },
+			finding: productLookup.finding,
+			target: { label: `product ${productId}`, id: productId, url: null },
 		});
 	}
 
@@ -147,11 +153,12 @@ export const validateProduct = async (
 	const storeFindings = checkStoreOwnership(product, expectedStoreId);
 	const productFindings = raiseFindings(PRODUCT_RULES, product);
 	const variantFindings = await checkVariants(http, productId);
+
 	return createCheckReport({
 		name: "product",
 		mode,
 		findings: [...storeFindings, ...productFindings, ...variantFindings],
 		resource: product,
-		target: { label: product.name, id: productId },
+		target: { label: product.name, id: productId, url: null },
 	});
 };
